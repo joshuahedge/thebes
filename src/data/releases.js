@@ -17,6 +17,7 @@ export const RELEASES = [
       'A new map layer, Supply lines, draws the carts\' lines between stores: thicker for more carried last month, moving toward the store they feed, and amber and dashed when a line is stuck.',
       'Builders\' guilds now work far sites, slower with distance: full speed within 12 road tiles, 10% slower for each further 12, down to half speed. A site\'s sheet says how each crew is doing.',
       'A workers\' camp costs a tenth of a monument\'s founding price and puts every crew on that site at full speed. It can\'t be undone, and it goes when the monument is finished.',
+      'The game menu has Home: it saves your city and goes back to the title screen, where Continue brings the city back.',
     ],
     fixed: [
       'When a bazaar\'s food runs low and another store has some to spare, City advice and its Show me now point at setting a store to keep it stocked, before suggesting another farm.',

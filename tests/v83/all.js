@@ -6,3 +6,4 @@ import './k/all.js';      // Track K: Keep stocked, a chosen source, the Supply 
 import './c/all.js';      // Track C: crews at any distance, the workers' camp
 import './docs/all.js';   // The docs step: What's new for 8.3
 import './lesson.test.js';   // After 8.3: the lesson never lets a building that needs a road stand off one
+import './home.test.js';     // After 8.3: Home in the game menu, back to the title

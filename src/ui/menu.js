@@ -46,6 +46,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const inLesson = Boolean(hooks.lessonRun);
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
+      // After 8.3 (ruling 1454): Home goes back to the title, the city saved first, so Continue there brings it straight back; a city that cannot be saved stays open
+      // and says why. The lesson has its own way home, Leave the lesson.
+      !inLesson && typeof hooks.home === 'function' ? button(T.home, { class: 'menu-home', onClick: async () => { if ((await hooks.home()) === false) toasts.show(T.homeNotSaved); } }) : null,
       inLesson ? button(D2_TEXT.menuLeave, { class: 'leave-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => hooks.lessonRun.leave() } }) }) : null,
       // Version 8.2 (Track G, ruling 1308): New city opens the new-city card (the title's own) as this one sheet; its Start asks the replace question.
       inLesson ? null : button(T.newCity, { class: 'menu-new-city', onClick: () => { onPause(); open('newCity'); } }),

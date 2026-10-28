@@ -545,7 +545,7 @@ export const T = {
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
   hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
-  newCity: 'New city', continueGame: 'Continue', exportCity: 'Export city', settings: 'Options', howToPlay: 'How to play', about: 'About',
+  newCity: 'New city', continueGame: 'Continue', home: 'Home', homeNotSaved: "Couldn't save this city, so it stays open. Free up some storage or export the city first.", exportCity: 'Export city', settings: 'Options', howToPlay: 'How to play', about: 'About',
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Single keys', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',

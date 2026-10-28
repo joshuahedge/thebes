@@ -192,7 +192,15 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { if (current && current.lesson) return; withCards(() => startGame(startPicked())); },   // Stage 4: the picture cards first, once a device
+    newCity() { if (current && current.lesson) return; withCards(() => startGame(startPicked())); },
+    // After 8.3 (ruling 1454): the game menu's Home: the city is saved, then the title shows with Continue; false (and the game stays) when the save fails.
+    async home() {
+      if (!current || current.lesson) return false;
+      if (!(await hooks.save())) return false;
+      stopGame();
+      showTitle(await loadSave(store));
+      return true;
+    },   // Stage 4: the picture cards first, once a device
     // Version 8.2 (Track G, rulings 1308-1310): the game menu's New city card keeps its choices here, as the title's does (size, layout, the preview's seed);
     // the difficulty is the device's setting (settings.difficulty), the same one Options > Saves shows.
     newCityChoices: {
