@@ -21,6 +21,7 @@ export const RELEASES = [
     fixed: [
       'When a bazaar\'s food runs low and another store has some to spare, City advice and its Show me now point at setting a store to keep it stocked, before suggesting another farm.',
       'A monument stalled for stone or bricks now says which store to keep stocked, or where to build one, and its Show me goes straight there.',
+      'In the lesson, a farm or any building that needs a road can no longer be placed off the road, where the lesson could not go on.',
     ],
   },
   {

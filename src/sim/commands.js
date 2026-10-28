@@ -149,9 +149,12 @@ export function placementWarnings(world, type, x, y, roadLater = false, rot = 0)
 // touches it.
 // Stage 4.6 (Track 0 for the Wonders track): style names a monument's style (src/data/wonders.js MONUMENT_STYLES); it reaches the
 // price through costOf's options (src/sim/costs.js) and the building through makeBuilding. Ignored by every other type.
+// Version 8.3 (ruling 1453): never in the lesson's city (world.lesson). Its lock takes the road tool and Demolish away after the first step, so a road
+// could never come later, and a building off the road counts for no step: the lesson stood still. There the spot is refused, "needs a road".
+const roadLaterIn = (world, roadLater) => roadLater && !world.lesson;
 export function canPlace(world, type, x, y, { roadLater = false, rot = 0, style = null } = {}) {
   const reason = checkTiles(world, type, x, y, rot);
-  const later = reason === 'needs_road' && roadLater;
+  const later = reason === 'needs_road' && roadLaterIn(world, roadLater);
   if (reason && !later) return fail(reason);
   if (!canPay(world, type, costOf(world, type, { style }))) return fail('no_gold');
   return { ok: true, warnings: placementWarnings(world, type, x, y, later, rot) };
@@ -202,7 +205,7 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0, s
   if (def.needsRoad || isPlotType(type)) {
     const probe = { x, y, w, d };
     const touches = touchesRoad(world, probe);
-    const state = touches ? 'met' : (isPlotType(type) || roadLater ? 'later' : 'cant');
+    const state = touches ? 'met' : (isPlotType(type) || roadLaterIn(world, roadLater) ? 'later' : 'cant');
     conditions.push({ key: 'road', state, reason: touches ? null : 'needs_road', joins: touches ? [] : roadJoins(world, probe) });
   }
   if (def.produces || def.sells) {
