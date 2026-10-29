@@ -24,9 +24,10 @@ export const DANGER_MOOD = {
   burnedEach: -2,
   burnedMax: -10,
   burnedDays: 180,
-  raidBeaten: -3,
+  raidBeaten: 4,               // Version 8.4 (ruling 1488): a beaten raid is a Victory row, +4 for victoryDays (it was a raid row, -3 for 180)
   raidLost: -8,
-  raidDays: 180,
+  raidDays: 180,               // a lost raid's -8 lasts this long
+  victoryDays: 90,
 };
 
 // Stage 4's two rows (spec 4.9), each shown only while it is not 0: 'monuments', +1 for every PRESTIGE.moodPer prestige, at

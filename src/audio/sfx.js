@@ -35,9 +35,15 @@ export const SFX = {
     { f: 150, type: 'sine', t: 0, d: 0.16, g: 0.1, slide: 90 }, { f: 420, type: 'triangle', t: 0.02, d: 0.12, g: 0.03, slide: 250 },
     { f: 150, type: 'sine', t: 0.5, d: 0.16, g: 0.1, slide: 90 }, { f: 420, type: 'triangle', t: 0.52, d: 0.12, g: 0.03, slide: 250 },
   ],
-  // Version 8.4 (wave 0): two names with no notes yet, so playing them is silent. trumpet: "War elephants!" (Track E); fanfare: a beaten raid (Track R).
+  // Version 8.4 (wave 0): two names, silent until their track fills them. trumpet: "War elephants!" (Track E). fanfare (Track R): a beaten raid, four rising brass-like
+  // notes (a sawtooth under a triangle, as the horn is) ending on a held chord, under a second in all (a note is at most 0.4 s, as the sfx test holds every effect to) and softer than the milestone's.
   trumpet: [],
-  fanfare: [],
+  fanfare: [
+    { f: 392, type: 'sawtooth', t: 0, d: 0.14, g: 0.07 }, { f: 392, type: 'triangle', t: 0, d: 0.14, g: 0.16 },
+    { f: 523, type: 'sawtooth', t: 0.16, d: 0.14, g: 0.07 }, { f: 523, type: 'triangle', t: 0.16, d: 0.14, g: 0.16 },
+    { f: 659, type: 'sawtooth', t: 0.32, d: 0.14, g: 0.07 }, { f: 659, type: 'triangle', t: 0.32, d: 0.14, g: 0.16 },
+    { f: 784, type: 'sawtooth', t: 0.48, d: 0.4, g: 0.08 }, { f: 784, type: 'triangle', t: 0.48, d: 0.4, g: 0.18 }, { f: 1047, type: 'triangle', t: 0.52, d: 0.36, g: 0.1 },
+  ],
 };
 
 const ATTACK = 0.01, TAIL = 0.02, SILENT = 0.0001;

@@ -4147,6 +4147,24 @@ Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's shee
 // ── end v84 g ──
 
 // Version 8.4, Track R (raids: the clock, the scouts, the low-Nile lean, captured weapons, the celebration; rulings 1485-1499). Track R writes only here.
+// Every number below comes from SCOUTS, SPOILS or the sim's own function (scoutsAt, spoilsSaving), never typed again.
+export const V84R_TEXT = {
+  // The edge the scouts stand on, as an adjective ("Scouts on the eastern horizon").
+  sides: { north: 'northern', east: 'eastern', south: 'southern', west: 'western' },
+  // A span of game days in a few words: a month, a year, else months and days as the alerts say them.
+  span: (days) => (days === raidsTime.DAYS_PER_MONTH ? 'a month' : days === raidsTime.DAYS_PER_MONTH * raidsTime.MONTHS_PER_YEAR ? 'a year' : DANGER_UI_TEXT.duration(days)),
+  // The alert (raid_scouts) and the one caption a raid: the scouts, which side, and that a raid may come soon.
+  scoutsTitle: (dir) => `Scouts on the ${V84R_TEXT.sides[dir]} horizon`,
+  scoutsFix: (days) => `A raid warning may follow within ${V84R_TEXT.span(days)}`,
+  scoutsCaption: (dir) => `${V84R_TEXT.scoutsTitle(dir)}: raiders may come within ${V84R_TEXT.span(raidsData.SCOUTS.days)}`,
+  // The beaten-raid moment's line (the alert row) and the forecast's note under the soldiers' pay.
+  weaponsLine: () => `Captured weapons: soldiers' pay ${Math.round(raidsData.SPOILS.share * 100)}% less for ${V84R_TEXT.span(raidsData.SPOILS.days)}.`,
+  weaponsNote: (s) => `Captured weapons: ${s.less} less, ${plural(s.daysLeft, 'day', 'days')} left`,
+};
+Object.assign(MOOD_NAMES, { victory: 'Victory' });
+Object.assign(ALERT_TEXT, {
+  raid_scouts: (alert) => ({ title: V84R_TEXT.scoutsTitle(alert.dir), fix: V84R_TEXT.scoutsFix(alert.days) }),
+});
 // ── end v84 r ──
 
 // Version 8.4, Track E (war elephants and ivory; rulings 1500-1519). Track E writes only between this header and its end line.

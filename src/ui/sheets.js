@@ -18,6 +18,8 @@ import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
 import { cityTabs, markTabPanel, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
+import { spoilsSaving } from '../sim/spoils.js';           // Version 8.4 (Track R): the captured weapons' note under the soldiers' pay
+import { V84R_TEXT } from './text.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
@@ -329,6 +331,8 @@ export function createSheets({ container, store, world, placement, cameraControl
       body.append(el('h3', { text: f.net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk, dataset: { section: 'forecast' } }), el('p', { class: 'muted small', text: S45_TEXT.forecastNote }),
         row(T.taxes, `+${f.taxes}`), row(T.wages, `−${f.wages}`), row(T.upkeep, `−${f.upkeep}`));
       if (f.soldiers > 0) body.append(row(T.soldiersPay, `−${f.soldiers}`));
+      const weapons = spoilsSaving(world);
+      if (weapons) body.append(el('p', { class: 'muted small', text: V84R_TEXT.weaponsNote(weapons) }));   // Version 8.4 (ruling 1488): the discount and its days left
       body.append(row(S45_TEXT.monthlyBalance, S45_TEXT.signed(f.net)));
       if (f.gold < 0 && f.net < 0) body.append(el('p', { class: 'coral', text: `${S45_TEXT.belowZero}.` }));
       else if (f.monthsLeft !== null) body.append(el('p', { class: f.runsOut ? 'amber' : 'muted', text: `${S45_TEXT.runsOutIn(f.monthsLeft)}.` }));
