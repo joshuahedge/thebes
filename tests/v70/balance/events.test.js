@@ -59,7 +59,7 @@ describe('v70 balance events: what the long runs drew', () => {
   it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, floors kept for the offerings and gone when the last is made', () => {
     const r = greatWorkRun();
     checkRecord('great', r.eventRec, 10 * YEAR);
-    expect(r.won).toBe(null);                                                            // Version 8.4 (ruling 1488; pin moved, was won): the Victory mood leaves the run unfinished by year 20 (tests/v60/a/balance.test.js)
+    expect(r.won).toBe(null);                                                            // WAVE2-PIN 8.4 Track R (ruling 1488): was won: the Victory mood leaves the run unfinished by year 20 (tests/v60/a/balance.test.js)
     expect(r.w.trade.floors).toEqual({});                                                // keepOfferings: every offering made, no floor left
   });
 

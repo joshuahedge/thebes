@@ -17,9 +17,9 @@ const TOP = {
   village: { 3: 'home_need', 6: 'home_need', 10: 'home_need' },
   capital: { 6: 'raid_towers' },
   late: { 8: 'illness', 10: 'illness', 12: 'home_need', 15: 'illness' },
-  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'raid_towers' },   // Version 8.4 (ruling 1488; pin moved, year 15 was home_need): the Victory mood and the captured weapons change the careless run's late years
+  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'raid_towers' },   // WAVE2-PIN 8.4 Track R (ruling 1488): year 15 was home_need: the Victory mood and the captured weapons change the careless run's late years
   grand: { 7: 'illness', 8: 'illness', 9: 'raid_towers', 10: 'illness' },
-  great: { 12: 'home_need', 14: 'home_need', 16: 'stranded', 18: 'stranded', 20: 'stranded' },   // Version 8.4 (ruling 1488; pin moved, year 16 was home_need)
+  great: { 12: 'home_need', 14: 'home_need', 16: 'stranded', 18: 'stranded', 20: 'stranded' },   // WAVE2-PIN 8.4 Track R (ruling 1488): year 16 was home_need
 };
 
 function sensible(label, rows) {

@@ -41,7 +41,7 @@ describe('v60 a balance careless', () => {
 });
 
 describe('v60 a balance village', () => {
-  it('spends 67-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {   // Version 8.4 (ruling 1488; pin moved, was 68-75%): the captured weapons cut the soldiers' pay, so the village spends 67.65% (was 68.38%) without its fetch order and 73.16% (was 73.9%) with it
+  it('spends 67-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {   // WAVE2-PIN 8.4 Track R (ruling 1488): was 68-75%: the captured weapons cut the soldiers' pay, so the village spends 67.65% (was 68.38%) without its fetch order and 73.16% (was 73.9%) with it
     const share = (r) => { const y = r.months.slice(-12); return y.reduce((n, m) => n + m.spent, 0) / y.reduce((n, m) => n + m.taxes, 0); };
     for (const fetch of [false, true]) {
       const s = share(villageRun46({ farms: 2, towers: 2, fetch }));
@@ -51,7 +51,7 @@ describe('v60 a balance village', () => {
 });
 
 describe('v60 a balance great work', () => {
-  // Version 8.4 (Track R, ruling 1488; pin MOVED for wave 2's balance check, which owns it): was "finishes the great temple in years 18-20 (won on day 7,021), never below 0 (lowest 3,945)". A beaten raid is
+  // WAVE2-PIN 8.4 Track R (ruling 1488; wave 2's balance check owns it): was "finishes the great temple in years 18-20 (won on day 7,021), never below 0 (lowest 3,945)". A beaten raid is
   // now a Victory row (+4 mood for 90 days, was -3 for 180): the scripted run (a thin-margin script) ends at mood 40 and below 0 gold before the last stage.
   // Measured: the Seat on day 3,690 and every offering made as before, 4 of the 5 stages laid, not won by day 7,200, lowest -1,451, 1,201 in debt at the end. The captured weapons alone
   // (pay 25% less) would leave it won on day 7,021 with 4,347 the lowest and 10,826 at the end.
