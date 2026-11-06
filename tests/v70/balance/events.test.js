@@ -59,7 +59,7 @@ describe('v70 balance events: what the long runs drew', () => {
   it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, floors kept for the offerings and gone when the last is made', () => {
     const r = greatWorkRun();
     checkRecord('great', r.eventRec, 10 * YEAR);
-    expect(r.won !== null).toBe(true);
+    expect(r.won !== null).toBe(true);                                                   // Version 8.4: with Tracks G and R merged the run wins again (day 6,855; tests/v60/a/balance.test.js)
     expect(r.w.trade.floors).toEqual({});                                                // keepOfferings: every offering made, no floor left
   });
 

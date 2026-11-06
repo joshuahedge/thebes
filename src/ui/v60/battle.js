@@ -11,19 +11,26 @@
 //    result takes it from a polite alert (a letter from the court waits behind it), and waits itself while an alert that urges (a fire, a debt) has the
 //    row, showing when it is free, so it never adds a row. The report's own caption (danger.js, the same numbers in a longer line) is dropped when the
 //    result goes up, so the two never stand one over the other saying the same;
-//  - fires the chieftain tip the first time a raid with a chieftain starts.
+//  - fires the chieftain tip the first time a raid with a chieftain starts;
+//  - Version 8.4 (Track R, rulings 1487-1489): a beaten raid's moment adds the captured-weapons line and plays the fanfare (never a card, never a pause), and the day
+//    the scouts appear (the sim's raid_scouts event) puts their one caption in the caption row.
 import { seamBase } from '../s46/seam.js';
 import { setBattleHooks, resetBattleHooks } from '../../render/units.js';
 import { MOMENT } from '../../data/battle.js';
 import { openSheet } from '../modes.js';
 import { POLITE } from '../alerts.js';
-import { B2_TEXT, B1_TEXT, DANGER_UI_TEXT, plural } from '../text.js';
+import { B2_TEXT, B1_TEXT, DANGER_UI_TEXT, V84R_TEXT, plural } from '../text.js';
 import { el, button, icon, iconButton } from '../components.js';
 
 // The result's words: B2_TEXT.moment's (src/ui/text.js) when the band brought no tower down and took no granary's food unlisted; with towers lost (the report's
 // towersLost) or food stolen (foodStolen, a granary's food in the grace years, when `taken` does not list it; after them `taken` does, so it is not said twice) the same
 // lines with them in what was lost, in the order the raid report (DANGER_UI_TEXT.raidReport) lists them. Written here because that section of text.js is another batch's file.
+// Version 8.4 (ruling 1489): a beaten raid whose report carries spoils (src/sim/spoils.js raidSpoils) also says what its captured weapons are worth.
 export function momentWords(r) {
+  const t = momentBase(r);
+  return r.won && r.spoils ? { ...t, detail: `${t.detail} ${V84R_TEXT.weaponsLine()}` } : t;
+}
+function momentBase(r) {
   const food = r.foodStolen && !r.taken ? r.foodStolen : 0;
   if (!r.towersLost && !food) return B2_TEXT.moment(r);
   const stopped = (r.byTowers || 0) + (r.bySoldiers || 0) + (r.byArchers || 0) + (r.byChariots || 0);
@@ -113,13 +120,18 @@ export function createBattleUi(ctx) {
           clearMoment();
           if (world.raid.active && world.raid.active.chiefs && typeof ctx.fireTip === 'function') ctx.fireTip('chiefBanner');
         } else if (e.type === 'raid_warning') clearMoment();
-        else if (e.type === 'raid_end' && e.report) {
+        else if (e.type === 'raid_scouts') {
+          if (ctx.celebrations && typeof ctx.celebrations.show === 'function') ctx.celebrations.show({ tier: 'info', text: V84R_TEXT.scoutsCaption(e.dir) });   // once a raid, in the caption row
+        } else if (e.type === 'raid_end' && e.report) {
           if (moment) moment.node.remove();
           moment = { report: e.report, day: world.day, node: build(e.report) };
           const t = momentWords(e.report);
           announce(`${t.title}. ${t.detail}`);
+          if (e.report.won && ctx.sfx && typeof ctx.sfx.play === 'function') ctx.sfx.play('fanfare');   // Version 8.4 (ruling 1489): the celebration's sound
           sync();
           if (moment.node.parentNode === banner) dropReportCaption(e.report);   // the result is up: the caption saying the same goes (while a fire holds a phone's row, the caption stays)
+          // The phone's alert row is one line and cuts the detail short, so the weapons line is also said whole in the caption row (never a second alert row).
+          if (e.report.won && e.report.spoils && phone() && ctx.celebrations && typeof ctx.celebrations.show === 'function') ctx.celebrations.show({ tier: 'info', text: V84R_TEXT.weaponsLine() });
         }
       }
     },

@@ -17,10 +17,10 @@ const TOP = {
   village: { 3: 'home_need', 6: 'home_need', 10: 'home_need' },
   capital: { 6: 'raid_towers' },
   late: { 8: 'illness', 10: 'illness', 12: 'home_need', 15: 'illness' },
-  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'home_need' },
+  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'raid_towers' },   // WAVE2-PIN 8.4 Track R (ruling 1488): year 15 was home_need: the Victory mood and the captured weapons change the careless run's late years
   // Version 8.4 (Track G): the luxuries the grand homes now buy moved two points, each to a far good to fetch (stranded), a kind the great-work run already tops with.
   grand: { 7: 'stranded', 8: 'illness', 9: 'raid_towers', 10: 'illness' },   // WAVE2-PIN 8.4 Track G (ruling 1478): was 7: 'illness'
-  great: { 12: 'home_need', 14: 'stranded', 16: 'home_need', 18: 'stranded', 20: 'stranded' },   // WAVE2-PIN 8.4 Track G (ruling 1478): was 14: 'home_need'
+  great: { 12: 'home_need', 14: 'stranded', 16: 'home_need', 18: 'stranded', 20: 'stranded' },   // WAVE2-PIN 8.4 Track G (ruling 1478): was 14: 'home_need' (with G and R merged, 16 stays home_need)
 };
 
 function sensible(label, rows) {

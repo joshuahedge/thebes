@@ -126,11 +126,11 @@ describe('v84 w0 seams: each a stub with 8.3 behaviour', () => {
     const w = createWorld({ seed: 11 });
     const before = serialize(w);
     expect(raidReportExtras({ raiders: [] })).toEqual({});
-    raidSpoils(w, { won: true }, true, []);
+    raidSpoils(w, { won: false }, false, []);       // Version 8.4 Track R: a lost raid leaves nothing (a beaten one leaves captured weapons: tests/v84/r/spoils.test.js)
     expect(serialize(w)).toBe(before);
     expect(scoutWalkers(w, 0, null)).toEqual([]);
   });
-  it('has the trumpet and the fanfare, silent', () => {
-    expect([SFX.trumpet, SFX.fanfare]).toEqual([[], []]);
+  it('has the trumpet silent (Track E fills it); the fanfare is Track R\'s: its notes are tested in tests/v84/r/spoils.test.js', () => {
+    expect(SFX.trumpet).toEqual([]);
   });
 });

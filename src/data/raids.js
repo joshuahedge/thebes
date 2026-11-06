@@ -6,6 +6,7 @@ export const RAIDS = {
   warningDays: 90,           // from the warning to the raiders' arrival
   laterMin: 720,             // later warnings: this many days after the last raid's arrival day (or the day a
   laterMax: 1440,            //   cancelled raid would have arrived), seeded between the two
+  leanDays: 0,               // Version 8.4 (ruling 1486): a later raid that would arrive within this many days before Shemu waits for Shemu's first day (0: none)
   firstSize: 3,              // the first raid, at every difficulty
   minSize: 2,
   maxSize: 18,               // Stage 4.5 (ruling 317): was 12
@@ -36,6 +37,11 @@ export const RAIDS = {
 // Stage 4.6 (Track 0 registered them for the Armies track): the raid's mix by enemy kind, the second band's, a boat's entry and its bank.
 // Version 8.4 (wave 0): elephant (which raids bring them, Track E), panic (a hurt elephant's stampede, E), scouts (their walk, Track R).
 export const RAID_SALT = { gap: 8101, entry: 8102, two: 8103, entry2: 8104, mix: 8105, mix2: 8106, boatEntry: 8107, boatBank: 8108, elephant: 8109, panic: 8110, scouts: 8111 };
+
+// Version 8.4, Track R (rulings 1487, 1488): scouts stand at the coming raid's entry for the `days` before each warning (the first included); a beaten
+// raid's captured weapons cut every unit's pay by `share` for `days` days, and the next beaten raid restarts the year.
+export const SCOUTS = { days: 30, min: 2, max: 3 };
+export const SPOILS = { share: 0.25, days: 360 };
 
 // Units (spec 4.13): hit points, tiles moved a day, damage dealt a day.
 export const UNITS = {

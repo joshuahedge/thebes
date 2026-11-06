@@ -41,16 +41,18 @@ describe('v60 a balance careless', () => {
 });
 
 describe('v60 a balance village', () => {
-  it('spends 68-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {
+  it('spends 67-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {   // WAVE2-PIN 8.4 Track R (ruling 1488): was 68-75%: the captured weapons cut the soldiers' pay, so the village spends 67.65% (was 68.38%) without its fetch order and 73.16% (was 73.9%) with it
     const share = (r) => { const y = r.months.slice(-12); return y.reduce((n, m) => n + m.spent, 0) / y.reduce((n, m) => n + m.taxes, 0); };
     for (const fetch of [false, true]) {
       const s = share(villageRun46({ farms: 2, towers: 2, fetch }));
-      expect([fetch, s >= 0.68, s <= 0.75]).toEqual([fetch, true, true]);
+      expect([fetch, s >= 0.67, s <= 0.75]).toEqual([fetch, true, true]);
     }
   });
 });
 
 describe('v60 a balance great work', () => {
+  // Version 8.4 (rulings 1478, 1488): each track alone moved this thin-margin script (Track R's Victory mood alone left it unwon, lowest -1,451); with Tracks G and R merged it is
+  // back inside the 8.3 bounds: the Seat on day 3,690, won on day 6,855 (was 7,021), lowest 7,472 (was 3,945), 17,715 at the end. Wave 2's balance check re-measures it.
   it('reaches the Seat of the Two Lands and finishes the great temple in years 18-20 on Normal, never below 0, with every offering made', () => {
     const r = greatWorkRun();
     expect(r.insane).toEqual([]);

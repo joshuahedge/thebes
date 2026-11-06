@@ -60,6 +60,10 @@
 // food joins it); a band of CHIEFTAIN.fromSize or more has a chieftain (warning.chiefs: the band numbers; active.chiefs: [{ id, band, fell?, left? }], the raider
 // carrying chief: true, more hit points, a harder hand), and raidSize adds bandGrowth. The report (raid.last) adds wrecked, wreckedKinds, taken, chiefs and
 // chiefsFell when there are any. Events: 'raid_wreck' { id, kind, to } and 'raid_loot' { id, goods } (Track B2 draws them).
+// Version 8.4 "Gold and war" (Track R, rulings 1485-1489): later warnings lean to the low Nile (laterWarnDay, leanWait: an arrival within RAIDS.leanDays before Shemu waits for its first day;
+// the first warning never leans); scouts stand at the coming raid's entry for SCOUTS.days before a warning (src/sim/scouts.js scoutsAt, read from the state; a raid_scouts event on their first
+// day and a non-critical { code: 'raid_scouts', x, y, dir, days } alert while they stand); a beaten raid leaves raid.spoils = { until } (src/sim/spoils.js: every unit's pay SPOILS.share less
+// until then) and its mood row is { victory } (raidMood), a lost one's { raid } as before. The report of a beaten raid carries spoils: { until }.
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
@@ -67,7 +71,8 @@
 // theft and RAIDS.strikeDays days there. Reaching the entry it leaves the map and the raid ends, lost after its strikes and
 // beaten in retreat. A target is the nearest (straight line from the band) unstruck building of the warned kind, else of
 // each kind below it in RAIDS.targets, else any other building but a home or rubble, that the band can reach.
-import { RAIDS, RAID_SALT, UNITS } from '../data/raids.js';
+import { RAIDS, RAID_SALT, UNITS, SCOUTS } from '../data/raids.js';
+import { SEASONS } from '../data/tips.js';
 import { RAIDS_LATE } from '../data/s47.js';
 import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -92,7 +97,8 @@ import { footMix, ENEMY_TYPES } from '../data/armies.js';
 import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome } from './armies.js';
 import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
-import { raidSpoils } from './spoils.js';
+import { raidSpoils, spoilsMonth } from './spoils.js';
+import { scoutsAt } from './scouts.js';
 import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -197,9 +203,22 @@ export const tributeFor = (world, size) => Math.round(favourTributeFactor(world)
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
+// Version 8.4 (ruling 1486): the low-Nile lean. When the raid would arrive (the warning's day + RAIDS.warningDays) within RAIDS.leanDays before
+// Shemu's first day, the warning waits so it arrives on that day: never earlier than drawn, no new draw. The first warning (raidDay) never leans.
 export function laterWarnDay(world, fromDay) {
   const span = RAIDS.laterMax - RAIDS.laterMin + 1;
-  return fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
+  const warn = fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
+  return warn + leanWait(warn + RAIDS.warningDays);
+}
+
+// The first day of Shemu as a day of the year (0-359), from SEASONS (src/data/tips.js): the first Shemu month that follows a month of another season.
+const SHEMU_FIRST_DAY = SEASONS.findIndex((s, m) => s === 'shemu' && SEASONS[(m + MONTHS_PER_YEAR - 1) % MONTHS_PER_YEAR] !== 'shemu') * DAYS_PER_MONTH;
+// The days a raid arriving on `arrival` waits for Shemu: the days left to its first day when they are 1 to RAIDS.leanDays, else 0.
+export function leanWait(arrival) {
+  if (!(RAIDS.leanDays > 0) || SHEMU_FIRST_DAY < 0) return 0;
+  const year = DAYS_PER_MONTH * MONTHS_PER_YEAR;
+  const wait = (SHEMU_FIRST_DAY - (arrival % year) + year) % year;
+  return wait > 0 && wait <= RAIDS.leanDays ? wait : 0;
 }
 
 // The warned raid's tribute and the defence it could buy instead, or null with no warning up:
@@ -308,10 +327,17 @@ export function raidDay(world, events = null) {
   if (!raidsOn(world)) return;
   if (r.warning) { if (day >= r.warning.arrives) arrive(world, events); }
   else if (r.nextWarnDay !== null && day >= r.nextWarnDay) raiseWarning(world, events);
+  // Version 8.4 (ruling 1487): the day the scouts appear (SCOUTS.days before the warning) says so once; scoutsAt (src/sim/scouts.js) is the state they are drawn from.
+  else if (events && day === r.nextWarnDay - SCOUTS.days && scoutsAt(world)) {
+    const s = scoutsAt(world);
+    events.push({ type: 'raid_scouts', index: r.index, entry: { ...s.entry }, dir: s.dir, days: s.days });
+  }
 }
 
-// STUB. The month-end raid step, run by runMonth before mood (nothing required yet; kept so a later rule has its seam).
-export function raidMonth(world, events = null) {}
+// The month-end raid step, run by runMonth after the month's pay and before mood. Version 8.4 (ruling 1488): the pay the captured weapons saved this month.
+export function raidMonth(world, events = null) {
+  spoilsMonth(world);
+}
 
 // A raid's bands (Stage 4.5, ruling 317): band 0 is the active record itself, band 1 (a two-sided raid) is active.second;
 // a raider belongs to band 1 when it has band: 1.
@@ -365,6 +391,9 @@ export function raidAlerts(world) {
     const w = r.warning;
     out.push({ code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives, ...(w.second ? { dirs: warningDirs(w), points: warningBands(w).map((b) => ({ x: b.entry.x, y: b.entry.y, dir: b.dir })) } : {}) });
   }
+  // Version 8.4 (ruling 1487): the scouts at the coming raid's entry, an info alert (never critical): { code: 'raid_scouts', x, y, dir, days } (days: to the warning).
+  const scouts = scoutsAt(world);
+  if (scouts) out.push({ code: 'raid_scouts', x: scouts.entry.x, y: scouts.entry.y, dir: scouts.dir, days: scouts.days });
   return out;
 }
 
@@ -688,8 +717,11 @@ function reach(world, a, k, events) {
 
 // The raid mood term (spec 4.9, DANGER_MOOD): { raid: raidBeaten or raidLost } for raidDays after the last raid ended,
 // by its outcome; {} otherwise (and for a raid paid off, which leaves no report).
+// Version 8.4 (ruling 1488): a beaten raid is a { victory } row, DANGER_MOOD.raidBeaten (+4) for victoryDays (90); a lost one keeps { raid } at raidLost for raidDays.
 export function raidMood(world) {
   const last = world.raid.last;
-  if (!last || world.day - last.day >= DANGER_MOOD.raidDays) return {};
-  return { raid: last.won ? DANGER_MOOD.raidBeaten : DANGER_MOOD.raidLost };
+  if (!last) return {};
+  const age = world.day - last.day;
+  if (last.won) return age < DANGER_MOOD.victoryDays ? { victory: DANGER_MOOD.raidBeaten } : {};
+  return age < DANGER_MOOD.raidDays ? { raid: DANGER_MOOD.raidLost } : {};
 }

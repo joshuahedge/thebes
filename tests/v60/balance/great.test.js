@@ -13,6 +13,7 @@ import { MONTHS_PER_YEAR, DAYS_PER_MONTH } from '../../../src/sim/time.js';
 const YEAR_DAYS = MONTHS_PER_YEAR * DAYS_PER_MONTH;
 
 describe('v60 balance great work margin', () => {
+  // Version 8.4: with Tracks G and R merged, won on day 6,855 (was 7,021) with 7,472 the lowest (was 3,945); see tests/v60/a/balance.test.js.
   it('wins with at least 100 days of the run to spare and never holds less than 2,000 gold from the Seat on', () => {
     const r = greatWorkRun();
     expect(r.won !== null).toBe(true);
@@ -27,14 +28,14 @@ describe('v60 balance great work margin', () => {
 // with the script as it was (no habits), wins on day 6,097 with 4,490 the lowest and every raid beaten. No one script wins both: without the habits seed 5 never reaches the Seat,
 // with them seed 10 does not either (the doubt for Josh). The pins hold each as measured, with a margin.
 describe('v60 balance great work with the dangers on (6.0.1)', () => {
-  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 4,000 gold from year 10 (8.4; it was 20,000), no raid lost', () => {
+  // Version 8.4 (rulings 1478, 1488): each track alone moved this seed (G's luxuries alone: lowest 4,942; R's Victory mood alone: not won, lowest -6,911). With G and R merged it
+  // is back inside the 6.0.1 pins: won on day 6,457 (was 6,669), 22,401 the lowest (was 23,030), 6 raids, none lost. Wave 2's balance check re-measures it.
+  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 20,000 gold from year 10, no raid lost', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
     expect(r.won.day).toBeLessThanOrEqual(6800);
-    // Version 8.4 (Track G, rulings 1468 and 1478; a moved pin for wave 2's balance check): the luxuries Villas and Estates now buy take gold from year 9 on; measured
-    // 4,942 the lowest from year 10 (it was 23,030, pinned at 20,000). Won as before.
-    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(4000);   // WAVE2-PIN 8.4 Track G (ruling 1478): was 20000
+    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(20000);
     expect([raids > 0, raidsLost]).toEqual([true, 0]);
     expect(r.insane).toEqual([]);
   });
