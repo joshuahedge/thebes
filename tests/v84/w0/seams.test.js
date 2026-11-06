@@ -12,6 +12,7 @@ import { createWorld, WORLD_VERSION, STAGE84_TALLY, newTally } from '../../../sr
 import { serialize, deserialize, validateWorld, REQUIRED, TALLY_KEYS } from '../../../src/save/serialize.js';
 import { CURRENT_VERSION } from '../../../src/save/migrate.js';
 import { nextRaidEntry } from '../../../src/sim/raids.js';
+import { elephantRaid } from '../../../src/sim/armies.js';
 import { raidSpoils } from '../../../src/sim/spoils.js';
 import { raidReportExtras } from '../../../src/sim/elephants.js';
 import { scoutWalkers } from '../../../src/render/scouts.js';
@@ -120,7 +121,8 @@ describe('v84 w0 seams: each a stub with 8.3 behaviour', () => {
   it('draws the next raid entry as the warning always has', () => {
     const w = createWorld({ seed: 11 });
     const entries = w.raiderEntries;
-    for (let i = 0; i < 12; i++) expect(nextRaidEntry(w, i)).toEqual({ ...entries[Math.floor(hash2(w.seed, i, RAID_SALT.entry) * entries.length)] });
+    // Track E (ruling 1504): an elephant raid's index comes in from upriver instead (tests/v84/e); every other index draws as before.
+    for (let i = 0; i < 12; i++) if (!elephantRaid(w, i)) expect(nextRaidEntry(w, i)).toEqual({ ...entries[Math.floor(hash2(w.seed, i, RAID_SALT.entry) * entries.length)] });
   });
   it('adds nothing to a report, leaves the world alone at a raid end, and draws no scouts', () => {
     const w = createWorld({ seed: 11 });
@@ -130,7 +132,7 @@ describe('v84 w0 seams: each a stub with 8.3 behaviour', () => {
     expect(serialize(w)).toBe(before);
     expect(scoutWalkers(w, 0, null)).toEqual([]);
   });
-  it('has the trumpet silent (Track E fills it); the fanfare is Track R\'s: its notes are tested in tests/v84/r/spoils.test.js', () => {
-    expect(SFX.trumpet).toEqual([]);
+  it('has the trumpet and the fanfare, each filled by its track (their notes are tested in tests/v84/e and tests/v84/r/spoils.test.js)', () => {
+    expect([SFX.trumpet.length > 0, SFX.fanfare.length > 0]).toEqual([true, true]);
   });
 });

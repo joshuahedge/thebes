@@ -3,7 +3,7 @@
 //   sheetParts.building(b)  the archery range's and the stables' rows (units of how many, training, pay, what they do, and for the
 //                           stables the horses' grain), and on any unit building the units away at the capital
 //   onCommand(e)            the tip for a placed archery range or stables (one tip each, UX rule 5)
-//   onEvents(events)        the tip for the first raid warned with more than raiders on foot
+//   onEvents(events)        the tip for the first raid warned with more than raiders on foot (Version 8.4: with war elephants, theirs)
 // The raid sheet's counters are in src/ui/dangerSheets.js (counterParts) and its mix in the arrival line there (arrivalText). Every sentence
 // is computed from the data (src/data/armies.js) and the sim (src/sim/armies.js).
 import { seamBase } from './seam.js';
@@ -72,9 +72,10 @@ export function createArmiesUi(ctx) {
       if (built && built.type === 'archery_range') tip('archeryRangePlaced');
       if (built && built.type === 'stables') tip('stablesPlaced');
     },
+    // Version 8.4, Track E: a warning with war elephants fires their own tip in place of the mixed raid's (one tip at a time).
     onEvents(events) {
       const w = ctx.world && ctx.world.raid.warning;
-      for (const e of events || []) if (e.type === 'raid_warning' && w && isMixed(w.mix)) tip('mixedRaidWarned');
+      for (const e of events || []) if (e.type === 'raid_warning' && w && isMixed(w.mix)) tip(e.elephants ? 'elephantsWarned' : 'mixedRaidWarned');
     },
   };
 }

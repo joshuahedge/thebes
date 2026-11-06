@@ -9,7 +9,8 @@
 // stands. A soldier standing on its own barracks waits in the barracks' yard, in a row by id.
 // Stage 4.6 (Armies track): each kind has its own figure slot (src/render/art/armies.js): your 'soldier', 'archer' and 'chariot',
 // and raiders as 'raider' (on foot), 'raider_archer', 'raider_chariot' and 'raider_boat'; a unit waiting at home stands in its
-// building's yard. Health bars read the kind's hit points (UNIT_TYPES, ENEMY_TYPES), coloured by side. Archers' shots (by 'archer')
+// building's yard. Health bars read the kind's hit points (UNIT_TYPES, ENEMY_TYPES), coloured by side. Version 8.4 (Track E): war elephants
+// as 'raider_elephant', their bar out of 60. Archers' shots (by 'archer')
 // and enemy archers' (by 'enemy') leave from the shooter's chest, a tower's from its platform.
 //
 // Version 6.0 (Track B2, rulings 720-739): battles you can see. Drawn from the sim's state alone (nothing is written back):
@@ -39,6 +40,7 @@ export const ARROW_MS = ARROWS.ms;           // a tower's arrow flies for 0.3 s
 export const STILL_ARROW_MS = ARROWS.stillMs;   // under reduced motion it shows as a still line for this long
 export const BAR = { w: 9, h: 1.8, lift: 27 };   // a health bar: art px wide and tall, and its height over the feet
 export const BAR_COLOUR = { back: '#2A2230', raider: '#F08A70', soldier: '#7FD8CF' };
+export const ELEPHANT_BAR_LIFT = 47;            // Version 8.4: a war elephant's bar sits over its rider's crest
 const ARROW = ARROWS.colour;
 
 // Where the interface says the Motion level and the clock are (createBattleUi, src/ui/v60/battle.js); a test or a screenshot may set them too.
@@ -65,7 +67,15 @@ const dirOf = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : dx < 0 ?
 const levelOf = (o = {}) => o.motion || (o.reducedMotion ? 'still' : hooks.motion());
 const marksLevel = (o = {}) => o.motion || (o.reducedMotion ? 'still' : 'full');
 
-const RAIDER_SLOT = { foot: 'raider', archer: 'raider_archer', chariot: 'raider_chariot', boat: 'raider_boat' };
+const RAIDER_SLOT = { foot: 'raider', archer: 'raider_archer', chariot: 'raider_chariot', boat: 'raider_boat', elephant: 'raider_elephant' };
+// Version 8.4, Track E (ruling 1509): a war elephant that stampeded off the map did not fall: src/render/effects.js runs it back towards its entry
+// (the sim's 'stampede' event) and notes its id here, so it leaves no fallen figure.
+const stampeding = new WeakMap();            // world -> Set of raider ids that stampeded
+export function noteStampede(world, id) {
+  let s = stampeding.get(world);
+  if (!s) { s = new Set(); stampeding.set(world, s); }
+  s.add(id);
+}
 const bandRec = (a, u) => (u.band && a.second ? a.second : a);
 // A band that has struck and is on its way out carries what it took.
 const carries = (a, u) => {
@@ -82,7 +92,7 @@ function standing(world) {
       const base = u.kind || 'foot', def = ENEMY_TYPES[base] || ENEMY_TYPES.foot;
       const slot = u.chief ? 'chief' : base !== 'foot' ? RAIDER_SLOT[base] || 'raider' : carries(active, u) ? 'raider_sack' : 'raider';
       const gates = [active.entry, active.second && active.second.entry].filter(Boolean);
-      out.push({ u, kind: slot, base, side: 'raider', chief: Boolean(u.chief), gates, max: def.hp * (u.chief ? CHIEFTAIN.hpFactor : 1), x: u.x + 0.5, y: u.y + 0.5 });
+      out.push({ u, kind: slot, base, side: 'raider', chief: Boolean(u.chief), gates, max: def.hp * (u.chief ? CHIEFTAIN.hpFactor : 1), x: u.x + 0.5, y: u.y + 0.5, ...(base === 'elephant' ? { lift: ELEPHANT_BAR_LIFT } : {}) });
     }
   }
   const waiting = new Map();                 // barracks id -> soldiers waiting in its yard so far
@@ -137,6 +147,8 @@ function placed(world, timeDays, now = hooks.now()) {
   for (const id of [...m.keys()]) {
     if (seen.has(id)) continue;
     const t = m.get(id), at = t.last || { x: t.x, y: t.y };
+    const ran = stampeding.get(world);
+    if (ran && ran.has(id)) { ran.delete(id); m.delete(id); continue; }   // a stampede, not a fall
     if (fellInField(world, { ...t, ...at })) {
       scene.falls.push({ x: at.x, y: at.y, at: now, side: t.side });
       if (t.chief) scene.banners.push({ x: at.x, y: at.y, at: now, id });
@@ -196,7 +208,7 @@ export function unitsAt(world, timeDays, range = null, options = {}) {
 
 function healthBar(g, s) {
   const max = s.max || UNITS[s.side || s.kind].hp, share = clamp01(s.u.hp / max);
-  const [x, y] = U(p(s.x, s.y), BAR.lift), w = BAR.w, h = BAR.h;
+  const [x, y] = U(p(s.x, s.y), s.lift || BAR.lift), w = BAR.w, h = BAR.h;
   const rect = (x0, x1) => [[x0, y - h / 2], [x1, y - h / 2], [x1, y + h / 2], [x0, y + h / 2]];
   g.poly(rect(x - w / 2 - 0.4, x + w / 2 + 0.4), BAR_COLOUR.back, { alpha: 0.8 });
   if (share > 0) g.poly(rect(x - w / 2, x - w / 2 + w * share), BAR_COLOUR[s.side || s.kind]);

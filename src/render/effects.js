@@ -18,14 +18,24 @@
 // dust on it, Gentle one ring fading in place, Still nothing (the fire and the building say it). raid_wreck (a building wrecked, its rubble in its
 // place): Full a dust cloud that lifts and settles over the footprint, Gentle a pale disc fading in place, Still none. raid_loot (goods carried off a
 // store): Full sacks lifting off it, Gentle the sacks fading in place, and at every level a label naming what was taken (the event's own goods).
+// Version 8.4 (Track E, ruling 1509): stampede (a war elephant panicked): Full runs it back towards its entry and fades it in dust, Gentle fades it
+// where it stood with a still arrow the way it went, Still holds it and the arrow, and at every level a "Stampede!" label; ivory (a felled elephant's
+// ivory stored): a "+10 ivory" label and a sparkle on the store, or "10 ivory lost" where it fell when no store had room.
 import { TIERS } from '../data/housing.js';
 import { GOODS } from '../data/goods.js';
 import { RAID_FX, SPARK } from '../data/battle.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
-import { hauler } from './art/figures.js';
+import { hauler, UNIT_SCALE } from './art/figures.js';
+import { raiderElephant } from './art/armies.js';
+import { noteStampede } from './units.js';
 
-export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot };
+export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot, stampede: 1800 };
+// Version 8.4 (Track E): how far (tiles) a stampede is seen to run under Full, and the words of its label and of ivory's (the event's own numbers).
+export const STAMPEDE_RUN = 4;
+export const STAMPEDE_LABEL = 'Stampede!';
+export const ivoryLabel = (n) => `+${n} ivory`;
+export const ivoryLostLabel = (n) => `${n} ivory lost`;
 const SACK_COLOUR = '#C9A66B', SACK_SHADE = '#9C7A48', DUST = '#CDB894';
 // What a raid event's label says of the goods taken: the two largest, "−14 grain, −6 linen" (the event's own numbers).
 export const lootLabel = (goods) => Object.entries(goods || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 2)
@@ -79,6 +89,12 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
       if (level() !== 'still') add({ kind: 'loot', x, y, still: !full(), n: Math.min(3, Math.max(1, Object.keys(goods).length)), start: now });
       fx.label(x, y, text, UI.bad, now);
     },
+    // Version 8.4 (Track E): a stampeding elephant at (x, y) running towards its entry `to`, and its label, at every Motion level (drawn in place
+    // under Gentle and Still).
+    stampede(x, y, to, now) {
+      add({ kind: 'stampede', x, y, to: { ...to }, level: level(), start: now });
+      fx.label(x, y, STAMPEDE_LABEL, UI.bad, now);
+    },
     fromEvents(world, events, now) {
       const wrecked = new Map();             // a wrecked building's id -> the centre of its old footprint (the building itself is gone)
       for (const ev of events) {
@@ -96,6 +112,14 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
         if (ev.type === 'raid_loot') {
           const b = world.buildings[ev.id], c = b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : wrecked.get(ev.id);
           if (c) fx.loot(c.x, c.y, ev.goods, now);
+          continue;
+        }
+        // Version 8.4 (Track E): a war elephant's stampede, and the ivory a felled one left in a store (or lost where it fell, with no store's room).
+        if (ev.type === 'stampede') { noteStampede(world, ev.id); fx.stampede(ev.x, ev.y, ev.to, now); continue; }
+        if (ev.type === 'ivory') {
+          const b = ev.id ? world.buildings[ev.id] : null;
+          if (b && ev.n > 0) { fx.label(b.x + b.w / 2, b.y + b.d / 2, ivoryLabel(ev.n), GOLD, now); fx.sparkle(b.x + b.w / 2, b.y + b.d / 2, GOLD, now); }
+          if (ev.lost > 0) fx.label(ev.x, ev.y, ivoryLostLabel(ev.lost), UI.bad, now);
           continue;
         }
         if (ev.type === 'milestone') { if (onMilestone) onMilestone(ev.id); continue; }
@@ -187,6 +211,20 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
             g.ell([s[0] + 0.5, s[1] + 0.9], 2.3, 1.3, SACK_SHADE, { alpha: a * 0.5 });
             g.line([s[0] - 0.7, s[1] - 2.3], [s[0] + 0.8, s[1] - 3.1], '#6B4A3A', 0.7, a);
           }
+        } else if (e.kind === 'stampede') {
+          // Version 8.4 (Track E): the elephant running back towards its entry. Full: it runs STAMPEDE_RUN tiles that way and fades, kicking dust;
+          // Gentle: it fades where it stood, a still arrow pointing the way it went; Still: it stands with the arrow, then is gone.
+          const dx = e.to.x + 0.5 - e.x, dy = e.to.y + 0.5 - e.y, d = Math.hypot(dx, dy) || 1, run = Math.min(d, STAMPEDE_RUN);
+          const go = e.level === 'full' ? run * t : 0, at = { x: e.x + (dx / d) * go, y: e.y + (dy / d) * go };
+          if (e.level === 'full') for (let i = 0; i < 3; i++) g.circ([p(at.x, at.y)[0] - (dx / d) * (6 + i * 5), p(at.x, at.y)[1] - 2 - i * 2], 3 + t * 3, DUST, { alpha: (1 - t) * 0.5 });
+          else {
+            const a = p(e.x, e.y), b = p(e.x + (dx / d) * 1.8, e.y + (dy / d) * 1.8), al = e.level === 'gentle' ? 1 - t : 1;
+            g.line(a, b, UI.halo, 2.6, 0.8 * al);
+            g.line(a, b, UI.bad, 1.3, al);
+            const u = [(b[0] - a[0]) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1), (b[1] - a[1]) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1)];
+            g.poly([[b[0] + u[0] * 3, b[1] + u[1] * 3], [b[0] - u[1] * 2.4, b[1] + u[0] * 2.4], [b[0] + u[1] * 2.4, b[1] - u[0] * 2.4]], UI.bad, { alpha: al });   // its head
+          }
+          raiderElephant(g, at.x, at.y, 0, UNIT_SCALE, e.level === 'still' ? 1 : Math.max(0, 1 - t * t));
         } else if (e.kind === 'label') {
           const q = U(c, 16 + fx.labelLift(t));
           g.text([q[0] + 0.6, q[1] + 0.6], e.text, { size: 7, color: UI.halo, alpha: Math.min(1, (1 - t) * 1.5) });
