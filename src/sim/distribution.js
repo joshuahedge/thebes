@@ -1,6 +1,7 @@
 import { BUILDINGS } from '../data/buildings.js';
-import { GOODS, FOOD_GOODS } from '../data/goods.js';
-import { useOf } from '../data/housing.js';
+import { GOODS, FOOD_GOODS, LUXURY_GOODS } from '../data/goods.js';
+import { useOf, TIERS, MAX_TIER } from '../data/housing.js';
+import { GOOD_VALUE } from '../data/court.js';
 import { allBuildings, housesOf } from './world.js';
 import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { isWorking } from './labour.js';
@@ -11,7 +12,9 @@ import { isWorking } from './labour.js';
 // can be judged and stocked for the tier it is growing into.
 // (The product is rounded to a millionth before it is rounded up when a use applies, so 150 x 0.04 x 1.5 is 9, not 10; the plain rate keeps
 // its old sum exactly, so no home below a Villa moves.)
-const isHousehold = (good) => GOODS[good].kind === 'household';
+// Version 8.4 (Track G, ruling 1468): a luxury's rate takes the tier's use too, and every luxury has the same rate, so a home's luxury need is
+// monthlyNeed(house, LUXURY_GOODS[0]) whatever mix of luxuries meets it (luxuryNeed).
+const isHousehold = (good) => GOODS[good].kind === 'household' || Boolean(GOODS[good].luxury);   // (monthlyNeed reads GOODS[good] anyway)
 export function monthlyNeed(house, good, tier = house.tier) {
   const use = isHousehold(good) ? useOf(tier || 0) : 1;
   const n = house.residents * GOODS[good].perResidentPerMonth;
@@ -20,13 +23,28 @@ export function monthlyNeed(house, good, tier = house.tier) {
 
 const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
 
+// ── Version 8.4, Track G (design 2c, ruling 1468): the luxuries, one pool as the foods are ──
+// The luxuries in the order a home takes and uses them: the cheapest by GOOD_VALUE first (incense, cedar, ivory), so the dearest is kept longest.
+export const LUXURY_ORDER = LUXURY_GOODS.slice().sort((a, b) => (GOOD_VALUE[a] || 0) - (GOOD_VALUE[b] || 0) || LUXURY_GOODS.indexOf(a) - LUXURY_GOODS.indexOf(b));
+// A home's luxuries in stock, of every kind.
+export const luxuryOnHand = (house) => LUXURY_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
+// A home's luxury need for a month at `tier`'s use (0.01 a resident x the use, rounded up per home: a Villa of 150 uses 3, an Estate of 180 uses 4).
+export const luxuryNeed = (house, tier = house.tier) => monthlyNeed(house, luxuryRateGood(), tier);
+// The luxury whose rate stands for them all (every luxury has the same): the first GOODS still has (a 7.0 test takes incense away for a while).
+export const luxuryRateGood = () => LUXURY_GOODS.find((g) => GOODS[g]) || 'cedar';
+// Whether a home at `tier` wants a luxury: its own or its next tier needs one (a Fine manor stocks for the Villa it grows into).
+const wantsLuxury = (tier) => tier >= 1 && TIERS[Math.min(tier + 1, MAX_TIER)].needs.includes('luxury');
+
 // Each working bazaar tops up every good it sells to its stock level for that good (data: bazaar.stock), from the
 // stores within its supply reach that hold the good, nearest first (spec 4.10).
+// Version 8.4: the luxuries only while some home in the city wants one, so a city with no Fine manor keeps its incense in its stores for festivals.
 export function restockBazaars(world) {
+  const luxuries = housesOf(world).some((h) => wantsLuxury(h.tier));
   for (const bz of allBuildings(world)) {
     const def = BUILDINGS[bz.type];
     if (!def.sells || !isWorking(world, bz)) continue;
     for (const good of def.sells) {
+      if (!luxuries && LUXURY_GOODS.includes(good)) continue;
       let need = (def.stock[good] || 0) - (bz.store[good] || 0);
       if (need <= 0) continue;
       const sources = buildingsInReach(world, bz, def.supplyReach,
@@ -100,6 +118,12 @@ export function topUpHouse(world, house, goods, bazaars, { twoFoods = false, kin
     for (const g of foods) gap -= takeFrom(bazaars, house, g, gap);
   }
   for (const good of goods) {
-    if (!FOOD_GOODS.includes(good)) takeFrom(bazaars, house, good, monthlyNeed(house, good, Math.max(tier, house.tier)) - (house.stock[good] || 0));
+    if (!FOOD_GOODS.includes(good) && !LUXURY_GOODS.includes(good)) takeFrom(bazaars, house, good, monthlyNeed(house, good, Math.max(tier, house.tier)) - (house.stock[good] || 0));
+  }
+  // Version 8.4 (ruling 1468): the luxuries share one month's need (at the tier it stocks for), met by any mix, the cheapest the bazaars hold first.
+  const luxuries = LUXURY_ORDER.filter((g) => goods.includes(g));
+  if (luxuries.length) {
+    let gap = luxuryNeed(house, Math.max(tier, house.tier)) - luxuryOnHand(house);
+    for (const g of luxuries) gap -= takeFrom(bazaars, house, g, gap);
   }
 }

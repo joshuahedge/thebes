@@ -99,7 +99,9 @@ function peopleTerms(world, lived) {
 function prosperityTerms(world) {
   const pop = population(world);
   const last = world.stats.lastMonth;
-  const perPerson = last && pop > 0 ? last.taxes / pop : 0;
+  // Version 8.4, Track G (ruling 1466): the taxes at the Normal rate (a record from before 8.4 has none: its taxes were Normal), so the palace's tax rate
+  // never moves the score.
+  const perPerson = last && pop > 0 ? (Number.isFinite(last.taxesNormal) ? last.taxesNormal : last.taxes) / pop : 0;
   const L = world.labour;
   const rate = L && L.workforce > 0 ? (L.workforce - L.employed) / L.workforce : 0;
   const routes = openRoutes(world);

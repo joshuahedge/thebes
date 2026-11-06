@@ -44,6 +44,9 @@ function street(state, gold) {
   if (state === 'kept') {
     bazaar.store = Object.fromEntries([['grain', 300], ['figs', 300], ['fish', 300], ...HOUSEHOLD_GOODS.map((g) => [g, 300])]);
     home.stock = Object.fromEntries([...HOUSEHOLD_GOODS.map((g) => [g, Math.ceil(cap * GOODS[g].perResidentPerMonth * 2)]), ['grain', 20], ['figs', 20], ['fish', 20]]);
+    // Version 8.4 (Track G): an Estate keeps a luxury too: two months of cedar, and more on the bazaar's stall.
+    home.stock.cedar = 8;
+    bazaar.store.cedar = 40;
     // Statues round it until the street is pleasant enough to keep an Estate.
     for (const [x, y] of [[11, 11], [11, 12], [11, 13], [12, 13], [13, 13], [14, 13], [14, 12], [14, 11], [10, 11], [10, 12], [10, 13], [11, 14], [12, 14], [13, 14], [14, 14], [15, 11], [15, 12], [15, 13]]) {
       if (houseDesirability(world, home) >= TIERS[MAX_TIER].desirability.rise) break;

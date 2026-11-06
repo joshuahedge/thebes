@@ -196,7 +196,7 @@ describe('s47 carts render: the art and the ids', () => {
 
   it('gives each good its own colour and its own load shape, so no good is told by colour alone', () => {
     const shapes = new Set(Object.values(CART_LOADS).map(([, s]) => s));
-    expect([...shapes].sort()).toEqual(['blocks', 'bolts', 'fish', 'gems', 'heap', 'jars', 'none', 'sack']);
+    expect([...shapes].sort()).toEqual(['blocks', 'bolts', 'fish', 'gems', 'heap', 'jars', 'logs', 'none', 'sack', 'tusks']);   // Version 8.4 (Track G): cedar's logs, ivory's tusks
     for (const good of Object.keys(GOODS)) expect([good, Boolean(CART_LOADS[good])]).toEqual([good, true]);   // every good has its look
     // goods that share a shape differ in colour
     const byShape = {};

@@ -5,7 +5,7 @@
 //
 // Events: { type: 'palace_done', id, style } the day the works end (palaceDay). Enlarging is a command, so the interface
 // learns of it from enlargePalace's result, not from an event.
-import { PALACE_STYLES, PALACE } from '../data/palace.js';
+import { PALACE_STYLES, PALACE, TAX_RATES } from '../data/palace.js';
 import { allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
@@ -67,4 +67,29 @@ export function palaceDay(world, events = null) {
 export function palaceMood(world) {
   const b = palaceOf(world);
   return b && touchesRoad(world, b) ? PALACE_STYLES[b.style].mood : 0;
+}
+
+// ── Version 8.4, Track G: the tax rate (design 2a, rulings 1465, 1466) ──
+// The rate lives on the palace (palace.tax: 'low' or 'high'; absent is Normal), so demolishing the palace sets it back to Normal and a city with
+// no palace is always at Normal. It works through the month's taxes (src/sim/economy.js monthFigures) and the Taxes mood row (src/sim/mood.js).
+
+// The rate in force: the palace's, or 'normal' with no palace or none set.
+const isRate = (rate) => typeof rate === 'string' && Object.prototype.hasOwnProperty.call(TAX_RATES, rate);
+export function taxRateOf(world) {
+  const b = palaceOf(world);
+  return b && isRate(b.tax) ? b.tax : 'normal';
+}
+
+// The Taxes mood row: the rate's mood (+8 Low, -8 High, 0 Normal). Unlike the Palace row it asks for no road: taxes are gathered anyway.
+export const taxMood = (world) => TAX_RATES[taxRateOf(world)].mood;
+
+// The setTaxRate command: sets the palace's rate. Needs no gold and is not undoable (a rate is changed back the same way).
+// { ok: true, warnings: [], rate } or fails with 'not_palace' (id is no palace) or 'bad_rate' (not a key of TAX_RATES).
+export function setTaxRate(world, id, rate) {
+  const b = world.buildings[id];
+  if (!b || b.type !== PALACE.type) return fail('not_palace');
+  if (!isRate(rate)) return fail('bad_rate');
+  if (rate === 'normal') delete b.tax;
+  else b.tax = rate;
+  return { ok: true, warnings: [], rate };
 }

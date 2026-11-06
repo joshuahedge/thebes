@@ -33,6 +33,7 @@ import { GOLD, GOLDC, UI, STONE, WOOD } from './art/palette.js';
 import { p, U, depthKey } from './iso.js';
 import { MONUMENT_PLACING } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { V84_G_TEXT as ART_TEXT_V84 } from '../ui/text.js';
 
 export const FADE_MS = { full: 400, gentle: 200 };   // the newest block's fade, by Motion level (Still: none)
 export const SETTLE_PX = 3;                          // how far a new block settles under Full
@@ -277,6 +278,21 @@ function drawCamp(g, b) {
   for (const t of campTents(b)) tent(g, t);
 }
 
+// ── Rush (Version 8.4, Track G, ruling 1474): a rushed site's label, the word "Rushed" on a pill below its front corner (render only, never animated) ──
+const RUSH_PILL = { fill: '#FFF8EA', text: '#3B2A14', size: 7, below: 7 };   // as a fire's label: 7 art px is 14 CSS px at zoom 1
+export function rushLabelAt(b) {
+  return [p(b.x + b.w / 2, b.y + b.d / 2)[0], p(b.x + b.w, b.y + b.d)[1] + RUSH_PILL.below];
+}
+export function drawRushLabel(g, b) {
+  const str = ART_TEXT_V84.rushedLabel, [x, y] = rushLabelAt(b);
+  let w = str.length * RUSH_PILL.size * 0.6 + 5;
+  if (g.ctx && g.ctx.measureText) { g.ctx.font = `700 ${RUSH_PILL.size * (g.scale || 1)}px system-ui, -apple-system, "Segoe UI", sans-serif`; w = g.ctx.measureText(str).width / (g.scale || 1) + 5; }
+  const h = RUSH_PILL.size + 2.6, r = h / 2;
+  g.path([['M', [x - w / 2 + r, y - r]], ['L', [x + w / 2 - r, y - r]], ['Q', [x + w / 2, y - r], [x + w / 2, y]], ['Q', [x + w / 2, y + r], [x + w / 2 - r, y + r]],
+    ['L', [x - w / 2 + r, y + r]], ['Q', [x - w / 2, y + r], [x - w / 2, y]], ['Q', [x - w / 2, y - r], [x - w / 2 + r, y - r]], ['Z']], RUSH_PILL.fill, { alpha: 0.94, outline: true });
+  g.text([x, y + 0.2], str, { size: RUSH_PILL.size, color: RUSH_PILL.text, weight: '700' });
+}
+
 // The scene of one monument, without the see-through fade.
 function drawScene(g, world, b, look, { now, timeDays, motion }) {
   const m = siteMemo(world, b, look, now);
@@ -298,6 +314,7 @@ function drawScene(g, world, b, look, { now, timeDays, motion }) {
   }
   if (b.site && b.site.camp) drawCamp(g, b);                                  // Version 8.3: a site under way with its workers' camp
   drawGangs(g, gangLayout(b, look, ramp, timeDays));
+  if (b.site && b.site.rush) drawRushLabel(g, b);                            // Version 8.4: the word says it is rushed (not a tint)
   return { look, memo: m, ramp };
 }
 

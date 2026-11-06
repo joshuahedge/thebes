@@ -76,3 +76,7 @@ export const palacePriceOf = (world, style) => (style > 0 && PALACE_STYLES[style
 // Gold that must never take the treasury below 0 (founding, work gold, gilding, the capstone, enlarging the palace;
 // tribute's own rule is the same): true when paying `cost` keeps it at 0 or above.
 export const canPayNoDebt = (world, cost) => world.gold - cost >= 0;
+
+// Version 8.4, Track G (design 2b, ruling 1467): a rushed course's work gold for each unit laid: workGoldPerUnit x MONUMENT.rushGold (3x), not rounded
+// here (the site pays whole gold and carries the fraction, as for any work gold).
+export const rushGoldPerUnit = (world, style = null) => workGoldPerUnit(world, style) * MONUMENT.rushGold;

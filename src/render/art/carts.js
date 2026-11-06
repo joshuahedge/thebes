@@ -18,7 +18,7 @@ export const CART_LOADS = {
   clay: ['#A06E48', 'heap'],
   fish: ['#7DB3C8', 'fish'],
   incense: ['#C7B79A', 'sack'],   // Version 7.0 (Track T): pale resin in sacks
-  cedar: ['#9A6440', 'blocks'], ivory: ['#EFE6CF', 'blocks'],   // Version 8.4 (wave 0): placeholders, Track G draws them
+  cedar: ['#9A6440', 'logs'], ivory: ['#EFE6CF', 'tusks'],   // Version 8.4 (Track G): cedar logs with their ringed ends, and a pair of curved tusks
   empty: ['#000000', 'none'],   // a cart whose goods went back to the shelf
 };
 const FALLBACK = ['#A89AA8', 'heap'];
@@ -68,6 +68,20 @@ function drawLoad(g, P, R, kind, col) {
     for (const [x, y] of [[-3.4, -9], [3.4, -9], [0, -12.4]]) {
       poly([[x - 3.2, y], [x + 3.2, y], [x + 3.2, y - 3.4], [x - 3.2, y - 3.4]], col);
       poly([[x - 3.2, y - 3.4], [x + 3.2, y - 3.4], [x + 2.2, y - 4.6], [x - 2.2, y - 4.6]], '#FFFFFF', { outline: true, alpha: 0.4 });
+    }
+  } else if (kind === 'logs') {
+    // Three logs stacked lengthways, each with its cut end showing a pale face and a ring.
+    for (const [x, y] of [[-2.2, -10.6], [2.2, -10.6], [0, -13.8]]) {
+      poly([[x - 5.4, y + 1.5], [x + 3.6, y + 1.5], [x + 3.6, y - 1.5], [x - 5.4, y - 1.5]], col);
+      ell(x + 3.6, y, 1.3, 1.5, '#D9B27C');
+      g.circ(P(x + 3.6, y), 0.5 * S, '#7A4E2E');
+      g.line(P(x - 4.6, y - 0.4), P(x + 2.6, y - 0.4), '#6E4428', 0.4, 0.7);   // the bark's grain
+    }
+  } else if (kind === 'tusks') {
+    // A pair of tusks, curved and tapering, on a folded cloth.
+    poly([[-5.6, -9], [5.6, -9], [5, -10.6], [-5, -10.6]], '#B24A3A');
+    for (const k of [-1, 1]) {
+      g.path([['M', P(-5 * k, -10.6)], ['Q', P(-1 * k, -19.5), P(4.6 * k, -15.8)], ['L', P(4 * k, -14.6)], ['Q', P(-0.6 * k, -17), P(-3.4 * k, -10.6)], ['Z']], col, { outline: true });
     }
   } else if (kind === 'fish') {
     poly([[-5.2, -9], [5.2, -9], [4.4, -12.4], [-4.4, -12.4]], '#B58A56');    // a basket

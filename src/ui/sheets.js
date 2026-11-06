@@ -5,7 +5,9 @@ import { alertShowMe, bazaarFix } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
+import { V84_G_TEXT } from './text.js';
+import { taxRateOf } from '../sim/palace.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -222,6 +224,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const words = cause ? causeText(cause, world, c.need) : null;
     if (!words) return li;
     li.append(el('p', { class: 'cause small', text: words.cause }));
+    if (isLuxuryCause(cause)) return luxuryFixRow(li, h, cause, c.need, words);   // Version 8.4 (Track G): a luxury's trade fix
     const fix = fixOf(cause, world);
     // Nothing to build or view (goods on their way, a building not unlocked yet): the fix's words alone, when it has any.
     if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
@@ -260,6 +263,22 @@ export function createSheets({ container, store, world, placement, cameraControl
     return li;
   }
 
+  // Version 8.4 (Track G, ruling 1473): the luxury row's fix, the next step's own (stepFixFor): Show me opens the Trade sheet for a route to open or a Buy to set,
+  // builds the partner's trading post or Quay where none stands, or Views the landing when the caravan cannot come; with none, the words alone.
+  const openTrade = () => store.set(openSheet(store.get(), 'trade'));
+  function luxuryFixRow(li, h, cause, need, words) {
+    const f = stepFixFor(world, h, cause, need);
+    let action = null;
+    if (f && f.trade) action = button(T.showMe, { class: 'show-me primary', 'aria-label': V84_G_TEXT.luxuryTradeAria(f.trade), onClick: openTrade });
+    else if (f && f.select !== undefined && world.buildings[f.select]) action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(world.buildings[f.select].type)), onClick: () => onSelect(f.select) });
+    else if (f && f.item) {
+      const target = { category: categoryOfItem(f.item), item: f.item, x: f.target.x, y: f.target.y };
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMeBuild(target) });
+    }
+    if (words.fix || action) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
+    return li;
+  }
+
   // A building that changes a home's desirability, by name: a home by its tier ("+2 manor"), anything else by its type.
   function contributorName(d) {
     const b = world.buildings[d.id];
@@ -272,7 +291,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const w = stepWords(world, h, step);
     const text = el('span', { class: 'step-text' }, [el('strong', { class: 'step-label', text: w.label }), ' ' + w.rest]);
     const a = w.action;
-    const act = !a ? null : button(a.label, { class: a.select !== undefined && a.label === T.view ? 'view quiet' : 'show-me primary', 'aria-label': a.aria, onClick: () => (a.select !== undefined ? onSelect(a.select) : onShowMeBuild(a.build)) });
+    // Version 8.4 (Track G): a trade fix (a.trade) opens the Trade sheet.
+    const act = !a ? null : button(a.label, { class: a.select !== undefined && a.label === T.view ? 'view quiet' : 'show-me primary', 'aria-label': a.aria, onClick: () => (a.trade ? openTrade() : a.select !== undefined ? onSelect(a.select) : onShowMeBuild(a.build)) });
     return el('div', { class: w.short ? 'step-line short' : 'step-line', dataset: { reason: step.reason === null ? 'next' : step.reason } }, [text, act]);
   }
 
@@ -327,7 +347,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const f = monthForecast(world);
     if (f.active) {
       body.append(el('h3', { text: f.net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk, dataset: { section: 'forecast' } }), el('p', { class: 'muted small', text: S45_TEXT.forecastNote }),
-        row(T.taxes, `+${f.taxes}`), row(T.wages, `−${f.wages}`), row(T.upkeep, `−${f.upkeep}`));
+        row(V84_G_TEXT.forecastTaxes(taxRateOf(world)), `+${f.taxes}`), row(T.wages, `−${f.wages}`), row(T.upkeep, `−${f.upkeep}`));   // Version 8.4: names the rate when not Normal
       if (f.soldiers > 0) body.append(row(T.soldiersPay, `−${f.soldiers}`));
       body.append(row(S45_TEXT.monthlyBalance, S45_TEXT.signed(f.net)));
       if (f.gold < 0 && f.net < 0) body.append(el('p', { class: 'coral', text: `${S45_TEXT.belowZero}.` }));

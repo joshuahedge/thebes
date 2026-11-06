@@ -1,6 +1,6 @@
 import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS, useOf } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS } from '../data/goods.js';
+import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS, LUXURY_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
@@ -9,7 +9,8 @@ import { splitHouse } from './merge.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { isLargePlot, isLot, isSmallTop, noteLargePlotUnlock } from './largePlots.js';
 import { computeCoverage as computeCoverageByReach } from './coverage.js';
-import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
+import { bazaarsByHouse, topUpHouse, monthlyNeed, luxuryOnHand, luxuryNeed, luxuryRateGood, LUXURY_ORDER } from './distribution.js';
+import { luxuryTradeCause } from './luxury.js';
 import { bazaarFoodProblem } from './bazaarFood.js';
 
 export const needsOf = (tier) => (tier >= 1 && tier <= MAX_TIER ? TIERS[tier].needs : []);
@@ -21,11 +22,15 @@ export function wantedNeeds(house) {
 }
 
 // The goods a home tops up at the bazaar (spec 4.10): every food once its current or next tier needs food, and each
-// household good (pottery, beer, linen, jewellery) that its current or next tier needs.
+// household good (pottery, beer, linen, jewellery) that its current or next tier needs. Version 8.4 (ruling 1468): every luxury once its current or
+// next tier needs one (a Fine manor, a Villa, an Estate).
 export function wantedGoods(house) {
   const wants = wantedNeeds(house);
-  return [...(wants.includes('food') ? FOOD_GOODS : []), ...HOUSEHOLD_GOODS.filter((g) => wants.includes(g))];
+  return [...(wants.includes('food') ? FOOD_GOODS : []), ...HOUSEHOLD_GOODS.filter((g) => wants.includes(g)), ...(wants.includes('luxury') ? LUXURY_GOODS : [])];
 }
+
+// Version 8.4 (design Q5, ruling 1471): before world.luxuryFrom (a city begun before 8.4 has 12 months from its load) a missing luxury counts as met.
+export const luxuryGrace = (world) => world.day < (world.luxuryFrom || 0);
 
 // True if any working building that provides `need` reaches the house along the roads.
 // The one rule for water and religion coverage: the monthly tick and the house checklist both use it.
@@ -122,6 +127,23 @@ function consumeGood(house, good) {
   return { met: needMet > 0 && available >= needMet, next: needNext > 0 && available >= needNext };
 }
 
+// Version 8.4 (ruling 1468): the luxury need, consumeGood's rule for one pool: met when the luxuries in stock (any mix) cover the month's use at the home's
+// tier, next when they would cover the next tier's; the month's use is then taken, the cheapest first (LUXURY_ORDER). In the grace (luxuryGrace) both are met.
+// Only a home whose own tier needs one uses it (ruling 1468): a Fine manor stocks a Villa's month (design Q4: it "stocks one too") and keeps it until it rises, so a street of Fine manors that cannot rise yet does not burn bought cedar every month (household goods, made in the
+// city, are used as before).
+function consumeLuxury(world, house) {
+  const needMet = needToMeet(house, luxuryRateGood());
+  const needNext = needToMeet(house, luxuryRateGood(), growingInto(house));
+  const available = luxuryOnHand(house);
+  let use = needsOf(house.tier).includes('luxury') ? Math.min(available, luxuryNeed(house)) : 0;
+  for (const g of LUXURY_ORDER) {
+    const k = Math.min(use, house.stock[g] || 0);
+    if (k > 0) { house.stock[g] -= k; use -= k; }
+  }
+  if (luxuryGrace(world)) return { met: true, next: true };
+  return { met: needMet > 0 && available >= needMet, next: needNext > 0 && available >= needNext };
+}
+
 export function monthlyHousing(world, events = null) {
   noteLargePlotUnlock(world);   // Version 6.0 (Track C): the Large plot card comes with the first Townhouse and stays
   const cov = computeCoverage(world);
@@ -143,6 +165,7 @@ export function monthlyHousing(world, events = null) {
     };
     const metNext = {};   // household goods at the next tier's use (ruling 471): what growing into it asks
     for (const g of HOUSEHOLD_GOODS) if (wants.includes(g)) { const r = consumeGood(h, g); met[g] = r.met; metNext[g] = r.next; }
+    if (wants.includes('luxury')) { const r = consumeLuxury(world, h); met.luxury = r.met; metNext.luxury = r.next; }   // Version 8.4: one luxury of any kind
     h.met = met;
     topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id), { kinds: kindsWanted(wants), tier: growingInto(h) });
     h.stockedFor = h.residents;
@@ -226,6 +249,9 @@ function liveNeeds(world, house, { now = false } = {}) {
     const n = needToMeet(house, good, goodsTier);
     met[good] = n > 0 && (house.stock[good] || 0) >= n;
   }
+  // Version 8.4 (ruling 1468): the luxuries in stock, any mix, against the tier's use; met in the grace, as the month's check counts it.
+  const lux = needToMeet(house, luxuryRateGood(), goodsTier);
+  met.luxury = luxuryGrace(world) || (lux > 0 && luxuryOnHand(house) >= lux);
   const target = desirabilityTargetFor(house);
   if (target !== null) met.desirability = houseDesirability(world, house) >= target;
   return met;
@@ -348,7 +374,28 @@ export function needCause(world, house, need) {
   }
   if (need === 'food') return foodCause(world, house);
   if (need === 'twoFoods' || need === 'threeFoods') return twoFoodsCause(world, house);
+  if (need === 'luxury') return luxuryCause(world, house);
   return goodCause(world, house, need);
+}
+
+// Version 8.4 (design 2c, rulings 1468, 1472): why a home lacks a luxury. The bazaar steps as for a good (any bazaar selling a luxury); then, the cheapest
+// luxury first (LUXURY_ORDER): next_delivery { good } when a working bazaar in reach has it or a store in its supply reach holds some; good_far { good }
+// when one is held only beyond every reaching bazaar's supply reach (the nearest such store); else the trade causes (src/sim/luxury.js luxuryTradeCause:
+// no_luxury_route, luxury_not_bought, luxury_ordered), since nothing in the city makes a luxury.
+function luxuryCause(world, house) {
+  const { cause, working } = bazaarsFor(world, house, LUXURY_GOODS);
+  if (cause) return cause;
+  const holds = (b, g) => (b.store[g] || 0) > 0;
+  for (const g of LUXURY_ORDER) {
+    const coming = working.find((bz) => holds(bz, g) || goodStoresFor(world, bz, g).some((s) => holds(s, g)));
+    if (coming) return { code: 'next_delivery', id: coming.id, good: g };
+  }
+  let far = null;
+  for (const g of LUXURY_ORDER) {
+    const f = farHolder(world, working, g);
+    if (f && (!far || f.len < far.len)) far = f;
+  }
+  return far || luxuryTradeCause(world);
 }
 
 // The bazaars reaching the home that sell `good` (any of FOOD_GOODS for food): no_bazaar, bazaar_no_road or

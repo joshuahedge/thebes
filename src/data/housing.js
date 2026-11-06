@@ -4,6 +4,8 @@
 // Stage 4.7 (Task 7, ruling 471): the top two tiers are tougher. They ask for a third kind of food (threeFoods: any three of grain, figs, game,
 // fish in stock) and use more of each household good: `use` multiplies GOODS[good].perResidentPerMonth for pottery, beer, linen and jewellery
 // (src/sim/distribution.js monthlyNeed; 1 where absent). A home that loses one devolves by the usual rule (DOWNGRADE_AFTER_MONTHS, a tier at a time).
+// Version 8.4, Track G (design 2c, ruling 1468): a Villa and an Estate also need a luxury ('luxury'): one imported luxury of any kind in stock (LUXURY_GOODS:
+// incense, cedar, ivory), used at 0.01 a resident a month times the tier's use, as a household good (a Villa 3 a month, an Estate 4).
 export const TIERS = [
   null,
   { tier: 1, name: 'Hut', size: 1, capacity: 5, tax: 1, needs: [] },
@@ -21,11 +23,11 @@ export const TIERS = [
   },
   {
     tier: 8, name: 'Villa', size: 2, capacity: 150, tax: 6,
-    needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods', 'linen', 'threeFoods'], desirability: { rise: 50, keep: 43 }, use: 1.5,
+    needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods', 'linen', 'threeFoods', 'luxury'], desirability: { rise: 50, keep: 43 }, use: 1.5,
   },
   {
     tier: 9, name: 'Estate', size: 2, capacity: 180, tax: 8,
-    needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods', 'linen', 'threeFoods', 'jewellery'], desirability: { rise: 65, keep: 57 }, use: 2,
+    needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods', 'linen', 'threeFoods', 'luxury', 'jewellery'], desirability: { rise: 65, keep: 57 }, use: 2,
   },
 ];
 

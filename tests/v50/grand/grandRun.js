@@ -25,12 +25,15 @@ import { storeAccepts } from '../../../src/sim/production.js';
 import { undo } from '../../../src/sim/undo.js';
 import { housesOf, population, allBuildings, isSite } from '../../../src/sim/world.js';
 import { foodOutlook } from '../../../src/sim/crops.js';
-import { setTradeOrder } from '../../../src/sim/trade.js';
+import { setTradeOrder, openRoute, routeBlocker, setTradeSwitch } from '../../../src/sim/trade.js';
+import { tradeAllowed } from '../../../src/sim/tradeRules.js';
+import { luxuryKeepFor } from '../../../src/sim/luxury.js';
+import { LUXURY_GOODS } from '../../../src/data/goods.js';
 import { cityAdvice, nextStep, storeFor, inputHolder } from '../../../src/sim/advice.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
 import { quotaOf, quotaStatus, sendQuota } from '../../../src/sim/pressure.js';
 import { setFetch } from '../../../src/sim/carts.js';
-import { costOf, roadCostOf } from '../../../src/sim/costs.js';
+import { costOf, roadCostOf, routeCostOf } from '../../../src/sim/costs.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
@@ -113,8 +116,14 @@ function spotFor(w, type, at, fix) {
   // or a store asked for near the bazaar may go where there is room (its goods travel by cart).
   const maker = Boolean(def.produces || def.stores);
   const far = (!maker || fix.near !== undefined || fix.herd) && Math.hypot(ghost.x + def.w / 2 - at.x, ghost.y + def.d / 2 - at.y) > (maker ? REACH_TILES : NEAR_TILES);
+  if (inReserved(ghost, def)) return skip('reserved');
   return !far && canPlace(w, type, ghost.x, ghost.y, { roadLater: true, rot: ghost.rot || 0 }).ok ? ghost : null;
 }
+// Version 8.4 (Track G, ruling 1478): ground the player keeps free ({ x, y, w, d }, or null): the great-work run keeps the great temple's plot and the road round it
+// for the temple, so a workshop the advice asks for elsewhere is not laid there (8.4's luxuries moved what the advice asks for, and a brewery once took the plot).
+let reserved = null;
+export const setReserved = (rect) => { reserved = rect; };
+const inReserved = (at, def) => Boolean(reserved) && at.x < reserved.x + reserved.w && at.x + def.w > reserved.x && at.y < reserved.y + reserved.d && at.y + def.d > reserved.y;
 
 // A road from the free tile beside the building nearest any road to that road tile, routed (one undo step). Returns whether it touches a road.
 function connectRoad(w, b) {
@@ -151,6 +160,7 @@ function satellite(w, type) {
   if (!rs.ok || !connectRoad(w, w.buildings[rs.id])) return back();
   const store = w.buildings[rs.id];
   const mg = nearestFit(w, { kind: 'building', type }, store.x, store.y, null, w.size);
+  if (inReserved(sg, BUILDINGS[st]) || inReserved(mg, def)) return back();   // Version 8.4: the ground the player keeps free (setReserved)
   const rm = canPlace(w, type, mg.x, mg.y, { roadLater: true }).ok ? place(w, type, mg.x, mg.y, { roadLater: true }) : { ok: false };
   if (!rm.ok || !connectRoad(w, w.buildings[rm.id])) return back();
   if (!buildingsInReach(w, w.buildings[rm.id], def.producerReach, (o) => o.id === store.id).length) return back();
@@ -172,6 +182,7 @@ function actOpen(w, fix, tried) {
   if (!by) return null;
   const g = nearestFit(w, { kind: 'building', type }, by.x, by.y, null, w.size);
   if (!canPlace(w, type, g.x, g.y, { roadLater: true }).ok) return skip('no_spot');
+  if (inReserved(g, BUILDINGS[type])) return skip('reserved');   // Version 8.4: the ground the player keeps free (setReserved)
   const undoBefore = w.undo.length;
   const r = place(w, type, g.x, g.y, { roadLater: true });
   if (!r.ok || !connectRoad(w, w.buildings[r.id])) { while (w.undo.length > undoBefore) undo(w); return skip('open_failed'); }
@@ -186,6 +197,38 @@ function actOpen(w, fix, tried) {
 let legacyTowers = true;
 export const setLegacyTowers = (on) => { legacyTowers = Boolean(on); };
 
+// Version 8.4 (Track G, ruling 1478): the luxury habit. A grand home's luxury row and its next step name a trade fix (src/sim/luxury.js): open the route
+// the words name (its price kept above RESERVE), switch the good on for that partner if it is off, and set it to Buy at the level the words name (t.keep,
+// ruling 1484), else at the homes' use between two visits (luxuryKeepFor, at least LUXURY_KEEP), as a player does on the Trade sheet its Show me opens. A
+// route that would not open (no gold to spare) waits for a later month.
+// And, as a careful player does with a Buy order that a caravan pays for down to the last gold (src/sim/trade.js caravan), it buys luxuries only while the
+// treasury can spare it: below LUXURY_THRIFT.off the luxury orders it set go to Ignore (their levels kept), and back to Buy once it holds LUXURY_THRIFT.on
+// (luxuryThrift, at the start of every month's play), so the great work's crews and offerings are never left without gold for cedar.
+export const LUXURY_KEEP = 30;
+export const LUXURY_THRIFT = { off: 4000, on: 8000 };
+function luxuryThrift(w) {
+  for (const good of LUXURY_GOODS) {
+    const o = w.trade.orders[good];
+    if (!o || !(o.keep > 0)) continue;                             // only the orders this habit set (a luxury with a level; the run sets no other)
+    if (o.mode === 'buy' && w.gold < LUXURY_THRIFT.off) setTradeOrder(w, good, 'ignore', o.keep);
+    else if (o.mode === 'ignore' && w.gold >= LUXURY_THRIFT.on) setTradeOrder(w, good, 'buy', o.keep);
+  }
+}
+function actTrade(w, t, tried) {
+  const key = `trade:${t.partner}:${t.good}:${t.open}:${t.keep || 0}`;
+  if (tried.has(key)) return null;
+  tried.add(key);
+  if (t.open) {
+    if (routeBlocker(w, t.partner) !== null || w.gold - routeCostOf(w, t.partner) < RESERVE) return null;
+    if (!openRoute(w, t.partner).ok) return null;
+  }
+  if (!tradeAllowed(w, t.partner, t.good, 'sells')) setTradeSwitch(w, t.partner, 'sells', t.good, true);
+  if (w.gold < LUXURY_THRIFT.off) return null;                    // the treasury cannot spare it now: the habit waits
+  const keep = Math.max(LUXURY_KEEP, t.keep || luxuryKeepFor(w), (w.trade.orders[t.good] || { keep: 0 }).keep);
+  if (!setTradeOrder(w, t.good, 'buy', keep).ok) return null;
+  return { day: w.day, trade: t.partner, good: t.good, opened: t.open, keep };
+}
+
 // Does one fix the way its Show me would: a build where the ghost lands (refused or unaffordable: nothing), a far good's Fetch order. Returns
 // the record of what was done, or null.
 export function act(w, fix, good, tried) {   // exported for the Wave 4 danger player (tests/v60/balance/respond.js)
@@ -194,6 +237,7 @@ export function act(w, fix, good, tried) {   // exported for the Wave 4 danger p
     const g = w.buildings[fix.guard];
     fix = { item: 'tower', at: 'near', target: { x: g.x + g.w / 2, y: g.y + g.d / 2 } };
   }
+  if (fix.trade) return actTrade(w, fix.trade, tried);           // Version 8.4 (Track G): the luxury habit, as the Trade sheet's Show me leads
   if (fix.select !== undefined) {
     if (!fix.fetch || !good) return null;
     const key = `fetch:${fix.select}:${good}`;
@@ -259,6 +303,7 @@ function forDistrict(w, a) {
 }
 // One month end's play: the advice, top first, then each grand home's next step, until BUILDS_A_MONTH things are done or nothing more is.
 export function playMonth(w, built) {   // exported for the great-work run (tests/v60/a/greatWorkRun.js)
+  luxuryThrift(w);                                               // Version 8.4 (Track G): luxuries only while the treasury can spare them
   const tried = new Set();
   let n = 0;
   for (let again = true; again && n < BUILDS_A_MONTH;) {

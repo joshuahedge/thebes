@@ -27,20 +27,23 @@ describe('v60 balance great work margin', () => {
 // with the script as it was (no habits), wins on day 6,097 with 4,490 the lowest and every raid beaten. No one script wins both: without the habits seed 5 never reaches the Seat,
 // with them seed 10 does not either (the doubt for Josh). The pins hold each as measured, with a margin.
 describe('v60 balance great work with the dangers on (6.0.1)', () => {
-  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 20,000 gold from year 10, no raid lost', () => {
+  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 4,000 gold from year 10 (8.4; it was 20,000), no raid lost', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
     expect(r.won.day).toBeLessThanOrEqual(6800);
-    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(20000);
+    // Version 8.4 (Track G, rulings 1468 and 1478; a moved pin for wave 2's balance check): the luxuries Villas and Estates now buy take gold from year 9 on; measured
+    // 4,942 the lowest from year 10 (it was 23,030, pinned at 20,000). Won as before.
+    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(4000);   // WAVE2-PIN 8.4 Track G (ruling 1478): was 20000
     expect([raids > 0, raidsLost]).toEqual([true, 0]);
     expect(r.insane).toEqual([]);
   });
-  it('seed 10 with the script as it was: won by day 7,200, never under 4,000 gold from year 10, no raid lost', () => {
+  // Version 8.4 (Track G, rulings 1468 and 1478; a MOVED pin for wave 2's balance check): with the luxury need this seed, played by the script as it was (no habits),
+  // no longer wins. It reaches Great Capital on day 3,660 as before but never the Seat: its treasury is below 0 from year 12 (the lowest -20,579; it was 4,490 and
+  // won on day 6,084), so no Estate holds long enough. The pin holds what was measured, so a change that brings the win back fails here and says so.
+  it('seed 10 with the script as it was: no longer wins with the luxuries (8.4: a moved pin), no raid lost', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect(r.won !== null).toBe(true);
-    expect(r.won.day).toBeLessThanOrEqual(6200);
-    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(4000);
+    expect([r.won, r.ranks.great_capital > 0, r.ranks.seat]).toEqual([null, true, undefined]);   // WAVE2-PIN 8.4 Track G (ruling 1478): was won by day 6,200, never under 4,000 gold from year 10
     expect([raids > 0, raidsLost]).toEqual([true, 0]);
   });
 });

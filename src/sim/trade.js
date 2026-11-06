@@ -326,6 +326,10 @@ function caravan(world, partnerId, post, events) {
     used[good] = (used[good] || 0) + n;
     spent += n * price;
     world.gold -= n * price;
+    if (GOODS[good] && GOODS[good].luxury) {                            // Version 8.4 (Track G): the luxuries bought, and their gold in last month's record
+      world.tally.luxuryBought += n;
+      if (world.stats.lastMonth) world.stats.lastMonth.luxuries = (world.stats.lastMonth.luxuries || 0) + n * price;
+    }
   }
   const t = world.tally;
   t.sold += Object.values(sold).reduce((a, b) => a + b, 0);

@@ -22,6 +22,10 @@ export const ADVICE_FIX = {
   // of the Manor a Large plot opens, ADVICE.largePlot). The Keep at least item weighs the gold of the sales it holds back, spread over the months
   // between visits, in ADVICE.goldPerPoint (src/sim/adviceFixes.js floorItem), as the treasury item does.
   quay: 6,
+  // Version 8.4, Track G (ruling 1477): gold piling up (src/sim/advice.js goldSpareItem): the treasury holds more than spareMonths months of the taxes at the
+  // Normal rate, with a palace whose rate is not Low. It weighs goldSpare points: a nudge, below every home held back a tier.
+  spareMonths: 12,
+  goldSpare: 2,
 };
 
 // Track A's tips (words in Track A's text.js section): the first Quay placed, and the first route opened (what the Trade sheet holds). Events have

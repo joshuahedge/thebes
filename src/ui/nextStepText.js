@@ -7,7 +7,7 @@ import { MILESTONES } from '../data/progression.js';
 import { categoryOfItem } from '../data/ui.js';
 import { allBuildings } from '../sim/world.js';
 import { goodMakers } from '../sim/advice.js';
-import { NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT, ADVICE_FIX_TEXT } from './text.js';
+import { NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT, ADVICE_FIX_TEXT, V84_G_TEXT } from './text.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { costOf } from '../sim/costs.js';
 import { isLot, isSmallTop } from '../sim/largePlots.js';
@@ -20,6 +20,7 @@ export const GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'c
 const GIVES = {
   road: 'road access', water: 'water', food: 'food', religion: 'a temple in reach', pottery: 'pottery', entertainment: 'entertainment', beer: 'beer',
   twoFoods: 'a second kind of food', threeFoods: 'a third kind of food', linen: 'linen', jewellery: 'jewellery', desirability: 'a pleasanter street',
+  luxury: 'a luxury, by trade',   // Version 8.4: the trading post or Quay a luxury is bought through
 };
 const needWord = (need) => (NEED_NAMES[need] || need).toLowerCase();
 const gives = (need) => GIVES[need] || needWord(need);
@@ -69,6 +70,7 @@ export function stepWords(world, home, step) {
   const c = step.cause;
   switch (step.reason) {
     case 'waiting': {
+      if (c && c.code === 'luxury_ordered') return done(STEP_LABELS.waiting, V84_G_TEXT.stepOrdered(c, step.days));   // Version 8.4: a luxury on order
       if (!c || c.code !== 'next_delivery') return done(STEP_LABELS.waiting, STEP_TEXT.decides(step.days));
       const what = step.need === 'twoFoods' ? 'the second kind of food' : needWord(step.need);
       return done(STEP_LABELS.waiting, STEP_TEXT.arriving(what, step.days));
@@ -81,6 +83,18 @@ export function stepWords(world, home, step) {
   }
   const f = step.fix;
   const b = c && c.id !== null && c.id !== undefined ? world.buildings[c.id] || null : null;
+  // Version 8.4 (Track G, ruling 1473): a luxury's trade fix: Show me opens the Trade sheet (action.trade); a route to open says its price.
+  if (f.trade) {
+    out.action = { label: T.showMe, aria: V84_G_TEXT.luxuryTradeAria(f.trade), select: f.select, trade: f.trade };
+    const rest = V84_G_TEXT.stepTrade(f.trade, c);
+    if (!f.trade.open) return done(STEP_LABELS.next, rest);
+    out.short = step.afford === false;
+    return done(STEP_LABELS.next, `${rest} (${STEP_TEXT.price(step.cost, '', world.gold, out.short)} for the route)`);
+  }
+  if (f.why === 'luxury_blocked') {
+    out.action = { label: T.view, aria: viewLabel(buildingName(b ? b.type : 'trading_post')), select: f.select };
+    return done(STEP_LABELS.next, V84_G_TEXT.stepBlocked(c));
+  }
   if (f.select !== undefined) {
     // A building in reach that is not serving the home (its own sheet says how to fix it), or the far store that holds a good (Fetch).
     const n = b ? buildingName(b.type).toLowerCase() : 'building';

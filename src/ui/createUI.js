@@ -231,7 +231,7 @@ export function createUI({
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
   // Version 5.0 (Task 1): City advice. Read at a command and every fifth game day (refreshChrome), shown by the top-bar button, the summary's link and a tip.
-  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text), tray: trayModel });
+  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text), tray: trayModel, openTrade: () => store.set(openSheet(store.get(), 'trade')) });   // Version 8.4: a luxury's trade fix
   // Version 8.0 (Track N, rulings 1160-1161): the scroll button also carries the message tray. It shows while there is a message or something pinned, and its number is the messages not
   // read yet plus what is pinned (a raid, a fire, a letter, an event waiting: they need you until they are dealt with).
   const pinnedAlerts = () => alerts.list().filter((a) => PINNED_CODES.has(a.code));

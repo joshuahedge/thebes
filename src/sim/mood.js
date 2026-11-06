@@ -10,7 +10,7 @@ import { crimeMood } from './crime.js';
 import { raidMood } from './raids.js';
 import { festivalMood } from './festival.js';
 import { monumentMood } from './prestige.js';
-import { palaceMood } from './palace.js';
+import { palaceMood, taxMood } from './palace.js';
 
 // Stage 4.5 (ruling 325): the Town unemployment penalty comes in over FORECAST.phaseMonths months from the day the city first
 // reached Town (world.splits.town, which updateMilestone records), so a city of homes with no work does not crash in one month.
@@ -56,6 +56,9 @@ export function updateMood(world) {
   const monuments = monumentMood(world), palace = palaceMood(world);
   if (monuments) danger.monuments = monuments;
   if (palace) danger.palace = palace;
+  // Version 8.4, Track G (ruling 1465): the Taxes row, the palace's rate (+8 Low, -8 High), only while it is not 0.
+  const taxes = taxMood(world);
+  if (taxes) danger.taxes = taxes;
   const dangerSum = Object.values(danger).reduce((s, v) => s + v, 0);
   world.mood = Math.max(0, Math.min(100, MOOD.base + food + jobs + debt + dangerSum));
   world.moodBreakdown = { base: MOOD.base, food, jobs, debt, ...danger };

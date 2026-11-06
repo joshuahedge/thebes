@@ -35,6 +35,9 @@ function street({ tier = MAX_TIER, residents = 160, foods = ['grain', 'figs', 'f
     ...HOUSEHOLD_GOODS.map((g) => [g, Math.ceil(residents * GOODS[g].perResidentPerMonth * use)]),
     ...foods.map((g) => [g, Math.ceil((residents * 0.25) / foods.length) + 1]),
   ]);
+  // Version 8.4 (Track G): a Villa and an Estate need a luxury too: cedar in stock and on the stall, so the foods are what these tests turn on.
+  home.stock.cedar = 8;
+  bazaar.store.cedar = 40;
   for (const [x, y] of [[11, 11], [11, 12], [11, 13], [12, 13], [13, 13], [14, 13], [14, 12], [14, 11], [10, 11], [10, 12], [10, 13], [11, 14], [12, 14], [13, 14], [14, 14], [15, 11], [15, 12], [15, 13]]) {
     if (houseDesirability(w, home) >= TIERS[MAX_TIER].desirability.rise) break;
     if (!buildingAt(w, x, y)) addRaw(w, 'statue', x, y);

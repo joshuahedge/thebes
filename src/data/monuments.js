@@ -101,6 +101,8 @@ export const MONUMENT = {
   stockPerCrew: 40,        // a site's stockpile holds at most this x its kind's most crews, never more of one than its courses need
   stallDays: 3,            // a site with no work this many days in a row (unpaused, unfinished, on a road) is stalled (a warning)
   demolishRefund: 0.25,    // demolishing a monument or site refunds a quarter of its founding (ECONOMY.demolishRefund)
+  rushPace: 2,             // Version 8.4 (design 2b, ruling 1467): Rush a course: every crew there lays this x its day's units while the course under way lasts ...
+  rushGold: 3,             // ... at this x the work gold for each unit laid, paid day by day (never below 0); materials are still needed
 };
 
 // A site under way is a little unpleasant to live beside once a road touches it (dust and noise, spec 4.7).

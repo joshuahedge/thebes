@@ -14,7 +14,7 @@ import { isLargePlot, isLot, isSmallTop, largePlotUnlocked } from './largePlots.
 import { alertsFor } from './alerts.js';
 import { monthForecast, biggestCost } from './economy.js';
 import { isUnlocked } from './progression.js';
-import { costOf, roadCostOf, raidsOn } from './costs.js';
+import { costOf, roadCostOf, raidsOn, routeCostOf } from './costs.js';
 import { canAfford } from './money.js';
 import { fireCause } from './fire.js';
 import { healthCause } from './health.js';
@@ -31,7 +31,12 @@ import { DESIRABILITY } from '../data/desirability.js';
 import { checkTiles } from './commands.js';
 import { v60Advice } from './v60.js';
 import { v70Advice } from './v70.js';
-import { towerFix, strandedFix } from './adviceFixes.js';
+import { towerFix, strandedFix, quaySpot } from './adviceFixes.js';
+import { ADVICE_FIX } from '../data/adviceFixes.js';
+import { QUAY_TYPE } from '../data/trade.js';
+import { byRiver } from './trade.js';
+import { monthFigures } from './economy.js';
+import { palaceOf, taxRateOf } from './palace.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -276,8 +281,36 @@ function lockedOf(world, cause, need) {
   return item ? { item, milestone: (milestoneOf(item) || { id: null }).id } : null;
 }
 
-// What a build fix costs: a road per tile (roadCostOf), else the building's costOf; null for a fix that builds nothing.
+// ── Version 8.4, Track G: the luxuries' fixes (design 2c, rulings 1472, 1473) ──
+// The trade causes of a luxury no bazaar can reach (src/sim/luxury.js luxuryTradeCause), each made into a fix the sim honours:
+//   the partner's landing (a trading post, or a Quay for a river partner) is missing: build it (the Quay where one fits, quaySpot), or locked;
+//   no_luxury_route, luxury_not_bought: { select: the landing, trade: { partner, good, open } } (Show me opens the Trade sheet: open the route and set Buy;
+//     open true when the route is still to open, whose price is the fix's cost);
+//   luxury_ordered: waiting for the next caravan or boat, unless none will come (blocked): View the landing, whose own sheet says why;
+//   no_luxury_route with no partner open to the city yet: nothing to offer (the row says when one opens).
+//   luxury_short: the same trade fix with keep, the level that covers the homes' use between visits (Show me opens the Trade sheet to raise it).
+const LUXURY_CODES = ['no_luxury_route', 'luxury_not_bought', 'luxury_ordered', 'luxury_short'];
+function luxuryFix(world, cause, home) {
+  if (!cause.partner || !cause.good) return {};
+  const landing = cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] || null : null;
+  if (!landing) {
+    const item = byRiver(cause.partner) ? QUAY_TYPE : 'trading_post';
+    if (!isUnlocked(world, item)) return { locked: { item, milestone: (milestoneOf(item) || { id: null }).id } };
+    if (item !== QUAY_TYPE) return { fix: { item, at: 'near', target: centreOf(home) } };
+    const spot = quaySpot(world);
+    if (!spot) return {};
+    const { w, d } = dimsOf(item, spot.rot);
+    return { fix: { item, at: 'near', target: { x: spot.x + w / 2, y: spot.y + d / 2 }, rot: spot.rot } };
+  }
+  if (cause.code === 'luxury_ordered') return cause.blocked ? { fix: { select: landing.id, target: centreOf(landing), why: 'luxury_blocked' } } : { waiting: true };
+  const trade = { partner: cause.partner, good: cause.good, open: cause.code === 'no_luxury_route', ...(cause.code === 'luxury_short' ? { keep: cause.want } : {}) };
+  return { fix: { select: landing.id, target: centreOf(landing), why: cause.code, trade } };
+}
+
+// What a build fix costs: a road per tile (roadCostOf), else the building's costOf; null for a fix that builds nothing. Version 8.4: a trade fix that opens a
+// route costs the route (routeCostOf).
 export function priceOf(world, fix) {
+  if (fix && fix.trade && fix.trade.open) return routeCostOf(world, fix.trade.partner);
   if (!fix || !fix.item) return null;
   return fix.item === 'road' ? roadCostOf(world) : costOf(world, fix.item);
 }
@@ -292,6 +325,7 @@ const priced = (world, fix) => {
 // or { waiting: true } (next_delivery), { locked: { item, milestone } }, or {} when nothing can be offered.
 function fixFor(world, cause, home, need) {
   if (cause.code === 'next_delivery') return { waiting: true };
+  if (LUXURY_CODES.includes(cause.code)) return luxuryFix(world, cause, home);
   const f = causeFix(world, cause);
   if (!f) { const locked = lockedOf(world, cause, need); return locked ? { locked } : {}; }
   const b = cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] || null : null;
@@ -338,6 +372,13 @@ export function buildFixFor(world, house, cause, need) {
   const r = cause ? fixFor(world, cause, house, need) : {};
   return r.fix && r.fix.item ? r.fix : null;
 }
+
+// Version 8.4 (Track G): any fix a cause makes (a build, a select, a trade fix), for the house sheet's luxury row; null when it has none.
+export function stepFixFor(world, house, cause, need) {
+  const r = cause ? fixFor(world, cause, house, need) : {};
+  return r.fix || null;
+}
+export const isLuxuryCause = (cause) => Boolean(cause) && LUXURY_CODES.includes(cause.code);
 
 // Version 5.0 (final review): the build fix a cause would make when its item is not unlocked yet, { item, milestone }, else null: a checklist row says what the next step
 // says (Locked: it comes with the milestone) instead of offering a Show me the sim would refuse.
@@ -563,6 +604,19 @@ function towerItem(world, out) {
   out.push(item('raid_towers', 'raid_towers', buildN * ADVICE.tower * (q ? ADVICE.towerWarned : 1), buildN, null, data, fixed));
 }
 
+// Version 8.4, Track G (ruling 1477): gold piling up. The treasury holds more than ADVICE_FIX.spareMonths months of the taxes at the Normal rate while the
+// palace's rate is not Low: lower taxes at the palace for mood, or rush a monument. Show me opens the palace's sheet (its Taxes row). Never with no palace
+// (the rate lives there), so never in the lesson, whose city has none.
+function goldSpareItem(world, out) {
+  const palace = palaceOf(world);
+  if (!palace || taxRateOf(world) === 'low') return;
+  const taxes = monthFigures(world).taxesNormal;
+  if (!(taxes > 0) || world.gold <= ADVICE_FIX.spareMonths * taxes) return;
+  const months = Math.floor(world.gold / taxes);
+  out.push(item('gold_spare', 'gold_spare', ADVICE_FIX.goldSpare, 1, palace.id, { gold: world.gold, taxes, months, rate: taxRateOf(world) },
+    { fix: { select: palace.id, target: centreOf(palace), why: 'gold_spare' }, cost: null, afford: null }));
+}
+
 const kindRank = (k) => ADVICE_KINDS.indexOf(k);
 // Heaviest first; a tie goes to the kind first in ADVICE_KINDS, then the lower id (an item with none after), then the key.
 export const compareAdvice = (a, b) => b.weight - a.weight || kindRank(a.kind) - kindRank(b.kind)
@@ -583,5 +637,6 @@ export function cityAdvice(world) {
   towerItem(world, out);
   v60Advice(world, alerts, out);                       // Version 6.0: the court's demands and the dangers (Tracks A and B1, src/sim/v60.js)
   v70Advice(world, alerts, out);                       // Version 7.0: the waiting event (Track E) and trade's items (Track A) (src/sim/v70.js)
+  goldSpareItem(world, out);                           // Version 8.4 (Track G): gold piling up
   return out.sort(compareAdvice);
 }

@@ -90,10 +90,12 @@ describe('v50 balance advice: the top item at the end of each run', () => {
 
   // Version 6.0 (Tracks A and C merged; the grand run answers the court now): the raid lacks 2 towers, not 4, so sickness leads (Track C alone: the raid 40,
   // sickness 24, 41 jobs unfilled 20.5, water 12).
-  it('the grand district run, at year 10, names sickness in 8 homes first, then the 2 towers a raid lacks, the 28 jobs no worker fills and crime', () => {
+  // Version 8.4 (Track G): with the luxuries the run plays differently from year 9; at year 10 no job goes unfilled enough to rank, so crime is third and
+  // water for 6 homes fourth.
+  it('the grand district run, at year 10, names sickness in 8 homes first, then the 2 towers a raid lacks, crime and water (8.4: the 28 unfilled jobs no longer rank)', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['illness', null, 8, 24], ['raid_towers', null, 2, 20], ['workers_short', null, 28, 14], ['crime', null, 6, 12]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['illness', null, 8, 24], ['raid_towers', null, 2, 20], ['crime', null, 6, 12], ['home_need', 'water', 6, 12]]);   // WAVE2-PIN 8.4 Track G (ruling 1478): was [... ['workers_short', null, 28, 14], ['crime', null, 6, 12]]
   });
 });

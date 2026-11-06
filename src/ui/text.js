@@ -4144,6 +4144,100 @@ Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's shee
 }
 
 // Version 8.4, Track G (gold: the tax rate, Rush a course, luxury imports; rulings 1465-1484). Track G writes only between this header and its end line.
+// Every number in these words is the sim's own (monthFigures' taxesNormal and TAX_RATES, rushQuote, MONUMENT, luxuryTradeCause, the partners' prices).
+import { TAX_RATES as g84Rates } from '../data/palace.js';
+import { MONUMENT as g84Monument } from '../data/monuments.js';
+import { LUXURY_GOODS as g84Luxuries } from '../data/goods.js';
+const g84Signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+const g84Times = (n) => `${n}x`;
+const g84Good = (good) => goodName(good).toLowerCase();
+const g84Days = (n) => plural(n, 'day', 'days');
+const g84Months = (n) => plural(n, 'month', 'months');
+const g84Milestone = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+const g84Landing = (partner) => (v7Partners[partner] && v7Partners[partner].by === 'river' ? 'Quay' : 'trading post');
+Object.assign(MOOD_NAMES, { taxes: 'Taxes' });
+Object.assign(NEED_NAMES, { luxury: 'Luxury' });
+export const V84_G_TEXT = {
+  // The palace sheet's Taxes row: the three choices, each with its effect on this month's figures before the tap (ruling 1465).
+  taxHead: 'Taxes',
+  taxNote: 'Lower taxes draw people with mood; higher ones fill the treasury. The score counts taxes at Normal.',
+  rateNames: { low: 'Low', normal: 'Normal', high: 'High' },
+  // normal: the month's taxes at Normal; the effect is against Normal, and mood is the Taxes row it brings.
+  rateLine: (rate, normal) => {
+    const r = g84Rates[rate], gold = Math.round(normal * r.factor) - normal;
+    if (rate === 'normal') return `${ui4Gold(normal)} gold a month in taxes, no change to mood`;
+    return `${ui4Gold(Math.abs(gold))} gold a month ${gold < 0 ? 'less' : 'more'}, mood ${g84Signed(r.mood)}`;
+  },
+  rateNow: 'now',
+  rateAria: (rate, normal, now) => `Taxes ${V84_G_TEXT.rateNames[rate]}: ${V84_G_TEXT.rateLine(rate, normal)}${now ? ' (now)' : ''}`,
+  rateSet: (rate, normal) => `Taxes ${V84_G_TEXT.rateNames[rate].toLowerCase()}: ${V84_G_TEXT.rateLine(rate, normal)}`,
+  // The forecast's taxes row says the rate when it is not Normal.
+  forecastTaxes: (rate) => (rate === 'normal' ? T.taxes : `${T.taxes} (${V84_G_TEXT.rateNames[rate].toLowerCase()})`),
+  // Rush a course (rulings 1467, 1474-1476): its quote before the tap, its question, and what the sheet says while it runs.
+  rushButton: (q) => `Rush this course: about ${g84Days(q.saved)} sooner, about ${ui4Gold(q.extra)} gold more`,
+  rushHow: `Crews work ${g84Monument.rushPace === 2 ? 'twice' : g84Times(g84Monument.rushPace)} as fast on this course; each unit costs ${g84Times(g84Monument.rushGold)} the work gold. Stone and bricks must keep up`,
+  rushQuoteNote: (q) => `At today's crews with full supply: ${g84Days(q.days)} at their pace, ${g84Days(q.daysRushed)} rushed (about ${ui4Gold(q.perDay)} gold a day saved)`,
+  rushAsk: (type, q) => `Rush the course under way at the ${ui4Lower(type)}? About ${g84Days(q.saved)} sooner for about ${ui4Gold(q.extra)} gold more, paid day by day as the units are laid (${g84Times(g84Monument.rushGold)} the work gold). It ends with the course; cancel it at any time and nothing more is paid.`,
+  rushOk: 'Rush it',
+  rushSet: (type) => `Rushing the course at the ${ui4Lower(type)}`,
+  rushed: (q) => `Rushed: about ${g84Days(q.daysRushed)} to go on this course`,
+  rushedShort: (good) => `Rushed: waiting for ${g84Good(good)}`,
+  rushCancel: 'Cancel the rush',
+  rushCancelled: (type) => `The rush at the ${ui4Lower(type)} is cancelled: nothing more is paid`,
+  // Why Rush cannot be had now (rushQuote's reasons), shown in place of the button.
+  rushWhy: {
+    waiting_offering: "Rush: this stage waits for its offering first",
+    waiting_gilding: "Rush: the last course waits for the gilding's gold first",
+    waiting_capstone: "Rush: the last course waits for the capstone's gold first",
+    no_gold: (q, have) => `Rush: a rushed day costs about ${ui4Gold(q.dayGold)} gold; you have ${ui4Gold(have)}. It can't put the treasury below 0`,
+  },
+  rushRefused: (reason) => (reason === 'no_gold' ? "Not enough gold for a rushed day: it can't put the treasury below 0" : reason === 'has_rush' ? 'This course is already rushed' : 'The course cannot be rushed now'),
+  rushedLabel: 'Rushed',
+  // Luxuries (rulings 1468, 1472, 1473): the Trade sheet's mark, and the luxury row's causes (src/sim/luxury.js luxuryTradeCause).
+  luxuryMark: 'Luxury: Villas and Estates need one',
+  luxuryTradeAria: (fix) => `${T.showMe}: the Trade sheet, ${fix.open ? `open a route to ${partnerName(fix.partner)}` : fix.keep ? `keep at least ${fix.keep} ${g84Good(fix.good)}` : `buy ${g84Good(fix.good)}`}`,
+  cause: {
+    no_luxury_route: (c) => (c.good
+      ? { cause: 'No luxury is bought: none reaches its bazaar', fix: `${c.block === 'no_post' || c.block === 'no_quay' ? `Build a ${g84Landing(c.partner)}, then open` : 'Open'} a route to ${partnerName(c.partner)} and buy ${g84Good(c.good)} (${ui4Gold(c.price)} gold each)` }
+      : { cause: `Luxuries come by trade: ${partnerName(c.partner)} trades from ${g84Milestone(c.milestone)}`, fix: '' }),
+    luxury_not_bought: (c) => ({ cause: `${partnerName(c.partner)} sells ${g84Good(c.good)}, but trade does not buy it`, fix: c.off ? `Switch ${g84Good(c.good)} on for ${partnerName(c.partner)} and set it to Buy on the Trade sheet` : `Set ${g84Good(c.good)} to Buy on the Trade sheet, with a level to keep` }),
+    luxury_short: (c) => ({ cause: `Trade keeps only ${c.keep} ${g84Good(c.good)} near the ${g84Landing(c.partner)}; the homes use ${c.use} a month`, fix: `Raise ${g84Good(c.good)}'s Keep at least to ${c.want} on the Trade sheet` }),
+    luxury_ordered: (c) => (c.blocked
+      ? { cause: `${goodName(c.good)} is on order from ${partnerName(c.partner)}, but none will come`, fix: `The ${g84Landing(c.partner)}'s sheet says why` }
+      : { cause: `${goodName(c.good)} is on order from ${partnerName(c.partner)}: it comes in ${g84Months(c.months)}`, fix: '' }),
+  },
+  // A home's next step for a luxury (src/ui/nextStepText.js stepWords).
+  stepTrade: (fix, cause) => (fix.keep ? `raise ${g84Good(fix.good)}'s Keep at least to ${fix.keep} on the Trade sheet, for this home's luxury` : fix.open
+    ? `open a route to ${partnerName(fix.partner)} and buy ${g84Good(fix.good)} for this home's luxury`
+    : cause && cause.off ? `switch ${g84Good(fix.good)} on for ${partnerName(fix.partner)} and set it to Buy, for this home's luxury` : `set ${g84Good(fix.good)} to Buy on the Trade sheet, for this home's luxury`),
+  stepOrdered: (c, days) => `${g84Good(c.good)} on its way from ${partnerName(c.partner)} (${g84Months(c.months)}); then the bazaar (${g84Days(days)})`,
+  stepBlocked: (c) => `${g84Good(c.good)} is on order from ${partnerName(c.partner)}, but none will come: see the ${g84Landing(c.partner)}`,
+  // City advice: the trade fix's cost line, and gold piling up (ruling 1477).
+  routeCost: (partner, gold) => `Route to ${partnerName(partner)}: ${ui4Gold(gold)} gold`,
+  goldSpare: (a) => ({
+    what: `Gold is piling up: ${ui4Gold(a.data.gold)} gold, ${g84Months(a.data.months)} of taxes`,
+    why: '',
+    fix: 'Lower taxes at the palace for mood, or rush a monument',
+  }),
+};
+// The luxury causes in the house sheet's words, as every cause is worded (causeText); every other cause as before.
+{
+  const base = causeText;
+  causeText = (cause, world, need = null) => (cause && V84_G_TEXT.cause[cause.code] ? V84_G_TEXT.cause[cause.code](cause) : base(cause, world, need));
+}
+V70_ADVICE_WORDS.gold_spare = (a) => V84_G_TEXT.goldSpare(a);
+// Incense is a luxury too now; cedar's and ivory's lines are wave 0's, above.
+{
+  const line = goodLine;
+  goodLine = (good) => (good === 'incense'
+    ? `${goodName(good)}: made by the resin gatherers of ${partnerName('punt')}; used by festivals, and by Villas and Estates as a luxury; bought from ${partnerName('punt')}`
+    : line(good));
+}
+V70_HELP.p.push(
+  { head: 'Taxes', text: `The palace sets the city's taxes. Low takes ${g84Times(g84Rates.low.factor)} the month's taxes and gives mood ${g84Signed(g84Rates.low.mood)}, which draws people; High takes ${g84Times(g84Rates.high.factor)} and costs ${-g84Rates.high.mood} mood. Each choice on the palace's sheet says what it would do this month. The score counts taxes at Normal, so the rate never moves it. With no palace, taxes are Normal.` },
+  { head: 'Rush a course', text: `On a monument site's sheet, Rush this course has every crew there lay ${g84Times(g84Monument.rushPace)} its day's units, at ${g84Times(g84Monument.rushGold)} the work gold a unit, paid day by day as they are laid. It ends with the course, and can be cancelled at any time. Stone and bricks must keep up: a rushed site uses them twice as fast, and its sheet says when it waits for them.` },
+  { head: 'Luxuries', text: `Villas and Estates need a luxury: ${g84Luxuries.map(g84Good).join(', ')}, any of them. Nothing in the city makes one: buy one from a partner on the Trade sheet (Byblos sells cedar from Great city), keep it in a storehouse near a bazaar, and the bazaar sells it to the homes. A Villa or Estate without one for two months drops a tier.` },
+);
 // ── end v84 g ──
 
 // Version 8.4, Track R (raids: the clock, the scouts, the low-Nile lean, captured weapons, the celebration; rulings 1485-1499). Track R writes only here.

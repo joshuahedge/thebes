@@ -156,6 +156,7 @@ describe('v50 contract advice: homes held back', () => {
     bz.store = Object.fromEntries([['grain', 300], ['figs', 300], ['fish', 300], ...HOUSEHOLD_GOODS.map((g) => [g, 300])]);
     const top = addRaw(v, 'house', 12, 11, { tier: MAX_TIER, w: 2, d: 2, residents: 160, stockedFor: 160 });
     top.stock = Object.fromEntries([...HOUSEHOLD_GOODS.map((g) => [g, Math.ceil(160 * GOODS[g].perResidentPerMonth * 2)]), ['grain', 20], ['figs', 20], ['fish', 20]]);
+    top.stock.cedar = 8;                                         // Version 8.4 (Track G): an Estate keeps a luxury too
     for (const [x, y] of [[11, 11], [11, 12], [11, 13], [12, 13], [13, 13], [14, 13], [14, 12], [14, 11], [10, 11], [10, 12], [10, 13], [11, 14], [12, 14], [13, 14], [14, 14], [15, 11], [15, 12], [15, 13]]) {
       if (houseDesirability(v, top) >= TIERS[MAX_TIER].desirability.rise) break;
       if (!buildingAt(v, x, y)) addRaw(v, 'statue', x, y);

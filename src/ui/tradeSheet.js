@@ -24,10 +24,12 @@ import { inOasisPool } from '../sim/oases.js';
 import { el, button, clear } from './components.js';
 import {
   T, TRADE_MODE_NAMES, partnerName, goodName, showMeLabel, openRouteText, routeBlockText, noCaravanText, tradeChoiceLabel, tradeReasonText,
-  V70_TRADE_TEXT as W,
+  V70_TRADE_TEXT as W, V84_G_TEXT,
 } from './text.js';
 
 const isOpen = (world, id) => Boolean(world.trade.routes[id]);
+// Version 8.4 (Track G, ruling 1468): a luxury's rows say what it is for (in words, not a colour): "Luxury: Villas and Estates need one".
+export const luxuryMark = (good) => (GOODS[good] && GOODS[good].luxury ? el('p', { class: 'luxury-mark small muted', text: V84_G_TEXT.luxuryMark }) : null);
 const openPartners = (world) => Object.keys(PARTNERS).filter((id) => isOpen(world, id));
 
 // Why a route cannot open now, or null: the sim's own rule (routeBlocker), so the button is enabled exactly when
@@ -111,7 +113,7 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
       el('span', { class: 'state small', text: on ? W.on : W.off }),
     ]);
     sw.addEventListener('click', () => done(setTradeSwitch(world, id, side, good, !on), 'trade'));
-    return el('li', { dataset: { side, good } }, [sw]);
+    return el('li', { dataset: { side, good } }, [sw, luxuryMark(good)]);
   }
 
   function card(id, body) {
@@ -162,6 +164,7 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     const stock = where.map(({ kind, b }) => W.near(tradeStock(world, good, b), kind)).join(' · ');
     const li = el('li', { class: 'trade-good', dataset: { good } }, [
       el('div', { class: 'row' }, [el('strong', { text: name }), el('span', { class: 'stock small muted', text: stock })]),
+      luxuryMark(good),
       el('span', { class: 'choices', role: 'group', 'aria-label': tradeChoiceLabel(name) }, choices),
     ]);
     const held = heldBack(world, good);

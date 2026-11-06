@@ -66,9 +66,9 @@ describe('distribution of many goods', () => {
     expect(at(4)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery']));
     expect(at(5)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery']));
     expect(at(6)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer']));
-    expect(at(7)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen']));
-    expect(at(8)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']));
-    expect(at(9)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']));
+    expect(at(7)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'incense', 'cedar', 'ivory']));   // Version 8.4: a Fine manor stocks a luxury for the Villa
+    expect(at(8)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery', 'incense', 'cedar', 'ivory']));
+    expect(at(9)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery', 'incense', 'cedar', 'ivory']));
   });
   it('tops a home up to one month of each household good it wants, rounded up, and no more', () => {
     const w = street();

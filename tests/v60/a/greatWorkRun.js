@@ -11,7 +11,7 @@
 //     sheets' Pause), so their guilds' workers go to it. Its offerings leave the stores by themselves as each stage begins.
 // It records each year's end (gold, favour, people, rank, the great temple's course and stage), the day each rank was reached, the founding, each
 // offering, and the day the reign is won.
-import { grandRun, playMonth, sendTribute, setHabits, freeIdle, feedFirst, act, GRAND_YEARS } from '../../v50/grand/grandRun.js';
+import { grandRun, playMonth, sendTribute, setHabits, freeIdle, feedFirst, act, GRAND_YEARS, setReserved } from '../../v50/grand/grandRun.js';
 import { causeFix } from '../../../src/ui/monumentSheet.js';
 import { answerCourt } from './answer.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
@@ -36,6 +36,7 @@ const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const RESERVE = 400;
 const TEMPLE = { x: 34, y: 27 };                       // the great temple's corner: east of the works quarter, the works road run on to it
 const GUILDS = [[41, 27], [41, 29], [34, 33], [36, 33]];  // its own builders' guilds, on the road laid round it (each within a crew's reach)
+const TEMPLE_PLOT = { x: 33, y: 26, w: 10, d: 9 };    // Version 8.4: the temple, the road round it, its guilds and firehouse (foundTemple), kept free until it is founded
 
 // The new street (the street's road, its wells, then its plots), laid once the treasury holds it. Returns what it laid.
 function layStreet(w) {
@@ -151,6 +152,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
   const started = performance.now();
   const base = given || grandRun();
   setHabits(habits);
+  setReserved(TEMPLE_PLOT);                       // Version 8.4 (Track G, ruling 1478): the temple's plot kept free until it is founded
   const w = deserialize(serialize(base.w));
   const player = eventsOpt === true ? eventPlayer() : eventsOpt || null;   // Version 7.0 (wave 3): true is a steady player of its own, a given one the base run's, false none (the events held)
   if (player) releaseEvents(w);
@@ -176,7 +178,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
     playMonth(w, built);
     if (player) player.onMonth(w, events, m);   // Version 7.0 (wave 3): the city events, answered as a steady player does (tests/v70/balance/events.js)
     if (onMonth) onMonth(w, events, m);
-    if (!temple && w.milestone === 'seat') { temple = foundTemple(w); if (temple) foundedSave = serialize(w); }   // Version 7.0 (wave 3): the city the day it was founded, for the floors test (tests/v70/balance)
+    if (!temple && w.milestone === 'seat') { temple = foundTemple(w); if (temple) { foundedSave = serialize(w); setReserved(null); } }   // Version 7.0 (wave 3): the city the day it was founded, for the floors test (tests/v70/balance)
     if (temple && w.buildings[temple.id]) keepOfferings(w, w.buildings[temple.id]);   // Version 7.0 (wave 3): Keep at least for the offerings still owed
     if (habits) feedFirst(w);
     if (habits && temple && !won && w.buildings[temple.id] && w.buildings[temple.id].site) { followStall(w, w.buildings[temple.id], built); moveToCrews(w); }
@@ -185,6 +187,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
       yearly[w.day / YEAR_DAYS] = { gold: Math.round(w.gold), favour: w.court.favour, people: population(w), rank: w.milestone, course: gw ? gw.site.course : null, stage: gw ? greatWorkStatus(w, gw).stage : null, homes: housesOf(w).length, reason: gw ? gw.site.reason : null, crews: gw ? gw.site.crews.length : null, stock: gw ? { stone: Math.round(gw.site.stock.stone), bricks: Math.round(gw.site.stock.bricks) } : null, jobs: w.labour.jobs, workforce: w.labour.workforce, guilds: allBuildings(w).filter((b) => b.type === 'builders_guild').map((b) => b.staff).join('/'), burned: w.tally.buildingsBurned || 0, unfed: housesOf(w).filter((h) => h.met && h.met.food === false).length };
     }
   }
+  setReserved(null);
   return { w, eventRec: player ? player.rec : null, foundedSave, base, street, temple, won, ranks, offerings, dues, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
 }
 

@@ -18,3 +18,15 @@ export const PALACE_STYLES = [
 
 // Demolishing refunds a quarter of the 300 to build it (ECONOMY.demolishRefund); the enlargements are lost.
 export const PALACE = { type: 'palace', lastStyle: PALACE_STYLES.length - 1 };
+
+// Version 8.4, Track G (design 2a, rulings 1465, 1466): the tax rate the palace sets, one lever for 9.0's traits to bend.
+//   factor  this month's taxes are the Normal-rate taxes times this, rounded to whole gold once for the city
+//   mood    the Taxes row of the mood breakdown (none while 0); people follow mood alone (arrivals, departures)
+// With no palace, or none set (palace.tax absent), the rate is Normal. The score's taxes term always reads the Normal rate.
+export const TAX_RATES = {
+  low: { factor: 0.75, mood: 8 },
+  normal: { factor: 1, mood: 0 },
+  high: { factor: 1.25, mood: -8 },
+};
+// The order the palace sheet lists them in.
+export const TAX_ORDER = ['low', 'normal', 'high'];

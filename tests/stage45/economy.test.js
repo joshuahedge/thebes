@@ -48,7 +48,7 @@ describe('s45 forecast (the sim)', () => {
     const gold = w.gold;
     monthlyEconomy(w);
     expect([w.gold - gold, w.stats.lastMonth.taxes, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep, w.stats.lastMonth.net]).toEqual([f.net, f.taxes, f.wages, f.upkeep, f.net]);
-    expect(monthFigures(w)).toEqual({ taxes: f.taxes, wages: f.wages, upkeep: f.upkeep, soldiers: f.soldiers, net: f.net });
+    expect(monthFigures(w)).toEqual({ taxes: f.taxes, wages: f.wages, upkeep: f.upkeep, soldiers: f.soldiers, net: f.net, taxesNormal: f.taxes });   // Version 8.4: at Normal the two are one
   });
   it('leaves out a paused building and one no road touches, as the month does', () => {
     const w = city();

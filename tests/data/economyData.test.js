@@ -96,8 +96,8 @@ describe('data buildings, Stage 2', () => {
       const homes = [BUILDINGS.granary, BUILDINGS.storehouse].filter((s) => s.stores.includes(g));
       expect([g, homes.length]).toEqual([g, 1]);                                   // every good has exactly one kind of store
     }
-    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']);
-    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 });
+    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery', 'incense', 'cedar', 'ivory']);   // Version 8.4 (ruling 1468): and the luxuries, 40 of each
+    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100, incense: 40, cedar: 40, ivory: 40 });
     expect(Object.keys(BUILDINGS.bazaar.stock)).toEqual(BUILDINGS.bazaar.sells);
   });
   it('makes the booth an entertainment service with a reach of 8 road tiles', () => {
@@ -126,7 +126,7 @@ describe('data tiers 5-9', () => {
   it('adds one new demand per tier, beer and two foods together at Fine manor, linen and three foods at Villa (Stage 4.7, ruling 471)', () => {
     const added = [];
     for (let t = 5; t <= MAX_TIER; t++) added.push(TIERS[t].needs.filter((n) => !TIERS[t - 1].needs.includes(n)));
-    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen', 'threeFoods'], ['jewellery']]);
+    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen', 'threeFoods', 'luxury'], ['jewellery']]);   // Version 8.4 (ruling 1468): a luxury from the Villa
     for (let t = 2; t <= MAX_TIER; t++) for (const n of TIERS[t - 1].needs) expect([t, n, TIERS[t].needs.includes(n)]).toEqual([t, n, true]);
   });
   it('asks tiers 6-9 for desirability to rise and a lower value to keep, and nothing below', () => {
