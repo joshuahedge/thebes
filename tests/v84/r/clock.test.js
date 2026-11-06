@@ -8,7 +8,7 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 import { footMix } from '../../../src/data/armies.js';
 import { makeTestWorld } from '../../helpers/testWorld.js';
-import { at84, NUMBERS_84, raidCity, arriveNow, runRaid, EAST } from './helpers.js';
+import { at84, NUMBERS_84, NUMBERS_83, raidCity, arriveNow, runRaid, EAST } from './helpers.js';
 
 const YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const inShemu = (day) => SEASONS[Math.floor((day % YEAR) / DAYS_PER_MONTH)] === 'shemu';
@@ -17,11 +17,11 @@ const drawn = (w, from) => from + RAIDS.laterMin + Math.floor(hash2(w.seed, w.ra
 const withSeed = (seed, index) => { const w = makeTestWorld(); w.seed = seed; w.raid.index = index; return w; };
 
 describe('v84 r the clock: the first warning and the later gap', () => {
-  it('keeps today\'s numbers in data (wave 2 sets 300, 360-600 and 60) and the lean off', () => {
-    expect([RAIDS.firstWarnAfter, RAIDS.laterMin, RAIDS.laterMax, RAIDS.leanDays]).toEqual([720, 720, 1440, 0]);
+  it('holds 8.4\'s numbers in data since wave 2 (300, 360-600 and the 60-day lean; 8.3 had 720, 720-1440 and none)', () => {   // Version 8.4 wave 2 (ruling 1521): was 720, 720, 1440, 0
+    expect([RAIDS.firstWarnAfter, RAIDS.laterMin, RAIDS.laterMax, RAIDS.leanDays]).toEqual([NUMBERS_84.firstWarnAfter, NUMBERS_84.laterMin, NUMBERS_84.laterMax, NUMBERS_84.leanDays]);
   });
   it('comes exactly firstWarnAfter days after the clock starts, and the first raid never leans', () => {
-    for (const numbers of [NUMBERS_84, {}]) {
+    for (const numbers of [NUMBERS_84, NUMBERS_83]) {
       at84(() => {
         // The clock starts on day 700: at 8.4's 300 the raid arrives on day 1090, year-day 10, inside the lean's 60 days before Shemu (a later raid would wait for it).
         const w = raidCity();
@@ -74,15 +74,17 @@ describe('v84 r the clock: the first warning and the later gap', () => {
       }
       return n / 1000;
     };
-    const now = at84(share, {}), later = at84(share);
+    const now = at84(share, NUMBERS_83), later = at84(share);
     expect([later >= 0.45, later <= 0.55]).toEqual([true, true]);
     expect([now >= 0.28, now <= 0.38]).toEqual([true, true]);
   });
-  it('is exactly the old draw at today\'s numbers: the lean is off', () => {
-    for (let seed = 1; seed <= 20; seed++) for (let index = 1; index <= 10; index++) {
-      const w = withSeed(seed, index);
-      expect(laterWarnDay(w, 2000)).toBe(drawn(w, 2000));
-    }
+  it('is exactly the old draw at 8.3\'s numbers: the lean is off', () => {
+    at84(() => {
+      for (let seed = 1; seed <= 20; seed++) for (let index = 1; index <= 10; index++) {
+        const w = withSeed(seed, index);
+        expect(laterWarnDay(w, 2000)).toBe(drawn(w, 2000));
+      }
+    }, NUMBERS_83);
   });
   it('gives a tribute the same lean: the next warning after one paid is laterWarnDay of the arrival day', () => {
     at84(() => {

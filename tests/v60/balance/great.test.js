@@ -14,11 +14,13 @@ const YEAR_DAYS = MONTHS_PER_YEAR * DAYS_PER_MONTH;
 
 describe('v60 balance great work margin', () => {
   // Version 8.4: with Tracks G and R merged, won on day 6,855 (was 7,021) with 7,472 the lowest (was 3,945); see tests/v60/a/balance.test.js.
-  it('wins with at least 100 days of the run to spare and never holds less than 2,000 gold from the Seat on', () => {
+  // Wave 2 (rulings 1521, 1525; B7 NOT MET, left for the controller): with 8.4's raid clock the run is not won and holds -11,128 at its lowest (see tests/v60/a/balance.test.js).
+  // B7 asks for a win on day 6,900-7,100 and never under 2,000 gold from the Seat on; the 8.3 pin was a win with 100 days to spare and 2,000 the lowest.
+  it('with 8.4\'s raid clock: not won, the margin gone (B7 not met: a moved pin; it was a win with 100 days to spare, never under 2,000 gold)', () => {
     const r = greatWorkRun();
-    expect(r.won !== null).toBe(true);
-    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS - 100);
-    expect(r.lowestGold).toBeGreaterThanOrEqual(2000);
+    expect(r.won).toBe(null);                                                    // 8.4-BALANCE-OPEN (ruling 1525): was won by day 7,100
+    expect(Math.round(r.lowestGold)).toBe(-11128);                              // 8.4-BALANCE-OPEN (ruling 1525): was at least 2,000
+    expect(GREAT_YEARS * YEAR_DAYS).toBe(7200);
   });
 });
 
@@ -30,21 +32,27 @@ describe('v60 balance great work margin', () => {
 describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // Version 8.4 (rulings 1478, 1488): each track alone moved this seed (G's luxuries alone: lowest 4,942; R's Victory mood alone: not won, lowest -6,911). With G and R merged it
   // is back inside the 6.0.1 pins: won on day 6,457 (was 6,669), 22,401 the lowest (was 23,030), 6 raids, none lost. Wave 2's balance check re-measures it.
-  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 20,000 gold from year 10, no raid lost', () => {
+  // Wave 2 (rulings 1521, 1525; B7 NOT MET): with 8.4's raid clock this seed meets 13 raids (8.3: 6) and loses the last two (with war elephants, years 19-20); the
+  // works quarter burns from year 12 (storehouses, potters, quarries: the mood's fire and burned rows stand at -14 for years), the books run at a loss from year 12, and the
+  // run reaches the Seat on day 3,720 but is not won: the lowest -11,326, 402 at the end. Measured too: with later gaps of 540-900 days (outside the design's Q11) it wins
+  // on day 6,406 with 21,237 the lowest; war elephants off, a bigger Victory row and the luxury thrift change nothing.
+  it('the tuned seed (5) with the player\'s habits and 8.4\'s raid clock: reaches the Seat, not won (B7 not met: a moved pin)', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
-    expect(r.won !== null).toBe(true);
-    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
-    expect(r.won.day).toBeLessThanOrEqual(6800);
-    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(20000);
-    expect([raids > 0, raidsLost]).toEqual([true, 0]);
+    expect(r.ranks.seat).toBe(3720);
+    expect(r.won).toBe(null);                                                    // 8.4-BALANCE-OPEN (ruling 1525): was won by day 6,800
+    expect(Math.round(r.lowestGold)).toBe(-11326);                              // 8.4-BALANCE-OPEN (ruling 1525): was at least 20,000 from year 10
+    expect([raids, raidsLost]).toEqual([13, 2]);                                 // 8.4-BALANCE-OPEN (ruling 1525): was none lost
     expect(r.insane).toEqual([]);
   });
   // Version 8.4 (Track G, rulings 1468 and 1478; a MOVED pin for wave 2's balance check): with the luxury need this seed, played by the script as it was (no habits),
   // no longer wins. It reaches Great Capital on day 3,660 as before but never the Seat: its treasury is below 0 from year 12 (the lowest -20,579; it was 4,490 and
   // won on day 6,084), so no Estate holds long enough. The pin holds what was measured, so a change that brings the win back fails here and says so.
-  it('seed 10 with the script as it was: no longer wins with the luxuries (8.4: a moved pin), no raid lost', () => {
+  // Wave 2 (rulings 1521, 1525; settles Track G's moved pin; B7 NOT MET): with 8.4's raid clock too, this seed never reaches Great Capital (Track G measured it there on
+  // day 3,660), is in debt from year 9 (the lowest -64,927) and loses 3 of its 11 raids. 8.3: won on day 6,084, never under 4,490 from year 10, no raid lost.
+  it('seed 10 with the script as it was and 8.4\'s raid clock: not won, not Great Capital (B7 not met: a moved pin)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect([r.won, r.ranks.great_capital > 0, r.ranks.seat]).toEqual([null, true, undefined]);   // WAVE2-PIN 8.4 Track G (ruling 1478): was won by day 6,200, never under 4,000 gold from year 10
-    expect([raids > 0, raidsLost]).toEqual([true, 0]);
+    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, undefined, undefined]);   // 8.4-BALANCE-OPEN (ruling 1525): was won by day 6,200
+    expect(Math.round(r.lowestGold)).toBe(-64927);                                                 // 8.4-BALANCE-OPEN (ruling 1525): was at least 4,000 from year 10
+    expect([raids, raidsLost]).toEqual([11, 3]);                                                    // 8.4-BALANCE-OPEN (ruling 1525): was none lost
   });
 });

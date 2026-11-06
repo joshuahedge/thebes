@@ -6,6 +6,8 @@ import { footMix } from '../../../src/data/armies.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 
 export const NUMBERS_84 = { firstWarnAfter: 300, laterMin: 360, laterMax: 600, leanDays: 60 };
+// Version 8.4 wave 2 (ruling 1521): the data now holds 8.4's numbers, so a test that compares with 8.3 sets 8.3's (the lean off) through at84 too.
+export const NUMBERS_83 = { firstWarnAfter: 720, laterMin: 720, laterMax: 1440, leanDays: 0 };
 
 export function at84(fn, numbers = NUMBERS_84) {
   const old = { ...RAIDS };

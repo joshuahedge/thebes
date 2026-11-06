@@ -228,7 +228,7 @@ function addShowcase(world) {
 }
 
 export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) {
-  const gold = world.gold;
+  const gold = world.gold, speed = world.speed;
   world.gold = 1e9;
   const ex = world.tradeEntry.x;
   const top = world.size - 10;                      // the start road already runs up to y = size - 9
@@ -285,7 +285,21 @@ export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) 
     world.gold = spent;
   }
   assignLabour(world);
+  keepCalm(world, speed);
   return world;
+}
+
+// Version 8.4 wave 2 (ruling 1521): with 8.4's raid clock (the first warning 300 days after the clock, not 720) the sample city's first warning came inside its
+// build, so the title city and every dev scene built on it showed a raid. It keeps 8.3's calm: a first warning up at the end of the build is taken back, the game's
+// speed with it, and the warning comes SAMPLE_FIRST_WARN days after the clock started, as it did.
+const SAMPLE_FIRST_WARN = 720;
+function keepCalm(world, speed) {
+  const r = world.raid;
+  if (!r.warning || !r.warning.first || r.active || r.clockDay === null) return;
+  r.warning = null;
+  r.index = 0;
+  r.nextWarnDay = r.clockDay + SAMPLE_FIRST_WARN;
+  world.speed = speed;
 }
 
 // A road along row y, split wherever the river or a building (the stress city's monument sites) crosses it.

@@ -22,6 +22,7 @@ import { place, canPlace, drawRoad, paintHouses, setPaused } from '../../../src/
 import { assignLabour } from '../../../src/sim/labour.js';
 import { allBuildings, population, housesOf, isSite } from '../../../src/sim/world.js';
 import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
+import { raidStrength } from '../../../src/sim/armies.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { greatWorkStatus, siteStatus, offeringOf, offeringsMade } from '../../../src/sim/monuments.js';
 import { setKeepAtLeast } from '../../../src/sim/trade.js';
@@ -74,7 +75,7 @@ function meetWarning(w, built) {
     const first = firstRaidTarget(w, entry, warn.target);
     return first ? { x: first.x + first.w / 2, y: first.y + first.d / 2 } : { x: entry.x, y: entry.y };
   });
-  for (let tries = 0; tries < 6 && standing() < towersNeeded(warn.size); tries++) {
+  for (let tries = 0; tries < 6 && standing() < towersNeeded(raidStrength(warn)); tries++) {   // Version 8.4 (ruling 1521): the raid sheet's count, a war elephant counting as 4
     if (w.gold - costOf(w, 'tower') < RESERVE) return;
     const aim = aims[tries % aims.length], round = Math.floor(tries / aims.length);
     const g = nearestFit(w, { kind: 'building', type: 'tower' }, aim.x - 3 * round, aim.y + 2 * round, null, w.size);
@@ -156,7 +157,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
   const w = deserialize(serialize(base.w));
   const player = eventsOpt === true ? eventPlayer() : eventsOpt || null;   // Version 7.0 (wave 3): true is a steady player of its own, a given one the base run's, false none (the events held)
   if (player) releaseEvents(w);
-  const built = [], yearly = {}, ranks = {}, offerings = [], dues = [], insane = [];
+  const built = [], yearly = {}, ranks = {}, offerings = [], dues = [], insane = [], raids = [];
   let street = null, temple = null, won = null, lowestGold = w.gold, foundedSave = null;
   const firstMonth = Math.round(w.day / DAYS_PER_MONTH) + 1;
   for (let m = firstMonth; m <= years * MONTHS_PER_YEAR; m++) {
@@ -167,6 +168,8 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
       if (e.type === 'offering_made') offerings.push({ day: w.day, stage: e.stage, good: e.good, n: e.n });
       if (e.type === 'court_due') dues.push({ year: Math.floor(w.day / YEAR_DAYS) + 1, gold: e.gold, band: e.band, greatWork: e.greatWork });
       if (e.type === 'reign_won') won = { day: e.day, score: e.seal.score, medal: e.seal.medal };
+      // Version 8.4 (wave 2, ruling 1526): every raid's end, with what its war elephants did (the report's own fields), for the elephants' balance target (B8).
+      if (e.type === 'raid_end') raids.push({ day: w.day, index: e.report.index, won: e.won, size: e.report.size, elephants: (e.report.mix && e.report.mix.elephant) || 0, felled: e.report.felled || 0, stampeded: e.report.stampeded || 0, ivory: e.report.ivory || 0 });
     }
     if (!Number.isFinite(w.gold)) insane.push(`month ${m}: gold ${w.gold}`);
     lowestGold = Math.min(lowestGold, w.gold);
@@ -188,7 +191,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
     }
   }
   setReserved(null);
-  return { w, eventRec: player ? player.rec : null, foundedSave, base, street, temple, won, ranks, offerings, dues, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
+  return { w, eventRec: player ? player.rec : null, foundedSave, base, street, temple, won, ranks, offerings, dues, raids, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
 }
 
 let shared = null;

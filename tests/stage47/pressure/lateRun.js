@@ -20,6 +20,7 @@ import { place, canPlace } from '../../../src/sim/commands.js';
 import { housesOf, population, allBuildings } from '../../../src/sim/world.js';
 import { quotaOf, quotaStatus, sendQuota } from '../../../src/sim/pressure.js';
 import { towersNeeded, workingTowers } from '../../../src/sim/raids.js';
+import { raidStrength } from '../../../src/sim/armies.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { setFetch } from '../../../src/sim/carts.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
@@ -49,7 +50,7 @@ export function meetWarning(w, built) {   // exported for the Wave 4 danger play
   let n = 0;
   const standing = () => allBuildings(w).filter((b) => b.type === 'tower').length;
   for (const [x, y] of TOWER_SPOTS) {
-    if (standing() >= towersNeeded(warn.size)) break;
+    if (standing() >= towersNeeded(raidStrength(warn))) break;   // Version 8.4 (ruling 1521): the raid sheet's count, a war elephant counting as 4
     if (w.gold - costOf(w, 'tower') < RESERVE) break;
     if (!canPlace(w, 'tower', x, y).ok) continue;
     const r = place(w, 'tower', x, y);

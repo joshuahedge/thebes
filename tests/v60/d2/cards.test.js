@@ -61,7 +61,7 @@ describe('v60 d2 picture cards: the thirteen', () => {
       expect(why).toContain(`raiders ${DANGER_UI_TEXT.duration(RAIDS.warningDays)} after it`);
       expect(why.includes(`${RAIDS.warningDays} days ahead`)).toBe(false);                      // the old words ("at 250 people, the warning 90 days ahead") were wrong
     }
-    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('24 months');
+    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('10 months');   // Version 8.4 wave 2 (rulings 1463, 1521): was '24 months' (720 days; now 300)
     for (const word of ['plague', 'low Nile', 'locusts', 'wrecking buildings', 'looting storehouses']) expect([word, cards.includes(word)]).toEqual([word, true]);
     expect(cards.includes('Dangers never come')).toBe(false);                                   // raids and fires do come in the first years
   });

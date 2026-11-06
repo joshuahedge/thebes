@@ -10,7 +10,7 @@ import { scoutWalkers } from '../../../src/render/scouts.js';
 import { RAIDS, SCOUTS } from '../../../src/data/raids.js';
 import { DANGER_UI_TEXT, D2_TEXT } from '../../../src/ui/text.js';
 import { lessonFacts } from '../../../src/ui/lesson.js';
-import { at84, NUMBERS_84 } from './helpers.js';
+import { at84, NUMBERS_84, NUMBERS_83 } from './helpers.js';
 
 const stepNamed = (id) => LESSON_STEPS.find((s) => s.id === id);
 
@@ -105,10 +105,11 @@ describe('v84 r the lesson: no elephants, no scouts, no lean', () => {
 });
 
 describe('v84 r the lesson: the words still match', () => {
-  it('names the first warning\'s delay from RAIDS.firstWarnAfter (24 months at today\'s, 10 at 8.4\'s), and the days left from the warning\'s own arrival', () => {
+  it('names the first warning\'s delay from RAIDS.firstWarnAfter (10 months at 8.4\'s numbers, in data since wave 2; 24 at 8.3\'s), and the days left from the warning\'s own arrival', () => {
     const says = () => D2_TEXT.steps.tower({ warning: null, paused: true }).why;
     expect(says()).toContain(`first warning comes ${DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)} later`);
-    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('24 months');
+    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('10 months');   // Version 8.4 wave 2 (ruling 1521): the data holds 8.4's 300 days; it was '24 months'
+    at84(() => expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('24 months'), NUMBERS_83);
     at84(() => {
       expect(says()).toContain(`first warning comes ${DANGER_UI_TEXT.duration(300)} later`);
       expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('10 months');

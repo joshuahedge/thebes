@@ -40,7 +40,11 @@ describe('s47 balance late', () => {
     // The wealth term stays below the cap (ruling 478); since Version 6.0 the court's due holds the treasury under a gold step, so it no longer grows.
     expect(late[0].wealth).toBeLessThan(RAIDS_LATE.cap.normal);
     expect(late[late.length - 1].wealth).toBeGreaterThanOrEqual(late[0].wealth);
-    expect(r.raids.map((x) => x.won)).toEqual(r.raids.map(() => true));
+    // Version 8.4 wave 2 (ruling 1521): with 8.4's raid clock the run meets six raids in years 8-15 (8.3: three), the sixth (warned on day 5,234) still under way
+    // when the run ends on day 5,400; every raid that has ended was beaten. It was: every raid warned has ended beaten.
+    const ended = r.raids.filter((x) => x.won !== undefined);
+    expect([ended.length, r.raids.length - ended.length <= 1]).toEqual([r.raids.length - (r.w.raid.active || r.w.raid.warning ? 1 : 0), true]);
+    expect(ended.map((x) => x.won)).toEqual(ended.map(() => true));
     expect(r.snapshots[LATE_YEARS].raidsLost).toBe(0);
     expect(r.elapsed).toBeLessThan(10000);
   });

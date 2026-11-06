@@ -36,7 +36,7 @@ describe('s3 raids clock and warning', () => {
     expect([w.raid.clockDay, w.raid.nextWarnDay]).toEqual([100, 100 + RAIDS.firstWarnAfter]);
     w.buildings[1].residents = 10;                                                    // people fall: the clock keeps running
     dayAt(w, 200);
-    expect([w.raid.clockDay, w.raid.nextWarnDay]).toEqual([100, 820]);
+    expect([w.raid.clockDay, w.raid.nextWarnDay]).toEqual([100, 100 + RAIDS.firstWarnAfter]);   // Version 8.4 wave 2 (ruling 1521): was [100, 820] (RAIDS.firstWarnAfter 720, now 300)
     const p = city({ people: 400 });
     p.difficulty = 'peaceful';
     dayAt(p, 5000);
@@ -46,21 +46,21 @@ describe('s3 raids clock and warning', () => {
     dayAt(peak, 30);
     expect(peak.raid.clockDay).toBe(30);
   });
-  it('warns exactly two years later with the first raid: 3 raiders, no tribute, an entry by the seed, and a pause', () => {
+  it('warns exactly RAIDS.firstWarnAfter days later (10 months since 8.4; it was two years) with the first raid: 3 raiders, no tribute, an entry by the seed, and a pause', () => {
     const w = city({ people: 300 });
     w.speed = 3;
     dayAt(w, 100);
-    expect(dayAt(w, 819)).toEqual([]);
+    expect(dayAt(w, 99 + RAIDS.firstWarnAfter)).toEqual([]);
     expect(w.raid.warning).toBe(null);
-    const events = dayAt(w, 820);
+    const events = dayAt(w, 100 + RAIDS.firstWarnAfter);
     const entry = ENTRIES[Math.floor(hash2(w.seed, 0, RAID_SALT.entry) * ENTRIES.length)];
     const dir = entry.x === 31 ? 'east' : 'north';
-    expect(w.raid.warning).toEqual({ index: 0, entry, dir, size: RAIDS.firstSize, tribute: null, target: 'building', day: 820, arrives: 820 + RAIDS.warningDays, first: true, mix: footMix(RAIDS.firstSize) });
-    expect(events).toEqual([{ type: 'raid_warning', index: 0, entry, dir, size: 3, tribute: null, target: 'building', arrives: 910, first: true }]);
+    expect(w.raid.warning).toEqual({ index: 0, entry, dir, size: RAIDS.firstSize, tribute: null, target: 'building', day: 100 + RAIDS.firstWarnAfter, arrives: 100 + RAIDS.firstWarnAfter + RAIDS.warningDays, first: true, mix: footMix(RAIDS.firstSize) });
+    expect(events).toEqual([{ type: 'raid_warning', index: 0, entry, dir, size: 3, tribute: null, target: 'building', arrives: 100 + RAIDS.firstWarnAfter + RAIDS.warningDays, first: true }]);
     expect([w.speed, w.raid.index]).toEqual([0, 1]);                                  // the first warning pauses the game
     expect(tributeQuote(w).hidden).toBe(true);
     expect(payTribute(w).reason).toBe('first_raid');
-    expect(dayAt(w, 821)).toEqual([]);                                               // one warning at a time
+    expect(dayAt(w, 101 + RAIDS.firstWarnAfter)).toEqual([]);                                             // one warning at a time
   });
   it('fixes a later raid\'s size, tribute and target at the warning and drops 2x or 3x to 1x', () => {
     const w = city({ people: 600, gold: 2000 });

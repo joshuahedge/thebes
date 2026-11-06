@@ -2,11 +2,11 @@
 // hash2(world.seed, raid index, RAID_SALT.x), so a reload changes nothing.
 export const RAIDS = {
   clockPeople: 250,          // the raid clock starts the day the city first has this many people (never on Peaceful)
-  firstWarnAfter: 720,       // days from the clock's start to the first warning
+  firstWarnAfter: 300,       // days from the clock's start to the first warning (Version 8.4, rulings 1463, 1485: was 720)
   warningDays: 90,           // from the warning to the raiders' arrival
-  laterMin: 720,             // later warnings: this many days after the last raid's arrival day (or the day a
-  laterMax: 1440,            //   cancelled raid would have arrived), seeded between the two
-  leanDays: 0,               // Version 8.4 (ruling 1486): a later raid that would arrive within this many days before Shemu waits for Shemu's first day (0: none)
+  laterMin: 360,             // later warnings: this many days after the last raid's arrival day (or the day a
+  laterMax: 600,             //   cancelled raid would have arrived), seeded between the two (Version 8.4: were 720 and 1,440)
+  leanDays: 60,              // Version 8.4 (ruling 1486): a later raid that would arrive within this many days before Shemu waits for Shemu's first day (0: none; 0 until wave 2)
   firstSize: 3,              // the first raid, at every difficulty
   minSize: 2,
   maxSize: 18,               // Stage 4.5 (ruling 317): was 12

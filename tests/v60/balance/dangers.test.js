@@ -59,14 +59,17 @@ describe('v60 balance dangers late run', () => {
     checkAdvice(rec);
   });
 
-  it('survives a steady player\'s answers: the treasury above 0 from the grace\'s end, the people and the rank kept, every raid beaten, and not a ruin beside the same city with the dangers off', () => {
+  // Version 8.4 wave 2 (rulings 1521, 1525): with 8.4's raid clock the run meets 10 raids by year 15 (8.3: 5) and loses two: the third (19 raiders on day 1,739, in
+  // year 5, against the Market town's three towers) and the seventh (25 raiders in year 11, with 4 towers in reach); the rest holds (the lowest 12,235, 16,310 at year 15
+  // against 17,613 with the dangers off). It was: every raid beaten.
+  it('survives a steady player\'s answers: the treasury above 0 from the grace\'s end, the people and the rank kept, and not a ruin beside the same city with the dangers off (8.4: two raids lost)', () => {
     const { r, rec } = lateDangerRun();
     const off = lateRun();
     expect(r.lowestGold).toBeGreaterThan(0);
     for (let y = 7; y <= 15; y++) expect([y, r.yearly[y].gold > 0]).toEqual([y, true]);
     expect(population(r.w)).toBeGreaterThanOrEqual(1000);
     expect(r.w.milestone).toBe('capital');
-    expect(r.w.tally.raidsLost).toBe(0);
+    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 2]);                    // 8.4-BALANCE-OPEN (ruling 1525): was no raid lost
     expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.5 * off.yearly[15].gold);
     expect(population(r.w)).toBeGreaterThanOrEqual(0.9 * population(off.w));
     // the player's answers were made, each through the sim's own commands
