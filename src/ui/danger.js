@@ -74,7 +74,7 @@ export function createDanger(ctx) {
       } else if (e.type === 'burned') reacted.delete(e.id);
       else if (e.type === 'theft') { caption(CRIME_TEXT.caption(e)); if (ctx.fireTip) ctx.fireTip('theft'); }   // Stage 4.5 (ruling 319): what a thief took, and the tip
       else if (e.type === 'illness') { if (ctx.fireTip) ctx.fireTip('illness'); }                               // Stage 4.5 (ruling 318): the tip, the first time a home falls ill
-      else if (e.type === 'raid_warning') ctx.sfx.play('horn');              // once, as the warning appears (spec 5.5)
+      else if (e.type === 'raid_warning') ctx.sfx.play(e.elephants ? 'trumpet' : 'horn');   // once, as the warning appears (spec 5.5); Version 8.4 (Track E, ruling 1508): war elephants trumpet
       else if (e.type === 'raid_end' && e.report) caption(D.raidReport(e.report));
       else if (e.type === 'month' && ctx.world.stats.lastMonth && ctx.world.stats.lastMonth.taxes > 0) ctx.sfx.play('coin');   // the month's taxes arrived
     }

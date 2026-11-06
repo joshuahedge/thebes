@@ -89,7 +89,7 @@ import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
 import { favourRaidSize, favourTributeFactor } from './court.js';
 import { footMix, ENEMY_TYPES } from '../data/armies.js';
-import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome } from './armies.js';
+import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome, elephantRaid, upriverEntry, elephantsIn, raidStrength } from './armies.js';
 import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
 import { raidSpoils } from './spoils.js';
@@ -193,6 +193,8 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 // Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
 // total of a mixed raid.
 // Version 6.0 (ruling 622): times costScale's court (src/sim/costs.js, Track A's; 1 until it is filled in).
+// Version 8.4, Track E (ruling 1503): `size` is the raid's strength (raidStrength in src/sim/armies.js: each war elephant counts as
+// ELEPHANTS.weight raiders); a raid without elephants passes its size, as before.
 export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower') * costScale(world).court);
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
@@ -208,12 +210,14 @@ export function laterWarnDay(world, fromDay) {
 // towers); buildCost: buildN x the tower's price; payable and reason: what payTribute would say now (reason null when
 // payable); dirs: the directions it comes from (two for a two-sided raid, whose size is the total, so the tribute and the
 // towers needed price the total).
+// Version 8.4, Track E (ruling 1503): towers needed are priced from the raid's strength (raidStrength: an elephant counts as ELEPHANTS.weight
+// raiders); size stays the raiders' count. elephants: how many come, present only when there are any.
 export function tributeQuote(world) {
   const w = world.raid.warning;
   if (!w) return null;
-  const need = towersNeeded(w.size), have = workingTowers(world), buildN = Math.max(0, need - have);
+  const need = towersNeeded(raidStrength(w)), have = workingTowers(world), buildN = Math.max(0, need - have);
   const reason = w.first ? 'first_raid' : world.gold - w.tribute < 0 ? 'below_zero' : null;
-  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason, dirs: warningDirs(w) };
+  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason, dirs: warningDirs(w), ...(elephantsIn(w.mix) ? { elephants: elephantsIn(w.mix) } : {}) };
 }
 
 // The payTribute command (spec 4.13, 7.3): pays the warned raid's tribute and cancels the raid: no raiders, no report,
@@ -239,9 +243,12 @@ export function payTribute(world) {
 // to 1x (setSpeed). index then counts it, so laterWarnDay draws the next raid's gap.
 // Version 8.4 (wave 0 seam): the entry the raid at this index comes in by, a copy of one of world.raiderEntries (which must not be empty).
 // Track E owns the body (elephants come in from upriver); Track R's scouts call it to stand where the next raid will enter.
+// Version 8.4, Track E (ruling 1504): an elephant raid's index (elephantRaid, decided by the index alone) comes in by the entry upriver
+// (upriverEntry: nearest the south edge's river mouth, else any mouth); any other raid, or a map with no water at its edges, by the draw.
 export function nextRaidEntry(world, index) {
   const entries = world.raiderEntries;
-  return { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+  const up = elephantRaid(world, index) ? upriverEntry(world) : null;
+  return up || { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
 }
 
 function raiseWarning(world, events) {
@@ -256,7 +263,11 @@ function raiseWarning(world, events) {
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
   const landing = !first && !second && enemyMayCome('boat', index) ? boatLanding(world, index) : null;
   const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
-  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
+  // Version 8.4, Track E (rulings 1503, 1507): the tribute prices the raid's strength (an elephant counts as ELEPHANTS.weight raiders), and a
+  // raid with war elephants says how many (warning.elephants, the event's too); one without is as in 8.3.
+  const elephants = elephantsIn(mix);
+  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, raidStrength({ size, mix })), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
+  if (elephants) w.elephants = elephants;
   const wealth = first ? 0 : wealthDraw(world);
   if (wealth > 0) w.wealth = wealth;   // Stage 4.7 (ruling 470): the raiders the city's wealth drew, said in the warning
   if (second) w.second = second;
@@ -267,7 +278,7 @@ function raiseWarning(world, events) {
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(elephants ? { elephants } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
 }
 
 // Version 6.0 (Track B1, ruling 683): the bands of a warned raid a chieftain leads, as band numbers (0, or 1 for a two-sided raid's second): every
@@ -410,8 +421,13 @@ function arrive(world, events) {
   if (w.second && w.second.boat) {
     kinds[0] = land;
     kinds[1] = new Array(bands[1].size).fill('boat');
-  } else if (w.second) land.forEach((kind, j) => kinds[j % 2 === 1 && kinds[1].length < bands[1].size ? 1 : 0].push(kind));
-  else kinds[0] = land;
+  } else if (w.second) {
+    // Version 8.4, Track E (ruling 1504): war elephants all come with the first band, the one from upriver; the rest split as before (band 1
+    // the odd places), band 0 taking what band 1 has no room for. With no elephants this is the 8.3 split exactly.
+    const rest = land.filter((k) => k !== 'elephant');
+    kinds[0] = land.filter((k) => k === 'elephant');
+    rest.forEach((kind, j) => kinds[kinds[1].length < bands[1].size && (j % 2 === 1 || kinds[0].length >= bands[0].size) ? 1 : 0].push(kind));
+  } else kinds[0] = land;
   bands.forEach((band, k) => {
     for (let n = 0; n < band.size; n++) {
       const kind = kinds[k][n] || 'foot';
@@ -438,6 +454,7 @@ function arrive(world, events) {
   r.active = a;
   r.warning = null;
   world.tally.raids += 1;
+  if (elephantsIn(a.mix)) world.tally.elephantsMet += elephantsIn(a.mix);   // Version 8.4, Track E: the war elephants that came
   healWalls(world);
   if (world.speed > 1) setSpeed(world, 1);
   if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size, ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}) });

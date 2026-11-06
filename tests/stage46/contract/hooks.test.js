@@ -50,7 +50,7 @@ describe('s46 contract hooks', () => {
   });
   it('names the units, the enemies and the matchup table\'s shape (1 for anything not listed)', () => {
     expect(UNIT_KINDS).toEqual(['soldier', 'archer', 'chariot']);
-    expect(ENEMY_KINDS).toEqual(['foot', 'archer', 'chariot', 'boat']);
+    expect(ENEMY_KINDS).toEqual(['foot', 'archer', 'chariot', 'boat', 'elephant']);   // Version 8.4, Track E (ruling 1500): the war elephant, a fifth kind
     for (const [u, row] of Object.entries(MATCHUPS)) {
       expect(UNIT_KINDS).toContain(u);
       for (const [e, cell] of Object.entries(row)) { expect(ENEMY_KINDS).toContain(e); for (const s of Object.keys(cell)) expect(SITUATIONS).toContain(s); }

@@ -125,7 +125,7 @@ describe('s46 contract world v7', () => {
     expect(v7.soldiers.map((u) => u.kind)).toEqual(['soldier']);
     expect([v7.raid.warning.mix, v7.raid.active.mix, v7.raid.last.mix]).toEqual([footMix(5), footMix(3), footMix(3)]);
     expect(footMix(5)).toEqual({ foot: 5, archer: 0, chariot: 0, boat: 0 });
-    expect(Object.keys(footMix(1))).toEqual(ENEMY_KINDS);
+    expect(Object.keys(footMix(1))).toEqual(ENEMY_KINDS.filter((k) => k !== 'elephant'));   // Version 8.4 (ruling 1506): a mix has elephant only when it brings any
     expect(v7.raid.active.raiders.map((r) => r.kind)).toEqual(['foot']);
     for (const k of Object.keys(v6)) if (!['version', 'buildings', 'tally', 'soldiers', 'raid', 'newItems'].includes(k)) expect([k, v7[k]]).toEqual([k, v6[k]]);
     expect(v7.newItems).toEqual(v6.newItems);                                          // no track unlocks anything yet at this milestone

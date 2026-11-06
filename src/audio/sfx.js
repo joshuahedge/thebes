@@ -36,7 +36,12 @@ export const SFX = {
     { f: 150, type: 'sine', t: 0.5, d: 0.16, g: 0.1, slide: 90 }, { f: 420, type: 'triangle', t: 0.52, d: 0.12, g: 0.03, slide: 250 },
   ],
   // Version 8.4 (wave 0): two names with no notes yet, so playing them is silent. trumpet: "War elephants!" (Track E); fanfare: a beaten raid (Track R).
-  trumpet: [],
+  // Track E: an elephant's trumpet in place of the horn when a warned raid brings war elephants: a brassy blare sliding up, a harsh overtone on it,
+  // and a falling tail.
+  trumpet: [
+    { f: 300, type: 'sawtooth', t: 0, d: 0.16, g: 0.14, slide: 520 }, { f: 520, type: 'sawtooth', t: 0.14, d: 0.4, g: 0.2, slide: 470 },   // every note at most 0.4 s (tests/audio)
+    { f: 1040, type: 'square', t: 0.16, d: 0.3, g: 0.04, slide: 940 }, { f: 470, type: 'sawtooth', t: 0.56, d: 0.3, g: 0.12, slide: 260 },
+  ],
   fanfare: [],
 };
 

@@ -145,6 +145,51 @@ export function raiderBoat(g, gx, gy, z = 0, sc = UNIT_SCALE) {
   g.path([['M', [X - 2 * s, Y - 11 * s]], ['Q', [X - 0.6 * s, Y - 16.2 * s], [X + 2.4 * s, Y - 13.4 * s]], ['Q', [X + 0.4 * s, Y - 13.4 * s], [X - 2 * s, Y - 11 * s]], ['Z']], RAIDER.crest);
 }
 
+// Version 8.4, Track E (ruling 1509): a war elephant, side on and facing right, its feet at (gx, gy): a big grey body on four column legs, a
+// domed head with a fanned ear, a long trunk curling down and a pale tusk, a red saddle cloth, and a crested raider riding it with a spear
+// held high. It is told apart by its outline (trunk, tusks, the bulk), never by its colour alone. alpha fades the whole figure (a stampede).
+const ELEPHANT = { body: '#857A80', dark: '#62585E', ear: '#9A8A8E', tusk: '#F3EAD3', nail: '#D9CFC4' };
+export function raiderElephant(gIn, gx, gy, z = 0, sc = UNIT_SCALE, alpha = 1) {
+  const g = alpha < 1 ? fadedDraw(gIn, alpha) : gIn;
+  const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc;
+  g.ell([X, Y], 11 * s, 2 * s, SHADOW, { alpha: 0.3 });
+  for (const dx of [-6, 3.6]) g.poly([[X + (dx - 1.1) * s, Y - 0.2 * s], [X + (dx + 1.1) * s, Y - 0.2 * s], [X + (dx + 1.1) * s, Y - 8 * s], [X + (dx - 1.1) * s, Y - 8 * s]], ELEPHANT.dark);   // the far legs
+  g.line([X - 8.4 * s, Y - 11.4 * s], [X - 9.6 * s, Y - 6 * s], ELEPHANT.dark, 0.6 * s);                                        // the tail and its tuft
+  g.ell([X - 9.7 * s, Y - 5.6 * s], 0.6 * s, 1 * s, '#3A3036');
+  g.ell([X - 0.5 * s, Y - 10.4 * s], 8.6 * s, 5.6 * s, ELEPHANT.body, { outline: true });                                        // the body
+  for (const dx of [-4.2, 5.4]) {                                                                                                 // the near legs, with pale toenails
+    g.poly([[X + (dx - 1.3) * s, Y], [X + (dx + 1.3) * s, Y], [X + (dx + 1.2) * s, Y - 8.6 * s], [X + (dx - 1.2) * s, Y - 8.6 * s]], ELEPHANT.body, { outline: true });
+    g.circ([X + (dx + 0.6) * s, Y - 0.5 * s], 0.45 * s, ELEPHANT.nail);
+  }
+  g.poly([[X - 4.6 * s, Y - 15.6 * s], [X + 3.4 * s, Y - 15.8 * s], [X + 3.8 * s, Y - 10.6 * s], [X - 4.9 * s, Y - 10.3 * s]], RAIDER.crest, { outline: true });   // the saddle cloth
+  g.line([X - 4.9 * s, Y - 10.4 * s], [X + 3.8 * s, Y - 10.7 * s], RAIDER.rim, 0.7 * s);
+  g.circ([X + 8 * s, Y - 13 * s], 3.9 * s, ELEPHANT.body, { outline: true });                                                     // the head and its dome
+  g.circ([X + 7.4 * s, Y - 15.6 * s], 2.6 * s, ELEPHANT.body);
+  g.stroke([['M', [X + 10.6 * s, Y - 12 * s]], ['Q', [X + 12.8 * s, Y - 7.4 * s], [X + 11.6 * s, Y - 3.2 * s]]], ELEPHANT.body, 2.2 * s);   // the trunk, curling at its tip
+  g.stroke([['M', [X + 11.6 * s, Y - 3.4 * s]], ['Q', [X + 11 * s, Y - 1.4 * s], [X + 12.6 * s, Y - 2 * s]]], ELEPHANT.body, 1.4 * s);
+  g.stroke([['M', [X + 11.2 * s, Y - 10.2 * s]], ['Q', [X + 12 * s, Y - 7.6 * s], [X + 11.5 * s, Y - 5 * s]]], ELEPHANT.dark, 0.35 * s, 0.7);   // a crease down it
+  g.ell([X + 5.4 * s, Y - 12.4 * s], 2.6 * s, 3.7 * s, ELEPHANT.ear, { outline: true });                                         // the ear, fanned
+  g.stroke([['M', [X + 9.8 * s, Y - 10.4 * s]], ['Q', [X + 12.6 * s, Y - 9.6 * s], [X + 13.6 * s, Y - 11.8 * s]]], '#8C7E6A', 1.5 * s);   // the tusk, an edge under its ivory
+  g.stroke([['M', [X + 9.8 * s, Y - 10.6 * s]], ['Q', [X + 12.6 * s, Y - 9.8 * s], [X + 13.5 * s, Y - 12 * s]]], ELEPHANT.tusk, 1 * s);
+  g.circ([X + 9.3 * s, Y - 14.2 * s], 0.5 * s, '#1A1418');                                                                        // the eye
+  const rx = X - 0.6 * s, ry = Y - 15.4 * s;                                                                                      // the rider, astride
+  g.poly([[rx - 1.6 * s, ry], [rx + 1.6 * s, ry], [rx + 1.9 * s, ry - 3.6 * s], [rx - 1.9 * s, ry - 3.6 * s]], RAIDER.body);
+  g.line([rx + 1.6 * s, ry - 3 * s], [rx + 3 * s, ry - 4.6 * s], RAIDER.body, 0.9 * s);
+  g.line([rx + 1.2 * s, ry - 1.2 * s], [rx + 6.6 * s, ry - 12.4 * s], WOOD, 0.6 * s);                                            // the spear, held high
+  g.poly([[rx + 6.9 * s, ry - 14 * s], [rx + 7.2 * s, ry - 11.6 * s], [rx + 6 * s, ry - 12.2 * s]], STONE[2]);
+  g.circ([rx + 0.2 * s, ry - 5.2 * s], 1.5 * s, RAIDER.body);
+  g.path([['M', [rx - 1.7 * s, ry - 5.4 * s]], ['Q', [rx + 0.2 * s, ry - 8.4 * s], [rx + 1.9 * s, ry - 5.4 * s]], ['Z']], RAIDER.helm);
+  g.path([['M', [rx - 2 * s, ry - 5.8 * s]], ['Q', [rx - 0.6 * s, ry - 11 * s], [rx + 2.4 * s, ry - 8.2 * s]], ['Q', [rx + 0.4 * s, ry - 8.2 * s], [rx - 2 * s, ry - 5.8 * s]], ['Z']], RAIDER.crest);
+}
+// The drawing helper with every mark faded to alpha (multiplied into each mark's own).
+export function fadedDraw(g, alpha) {
+  const o = (opts = {}) => ({ ...opts, alpha: (opts.alpha === undefined ? 1 : opts.alpha) * alpha, ...(opts.stroke ? { strokeAlpha: (opts.strokeAlpha === undefined ? 1 : opts.strokeAlpha) * alpha } : {}), outline: opts.outline && alpha > 0.6 });
+  return {
+    ...g, poly: (pts, fill, opts) => g.poly(pts, fill, o(opts)), circ: (q, r, fill, opts) => g.circ(q, r, fill, o(opts)), ell: (q, rx, ry, fill, opts) => g.ell(q, rx, ry, fill, o(opts)),
+    path: (segs, fill, opts) => g.path(segs, fill, o(opts)), line: (a, b, col, w = 1, al = 1) => g.line(a, b, col, w, al * alpha), stroke: (segs, col, w = 1, al = 1) => g.stroke(segs, col, w, al * alpha),
+  };
+}
+
 // Archery range (2x2): a shaded stand of mudbrick along the back with a bow rack under an awning, a sand range in front with three
 // straw targets on posts along the far side, a low wall on two sides, and a pennant in the Defence colour.
 export function archeryRange(g, X, Y) {
@@ -307,6 +352,7 @@ export const ARMY_ART = {
   'fig.raider_archer': { w: 0, d: 0, height: 26, bounds: UNIT_BOUNDS, shadows: [], draw: (g, x, y) => raiderArcher(g, x, y) },
   'fig.raider_chariot': { w: 0, d: 0, height: 26, bounds: CHARIOT_BOUNDS, shadows: [], draw: (g, x, y) => raiderChariot(g, x, y) },
   'fig.raider_boat': { w: 0, d: 0, height: 26, bounds: UNIT_BOUNDS, shadows: [], draw: (g, x, y) => raiderBoat(g, x, y) },
+  'fig.raider_elephant': { w: 0, d: 0, height: 40, bounds: [-24, -64, 28, 10], shadows: [], draw: (g, x, y) => raiderElephant(g, x, y) },   // Version 8.4, Track E
   ...FIGHT_ART,                                    // Version 6.0 (Track B2): fighting poses, the chieftain, a raider with a sack
 };
 

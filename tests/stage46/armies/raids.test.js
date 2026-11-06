@@ -10,7 +10,7 @@ import { T } from '../../../src/sim/terrain.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 const EAST = { x: 31, y: 16 };
-const sum = (mix) => ENEMY_KINDS.reduce((s, k) => s + mix[k], 0);
+const sum = (mix) => ENEMY_KINDS.reduce((s, k) => s + (mix[k] || 0), 0);   // Version 8.4: a mix has elephant only when it brings any
 
 function city({ river = false } = {}) {
   const w = makeTestWorld({ gold: 1000, raiderEntries: [EAST] });
@@ -53,7 +53,7 @@ describe('s46 armies the raid\'s mix', () => {
     expect([enemyMayCome('archer', 1), enemyMayCome('archer', 2), enemyMayCome('chariot', 4), enemyMayCome('chariot', 5)]).toEqual([false, true, false, true]);
     for (let i = 2; i < 20; i++) for (const n of [2, 5, 11, 18]) {
       const m = drawMix(w, i, n);
-      expect([i, n, sum(m), m.foot >= Math.ceil(n * MIX.footMin)]).toEqual([i, n, n, true]);
+      expect([i, n, sum(m), m.foot + (m.elephant || 0) >= Math.ceil(n * MIX.footMin)]).toEqual([i, n, n, true]);   // Version 8.4 (ruling 1506): war elephants break walls too, and count with the foot
     }
   });
   it('draws the same mix for the same seed and raid, more raiders who are not on foot on Hard than on Relaxed', () => {

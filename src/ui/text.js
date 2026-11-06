@@ -4150,4 +4150,78 @@ Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's shee
 // ── end v84 r ──
 
 // Version 8.4, Track E (war elephants and ivory; rulings 1500-1519). Track E writes only between this header and its end line.
+// Every number is the data's (src/data/armies.js ENEMY_TYPES.elephant, ELEPHANTS, MATCHUPS, TOWER_VS) or the sim's (src/sim/armies.js
+// counterModel, the warning's and the report's own counts). Names in this section start with "v84e".
+import { ENEMY_TYPES as v84eEnemy, ELEPHANTS as v84eElephants, TOWER_VS as v84eTowerVs, matchup as v84eMatchup } from '../data/armies.js';
+import { elephantsIn as v84eIn } from '../sim/armies.js';
+const v84eOrdinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+const v84eFactor = (f) => armFactor(Math.round(f * 100) / 100);
+export const V84E_TEXT = {
+  lead: 'War elephants!',
+  // The raid sheet's line for the elephants (counterModel's traits and helps, the matchup table's cells multiplied as combat.js multiplies
+  // them): "2 war elephants: they trample every unit beside them and break walls 3x faster; an arrow that takes one below half may send it
+  // stampeding back through its own band. Your archers deal 2x at range (1x beside one); towers 1.5x. But soldiers deal half in melee (0.75x
+  // holding a gate or breach); your chariots will not charge them."
+  counterLine(c) {
+    const t = c.traits, said = [];
+    if (t.tramples) said.push('they trample every unit beside them');
+    if (t.wallBreak > 1) said.push(`break walls ${t.wallBreak}x faster`);
+    const lead = said.join(' and ');
+    const panic = t.stampedes ? 'an arrow that takes one below half may send it stampeding back through its own band' : '';
+    const range = v84eMatchup('archer', c.kind, 'open'), close = range * v84eMatchup('archer', c.kind, 'melee');
+    const helps = [];
+    if (c.helps.some((h) => h.unit === 'archer')) helps.push(`your archers deal ${v84eFactor(range)} at range (${v84eFactor(close)} beside one)`);
+    const tower = c.helps.find((h) => h.unit === 'tower');
+    if (tower) helps.push(`towers ${v84eFactor(tower.factor)}`);
+    const melee = v84eMatchup('soldier', c.kind, 'melee'), gate = melee * v84eMatchup('soldier', c.kind, 'gate');
+    const weak = [];
+    if (melee !== 1) weak.push(`soldiers deal ${v84eFactor(melee)} in melee (${v84eFactor(gate)} ${armSituationWords.gate})`);
+    if (t.shunnedBy.length) weak.push(`your ${t.shunnedBy.map((u) => armUnitPlural[u]).join(' and ')} will not charge them`);
+    const parts = [[lead, panic].filter(Boolean).join('; '), helps.join('; '), weak.length ? `But ${weak.join('; ')}` : ''].filter(Boolean).map((p) => `${armCap(p)}.`);
+    return `${armEnemyWords[c.kind](c.n)}: ${parts.join(' ')}`;
+  },
+  // What the raid's report says of its elephants (src/sim/elephants.js raidReportExtras): "2 war elephants: 1 felled, 1 stampeded back
+  // through its band (trampling 2 raiders); 10 ivory stored" or "...; 10 ivory lost: no working storehouse had room". '' for a raid without.
+  reportLine(r) {
+    if (!(r.elephants > 0)) return '';
+    const did = [r.felled ? `${r.felled} felled` : '', r.stampeded ? `${r.stampeded} stampeded back through ${r.stampeded === 1 ? 'its' : 'their'} band${r.trampled ? ` (trampling ${plural(r.trampled, 'raider', 'raiders')})` : ''}` : ''].filter(Boolean);
+    const ivory = [r.ivory ? `${r.ivory} ivory stored` : '', r.ivoryLost ? `${r.ivoryLost} ivory lost: no working storehouse had room` : ''].filter(Boolean);
+    return `${armCap(plural(r.elephants, 'war elephant', 'war elephants'))}: ${did.length ? did.join(', ') : 'none fell'}${ivory.length ? `; ${ivory.join('; ')}` : ''}.`;
+  },
+};
+// The enemy's name in a mix: "2 war elephants" (S46_ARMY_TEXT.mixText, the warning's fix and the sheet's arrival line read it).
+Object.assign(S46_ARMY_TEXT.enemy, { elephant: (n) => plural(n, 'war elephant', 'war elephants') });
+// The counters: the elephant's own line; every other kind's as before.
+{
+  const line = S46_ARMY_TEXT.counterLine;
+  S46_ARMY_TEXT.counterLine = (c) => (c.kind === 'elephant' ? V84E_TEXT.counterLine(c) : line(c));
+}
+// A raid with war elephants leads its warning with "War elephants!": the alert's title (and so the phone's raid sheet, which carries it) and
+// the wide raid sheet's arrival line. The phone's countdown chip keeps its words: a longer one would cut off the countdown at 150% text. A raid
+// without reads as before.
+{
+  const warn = ALERT_TEXT.raid_warning;
+  ALERT_TEXT.raid_warning = (alert, world) => {
+    const out = warn(alert, world), w = world.raid.warning;
+    return w && v84eIn(w.mix) ? { ...out, title: `${V84E_TEXT.lead} ${out.title}` } : out;
+  };
+  const mixLine = S46_ARMY_TEXT.mixLine;
+  S46_ARMY_TEXT.mixLine = (size, from, mix) => (v84eIn(mix) ? `${V84E_TEXT.lead} ${mixLine(size, from, mix)}` : mixLine(size, from, mix));
+}
+// The raid's report (the caption at its end and the summary's last raid) adds the elephants' line.
+{
+  const report = DANGER_UI_TEXT.raidReport;
+  DANGER_UI_TEXT.raidReport = (r) => [report(r), V84E_TEXT.reportLine(r)].filter(Boolean).join(' ');
+}
+// The tip at the first raid warned with war elephants (src/ui/s46/armies.js), 16 words, and its How to play line (20 words, as every tip's).
+Object.assign(TIP_TEXT, {
+  war_elephants: `Archers and towers fell elephants; soldiers in melee do ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}, and chariots will not charge them.`,
+});
+TIP_HELP_TEXT.war_elephants = `From the ${v84eOrdinal(v84eEnemy.elephant.fromRaid)} raid, war elephants may come. Archers deal ${armFactor(v84eMatchup('archer', 'elephant', 'open'))}, towers ${armFactor(v84eTowerVs.elephant)}, soldiers ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}. One felled leaves ${v84eElephants.ivory} ivory.`;
+// The picture card at the first raid with war elephants (src/data/tutorial.js 'elephants').
+CARDS4_TEXT.cards.elephants = {
+  title: 'War elephants',
+  words: `From the ${v84eOrdinal(v84eEnemy.elephant.fromRaid)} raid, some raids bring war elephants with ${v84eEnemy.elephant.hp} hit points: they trample every unit beside them and break walls ${v84eEnemy.elephant.wallDamage / v84eEnemy.foot.damage}x faster. Archers at range and towers fell them. A felled one leaves ${v84eElephants.ivory} ivory in the nearest storehouse.`,
+  alt: 'War elephants with their riders at a wall inside a ring, towers and archers shooting at them from behind it.',
+};
 // ── end v84 e ──
