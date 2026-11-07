@@ -14,6 +14,7 @@ import { drawV90 } from '../../../src/render/v90/effects.js';
 import { drawFlow, riverRows } from '../../../src/render/ambient.js';
 import { drawWake } from '../../../src/render/v90/wakes.js';
 import { takeSpent } from '../../../src/render/v90/dropper.js';
+import { scaffoldsAt, drawScaffold } from '../../../src/render/v90/scaffold.js';
 import { stageEffects, walkersFor } from './stage.js';
 
 const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
@@ -35,6 +36,7 @@ export function rigV90(world, view, zoomMode) {
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     drawFlow(g, world, rows, range, now);
     for (let k = 0; k < 3; k++) drawWake(g, mid + k * 3, mid, 1, 0, now);
+    for (const s of scaffoldsAt(world)) drawScaffold(g, world, s);             // the scaffolds, which the renderer draws in their buildings' depth slots
     drawV90(g, world, { range, now, walkers });
     takeSpent();
   };

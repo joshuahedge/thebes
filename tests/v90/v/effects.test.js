@@ -11,9 +11,9 @@ import { createFrameGate, smokeBase, SMOKE_FROM, V90_SMOKE, drawFlow, FLOW, rive
 import { createGameLoop } from '../../../src/render/loop.js';
 import { ART } from '../../../src/render/art/registry.js';
 import { walkSlotFor, stepped, WALK, WALK_VARIANTS, FIGURE_KINDS, UNIT_KINDS, FACES_LEFT } from '../../../src/render/art/figures.js';
-import { unitsAt, UNIT_ID_BASE, GLIDE_DAYS } from '../../../src/render/units.js';
+import { unitsAt, UNIT_ID_BASE, GLIDE_DAYS, fightOf } from '../../../src/render/units.js';
 import { noteFrameTime, frameTimeOf } from '../../../src/render/v90/clock.js';
-import { noteBuilt, noteUpgrade, scaffoldsAt, drawScaffold, resetScaffolds, SCAFFOLD } from '../../../src/render/v90/scaffold.js';
+import { noteBuilt, noteUpgrade, scaffoldsAt, drawScaffold, resetScaffolds, SCAFFOLD, poleHeight } from '../../../src/render/v90/scaffold.js';
 import { beatenRaidOnMap, drawRaidMoment } from '../../../src/render/v90/raidMoment.js';
 import { momentOf, startMoment, endMoment } from '../../../src/render/v90/moment.js';
 import { dustSources, drawDust, DUST, firesFought, drawFireFought, festiveParts, drawFestive, cloudsAt, drawWeather, WEATHER, desertEdge } from '../../../src/render/v90/layers.js';
@@ -145,7 +145,9 @@ describe('v90 v a building goes up (V3)', () => {
     setRoad(w, 10, 9, 20, 9);
     const b = addRaw(w, 'potter', 12, 10);
     noteFrameTime(w, w.day + 0.1);
-    createEffects({ motionLevel: 'full' }).rise(b.id, b.x, b.y, b.w, b.d, 0);    // the interface's own call on a placing
+    const fx = createEffects({ motionLevel: 'full' });
+    fx.draw(spyDraw().g, 0, w);                                                    // the game's effects have drawn this city
+    fx.rise(b.id, b.x, b.y, b.w, b.d, 0);                                           // the interface's own call on a placing
     const s = scaffoldsAt(w);
     expect([s.length, s[0].b.id, s[0].days]).toEqual([1, b.id, SCAFFOLD.placedDays]);
     const spy = spyDraw();
@@ -178,9 +180,44 @@ describe('v90 v a building goes up (V3)', () => {
     noteUpgrade(w, rubble);
     expect(scaffoldsAt(w).some((s) => s.b.id === rubble.id)).toBe(false);
     resetScaffolds(w);
-    noteBuilt(ids[0]);
+    noteBuilt(w, ids[0]);
     delete w.buildings[ids[0]];
     expect(scaffoldsAt(w)).toEqual([]);
+  });
+  it('keeps a placing to the city it was made in: a city loaded after it never scaffolds its own building of the same id (ruling 1614)', () => {
+    const a = makeTestWorld(), b = makeTestWorld();
+    const pa = addRaw(a, 'well', 4, 4), pb = addRaw(b, 'well', 6, 6);
+    expect(pa.id).toBe(pb.id);
+    const fx = createEffects({ motionLevel: 'full' });
+    fx.rise(pa.id, 4, 4, 1, 1, 0);                                                  // no frame drawn yet: no city to scaffold
+    expect([scaffoldsAt(a).length, scaffoldsAt(b).length]).toEqual([0, 0]);
+    fx.draw(spyDraw().g, 0, a);
+    fx.rise(pa.id, 4, 4, 1, 1, 0);
+    expect([scaffoldsAt(a).length, scaffoldsAt(b).length]).toEqual([1, 0]);         // the city loaded next has none
+    for (let t = 0; t < 30000; t += 100) v90Dropper.account(50, t);
+    expect(v90Dropper.stats.dropped.length).toBeGreaterThan(0);
+    createEffects({ motionLevel: 'full' });                                         // a new city's effects: V's dropper starts afresh
+    expect(v90Dropper.stats.dropped).toEqual([]);
+  });
+  it('makes the poles nine tenths of the art\'s height, from 8 to 48 art px', () => {
+    expect([poleHeight(20), poleHeight(40), poleHeight(4), poleHeight(80)]).toEqual([18, 36, SCAFFOLD.minHeight, SCAFFOLD.maxHeight]);
+    expect([SCAFFOLD.share, SCAFFOLD.minHeight, SCAFFOLD.maxHeight]).toEqual([0.9, 8, 48]);
+  });
+  it('draws the poles in the building\'s depth slot, so a building standing in front is drawn over them (ruling 1612)', () => {
+    const w = makeTestWorld();
+    const back = addRaw(w, 'potter', 14, 14), front = addRaw(w, 'granary', 17, 17);
+    noteFrameTime(w, w.day + 0.1);
+    noteUpgrade(w, back);
+    const log = [], cache = createSpriteCache(), get = cache.get;
+    cache.get = (slot, ...r) => { log.push(slot); return get(slot, ...r); };
+    const canvas = makeCanvas(10, 10);
+    const r = createRenderer({ canvas, dpr: 1, spriteCache: cache, maxBakesPerFrame: Infinity });
+    const ctx = canvas.getContext('2d'), stroke = ctx.stroke.bind(ctx);
+    ctx.stroke = (...a) => { if (log.length) log.push('STROKE'); return stroke(...a); };   // a stroke on the map's canvas once the sprites have begun
+    r.renderFrame(w, createCamera({ x: 16, y: 16, zoom: 1 }), { view: { width: 400, height: 300 } });
+    const at = (k) => log.findIndex((s) => s.startsWith(k));
+    expect([at('potter') >= 0, at('granary') >= 0, at('STROKE') >= 0]).toEqual([true, true, true]);
+    expect(at('potter') < at('STROKE') && at('STROKE') < at('granary')).toBe(true);   // the back building, its poles, then the one in front
   });
 });
 
@@ -230,6 +267,19 @@ describe('v90 v the beaten raid on the map (V5)', () => {
     expect(cheer.kind).toBe('soldier_cheer');
     w.day += MOMENT.days;
     expect([momentOf(w), drawRaidMoment(spyDraw().g, w, ALL, 0)]).toEqual([null, false]);
+  });
+  it('notes the fight and a fall where the sim has the units, not where their glide is drawn (ruling 1613)', () => {
+    const w = raidWorld([[17, 10]]);
+    w.soldiers = [{ id: 9, kind: 'soldier', barracks: 999, x: 15, y: 10, hp: 12, task: 'back' }];
+    unitsAt(w, 3.2, null, { now: 0 });
+    w.raid.active.raiders[0].x = 15;                                                // the sim moves the raider two tiles, onto the soldier's
+    w.day = 4;
+    const drawn = unitsAt(w, 4.3, null, { now: 10 }).find((u) => u.id === UNIT_ID_BASE + 1);
+    expect(Math.round(drawn.x * 100) / 100).toBe(16.5);                              // half way through its glide, a tile behind the sim
+    expect(fightOf(w).clash).toEqual({ x: 15.5, y: 10.5, day: 4 });                // the clash at the sim's spots
+    w.raid.active.raiders = [];
+    unitsAt(w, 4.35, null, { now: 20 });
+    expect([fightOf(w).fall.x, fightOf(w).fall.y]).toEqual([15.5, 10.5]);          // and the fall where the sim had it
   });
   it('has nothing on the map for a lost raid, and ends when the next raid is warned', () => {
     const w = makeTestWorld();

@@ -20,7 +20,8 @@ import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
 import { buildingsInRange } from './chunkIndex.js';
 import { effectsV90 } from './v90/effects.js';
-import { v90Off } from './v90/dropper.js';
+import { v90Off, spend } from './v90/dropper.js';
+import { scaffoldsAt, drawScaffold } from './v90/scaffold.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -247,6 +248,8 @@ export function createRenderer({
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0, live = 0;
+    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world);                // Version 9.0 (V3): the scaffolds up this frame, by building id
+    const scaffolds = standing.length ? new Map(standing.map((s) => [s.b.id, s])) : null;
     for (const o of objects) {
       // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set
       // (src/render/monuments.js drawMonument through opts.live), never from the sprite cache. Without opts.live (a bare
@@ -268,6 +271,14 @@ export function createRenderer({
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);
       sprites++;
+      const site = scaffolds && o.id < DECOR_ID_BASE ? scaffolds.get(o.id) : null;
+      if (site) {                                                                // Version 9.0 (V3, ruling 1612): its poles in its own depth slot, under what stands in front
+        const t0 = performance.now();
+        ctx.setTransform(1, 0, 0, 1, ox, oy);
+        drawScaffold(g, world, site);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        spend(performance.now() - t0);
+      }
     }
 
     // 3b. Version 7.0 (Track 0 seam; Track S fills it, render/light.js): the light over the city (night's tint, the lamps), in art px with the art

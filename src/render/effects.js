@@ -30,6 +30,7 @@ import { hauler, UNIT_SCALE } from './art/figures.js';
 import { raiderElephant } from './art/armies.js';
 import { noteStampede } from './units.js';
 import { noteBuilt, noteUpgrade } from './v90/scaffold.js';
+import { resetV90Dropper } from './v90/dropper.js';
 
 export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot, stampede: 1800 };
 // Version 8.4 (Track E): how far (tiles) a stampede is seen to run under Full, and the words of its label and of ivory's (the event's own numbers).
@@ -52,6 +53,10 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
   const level = () => (typeof motionLevel === 'function' ? motionLevel() : motionLevel || (reduced() ? 'still' : 'full'));
   const full = () => level() === 'full';
   let list = [];
+  // Version 9.0 (Track V, ruling 1614): the world this game's effects last drew or heard from, for the scaffold a placing raises; and a new game's
+  // effects start V's dropper afresh (the interface makes them once a city).
+  let seenWorld = null;
+  resetV90Dropper();
   const age = (e, now) => (now - e.start) / EFFECT_MS[e.kind];
   // A rise ends early when its building is gone (an Undo or a demolish inside the 900 ms), so the work gang never
   // carries on at an empty site. Ids are never reused, so the id alone says whether it is the same building.
@@ -71,7 +76,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
     // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under Gentle and Still.
     sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: !full(), start: now }); },
     // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise (Full only).
-    rise(id, x, y, w, d, now) { noteBuilt(id); if (full()) add({ kind: 'rise', id, x, y, w, d, start: now }); },   // Version 9.0 (V3): and its scaffold for a game day
+    rise(id, x, y, w, d, now) { noteBuilt(seenWorld, id); if (full()) add({ kind: 'rise', id, x, y, w, d, start: now }); },   // Version 9.0 (V3): and its scaffold for a game day
     // id -> how far each rising building is up, in [0, 1). Given the world, a building no longer in it is dropped.
     risingIds(now, world = null) {
       prune(now, world);
@@ -97,6 +102,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
       fx.label(x, y, STAMPEDE_LABEL, UI.bad, now);
     },
     fromEvents(world, events, now) {
+      if (world) seenWorld = world;
       const wrecked = new Map();             // a wrecked building's id -> the centre of its old footprint (the building itself is gone)
       for (const ev of events) {
         if (ev.type !== 'raid_wreck') continue;
@@ -137,6 +143,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
     active(now) { prune(now); return list.slice(); },
     count(now) { prune(now); return list.length; },
     draw(g, now, world = null) {
+      if (world) seenWorld = world;
       prune(now, world);
       for (const e of list) {
         const t = age(e, now);

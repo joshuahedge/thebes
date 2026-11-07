@@ -148,7 +148,7 @@ function placed(world, timeDays, now = hooks.now()) {
     if (s.u.hp < t.hp && !s.home) scene.sparks.push({ x: at.x + ox, y: at.y + oy, at: now });
     Object.assign(t, { hp: s.u.hp, side: s.side, chief: s.chief, barracks: s.u.barracks, gates: s.gates, last: { x: at.x + ox, y: at.y + oy } });
     m.set(s.u.id, t);
-    out.push({ ...s, ...at, dir: t.dir, ox, oy, stand });
+    out.push({ ...s, ...at, dir: t.dir, ox, oy, stand, sx: s.x, sy: s.y });   // sx, sy: the sim's own spot (V5 notes the fight there, ruling 1613)
   }
   for (const id of [...m.keys()]) {
     if (seen.has(id)) continue;
@@ -158,7 +158,7 @@ function placed(world, timeDays, now = hooks.now()) {
     if (fellInField(world, { ...t, ...at })) {
       scene.falls.push({ x: at.x, y: at.y, at: now, side: t.side });
       if (t.chief) scene.banners.push({ x: at.x, y: at.y, at: now, id });
-      if (t.side === 'raider') noteFight(world, t.chief ? 'chief' : 'fall', at);   // Version 9.0 (V5): where the fight was, and where a chieftain fell
+      if (t.side === 'raider') noteFight(world, t.chief ? 'chief' : 'fall', { x: t.x, y: t.y });   // Version 9.0 (V5): where it fell, at the sim's spot (ruling 1613)
     }
     m.delete(id);
   }
@@ -202,9 +202,10 @@ function fighting(list, level, now) {
       poses.set(s.u.id, `${fighterOf(s)}_${pose}_${face}`);
       if (side !== 'soldier') continue;                                          // one mark per pair: from the soldier's side
       const mx = (s.x + s.ox + near.x + near.ox) / 2, my = (s.y + s.oy + near.y + near.oy) / 2;
+      const sx = (s.sx + near.sx) / 2, sy = (s.sy + near.sy) / 2;               // Version 9.0 (ruling 1613): the pair's middle where the sim has them
       const c = clashes.find((k) => Math.hypot(k.x - mx, k.y - my) <= CLASH_MERGE);
-      if (c) { c.x = (c.x * c.pairs + mx) / (c.pairs + 1); c.y = (c.y * c.pairs + my) / (c.pairs + 1); c.pairs += 1; }
-      else clashes.push({ x: mx, y: my, pairs: 1 });
+      if (c) { c.x = (c.x * c.pairs + mx) / (c.pairs + 1); c.y = (c.y * c.pairs + my) / (c.pairs + 1); c.sx = (c.sx * c.pairs + sx) / (c.pairs + 1); c.sy = (c.sy * c.pairs + sy) / (c.pairs + 1); c.pairs += 1; }
+      else clashes.push({ x: mx, y: my, sx, sy, pairs: 1 });
     }
   }
   return { poses, clashes };
@@ -218,7 +219,7 @@ export function unitsAt(world, timeDays, range = null, options = {}) {
   const now = options.now === undefined ? hooks.now() : options.now;
   const list = placed(world, timeDays, now);
   const { poses, clashes } = fighting(list, levelOf(options), now);
-  if (clashes.length) noteFight(world, 'clash', clashes[0]);
+  if (clashes.length) noteFight(world, 'clash', { x: clashes[0].sx, y: clashes[0].sy });   // at the sim's spots, not the drawn glide (ruling 1613)
   const out = [];
   for (const s of list) {
     if (!inRange(s.x, s.y, range)) continue;
