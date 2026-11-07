@@ -1,7 +1,9 @@
 // Version 8.1 "The vizier", Track B (rulings 1220-1239): the words of the top bar's stats, their explainers and the City page. Every number or rule a sentence
 // states comes from the sim's own function or data, passed in by src/ui/v81/stats.js or read here from the data.
 import { MOOD } from '../../data/mood.js';
-import { FLOOD, floodLevelRow, preparedHarvest } from '../../data/river.js';
+import { FLOOD, floodLevelRow } from '../../data/river.js';
+import { levelHarvest } from '../../sim/flood.js';
+import { heirLoss } from '../../sim/dynasty.js';
 import { MILESTONES } from '../../data/progression.js';
 import { T, S45_TEXT, SEASON_TEXT, S46_RIVER_TEXT, plural, seasonMonths, dateText } from '../text.js';
 
@@ -10,7 +12,7 @@ const months = (n) => plural(n, 'month', 'months');
 const levelName = (l) => S46_RIVER_TEXT.levelName(l.id);
 const milestoneName = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
 const lowHarvest = floodLevelRow('low').harvest;
-const pctOf = (harvest, prepared) => `${Math.round(preparedHarvest(harvest, prepared) * 100)}%`;   // the sim's own rule (src/data/river.js)
+const pctWhole = (factor) => `${Math.round(factor * 100)}%`;
 
 // The mood's face (ruling 1224): the bands come from the sim's own thresholds. Below MOOD.departuresBelow people leave; from MOOD.arrivalsMin newcomers may
 // come; MOOD.base is where a city starts. 'joyful' is the top band, 20 above the start.
@@ -59,7 +61,8 @@ export const V81_B_TEXT = {
     off: `The Nile floods every year from the ${milestoneName(FLOOD.from)} on, in months ${FLOOD.months[0]} to ${FLOOD.months[FLOOD.months.length - 1]}.`,
     nextKnown: (n) => `Next flood: ${levelName(n.level)}, ${n.monthsTo > 0 ? `in ${months(n.monthsTo)}` : 'this month'}. Floodplain farms will grow ${Math.round(n.harvest * 100)}%${n.prepared ? ', prepared' : ''}.`,
     nextUnknown: (n) => `Next flood: month ${FLOOD.months[0]}, ${n.monthsTo > 0 ? `in ${months(n.monthsTo)}` : 'this month'}. Its level is not known: a staffed Nilometer shows it here all year.`,
-    nilometer: `A staffed Nilometer stands, so the farms prepare: a Low flood gives floodplain farms ${pctOf(lowHarvest, true)}, not ${pctOf(lowHarvest, false)}.`,
+    // Version 9.0 (fix wave, Track D): this city's figures, the Bountiful's deeper loss in both (levelHarvest is the prepared one, heirLoss the unprepared).
+    nilometer: (world) => `A staffed Nilometer stands, so the farms prepare: a Low flood gives floodplain farms ${pctWhole(levelHarvest(world, floodLevelRow('low')))}, not ${pctWhole(heirLoss(world, lowHarvest))}.`,
     idle: 'The Nilometer has no workers: it reads nothing.',
   },
   score: {

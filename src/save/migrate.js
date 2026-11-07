@@ -311,7 +311,7 @@ function v10ToV11(w) {
 }
 
 // v11 -> v12 (Version 9.0, wave 0, ruling 1560). The city keeps everything it had and plays on as an 8.4 city: it is the Steady (no trait
-// bends any number), and the four month-end counts start at 0, so the share titles need their 24 counted months from the load. A seal's
+// bends any number), and the six month-end counts start at 0, so the share titles need their 24 counted months from the load. A seal's
 // `passed` and `title` are optional and stay absent on every older seal.
 function v11ToV12(w) {
   const tally = isRec(w.tally) ? w.tally : {};

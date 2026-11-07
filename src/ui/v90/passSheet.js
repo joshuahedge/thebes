@@ -67,6 +67,9 @@ export function createPassSheets(ctx) {
     input.addEventListener('input', () => { name = input.value; head.textContent = W.remembered(nameNow(), regnalOf(nameNow()), title.id); });
     const exportFirst = ctx.hooks && typeof ctx.hooks.exportCity === 'function'
       ? button(T.exportFirst, { class: 'pass-export quiet', onClick: () => ctx.hooks.exportCity() }) : null;
+    // Track L's side by side reads the rival from the records (ctx.records, else ctx.hooks.records) and the sealed score the sheet shows, its parts too (ctx.score).
+    const extras = el('div', { class: 'pass-extras' });
+    passSheetExtras(extras, world, { ...ctx, records: records(), score: { total: kept.score, parts: kept.parts }, hooks: ctx.hooks });
     body.append(el('section', { class: 'pass-sheet' }, [
       // 1. The title, why, and the runner-up.
       el('p', { class: 'pass-title' }, [head]),
@@ -83,7 +86,8 @@ export function createPassSheets(ctx) {
       el('label', { class: 'pass-name-label', for: 'pass-name', text: W.nameLabel, style: { display: 'block', fontWeight: '600', margin: '12px 0 4px' } }),
       input,
       el('p', { id: 'pass-name-hint', class: 'pass-name-hint small muted', text: W.nameHint(RULER_NAME_MAX) }),
-      // 5. The consequence, then Pass the throne and Not yet.
+      // 5. The rival side by side (Track L's, when the map has a rival), above the consequence and the buttons.
+      extras,
       el('p', { class: 'pass-replace small', text: W.replaced }),
       el('div', { class: 'actions' }, [
         button(W.passButton, { class: 'pass-confirm primary', onClick: () => { name = input.value; goTo('passHeir'); } }),
@@ -91,8 +95,6 @@ export function createPassSheets(ctx) {
         button(W.notYet, { class: 'pass-not-yet', onClick: () => store.set(closeSheet(store.get())) }),
       ]),
     ]));
-    // Track L's side by side reads the rival from the records (ctx.records, else ctx.hooks.records) and the sealed score the sheet shows (ctx.score).
-    passSheetExtras(body, world, { ...ctx, records: records(), score: kept.score, hooks: ctx.hooks });
   }
 
   function heirCard(body, { close, setTitle } = {}) {
@@ -124,16 +126,20 @@ export function createPassSheets(ctx) {
     const n = regnalOf(ruler);
     const res = passThrone(world, { title: id });
     if (!res.ok) { title = t; if (ctx.toasts) ctx.toasts.show(W.passFailed); return; }
+    let before = null;
     try {
       if (r) {
+        before = r.dynasty().name;
         r.setDynasty({ name: ruler });
-        r.noteCity(world, at);
-        r.addSeal(world, res.seal, at);
+        // Version 9.0 (fix wave): the ruler row first; the city's row and the chronicle stamp are written only once it is kept, so a failed Pass leaves neither.
         const row = r.addRuler(world, res.seal, res.title, at);
         if (!row || !r.rulers().some((x) => x.id === row.id)) throw new Error('ruler_not_kept');
+        r.noteCity(world, at);
+        r.addSeal(world, res.seal, at);
         r.setDynasty({ heir: res.title });
       }
     } catch (e) {
+      if (before !== null) { try { r.setDynasty({ name: before }); } catch (e2) { /* the records refused it too: nothing more to undo */ } }
       if (world.seals[world.seals.length - 1] === res.seal) world.seals.pop();
       title = t;
       if (ctx.toasts) ctx.toasts.show(W.passFailed);

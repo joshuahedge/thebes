@@ -44,6 +44,7 @@ import { rushQuote, setRush } from '../sim/monuments.js';
 import { monthFigures, taxesAt } from '../sim/economy.js';
 import { V84_G_TEXT } from './text.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
+import { heirFactor } from '../sim/dynasty.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { touchesRoad } from '../sim/reach.js';
@@ -246,7 +247,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
-  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth) });
+  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth * heirFactor(world, 'crews')) });
   rows.push({ key: 'prestige', text: s.prestige.holds ? U.prestige(s.prestige.now, s.prestige.more) : U.otherHolds(b.type) });
   return rows;
 }
