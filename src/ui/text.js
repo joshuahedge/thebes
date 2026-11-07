@@ -4500,18 +4500,9 @@ export const V90_L_TEXT = {
   recordsButton: (n) => `Rulers (${n})`,
   recordsButtonLabel: (n) => `Open the ruler list, ${plural(n, 'ruler', 'rulers')} kept on this device`,
   empty: 'No rulers yet. A reign you pass on is kept here.',
-  // The titles as the list words them (the heir ids of src/data/v90.js), and the trait's name: "Heir of the Merchant".
-  titleWords: { builder: 'the Builder', unconquered: 'the Unconquered', bountiful: 'the Bountiful', merchant: 'the Merchant', generous: 'the Generous', steady: 'the Steady' },
-  heirOf: (id) => `Heir of ${V90_L_TEXT.titleWords[id] || V90_L_TEXT.titleWords.steady}`,
-  heirOfLower: (id) => `heir of ${V90_L_TEXT.titleWords[id] || V90_L_TEXT.titleWords.steady}`,
-  // A ruler's name with its regnal number and title: "Ramesses II the Builder".
-  rulerName: (r) => `${r.name} ${V90_L_TEXT.roman(r.n)} ${V90_L_TEXT.titleWords[r.title] || V90_L_TEXT.titleWords.steady}`,
-  roman: (n) => {
-    if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
-    let out = '', left = n;
-    for (const [v, s] of [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]) while (left >= v) { out += s; left -= v; }
-    return out;
-  },
+  // A ruler's name with its regnal number and title: "Ramesses II the Builder" (Track D's titleNames and regnal; ruling 1575).
+  rulerName: (r) => `${V90_D_TEXT.regnal(r.name, r.n)} ${V90_D_TEXT.titleNames[r.title] || V90_D_TEXT.titleNames.steady}`,
+  heirOfLower: (id) => V90_D_TEXT.heirOf(id).replace(/^./, (c) => c.toLowerCase()),
   years: (day) => `${(day / 360).toFixed(1)} years`,
   rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
   medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
@@ -4528,12 +4519,13 @@ export const V90_L_TEXT = {
   notScored: 'not scored',
   you: 'You',
   // The install ask (the list's top line, and one toast after the first Pass).
-  installAsk: "Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit",
+  // The Safari line only on iOS (src/save/installFlow.js: platform 'ios'); elsewhere the plain ask.
+  installAsk: (ios) => (ios ? "Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit" : 'Install Thebes to keep your rulers'),
   installButton: 'Install',
   installIosLine: 'The installed app starts empty. Export first, then Bring rulers from a file in the app.',
   // Options > Saves: the ruler's name and Bring rulers from a file.
-  nameLabel: 'Ruler name',
-  nameHint: "Up to 16 letters, digits and spaces (and ' - .). It names your reigns in the list and goes on the links you share.",
+  // The field's label is V90_D_TEXT.nameLabel, so one name has one label.
+  nameHint: "Letters, digits, spaces and ' - . only, 16 at most. It names your reigns in the list and goes on the links you share.",
   nameSaved: (name) => `Ruler name kept: ${name}`,
   nameRefused: (keep) => `That name has no letters or digits, so it stays ${keep}. Use letters, digits, spaces and ' - .`,
   nameCleaned: (name) => `Kept as ${name}: only letters, digits, spaces and ' - . are kept, up to 16.`,
@@ -4541,6 +4533,8 @@ export const V90_L_TEXT = {
   bringLabel: 'Bring rulers from a file',
   bringNote: 'Pick a Thebes city file you exported. Only its rulers and rivals are added; its city is never brought.',
   bringAdds: (rulers, rivals) => `Adds ${plural(rulers, 'ruler', 'rulers')} and ${plural(rivals, 'rival', 'rivals')}`,
+  // Said before Merge on a device with no rulers, whose dynasty the file's replaces (src/save/records.js mergedDynasty).
+  bringTakes: (heir, name) => `Your next city will be ${V90_D_TEXT.heirOf(heir).replace(/^./, (c) => c.toLowerCase())}${name ? `, under the name ${name}` : ''}.`,
   bringNothing: 'Nothing new: this device already has every ruler and rival in that file.',
   bringMerge: 'Merge',
   bringCancel: 'Cancel',

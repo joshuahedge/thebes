@@ -5,3 +5,4 @@ import './rulers.test.js';    // the list: rows, order, never capped, Play this 
 import './rivals.test.js';    // rivals: kept from a link, the toast at a split, the side by side
 import './bring.test.js';     // Bring rulers from a file, the ruler name, Options > Saves
 import './boot.test.js';      // boot.js: the list, Play this map, the export, the lesson, the install ask
+import './fix.test.js';       // the fix wave: Merge's dynasty, one source for the words, the install ask's Safari line, the narrow side by side, Play this map's Back

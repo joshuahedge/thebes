@@ -30,6 +30,13 @@
 .sbs-line { display: grid; grid-template-columns: 6em minmax(0, 1fr) 4.5em; align-items: center; gap: 8px; }
 .sbs-name { overflow-wrap: anywhere; }
 .sbs-bar.none { display: block; height: 8px; }
+/* A narrow screen (ruling 1636): the name and the number sit above, the bar takes the full width below, so large text never squeezes it to a sliver. */
+@media (max-width: 480px) {
+  .sbs-line { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .sbs-name { grid-column: 1; grid-row: 1; }
+  .sbs-number { grid-column: 2; grid-row: 1; }
+  .sbs-bar { grid-column: 1 / -1; grid-row: 2; }
+}
 .part-bar .fill.rival { background: var(--terracotta); }
 .title-records .rulers-open { margin-top: 4px; }
 .rival-line { font-weight: 600; }

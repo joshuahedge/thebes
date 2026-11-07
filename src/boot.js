@@ -153,6 +153,17 @@ export async function boot(doc, win, {
   // changes until Another draws a new one or a city starts with it; the city that starts is that seed's map, at that size and layout.
   let newCitySeed = null;
   const newCityPick = () => ({ seed: newCitySeed, size: newCitySize, variant: newCityLayout === 'auto' ? null : newCityLayout });
+  // Version 9.0 (fix wave, ruling 1635): Play this map applies its row's level, size, layout and seed to the card at once, so Back must give them back: what was
+  // there before is kept here until a city starts (startGame clears it) or the card is backed out of (restorePlayMap).
+  let playUndo = null;
+  function restorePlayMap() {
+    const u = playUndo;
+    playUndo = null;
+    if (!u) return;
+    settings.set({ difficulty: u.difficulty });
+    newCitySize = u.size; newCityLayout = u.layout; newCitySeed = u.seed;
+    if (title) title.card.setChoices({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed });
+  }
   // A ?seed= flag (development) keeps its own seed and its classic map, as the flags always did; only then may the preview differ from the city.
   const startPicked = () => { const pick = newCityPick(); newCitySeed = null; return freshWorld(params.has('seed') ? { ...pick, seed: null } : pick); };
   const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
@@ -204,13 +215,20 @@ export async function boot(doc, win, {
     rulers() { if (current && !current.lesson) current.ui.store.set(openSheet(current.ui.store.get(), 'rulers')); },
     bringRulers: () => pickTextFile(doc),
     playMap(row) {
+      if (!playUndo) playUndo = { difficulty: settings.get().difficulty, size: newCitySize, layout: newCityLayout, seed: newCitySeed };   // Back (or Esc) puts these back
       settings.set({ difficulty: row.difficulty });
       newCitySize = isMapSize(row.mapSize) ? row.mapSize : DEFAULT_MAP_SIZE;
       newCityLayout = MAP_VARIANTS.includes(row.mapVariant) ? row.mapVariant : 'auto';
       newCitySeed = row.seed;
       if (current && !current.lesson) {
         if (current.world.speed > 0) current.ui.speedControl.set(0);   // the card opens over a paused game, as the menu's New city does
-        current.ui.store.set(openSheet(current.ui.store.get(), 'newCity'));
+        const store = current.ui.store;
+        store.set(openSheet(store.get(), 'newCity'));
+        const off = store.subscribe(() => {   // the card closed without Start (Back, Esc): the choices Play this map set go back
+          if (!playUndo) { off(); return; }
+          const s = store.get();
+          if (!(s.sheet && s.sheet.kind === 'newCity')) { off(); restorePlayMap(); }
+        });
       } else if (title) { title.card.setChoices({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed }); title.card.showNewCity(); }
     },
     // After 8.3 (ruling 1454): the game menu's Home: the city is saved, then the title shows with Continue; false (and the game stays) when the save fails.
@@ -278,7 +296,7 @@ export async function boot(doc, win, {
   }
 
   // Version 9.0 (Track L, ruling 1587): what the ruler list needs: the records, Play this map, and the install ask while it is due (a ruler is kept and the device can install).
-  const rulersDeps = ({ onBack = null, onInstall }) => ({ records, onPlay: (row) => hooks.playMap(row), installAsk: flow.canInstall(), onInstall, onBack });
+  const rulersDeps = ({ onBack = null, onInstall }) => ({ records, onPlay: (row) => hooks.playMap(row), installAsk: flow.canInstall(), ios: flow.env.platform === 'ios', onInstall, onBack });
   // The install ask, once, at the first start of a city after the first Pass (a ruler is kept and the device has not been asked): the storage is asked to persist again,
   // and a device that can install gets one toast with Install. The device remembers it was asked, installed or not.
   const askStore = (() => { try { return storage || win.localStorage || null; } catch (e) { return null; } })();
@@ -294,7 +312,7 @@ export async function boot(doc, win, {
     }
     // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
     // start must not use the ask up (a start later in the session, or the next visit, shows it).
-    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk, { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
+    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
     else if (flow.env.standalone) remember();
   }
   let persistAsked = false;
@@ -302,6 +320,7 @@ export async function boot(doc, win, {
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).
   function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null } = {}) {
+    playUndo = null;                                    // a city starting keeps the choices Play this map made
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
@@ -384,7 +403,7 @@ export async function boot(doc, win, {
     title.card.showPanel((body, back) => {
       const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: () => exportLoaded(loaded) });
       const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(seed === null ? startPicked() : freshWorld({ seed, variant, size }))) });
-      body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
+      body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: () => { restorePlayMap(); back(); } })]));
     });
   }
 
@@ -422,6 +441,7 @@ export async function boot(doc, win, {
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(startPicked()))),
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker (under More choices from Version 8.0)
       seed: newCitySeed, onSeed: (s) => { newCitySeed = s; },   // Version 8.2 (ruling 1310): the preview's seed
+      onNewCityBack: restorePlayMap,
       layout: newCityLayout, onLayout: (id) => { newCityLayout = id; },   // Version 8.0 (ruling 1151): the layout picker, Surprise me ('auto') until one is picked
       // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
       // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).

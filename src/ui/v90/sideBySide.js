@@ -3,7 +3,7 @@
 // friend's older link does not carry (a t1 link has four parts) reads "not scored", with no bar.
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { el } from '../components.js';
-import { SCORE_TEXT, V90_L_TEXT } from '../text.js';
+import { SCORE_TEXT, V90_L_TEXT, V90_D_TEXT } from '../text.js';
 
 const clampPart = (n) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
 
@@ -12,7 +12,7 @@ export function sideBySide(mine, rival, { id = 'side-by-side' } = {}) {
   const L = V90_L_TEXT;
   const head = el('h3', { id: `${id}-head`, text: L.sideHead(rival.name) });
   const side = (who, row, cls) => el('p', { class: `sbs-side ${cls}` }, [
-    el('strong', { class: 'sbs-who', text: who }), ' ', el('span', { class: 'sbs-score', text: String(row.score) }), ' ', el('small', { class: 'sbs-heir muted', text: L.heirOf(row.heir) }),
+    el('strong', { class: 'sbs-who', text: who }), ' ', el('span', { class: 'sbs-score', text: String(row.score) }), ' ', el('small', { class: 'sbs-heir muted', text: V90_D_TEXT.heirOf(row.heir) }),
   ]);
   const line = (who, row, part, cls) => {
     const n = row.parts && Number.isFinite(row.parts[part]) ? row.parts[part] : null;

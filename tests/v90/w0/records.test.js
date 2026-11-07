@@ -182,7 +182,7 @@ describe('v90 w0 records: merging and the export', () => {
     const m = mergeRecords(mine, theirs);
     expect(m.rulers.map((r) => [r.id, r.title])).toEqual([['a', 'builder'], ['b', 'builder'], ['c', 'builder']]);
     expect(m.rivals.map((v) => [v.name, v.score]).sort()).toEqual([['Ana', 200], ['Bo', 50], ['Cy', 1]]);
-    expect(m.dynasty).toEqual({ name: 'Khufu', heir: 'builder' });                  // the other side holds the newest ruler: its heir
+    expect(m.dynasty).toEqual({ name: 'Khufu', heir: 'merchant' });                 // the device has rulers: it keeps its own dynasty (ruling 1634)
     expect(mergeRecords(theirs, mine).dynasty).toEqual({ name: 'Ana', heir: 'builder' });
     expect(mergeRecords({ ...mine, dynasty: { name: '', heir: 'steady' }, rulers: [] }, { ...theirs, rulers: [] }).dynasty).toEqual({ name: 'Ana', heir: 'steady' });
     const r = createRecords({ storage: memory(mine) });
