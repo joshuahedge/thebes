@@ -74,6 +74,7 @@ import { V70_SCENES, VERSION70_SCENES } from './v70/index.js';
 export { VERSION70_SCENES };
 import { V71_SCENES, VERSION71_SCENES } from './v71/index.js';   // Version 7.1: the 'v71-...' scenes (src/dev/v71/index.js)
 export { VERSION71_SCENES };
+import { V84_E_SCENES } from './v84/elephants.js';                // Version 8.4, Track E: the 'v84-e-...' scenes (war elephants)
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -1031,6 +1032,7 @@ const SCENES = {
   ...V60_SCENES,
   ...V70_SCENES,
   ...V71_SCENES,
+  ...V84_E_SCENES,
 };
 
 export async function devScene(api, name, options = {}) {

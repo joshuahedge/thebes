@@ -165,7 +165,7 @@ describe('s3 raids defence', () => {
     expect(store.id in w.buildings).toBe(true);
     expect([end.report.towers, end.report.byTowers, end.report.bySoldiers]).toEqual([1, 3, 0]);   // two fell, the third as it ran
     expect([w.tally.raidsBeaten, w.tally.raidersByTowers, w.raid.adaptation]).toEqual([1, end.report.byTowers, 1]);
-    expect(raidMood(w)).toEqual({ raid: DANGER_MOOD.raidBeaten });
+    expect(raidMood(w)).toEqual({ victory: DANGER_MOOD.raidBeaten });   // Version 8.4 (ruling 1488): the beaten raid's row is Victory
     expect(tower.id in w.buildings).toBe(true);
   });
   it('turns back once half the raiders (rounded up) have fallen, and the towers keep shooting as they go', () => {

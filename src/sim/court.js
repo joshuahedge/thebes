@@ -27,7 +27,7 @@ import { CRIME } from '../data/crime.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PARTNERS } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS, RAW_GOODS } from '../data/goods.js';
+import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS, ASKABLE_GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
 import { isWorking } from './labour.js';
 import { atLeast } from './progression.js';
@@ -139,7 +139,7 @@ export function outputPerMonth(world, good) {
 // (or trades for it). Given the letter's number (id), a food is named only when the stores already hold half of what would be asked: a
 // city short of food is never asked for it (ruling 374).
 export function askableGoods(world, kind, id = null) {
-  const pool = kind === 'food' ? FOOD_SLOTS.filter((g) => FOOD_GOODS.includes(g)) : [...HOUSEHOLD_GOODS, ...RAW_GOODS];
+  const pool = kind === 'food' ? FOOD_SLOTS.filter((g) => FOOD_GOODS.includes(g)) : ASKABLE_GOODS;
   return pool.filter((g) => outputPerMonth(world, g) > 0 && (kind !== 'food' || id === null || stockOf(world, g) * 2 >= askAmount(world, 'food', g, id)));
 }
 const unitsHome = (world) => Object.values(unitsAtHome(world)).reduce((a, b) => a + b, 0);
@@ -211,7 +211,7 @@ function guidedAsk(world) {
     }
     return best && bestStock >= atLeast ? { good: best, stock: bestStock } : null;
   };
-  const pick1 = most([...HOUSEHOLD_GOODS, ...RAW_GOODS], G.min * 2);
+  const pick1 = most(ASKABLE_GOODS, G.min * 2);
   const food = pick1 ? null : most(FOOD_GOODS, G.foodMin);
   const chosen = pick1 || food;
   if (chosen) {

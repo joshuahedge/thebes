@@ -48,7 +48,7 @@ describe('s45 forecast (the sim)', () => {
     const gold = w.gold;
     monthlyEconomy(w);
     expect([w.gold - gold, w.stats.lastMonth.taxes, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep, w.stats.lastMonth.net]).toEqual([f.net, f.taxes, f.wages, f.upkeep, f.net]);
-    expect(monthFigures(w)).toEqual({ taxes: f.taxes, wages: f.wages, upkeep: f.upkeep, soldiers: f.soldiers, net: f.net });
+    expect(monthFigures(w)).toEqual({ taxes: f.taxes, wages: f.wages, upkeep: f.upkeep, soldiers: f.soldiers, net: f.net, taxesNormal: f.taxes });   // Version 8.4: at Normal the two are one
   });
   it('leaves out a paused building and one no road touches, as the month does', () => {
     const w = city();
@@ -421,7 +421,7 @@ describe('s45 unemployment phase-in', () => {
     w.splits = {};
     expect(unemploymentPhase(w)).toEqual({ factor: 1, monthsLeft: 0 });
     expect(jobsPenalty(w).now).toBe(-85);
-    expect(WORLD_VERSION).toBe(10);                                   // world.splits.town is the start day, recorded since Stage 3 (versions 7 to 10 added nothing for it)
+    expect(WORLD_VERSION).toBe(11);                                   // world.splits.town is the start day, recorded since Stage 3 (versions 7 to 11 added nothing for it)
   });
   it('records the Town day when the city first becomes a Town, and the phase counts from it', () => {
     const w = makeTestWorld({ gold: 1000 });

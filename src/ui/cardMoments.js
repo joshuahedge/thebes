@@ -8,6 +8,7 @@
 import { TUTORIAL_CARDS } from '../data/tutorial.js';
 import { largePlotUnlocked } from '../sim/largePlots.js';
 import { courtDemands } from '../sim/demands.js';
+import { elephantsIn } from '../sim/armies.js';
 import { isToolMode } from './modes.js';
 
 const warned = (k) => Boolean(k && (k.warning || k.active));
@@ -19,6 +20,8 @@ export const MOMENTS = {
   locusts: (world) => warned(world.hazards && world.hazards.locusts),
   raid: (world) => Boolean(world.raid.warning || world.raid.active),
   cityEvent: (world) => world.tally.eventsOffered > 0,   // Version 7.0 (Track E, ruling 910): the first city event has been offered
+  // Version 8.4 (Track E, ruling 1510): a raid with war elephants warned or under way.
+  elephants: (world) => elephantsIn(world.raid.warning && world.raid.warning.mix) > 0 || elephantsIn(world.raid.active && world.raid.active.mix) > 0,
 };
 
 export const seenKey = (id) => `card:${id}`;

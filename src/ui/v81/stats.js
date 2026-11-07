@@ -22,6 +22,8 @@ import { T as TILE } from '../../sim/terrain.js';
 import { closeSheet } from '../modes.js';
 import { el, button, clear } from '../components.js';
 import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText, T } from '../text.js';
+import { V84R_TEXT } from '../text.js';
+import { spoilsSaving } from '../../sim/spoils.js';
 import { V81_B_TEXT as B, moodFace } from './bText.js';
 import { goldPile, peopleCrowd } from './statIcons.js';
 import { forMap } from '../v82/oasisText.js';
@@ -109,7 +111,8 @@ export function explainStat(world, kind, deps = {}) {
     else {
       out.head = B.gold.head;
       out.lines.push([B.gold.taxes, B.signed(f.taxes)], [B.gold.wages, B.signed(-f.wages)], [B.gold.upkeep, B.signed(-f.upkeep)]);
-      if (f.soldiers > 0) out.lines.push([B.gold.soldiers, B.signed(-f.soldiers)]);
+      // Version 8.4 (rulings 1488, 1539): the captured weapons' discount and its days left are part of the soldiers' row's label.
+      if (f.soldiers > 0) out.lines.push([V84R_TEXT.soldiersRow(B.gold.soldiers, spoilsSaving(world)), B.signed(-f.soldiers)]);
       out.lines.push([B.gold.net, B.signed(f.net)]);
       out.notes.push(f.gold < 0 && f.net < 0 ? B.gold.below : f.monthsLeft !== null ? B.gold.runsOut(f.monthsLeft) : f.net < 0 ? `${B.gold.short}.` : `${B.gold.ok}.`);
     }

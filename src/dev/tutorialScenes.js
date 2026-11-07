@@ -26,6 +26,7 @@ import { largePlotScene } from './v60/largePlot.js';
 import { demandScene } from './v60/reign.js';
 import { plagueScene, droughtScene, locustsScene, raidBurnScene } from './v60/hazards.js';
 import { eventScene } from './v70/cityEvents.js';
+import { wallScene } from './v84/elephants.js';
 import { fullestHome } from './v60/base.js';
 
 // The phone the pictures are taken on, the square of it each picture is (scaled to TUTORIAL.size), and the city.
@@ -301,6 +302,24 @@ Object.assign(PICTURES, {
     const choices = sheet.querySelector('.event-choices');
     if (!choices) throw new Error('devScene tutorial: the event card has no choices');
     return { clip, mark: boxRing(h, clip, choices, { pad: 4, radius: 12, widen: 6 }) };
+  },
+});
+
+// Version 8.4 (Track E, ruling 1510): the first elephant raid's picture, on Track E's dev scene (src/dev/v84/elephants.js): war elephants hammering the north
+// gate of the sample Capital, towers and archers on the wall shooting at them: a ring on the elephants.
+Object.assign(PICTURES, {
+  async elephants(g, api) {
+    await wallScene(api, { zoom: 1.7, hold: 120 });
+    const h = api.game();
+    const goals = document.querySelector('#goals');
+    if (goals) goals.style.display = 'none';
+    const herd = h.world.raid.active.raiders.filter((r) => r.kind === 'elephant');
+    if (!herd.length) throw new Error('devScene tutorial: no war elephants at the wall');
+    const x = herd.reduce((s, r) => s + r.x, 0) / herd.length, y = herd.reduce((s, r) => s + r.y, 0) / herd.length;
+    const clip = clipAt(170);
+    putTileAt(h, x + 0.5, y - 0.2, 195, clip.y + 250, 1.7);
+    await wait(80);
+    return { clip, mark: tileRing(h, clip, x + 0.6, y - 0.6, 2.4) };
   },
 });
 

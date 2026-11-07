@@ -848,8 +848,9 @@ function duiDuration(days) {
 }
 const duiCountdown = (days) => {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
-  if (!m) return `${d} d`;
-  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
+  // Non-breaking spaces (ruling 1539): "2 m 10 d" never splits across lines where the banner wraps anywhere.
+  if (!m) return `${d} d`;
+  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
 };
 // D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
 // for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
@@ -861,7 +862,7 @@ Object.assign(DANGER_UI_TEXT, {
   moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
-  chip: (dir, days) => `Raid from ${duiFrom(dir)} · ${duiCountdown(days)}`,
+  chip: (dir, days) => `Raid from ${duiFrom(dir)}\u00a0· ${duiCountdown(days)}`,   // ruling 1539 and 8.4 docs: a non-breaking space before the "·", so "· 2 m 10 d" never starts a line
   // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
   chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
@@ -4131,3 +4132,221 @@ export const V83_C_TEXT = {
 // The tip for a far crew (ruling 1442; How to play lists it as every tip is listed): 19 words.
 Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's sheet, a workers' camp puts every crew there at full speed." });
 // ── end v83 c ──
+
+// Version 8.4, wave 0 (ruling 1461): the two new goods' lines, where they come from and what they are for (no building makes or uses them). Track G
+// owns these words from here on, and may reassign goodLine again from its own section.
+{
+  const line = goodLine;
+  goodLine = (good) => (good === 'cedar'
+    ? `${goodName(good)}: made by the foresters of ${partnerName('byblos')}; used by Villas and Estates, as a luxury; bought from ${partnerName('byblos')}`
+    : good === 'ivory'
+      ? `${goodName(good)}: made by the hunters of ${partnerName('nubia')}, and left by a fallen war elephant; used by Villas and Estates, as a luxury; bought from ${partnerName('nubia')}; sold to ${partnerName('byblos')}`
+      : line(good));
+}
+
+// Version 8.4, Track G (gold: the tax rate, Rush a course, luxury imports; rulings 1465-1484). Track G writes only between this header and its end line.
+// Every number in these words is the sim's own (monthFigures' taxesNormal and TAX_RATES, rushQuote, MONUMENT, luxuryTradeCause, the partners' prices).
+import { TAX_RATES as g84Rates } from '../data/palace.js';
+import { MONUMENT as g84Monument } from '../data/monuments.js';
+import { LUXURY_GOODS as g84Luxuries } from '../data/goods.js';
+const g84Signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+const g84Times = (n) => `${n}x`;
+const g84Good = (good) => goodName(good).toLowerCase();
+const g84Days = (n) => plural(n, 'day', 'days');
+const g84Months = (n) => plural(n, 'month', 'months');
+const g84Milestone = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+import { costOf as g84CostOf, routeCostOf as g84RouteCost } from '../sim/costs.js';
+import { PARTNERS as g84Partners, QUAY_TYPE as g84Quay } from '../data/trade.js';
+const g84Landing = (partner) => (v7Partners[partner] && v7Partners[partner].by === 'river' ? 'Quay' : 'trading post');
+Object.assign(MOOD_NAMES, { taxes: 'Taxes' });
+Object.assign(NEED_NAMES, { luxury: 'Luxury' });
+export const V84_G_TEXT = {
+  // The palace sheet's Taxes row: the three choices, each with its effect on this month's figures before the tap (ruling 1465).
+  taxHead: 'Taxes',
+  taxNote: 'Lower taxes draw people with mood; higher ones fill the treasury. The score counts taxes at Normal.',
+  rateNames: { low: 'Low', normal: 'Normal', high: 'High' },
+  // normal: the month's taxes at Normal; the effect is against Normal, and mood is the Taxes row it brings.
+  rateLine: (rate, normal) => {
+    const r = g84Rates[rate], gold = Math.round(normal * r.factor) - normal;
+    if (rate === 'normal') return `${ui4Gold(normal)} gold a month in taxes, no change to mood`;
+    return `${ui4Gold(Math.abs(gold))} gold a month ${gold < 0 ? 'less' : 'more'}, mood ${g84Signed(r.mood)}`;
+  },
+  rateNow: 'now',
+  rateAria: (rate, normal, now) => `Taxes ${V84_G_TEXT.rateNames[rate]}: ${V84_G_TEXT.rateLine(rate, normal)}${now ? ' (now)' : ''}`,
+  rateSet: (rate, normal) => `Taxes ${V84_G_TEXT.rateNames[rate].toLowerCase()}: ${V84_G_TEXT.rateLine(rate, normal)}`,
+  // The forecast's taxes row says the rate when it is not Normal.
+  forecastTaxes: (rate) => (rate === 'normal' ? T.taxes : `${T.taxes} (${V84_G_TEXT.rateNames[rate].toLowerCase()})`),
+  // Rush a course (rulings 1467, 1474-1476): its quote before the tap, its question, and what the sheet says while it runs.
+  rushButton: (q) => `Rush this course: about ${g84Days(q.saved)} sooner, about ${ui4Gold(q.extra)} gold more`,
+  rushHow: `Crews work ${g84Monument.rushPace === 2 ? 'twice' : g84Times(g84Monument.rushPace)} as fast on this course; each unit costs ${g84Times(g84Monument.rushGold)} the work gold. Stone and bricks must keep up`,
+  rushQuoteNote: (q) => `At today's crews with full supply: ${g84Days(q.days)} at their pace, ${g84Days(q.daysRushed)} rushed (about ${ui4Gold(q.perDay)} gold a day saved)`,
+  rushAsk: (type, q) => `Rush the course under way at the ${ui4Lower(type)}? About ${g84Days(q.saved)} sooner for about ${ui4Gold(q.extra)} gold more, paid day by day as the units are laid (${g84Times(g84Monument.rushGold)} the work gold). It ends with the course; cancel it at any time and nothing more is paid.`,
+  rushOk: 'Rush it',
+  rushSet: (type) => `Rushing the course at the ${ui4Lower(type)}`,
+  rushed: (q) => `Rushed: about ${g84Days(q.daysRushed)} to go on this course`,
+  rushedShort: (good) => `Rushed: waiting for ${g84Good(good)}`,
+  rushedNoCrew: 'Rushed: no crew today',   // the rush is on but no crew works the site, so there is no pace to count days by
+  rushCancel: 'Cancel the rush',
+  rushCancelled: (type) => `The rush at the ${ui4Lower(type)} is cancelled: nothing more is paid`,
+  // Why Rush cannot be had now (rushQuote's reasons), shown in place of the button.
+  rushWhy: {
+    too_short: "Rush would save less than a day",
+    waiting_offering: "Rush: this stage waits for its offering first",
+    waiting_gilding: "Rush: the last course waits for the gilding's gold first",
+    waiting_capstone: "Rush: the last course waits for the capstone's gold first",
+    no_gold: (q, have) => `Rush: a rushed day costs about ${ui4Gold(q.dayGold)} gold; you have ${ui4Gold(have)}. It can't put the treasury below 0`,
+  },
+  rushRefused: (reason) => (reason === 'no_gold' ? "Not enough gold for a rushed day: it can't put the treasury below 0" : reason === 'has_rush' ? 'This course is already rushed' : 'The course cannot be rushed now'),
+  rushedLabel: 'Rushed',
+  // Luxuries (rulings 1468, 1472, 1473): the Trade sheet's mark, and the luxury row's causes (src/sim/luxury.js luxuryTradeCause).
+  luxuryMark: 'Luxury: Villas and Estates need one',
+  luxuryTradeAria: (fix) => `${T.showMe}: the Trade sheet, ${fix.open ? `open a route to ${partnerName(fix.partner)}` : fix.keep ? `keep at least ${fix.keep} ${g84Good(fix.good)}` : `buy ${g84Good(fix.good)}`}`,
+  cause: {
+    // Ruling 1539: the fix gives the price of the landing it suggests and of the route (the sim's costOf and routeCostOf).
+    no_luxury_route: (c, world) => (c.good
+      ? { cause: 'No luxury is bought: none reaches its bazaar', fix: `${c.block === 'no_post' || c.block === 'no_quay' ? `Build a ${g84Landing(c.partner)} (${ui4Gold(g84CostOf(world, g84Partners[c.partner].by === 'river' ? g84Quay : 'trading_post'))} gold), then open` : 'Open'} a route to ${partnerName(c.partner)} (${ui4Gold(g84RouteCost(world, c.partner))} gold) and buy ${g84Good(c.good)} (${ui4Gold(c.price)} gold each)` }
+      : { cause: `Luxuries come by trade: ${partnerName(c.partner)} trades from ${g84Milestone(c.milestone)}`, fix: '' }),
+    luxury_not_bought: (c) => ({ cause: `${partnerName(c.partner)} sells ${g84Good(c.good)}, but trade does not buy it`, fix: c.off ? `Switch ${g84Good(c.good)} on for ${partnerName(c.partner)} and set it to Buy on the Trade sheet` : `Set ${g84Good(c.good)} to Buy on the Trade sheet, with a level to keep` }),
+    luxury_short: (c) => ({ cause: `Trade keeps only ${c.keep} ${g84Good(c.good)} near the ${g84Landing(c.partner)}; the homes use ${c.use} a month`, fix: `Raise ${g84Good(c.good)}'s Keep at least to ${c.want} on the Trade sheet` }),
+    luxury_ordered: (c) => (c.blocked
+      ? { cause: `${goodName(c.good)} is on order from ${partnerName(c.partner)}, but none will come`, fix: `The ${g84Landing(c.partner)}'s sheet says why` }
+      : { cause: `${goodName(c.good)} is on order from ${partnerName(c.partner)}: it comes in ${g84Months(c.months)}`, fix: '' }),
+  },
+  // A home's next step for a luxury (src/ui/nextStepText.js stepWords).
+  stepTrade: (fix, cause) => (fix.keep ? `raise ${g84Good(fix.good)}'s Keep at least to ${fix.keep} on the Trade sheet, for this home's luxury` : fix.open
+    ? `open a route to ${partnerName(fix.partner)} and buy ${g84Good(fix.good)} for this home's luxury`
+    : cause && cause.off ? `switch ${g84Good(fix.good)} on for ${partnerName(fix.partner)} and set it to Buy, for this home's luxury` : `set ${g84Good(fix.good)} to Buy on the Trade sheet, for this home's luxury`),
+  stepOrdered: (c, days) => `${g84Good(c.good)} on its way from ${partnerName(c.partner)} (${g84Months(c.months)}); then the bazaar (${g84Days(days)})`,
+  stepBlocked: (c) => `${g84Good(c.good)} is on order from ${partnerName(c.partner)}, but none will come: see the ${g84Landing(c.partner)}`,
+  // City advice: the trade fix's cost line, and gold piling up (ruling 1477).
+  routeCost: (partner, gold) => `Route to ${partnerName(partner)}: ${ui4Gold(gold)} gold`,
+  // Ruling 1539: "rush a monument" only when a site stands (one that is not finished) to rush.
+  goldSpare: (a, world) => ({
+    what: `Gold is piling up: ${ui4Gold(a.data.gold)} gold, ${g84Months(a.data.months)} of taxes`,
+    why: '',
+    fix: world && Object.values(world.buildings).some((b) => b && b.site && b.site.done === null) ? 'Lower taxes at the palace for mood, or rush a monument' : 'Lower taxes at the palace for mood',
+  }),
+};
+// The luxury causes in the house sheet's words, as every cause is worded (causeText); every other cause as before.
+{
+  const base = causeText;
+  causeText = (cause, world, need = null) => (cause && V84_G_TEXT.cause[cause.code] ? V84_G_TEXT.cause[cause.code](cause, world) : base(cause, world, need));
+}
+V70_ADVICE_WORDS.gold_spare = (a, world) => V84_G_TEXT.goldSpare(a, world);
+// Incense is a luxury too now; cedar's and ivory's lines are wave 0's, above.
+{
+  const line = goodLine;
+  goodLine = (good) => (good === 'incense'
+    ? `${goodName(good)}: made by the resin gatherers of ${partnerName('punt')}; used by festivals, and by Villas and Estates as a luxury; bought from ${partnerName('punt')}`
+    : line(good));
+}
+V70_HELP.p.push(
+  { head: 'Taxes', text: `The palace sets the city's taxes. Low takes ${g84Times(g84Rates.low.factor)} the month's taxes and gives mood ${g84Signed(g84Rates.low.mood)}, which draws people; High takes ${g84Times(g84Rates.high.factor)} and costs ${-g84Rates.high.mood} mood. Each choice on the palace's sheet says what it would do this month. The score counts taxes at Normal, so the rate never moves it. With no palace, taxes are Normal.` },
+  { head: 'Rush a course', text: `On a monument site's sheet, Rush this course has every crew there lay ${g84Times(g84Monument.rushPace)} its day's units, at ${g84Times(g84Monument.rushGold)} the work gold a unit, paid day by day as they are laid. It ends with the course, and can be cancelled at any time. Stone and bricks must keep up: a rushed site uses them twice as fast, and its sheet says when it waits for them.` },
+  { head: 'Luxuries', text: `Villas and Estates need a luxury: ${g84Luxuries.map(g84Good).join(', ')}, any of them. Nothing in the city makes one: buy one from a partner on the Trade sheet (Byblos sells cedar from Great city), keep it in a storehouse near a bazaar, and the bazaar sells it to the homes. A Villa or Estate without one for two months drops a tier.` },
+);
+// ── end v84 g ──
+
+// Version 8.4, Track R (raids: the clock, the scouts, the low-Nile lean, captured weapons, the celebration; rulings 1485-1499). Track R writes only here.
+// Every number below comes from SCOUTS, SPOILS or the sim's own function (scoutsAt, spoilsSaving), never typed again.
+export const V84R_TEXT = {
+  // The edge the scouts stand on, as an adjective ("Scouts on the eastern horizon").
+  sides: { north: 'northern', east: 'eastern', south: 'southern', west: 'western' },
+  // A span of game days in a few words: a month, a year, else months and days as the alerts say them.
+  span: (days) => (days === raidsTime.DAYS_PER_MONTH ? 'a month' : days === raidsTime.DAYS_PER_MONTH * raidsTime.MONTHS_PER_YEAR ? 'a year' : DANGER_UI_TEXT.duration(days)),
+  // The alert (raid_scouts) and the one caption a raid: the scouts, which side, and that a raid may come soon.
+  // dir is one side, or both sides of a two-sided raid (ruling 1538): "Scouts on the eastern and southern horizon".
+  scoutsTitle: (dir) => `Scouts on the ${[].concat(dir).map((d) => V84R_TEXT.sides[d]).join(' and ')} horizon`,
+  scoutsFix: (days) => `A raid warning may follow within ${V84R_TEXT.span(days)}`,
+  scoutsCaption: (dir) => `${V84R_TEXT.scoutsTitle(dir)}: raiders may come within ${V84R_TEXT.span(raidsData.SCOUTS.days)}`,
+  // The beaten-raid moment's line (the alert row) and the forecast's note under the soldiers' pay.
+  weaponsLine: () => `Captured weapons: soldiers' pay ${Math.round(raidsData.SPOILS.share * 100)}% less for ${V84R_TEXT.span(raidsData.SPOILS.days)}.`,
+  weaponsNote: (s) => `Captured weapons: ${s.less} less, ${plural(s.daysLeft, 'day', 'days')} left`,
+  // Ruling 1539: the discount is part of the soldiers' row's label, not a line of its own: "Army pay (captured weapons: 6 less, 140 days left)".
+  soldiersRow: (label, s) => (s ? `${label} (${V84R_TEXT.weaponsNote(s).replace(/^Captured/, 'captured')})` : label),
+};
+Object.assign(MOOD_NAMES, { victory: 'Victory' });
+Object.assign(ALERT_TEXT, {
+  raid_scouts: (alert) => ({ title: V84R_TEXT.scoutsTitle(alert.dirs || alert.dir), fix: V84R_TEXT.scoutsFix(alert.days) }),
+});
+// ── end v84 r ──
+
+// Version 8.4, Track E (war elephants and ivory; rulings 1500-1519). Track E writes only between this header and its end line.
+// Every number is the data's (src/data/armies.js ENEMY_TYPES.elephant, ELEPHANTS, MATCHUPS, TOWER_VS) or the sim's (src/sim/armies.js
+// counterModel, the warning's and the report's own counts). Names in this section start with "v84e".
+import { ENEMY_TYPES as v84eEnemy, ELEPHANTS as v84eElephants, TOWER_VS as v84eTowerVs, matchup as v84eMatchup } from '../data/armies.js';
+import { elephantsIn as v84eIn } from '../sim/armies.js';
+import { stageYears as v84eStageYears } from '../sim/raids.js';
+// Version 8.4 (escalation by years, ruling 1533): when elephants may first come, in whole years after the raid clock starts (raids escalate by years, not by count).
+const v84eYears = () => Math.round(v84eStageYears(v84eEnemy.elephant.fromRaid - 1));
+const v84eFrom = () => `From about ${v84eYears()} years after the raid clock starts`;
+const v84eFactor = (f) => armFactor(Math.round(f * 100) / 100);
+export const V84E_TEXT = {
+  lead: 'War elephants!',
+  // The raid sheet's line for the elephants (counterModel's traits and helps, the matchup table's cells multiplied as combat.js multiplies
+  // them): "2 war elephants: they trample every unit beside them and break walls 3x faster; an arrow that takes one below half may send it
+  // stampeding back through its own band. Your archers deal 2x at range (1x beside one); towers 1.5x. But soldiers deal half in melee (0.75x
+  // holding a gate or breach); your chariots will not charge them."
+  counterLine(c) {
+    const t = c.traits, said = [];
+    if (t.tramples) said.push('they trample every unit beside them');
+    if (t.wallBreak > 1) said.push(`break walls ${t.wallBreak}x faster`);
+    const lead = said.join(' and ');
+    const panic = t.stampedes ? 'an arrow that takes one below half may send it stampeding back through its own band' : '';
+    const range = v84eMatchup('archer', c.kind, 'open'), close = range * v84eMatchup('archer', c.kind, 'melee');
+    const helps = [];
+    if (c.helps.some((h) => h.unit === 'archer')) helps.push(`your archers deal ${v84eFactor(range)} at range (${v84eFactor(close)} beside one)`);
+    const tower = c.helps.find((h) => h.unit === 'tower');
+    if (tower) helps.push(`towers ${v84eFactor(tower.factor)}`);
+    const melee = v84eMatchup('soldier', c.kind, 'melee'), gate = melee * v84eMatchup('soldier', c.kind, 'gate');
+    const weak = [];
+    if (melee !== 1) weak.push(`soldiers deal ${v84eFactor(melee)} in melee (${v84eFactor(gate)} ${armSituationWords.gate})`);
+    if (t.shunnedBy.length) weak.push(`your ${t.shunnedBy.map((u) => armUnitPlural[u]).join(' and ')} will not charge them`);
+    const parts = [[lead, panic].filter(Boolean).join('; '), helps.join('; '), weak.length ? `But ${weak.join('; ')}` : ''].filter(Boolean).map((p) => `${armCap(p)}.`);
+    return `${armEnemyWords[c.kind](c.n)}: ${parts.join(' ')}`;
+  },
+  // What the raid's report says of its elephants (src/sim/elephants.js raidReportExtras): "2 war elephants: 1 felled, 1 stampeded back
+  // through its band (trampling 2 raiders); 10 ivory stored" or "...; 10 ivory lost: no working storehouse had room". '' for a raid without.
+  reportLine(r) {
+    if (!(r.elephants > 0)) return '';
+    const did = [r.felled ? `${r.felled} felled` : '', r.stampeded ? `${r.stampeded} stampeded back through ${r.stampeded === 1 ? 'its' : 'their'} band${r.trampled ? ` (trampling ${plural(r.trampled, 'raider', 'raiders')})` : ''}` : ''].filter(Boolean);
+    const ivory = [r.ivory ? `${r.ivory} ivory stored` : '', r.ivoryLost ? `${r.ivoryLost} ivory lost: no working storehouse had room` : ''].filter(Boolean);
+    return `${armCap(plural(r.elephants, 'war elephant', 'war elephants'))}: ${did.length ? did.join(', ') : 'none fell'}${ivory.length ? `; ${ivory.join('; ')}` : ''}.`;
+  },
+};
+// The enemy's name in a mix: "2 war elephants" (S46_ARMY_TEXT.mixText, the warning's fix and the sheet's arrival line read it).
+Object.assign(S46_ARMY_TEXT.enemy, { elephant: (n) => plural(n, 'war elephant', 'war elephants') });
+// The counters: the elephant's own line; every other kind's as before.
+{
+  const line = S46_ARMY_TEXT.counterLine;
+  S46_ARMY_TEXT.counterLine = (c) => (c.kind === 'elephant' ? V84E_TEXT.counterLine(c) : line(c));
+}
+// A raid with war elephants leads its warning with "War elephants!": the alert's title (and so the phone's raid sheet, which carries it) and
+// the wide raid sheet's arrival line. The phone's countdown chip keeps its words: a longer one would cut off the countdown at 150% text. A raid
+// without reads as before.
+{
+  const warn = ALERT_TEXT.raid_warning;
+  ALERT_TEXT.raid_warning = (alert, world) => {
+    const out = warn(alert, world), w = world.raid.warning;
+    return w && v84eIn(w.mix) ? { ...out, title: `${V84E_TEXT.lead} ${out.title}` } : out;
+  };
+  const mixLine = S46_ARMY_TEXT.mixLine;
+  S46_ARMY_TEXT.mixLine = (size, from, mix) => (v84eIn(mix) ? `${V84E_TEXT.lead} ${mixLine(size, from, mix)}` : mixLine(size, from, mix));
+}
+// The raid's report (the caption at its end and the summary's last raid) adds the elephants' line.
+{
+  const report = DANGER_UI_TEXT.raidReport;
+  DANGER_UI_TEXT.raidReport = (r) => [report(r), V84E_TEXT.reportLine(r)].filter(Boolean).join(' ');
+}
+// The tip at the first raid warned with war elephants (src/ui/s46/armies.js), 16 words, and its How to play line (20 words, as every tip's).
+Object.assign(TIP_TEXT, {
+  war_elephants: `Archers and towers fell elephants; soldiers in melee do ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}, and chariots will not charge them.`,
+});
+TIP_HELP_TEXT.war_elephants = `About ${v84eYears()} years into raids, elephants may come. Archers deal ${armFactor(v84eMatchup('archer', 'elephant', 'open'))}, towers ${armFactor(v84eTowerVs.elephant)}, soldiers ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}. One felled leaves ${v84eElephants.ivory} ivory.`;
+// The picture card at the first raid with war elephants (src/data/tutorial.js 'elephants').
+CARDS4_TEXT.cards.elephants = {
+  title: 'War elephants',
+  words: `${v84eFrom()}, some raids bring war elephants with ${v84eEnemy.elephant.hp} hit points: they trample every unit beside them and break walls ${v84eEnemy.elephant.wallDamage / v84eEnemy.foot.damage}x faster. Archers at range and towers fell them. A felled one leaves ${v84eElephants.ivory} ivory in the nearest storehouse.`,
+  alt: 'War elephants with their riders at a wall inside a ring, towers and archers shooting at them from behind it.',
+};
+// ── end v84 e ──

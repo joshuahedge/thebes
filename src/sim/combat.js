@@ -24,7 +24,8 @@
 // null) and towerIds (the towers that have shot during this raid, for the report's tower count).
 import { DEFENCE } from '../data/raids.js';
 import { CHIEFTAIN } from '../data/hazards.js';
-import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, matchup } from '../data/armies.js';
+import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, SHUNS, matchup, towerVs } from '../data/armies.js';
+import { panicDay, elephantFell } from './elephants.js';
 import { allBuildings, removeBuilding } from './world.js';
 import { isWorking, staffRatio } from './labour.js';
 import { idx, inBounds } from './grid.js';
@@ -240,6 +241,10 @@ function archerPost(world, u, foe, home, taken) {
 //     taken ARMY.towerHp, then it falls), else the nearest unit within it (a shot by 'enemy'); an enemy chariot charges the
 //     nearest unit within its charge along a clear line (no wall, gate, water or rocky ground) and strikes it; a raider that breaks
 //     walls hits the standing wall tile in its band's way (active.blocked), which breaks at 0.
+// Version 8.4, Track E (rulings 1500-1505): a tower's shot is times TOWER_VS (1.5 against a war elephant); a unit never goes out to a kind it
+// shuns (SHUNS: your chariots and an elephant); a trampling raider (an elephant) hits every unit beside it; a wall-breaker deals its
+// wallDamage to the wall (6 for an elephant); then an elephant an arrow took below half may stampede (src/sim/elephants.js panicDay: its own
+// band takes its trample, the raiders it fells counted in trampled, and it leaves the raiders), and a felled one leaves its ivory (elephantFell).
 // Then wounded units leave service (tally.soldiersWounded) and fallen raiders leave the band (byTowers, bySoldiers, byArchers,
 // byChariots and their tallies). Returns { fighting, fightingBands }: whether a raider and a unit traded blows beside each other
 // today, and which bands (0, or 1 of a two-sided raid) had a raider in those blows (a band that fought waits). Shots from range
@@ -251,10 +256,12 @@ export function combatDay(world, events = null) {
   if (a.byArchers === undefined) a.byArchers = 0;
   if (a.byChariots === undefined) a.byChariots = 0;
   a.shots = [];
-  const killer = new Map();   // raider id -> 'tower' | 'soldier' | 'archer' | 'chariot', set as it falls
+  const killer = new Map();   // raider id -> 'tower' | 'soldier' | 'archer' | 'chariot' | 'stampede', set as it falls
+  const lastBy = new Map();   // Version 8.4, Track E: raider id -> who dealt it today's last blow (an elephant's panic reads it)
   const hurt = (r, dmg, by) => {
     r.hp -= dmg;
     r.hit = true;
+    lastBy.set(r.id, by);
     if (r.hp <= 0 && !killer.has(r.id)) killer.set(r.id, by);
   };
   for (const t of allBuildings(world)) {
@@ -262,7 +269,7 @@ export function combatDay(world, events = null) {
     const c = centre(t);
     const foe = nearest(c, a.raiders.filter((r) => alive(r) && dist(c, r) <= DEFENCE.towerRange));
     if (!foe) continue;
-    hurt(foe, DEFENCE.towerDamage * staffRatio(world, t), 'tower');
+    hurt(foe, DEFENCE.towerDamage * staffRatio(world, t) * towerVs(enemyOf(foe)), 'tower');   // Version 8.4: x TOWER_VS (1.5 against an elephant)
     a.shots.push({ from: c, to: { x: foe.x, y: foe.y }, by: 'tower' });
     if (!a.towerIds.includes(t.id)) a.towerIds.push(t.id);
   }
@@ -270,8 +277,9 @@ export function combatDay(world, events = null) {
   const fought = new Set();
   const posts = new Set();
   for (const s of world.soldiers) {
-    const home = homeOf(world, s), def = unitDef(s), kind = kindOf(s);
-    const foe = nearest(s, a.raiders.filter((r) => alive(r) && dist(home, r) <= def.patrol));
+    const home = homeOf(world, s), def = unitDef(s), kind = kindOf(s), shuns = SHUNS[kind] || [];
+    // Version 8.4, Track E (ruling 1501): a kind never goes out to the enemies it shuns (your chariots to a war elephant): the nearest other one, or none.
+    const foe = nearest(s, a.raiders.filter((r) => alive(r) && dist(home, r) <= def.patrol && !shuns.includes(enemyOf(r))));
     if (!foe) { if (s.task !== 'wait') walkHome(world, s); continue; }
     s.task = 'out';
     if (kind === 'archer') {
@@ -295,8 +303,11 @@ export function combatDay(world, events = null) {
     const live = world.soldiers.filter(alive);
     const foe = nearest(r, live.filter((s) => dist(r, s) <= BESIDE));
     if (foe) {
-      foe.hp -= e.damage * (r.chief ? CHIEFTAIN.damageFactor : 1);   // Version 6.0 (Track B1, ruling 683): a chieftain hits harder
-      foe.hit = true;
+      // Version 8.4, Track E (ruling 1500): a trampling raider (a war elephant) deals its damage to every unit beside it, not one.
+      for (const s of e.trample ? live.filter((u) => dist(r, u) <= BESIDE) : [foe]) {
+        s.hp -= e.damage * (r.chief ? CHIEFTAIN.damageFactor : 1);   // Version 6.0 (Track B1, ruling 683): a chieftain hits harder
+        s.hit = true;
+      }
       fighting = true;
       fought.add(r.band ? 1 : 0);
       continue;
@@ -326,23 +337,26 @@ export function combatDay(world, events = null) {
     if (!e.breaksWalls) continue;
     const blocked = (r.band && a.second ? a.second : a).blocked;   // the wall tile in this raider's band's way
     if (blocked !== null && blocked !== undefined && world.wall[blocked] > 0) {
-      world.wall[blocked] = Math.max(0, world.wall[blocked] - e.damage);
+      world.wall[blocked] = Math.max(0, world.wall[blocked] - (e.wallDamage || e.damage));   // Version 8.4: an elephant breaks walls 3x as fast
       if (world.wall[blocked] === 0) breakTile(world, blocked);
     }
   }
+  // Version 8.4, Track E (ruling 1502): an elephant an arrow took below half may stampede through its own band (src/sim/elephants.js).
+  panicDay(world, a, lastBy, hurt, events);
   const wounded = world.soldiers.filter((s) => !alive(s)).length;
   if (wounded) {
     world.soldiers = world.soldiers.filter(alive);
     world.tally.soldiersWounded += wounded;
   }
-  const BY = { tower: ['byTowers', 'raidersByTowers'], soldier: ['bySoldiers', 'raidersBySoldiers'], archer: ['byArchers', 'raidersByArchers'], chariot: ['byChariots', 'raidersByChariots'] };
+  const BY = { tower: ['byTowers', 'raidersByTowers'], soldier: ['bySoldiers', 'raidersBySoldiers'], archer: ['byArchers', 'raidersByArchers'], chariot: ['byChariots', 'raidersByChariots'], stampede: ['trampled', null] };
   for (const r of a.raiders) {
     if (alive(r)) continue;
     const [field, tally] = BY[killer.get(r.id)] || BY.soldier;
     a[field] = (a[field] || 0) + 1;
-    if (world.tally[tally] !== undefined) world.tally[tally]++;
+    if (tally && world.tally[tally] !== undefined) world.tally[tally]++;
+    if (r.kind === 'elephant') elephantFell(world, a, r, events);   // Version 8.4, Track E (ruling 1505): its ivory to the nearest store
   }
-  a.raiders = a.raiders.filter(alive);
+  a.raiders = a.raiders.filter((r) => alive(r) && !r.stampede);
   return { fighting, fightingBands: [...fought].sort() };
 }
 

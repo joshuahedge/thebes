@@ -47,6 +47,9 @@ export function grandDistrict(view = 'street', gold = 5000) {
   bazaar.store = Object.fromEntries([...foods.map((g) => [g, 300]), ...HOUSEHOLD_GOODS.filter((g) => g !== 'jewellery').map((g) => [g, 300])]);
   const home = add(world, 'house', 12, 11, { tier, w: 2, d: 2, residents: cap, stockedFor: cap });
   home.stock = Object.fromEntries([...HOUSEHOLD_GOODS.filter((g) => g !== 'jewellery').map((g) => [g, Math.ceil(cap * GOODS[g].perResidentPerMonth * 3)]), ...foods.map((g) => [g, 40])]);
+  // Version 8.4 (Track G): a Villa needs a luxury too; the scene's home holds three months of cedar and the bazaar more, so its step is still the street's (or the food's).
+  bazaar.store.cedar = 40;
+  home.stock.cedar = Math.ceil(cap * GOODS.cedar.perResidentPerMonth * 1.5) * 3;
   if (view === 'food') world.wildlife.herds.push({ id: world.wildlife.nextId++, kind: HERD_KIND_IDS[0], x: 26, y: 20, hx: 26, hy: 20, size: 6, max: 6, regrow: null });
   for (const b of allBuildings(world)) b.staff = BUILDINGS[b.type].workers;
   return { world, home };

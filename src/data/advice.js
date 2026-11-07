@@ -29,4 +29,5 @@ export const ADVICE = {
 // file then). No item of theirs exists until a track pushes one, so no city's list moves. Wave 2 (Track A, src/sim/adviceFixes.js) pushes the last two and keeps
 // the places the contract gave all three.
 // Version 8.3 (Track K): 'keep_stocked' (a store to keep stocked for a bazaar or a monument site) after 'stranded', its nearest kin.
-export const ADVICE_KINDS = ['raid_towers', 'plague', 'fire', 'locusts', 'drought', 'treasury', 'demand', 'event', 'quay', 'trade_floor', 'illness', 'crime', 'home_need', 'stranded', 'keep_stocked', 'running_out', 'workers_short', 'jobless'];
+// Version 8.4 (Track G, ruling 1477): 'gold_spare' (gold piling up: lower taxes or rush a monument) last, the least urgent.
+export const ADVICE_KINDS = ['raid_towers', 'plague', 'fire', 'locusts', 'drought', 'treasury', 'demand', 'event', 'quay', 'trade_floor', 'illness', 'crime', 'home_need', 'stranded', 'keep_stocked', 'running_out', 'workers_short', 'jobless', 'gold_spare'];

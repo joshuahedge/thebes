@@ -1,7 +1,7 @@
 // Stage 4.6, the Armies track: the raid's mix, boats, a band's pace and walls turning bands that cannot break them (src/sim/raids.js,
 // src/sim/armies.js), each set up both ways.
 import { describe, it, expect } from '../../harness.js';
-import { raidDay, raidSize } from '../../../src/sim/raids.js';
+import { raidDay, raidSize, stageFrom } from '../../../src/sim/raids.js';
 import { drawMix, boatLanding, raiderKinds, isMixed, counterModel, enemyMayCome } from '../../../src/sim/armies.js';
 import { MIX, ENEMY_TYPES, ENEMY_KINDS, footMix } from '../../../src/data/armies.js';
 import { RAIDS } from '../../../src/data/raids.js';
@@ -10,7 +10,7 @@ import { T } from '../../../src/sim/terrain.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 const EAST = { x: 31, y: 16 };
-const sum = (mix) => ENEMY_KINDS.reduce((s, k) => s + mix[k], 0);
+const sum = (mix) => ENEMY_KINDS.reduce((s, k) => s + (mix[k] || 0), 0);   // Version 8.4: a mix has elephant only when it brings any
 
 function city({ river = false } = {}) {
   const w = makeTestWorld({ gold: 1000, raiderEntries: [EAST] });
@@ -22,8 +22,9 @@ function city({ river = false } = {}) {
 }
 
 // Raises the warning for raid `index` through raidDay (its day has come) and returns it.
+// Version 8.4 (ruling 1531): the kinds wait for the raid's stage, so the clock starts where 8.3's would have reached this index on day 1000 (the stage is the index).
 function warn(w, index) {
-  w.raid.clockDay = 0;
+  w.raid.clockDay = 1000 - stageFrom(index);
   w.raid.index = index;
   w.raid.nextWarnDay = w.day = 1000;
   raidDay(w, []);
@@ -53,7 +54,7 @@ describe('s46 armies the raid\'s mix', () => {
     expect([enemyMayCome('archer', 1), enemyMayCome('archer', 2), enemyMayCome('chariot', 4), enemyMayCome('chariot', 5)]).toEqual([false, true, false, true]);
     for (let i = 2; i < 20; i++) for (const n of [2, 5, 11, 18]) {
       const m = drawMix(w, i, n);
-      expect([i, n, sum(m), m.foot >= Math.ceil(n * MIX.footMin)]).toEqual([i, n, n, true]);
+      expect([i, n, sum(m), m.foot + (m.elephant || 0) >= Math.ceil(n * MIX.footMin)]).toEqual([i, n, n, true]);   // Version 8.4 (ruling 1506): war elephants break walls too, and count with the foot
     }
   });
   it('draws the same mix for the same seed and raid, more raiders who are not on foot on Hard than on Relaxed', () => {

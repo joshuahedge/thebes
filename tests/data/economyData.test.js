@@ -15,14 +15,14 @@ const pick = (b, keys) => Object.fromEntries(keys.map((k) => [k, b[k]]));
 
 describe('data goods', () => {
   it('lists the ten goods with their kinds and household use', () => {
-    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks', 'game', 'fish', 'incense']);   // Stage 4: the two materials; Stage 4.6: the River track's two foods; Version 7.0: Punt's incense
+    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks', 'game', 'fish', 'incense', 'cedar', 'ivory']);   // Stage 4: the two materials; Stage 4.6: the River track's two foods; Version 7.0: Punt's incense; 8.4: cedar and ivory
     expect(FOOD_GOODS).toEqual(['grain', 'figs', 'game', 'fish']);
     expect(HOUSEHOLD_GOODS).toEqual(['pottery', 'beer', 'linen', 'jewellery']);
-    expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems', 'incense']);   // Version 7.0: incense, for festivals only
+    expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems', 'incense', 'cedar', 'ivory']);   // Version 7.0: incense, for festivals; 8.4: the luxuries
     expect(MATERIAL_GOODS).toEqual(['stone', 'bricks']);
     const use = Object.fromEntries([...FOOD_GOODS, ...HOUSEHOLD_GOODS].map((g) => [g, GOODS[g].perResidentPerMonth]));
     expect(use).toEqual({ grain: 0.25, figs: 0.25, game: 0.25, fish: 0.25, pottery: 0.05, beer: 0.05, linen: 0.04, jewellery: 0.03 });
-    for (const g of RAW_GOODS) expect([g, 'perResidentPerMonth' in GOODS[g]]).toEqual([g, false]);
+    for (const g of RAW_GOODS) expect([g, 'perResidentPerMonth' in GOODS[g]]).toEqual([g, Boolean(GOODS[g].luxury)]);   // Version 8.4: only a luxury has a use (ruling 1461)
     for (const [g, def] of Object.entries(GOODS)) expect([g, typeof def.name, def.name.length > 0]).toEqual([g, 'string', true]);
   });
 });
@@ -90,14 +90,14 @@ describe('data buildings, Stage 2', () => {
   it('stores food in granaries and everything else in storehouses, and sells the six goods homes use', () => {
     expect(BUILDINGS.granary.stores).toEqual(['grain', 'figs', 'game', 'fish']);   // Stage 4.6 (ruling 363)
     expect(BUILDINGS.granary.capacity).toBe(600);
-    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'incense', 'stone', 'bricks']);   // Version 7.0: incense is a raw good
+    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'incense', 'cedar', 'ivory', 'stone', 'bricks']);   // Version 7.0: incense is a raw good; 8.4: cedar and ivory too
     expect(BUILDINGS.storehouse.capacity).toBe(800);
     for (const g of Object.keys(GOODS)) {
       const homes = [BUILDINGS.granary, BUILDINGS.storehouse].filter((s) => s.stores.includes(g));
       expect([g, homes.length]).toEqual([g, 1]);                                   // every good has exactly one kind of store
     }
-    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']);
-    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 });
+    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery', 'incense', 'cedar', 'ivory']);   // Version 8.4 (ruling 1468): and the luxuries, 40 of each
+    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100, incense: 40, cedar: 40, ivory: 40 });
     expect(Object.keys(BUILDINGS.bazaar.stock)).toEqual(BUILDINGS.bazaar.sells);
   });
   it('makes the booth an entertainment service with a reach of 8 road tiles', () => {
@@ -126,7 +126,7 @@ describe('data tiers 5-9', () => {
   it('adds one new demand per tier, beer and two foods together at Fine manor, linen and three foods at Villa (Stage 4.7, ruling 471)', () => {
     const added = [];
     for (let t = 5; t <= MAX_TIER; t++) added.push(TIERS[t].needs.filter((n) => !TIERS[t - 1].needs.includes(n)));
-    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen', 'threeFoods'], ['jewellery']]);
+    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen', 'threeFoods', 'luxury'], ['jewellery']]);   // Version 8.4 (ruling 1468): a luxury from the Villa
     for (let t = 2; t <= MAX_TIER; t++) for (const n of TIERS[t - 1].needs) expect([t, n, TIERS[t].needs.includes(n)]).toEqual([t, n, true]);
   });
   it('asks tiers 6-9 for desirability to rise and a lower value to keep, and nothing below', () => {
@@ -225,8 +225,8 @@ describe('data trade', () => {
     const list = (m) => Object.entries(m).map(([g, o]) => `${g} ${o.price} (${o.quota})`);
     expect(list(PARTNERS.memphis.buys)).toEqual(['grain 1 (300)', 'pottery 8 (200)', 'beer 10 (160)']);
     expect(list(PARTNERS.memphis.sells)).toEqual(['clay 2 (300)', 'figs 3 (200)', 'barley 3 (200)', 'stone 6 (200)']);   // Stage 4: stone, listed from City (from: 'city')
-    expect(list(PARTNERS.byblos.buys)).toEqual(['pottery 8 (120)', 'linen 14 (120)', 'jewellery 20 (80)']);
-    expect(list(PARTNERS.byblos.sells)).toEqual(['flax 3 (160)', 'gems 9 (100)', 'beer 14 (100)']);
+    expect(list(PARTNERS.byblos.buys)).toEqual(['pottery 8 (120)', 'linen 14 (120)', 'jewellery 20 (80)', 'ivory 40 (80)']);   // Version 8.4: ivory (ruling 1469)
+    expect(list(PARTNERS.byblos.sells)).toEqual(['flax 3 (160)', 'gems 9 (100)', 'beer 14 (100)', 'cedar 45 (240)']);   // Version 8.4: cedar (ruling 1469)
   });
   it('brings 40 of the first good on the sale list as the first caravan’s gift', () => {
     for (const [id, p] of Object.entries(PARTNERS)) expect([id, p.gift]).toEqual([id, { good: Object.keys(p.sells)[0], n: 40 }]);

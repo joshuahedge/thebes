@@ -13,8 +13,9 @@ export const PARTNERS = {
   },
   byblos: {
     name: 'Byblos', milestone: 'great_city', routeCost: 600,
-    buys: { pottery: { price: 8, quota: 120 }, linen: { price: 14, quota: 120 }, jewellery: { price: 20, quota: 80 } },
-    sells: { flax: { price: 3, quota: 160 }, gems: { price: 9, quota: 100 }, beer: { price: 14, quota: 100 } },
+    // Version 8.4 (wave 0, ruling 1469): Byblos also buys ivory and sells cedar, the luxury a Villa can have first (Punt opens too late).
+    buys: { pottery: { price: 8, quota: 120 }, linen: { price: 14, quota: 120 }, jewellery: { price: 20, quota: 80 }, ivory: { price: 40, quota: 80 } },
+    sells: { flax: { price: 3, quota: 160 }, gems: { price: 9, quota: 100 }, beer: { price: 14, quota: 100 }, cedar: { price: 45, quota: 240 } },
     gift: { good: 'flax', n: 40 },
   },
   // Version 7.0, Track T (ruling 870): two partners by river (by: 'river'), whose boats land at a Quay (QUAY_TYPE) instead of a caravan at
@@ -24,7 +25,7 @@ export const PARTNERS = {
   nubia: {
     name: 'Nubia', milestone: 'capital', routeCost: 800, by: 'river',
     buys: { grain: { price: 1, quota: 300 }, linen: { price: 11, quota: 100 } },
-    sells: { stone: { price: 5, quota: 240 }, gems: { price: 8, quota: 120 } },
+    sells: { stone: { price: 5, quota: 240 }, gems: { price: 8, quota: 120 }, ivory: { price: 60, quota: 80 } },   // Version 8.4: ivory (ruling 1469)
     gift: { good: 'stone', n: 40 },
   },
   punt: {
@@ -41,6 +42,9 @@ export const CARAVAN_EVERY_MONTHS = 3;   // a caravan from each open route every
 export const PRICE_DRIFT = 0.1;          // prices drift by up to ±10% a year (seeded)
 export const TRADE_REACH = 16;           // road tiles from the trading post to the stores its caravans use
 export const ARBITRAGE_MARGIN = 1.25;    // no partner sells a good for less than this times what any partner pays
+// Version 8.4 (ruling 1462): the goods first traded in 8.4. The yearly drift draws every other good first, in 8.3's order, and these after, so
+// no 8.3 price moves (src/sim/trade.js drawDrift).
+export const DRIFT_LAST = ['cedar', 'ivory'];
 
 // ── Version 7.0 (Track 0 contract, docs/superpowers/notes/2026-10-23-version-7-0-contract.md; Track T owns this whole file) ──
 // This file stays a leaf: it imports nothing (src/data/v70.js joins its lists into the shared ones, and goods.js and buildings.js read them).

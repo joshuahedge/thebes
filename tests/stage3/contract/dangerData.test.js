@@ -62,12 +62,13 @@ describe('s3 contract data', () => {
     expect(Math.round(FIRE.threshold / HOUSE_RISK[4])).toBe(400);                   // an uncovered House: about 13 months
   });
   it('sets the raid, unit, defence and festival numbers of spec 4.13', () => {
-    expect(RAIDS).toEqual({
-      clockPeople: 250, firstWarnAfter: 720, warningDays: 90, laterMin: 720, laterMax: 1440, firstSize: 3, minSize: 2, maxSize: 18, growthPerYear: 0.1, growthMax: 1.5,
+    expect(RAIDS).toEqual({   // Version 8.4 wave 2 (rulings 1463, 1521): firstWarnAfter 720 -> 300, laterMin 720 -> 360, laterMax 1440 -> 600, leanDays 0 -> 60
+      clockPeople: 250, firstWarnAfter: 300, warningDays: 90, laterMin: 360, laterMax: 600, leanDays: 60, firstSize: 3, minSize: 2, maxSize: 18, growthPerYear: 0.1, growthMax: 1.5,
       peoplePerRaider: 125, wealthBase: 5000, wealthStep: 5000, wealthMax: 4, adaptLost: 0.6, adaptStep: 0.2, raidersPerTower: 3,
       tributeShare: 0.8, strikes: 3, strikeDays: 2, stealShare: 0.01, stealMin: 5, stealMax: 50, retreatShare: 0.5,
       twoSidedFrom: 3, twoSidedChance: 0.35, pillage: [null, 'granary', 'house'], foodShare: 0.5, fleeShare: 0.25,
       targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],
+      stagePace: { first: 720, gap: 1080, warning: 90 },   // Version 8.4 wave 2 (ruling 1530): 8.3's clock, the pace raids escalate at
     });
     for (const t of RAIDS.targets) expect(Boolean(BUILDINGS[t])).toBe(true);
     expect(new Set(Object.values(RAID_SALT)).size).toBe(Object.keys(RAID_SALT).length);
@@ -76,7 +77,7 @@ describe('s3 contract data', () => {
     expect(FESTIVAL).toEqual({ from: 'town', cost: 200, mood: 6, days: 90, every: 360 });
   });
   it('sets the danger mood terms of spec 4.9', () => {
-    expect(DANGER_MOOD).toEqual({ fireLastMonth: -4, burnedEach: -2, burnedMax: -10, burnedDays: 180, raidBeaten: -3, raidLost: -8, raidDays: 180 });
+    expect(DANGER_MOOD).toEqual({ fireLastMonth: -4, burnedEach: -2, burnedMax: -10, burnedDays: 180, raidBeaten: 4, raidLost: -8, raidDays: 180, victoryDays: 90 });   // Version 8.4 (ruling 1488): a beaten raid is a Victory row, +4 for 90 days (was -3 for 180)
   });
   it('sets the score (score v2 from Stage 4: tests/stage4/contract): parts whose weights add up to 100, a factor per level, medals and the share link', () => {
     expect(SCORE_VERSION).toBe(2);

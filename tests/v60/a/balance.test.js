@@ -41,22 +41,33 @@ describe('v60 a balance careless', () => {
 });
 
 describe('v60 a balance village', () => {
-  it('spends 68-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {
+  // Version 8.4 (rulings 1488, 1528): the captured weapons cut the soldiers' pay, so the band is 67-75% (it was 68-75%); with 8.4's raid clock too the village spends
+  // 67.65% without its fetch order and 73.16% with it (8.3: 68.38% and 73.9%), as Track R measured.
+  it('spends 67-75% of its taxes in the last year of the 10-year village, with and without its fetch order', () => {
     const share = (r) => { const y = r.months.slice(-12); return y.reduce((n, m) => n + m.spent, 0) / y.reduce((n, m) => n + m.taxes, 0); };
     for (const fetch of [false, true]) {
       const s = share(villageRun46({ farms: 2, towers: 2, fetch }));
-      expect([fetch, s >= 0.68, s <= 0.75]).toEqual([fetch, true, true]);
+      expect([fetch, s >= 0.67, s <= 0.75]).toEqual([fetch, true, true]);
     }
   });
 });
 
 describe('v60 a balance great work', () => {
-  it('reaches the Seat of the Two Lands and finishes the great temple in years 18-20 on Normal, never below 0, with every offering made', () => {
+  // Version 8.4 (rulings 1478, 1488): each track alone moved this thin-margin script (Track R's Victory mood alone left it unwon, lowest -1,451); with Tracks G and R merged it is
+  // back inside the 8.3 bounds: the Seat on day 3,690, won on day 6,855 (was 7,021), lowest 7,472 (was 3,945), 17,715 at the end. Wave 2's balance check re-measures it.
+  // Version 8.4 wave 2 (rulings 1521, 1525; B7 NOT MET, left for the controller): with 8.4's raid clock the run meets 13 raids by year 20 (8.3: 7) and loses 3 of them
+  // (indexes 7, 9 and 11); it still reaches the Seat on day 3,690 and founds the temple, makes 4 of the 5 offerings, and is not won: the treasury is below 0 in years
+  // 17-19 (the lowest -11,128, 2,689 at the end). The pins hold what is measured, so a change that brings the win back fails here and says so. Each 8.3 bound is kept
+  // in its comment: won in years 18-20 with every offering made and the treasury never below 0.
+  // Escalation by years (rulings 1530-1534) left it unwon (1 of 13 raids lost, the lowest -8,222). The retune (rulings 1540, 1542): each raid band met where it strikes
+  // first and the stores' surplus beer, linen and jewellery sold, so the potters' storehouse has room for clay again and the Townhouses keep their pottery. Measured: every
+  // one of the 13 raids beaten, the five offerings on days 3,720, 4,260, 4,740, 5,250 and 5,760, won on day 6,380 (year 18) with 8,866 the lowest and 9,456 at the end.
+  it('reaches the Seat of the Two Lands and finishes the great temple in years 18-20 on Normal, never below 0, with every offering made and every raid beaten', () => {
     const r = greatWorkRun();
     expect(r.insane).toEqual([]);
     expect(r.w.difficulty).toBe('normal');
     expect(r.w.day).toBe(GREAT_YEARS * YEAR_DAYS);
-    expect(Number.isInteger(r.ranks.seat)).toBe(true);
+    expect(r.ranks.seat).toBe(3690);
     expect(r.temple.guilds).toBe(4);
     expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3, 4]);
     expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.map((o) => o.good));
@@ -67,6 +78,8 @@ describe('v60 a balance great work', () => {
     expect(r.w.reign.seal.won).toBe(true);
     expect(r.w.tally.greatWorkStages).toBe(GREAT_WORK.stages.length);
     expect(r.lowestGold).toBeGreaterThan(0);
+    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
+    expect(yearOf(r.ranks.seat)).toBe(11);
     expect(r.elapsed).toBeLessThan(60000);
   });
 });

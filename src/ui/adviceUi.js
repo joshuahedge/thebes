@@ -30,7 +30,8 @@ export function showMeRefusal(world, item, at) {
   return def.terrain ? `no ${GROUND[def.terrain] || 'ground'} with room for it` : reasonText(r.reason);
 }
 
-export function createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast, tray = null }) {
+// Version 8.4 (Track G): openTrade opens the Trade sheet (a luxury's trade fix); without one, the fix selects the trading post, whose sheet has Trade.
+export function createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast, tray = null, openTrade = null }) {
   let shown = false, keys = [], day = null, stale = true, build = null;
   const seen = () => settings.get().adviceSeen || [];
 
@@ -51,6 +52,7 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
   function fix(a) {
     const f = a.fix;
     if (!f) return;
+    if (f.trade && typeof openTrade === 'function') { openTrade(); return; }
     if (f.select !== undefined) { if (f.keep) aimKeepStocked(f.select, f.keep.good); selectBuilding(f.select); return; }   // Version 8.3: a Keep stocked fix opens the store at that good's row
     if (f.view) { openSummary(f.section); return; }
     const def = BUILDINGS[f.item];

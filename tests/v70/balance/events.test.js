@@ -56,7 +56,9 @@ describe('v70 balance events: what the long runs drew', () => {
     checkRecord('careless', r.eventRec, 6 * YEAR, { allLapse: true });
   });
 
-  it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, floors kept for the offerings and gone when the last is made', () => {
+  // Version 8.4 wave 2 (rulings 1521, 1525): with 8.4's raid clock the run is not won (B7, tests/v60/a/balance.test.js): four offerings are made and the fifth is still owed
+  // at year 20, so its good keeps its floor. It was: won, every offering made, no floor left. The retune (rulings 1540, 1542) wins it again (day 6,380).
+  it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, every offering made and no floor left', () => {
     const r = greatWorkRun();
     checkRecord('great', r.eventRec, 10 * YEAR);
     expect(r.won !== null).toBe(true);

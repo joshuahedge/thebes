@@ -12,7 +12,7 @@ import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
   NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, causeText, alertText, tierName, listText,
-  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V70_ADVICE_WORDS, V60_REIGN_TEXT, ADVICE_FIX_TEXT,
+  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V70_ADVICE_WORDS, V60_REIGN_TEXT, ADVICE_FIX_TEXT, V84_G_TEXT,
 } from './text.js';
 
 const homesText = (n) => plural(n, 'home', 'homes');
@@ -211,6 +211,14 @@ export function adviceWords(a, world) {
     if (out.short) out.cost = ADVICE_TEXT.short(out.cost, world.gold);
     if (!out.fix && !DANGER.includes(a.kind)) out.fix = `Build ${builds(world, f)}`;
     out.action = { label: ADVICE_TEXT.show, aria: `${ADVICE_TEXT.show}: ${out.what}` };
+  } else if (f && (f.trade || f.why === 'gold_spare')) {
+    // Version 8.4 (Track G): a luxury's trade fix is Show me (it opens the Trade sheet), priced when it opens a route; gold piling up is Show me to the palace's Taxes.
+    if (f.trade && f.trade.open && Number.isFinite(a.cost)) {
+      out.cost = V84_G_TEXT.routeCost(f.trade.partner, a.cost);
+      out.short = a.afford === false;
+      if (out.short) out.cost = ADVICE_TEXT.short(out.cost, world.gold);
+    }
+    out.action = { label: ADVICE_TEXT.show, aria: f.trade ? V84_G_TEXT.luxuryTradeAria(f.trade) : `${ADVICE_TEXT.show}: ${out.fix}` };
   } else if (f && f.select !== undefined) {
     // Show me for the far store (Fetch is set up there); View for a provider that is idle, roadless or short, and for the danger services.
     const far = f.why === 'good_far';

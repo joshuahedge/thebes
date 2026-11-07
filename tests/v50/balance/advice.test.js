@@ -50,13 +50,17 @@ describe('v50 balance advice: the top item at the end of each run', () => {
 
   // Version 6.0 (Track C, ruling 705): small plots stop at Townhouse, so the 18 homes held back by entertainment and the 16 by desirability (a Townhouse's next tier) are
   // gone; the capital run's four Manors are Large plots, and the list opens with the raid (3 towers short of 5: the run has three), then the four Manors' street (a sphinx).
-  it('the capital run names the 3 towers a raid will need first, then the four Manors\' street (a sphinx), sickness and water', () => {
+  // Version 8.4 wave 2 (ruling 1521): with 8.4's raid clock the run ends year 6 with its fourth raid warned (19 raiders, from two sides, due on day 2,220), so the
+  // item is the warned one, three times the weight: 4 towers short of 7 (was 3 short of 6 for the next raid, unwarned, weight 30).
+  // Escalation by years (ruling 1534): that raid is now at stage 1, so it comes from one side (two bands wait for stage 3): 18 raiders, 3 towers short of 6, warned
+  // (it was 19 from two sides, 4 short of 7).
+  it('the capital run names the 3 towers its warned raid needs first, then the four Manors\' street (a sphinx), sickness and water', () => {
     const { w } = capitalRun();
     const items = top(w, 4);
     const [a] = items;
     const t = sensible(w, a);
-    expect([a.kind, a.count, a.fix.item, a.weight]).toEqual(['raid_towers', 3, 'tower', 30]);
-    expect(t.what).toContain('needs 6 towers; 3 are working');
+    expect([a.kind, a.count, a.fix.item, a.weight]).toEqual(['raid_towers', 3, 'tower', 3 * ADVICE.tower * ADVICE.towerWarned]);   // was ['raid_towers', 4, 'tower', 120]
+    expect(t.what).toContain('needs 6 towers; 3 are working');                                  // was 'needs 7 towers; 3 are working'
     expect(items.map((x) => x.kind)).toEqual(['raid_towers', 'home_need', 'illness', 'home_need']);
     expect([items[1].data.need, items[1].fix.item, items[1].count]).toEqual(['desirability', 'sphinx', 4]);   // the four Manors' street: a Fine manor wants 35
     expect([items[3].data.need, items[3].fix.item]).toEqual(['water', 'well']);
@@ -64,7 +68,10 @@ describe('v50 balance advice: the top item at the end of each run', () => {
 
   // Version 6.0 (Track C): the same 18 raiders at the first warning (3 of 6 towers now: the run builds a third), first again. With Track A's costs and the court's due
   // (merged), the second warning is 21 raiders, 4 towers short (Track C alone: 23, 5 short); first again.
-  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 3 of 6 towers) and at the second (21 raiders)', () => {
+  // Version 8.4 wave 2 (ruling 1521): with 8.4's raid clock the first warning after year 6 is 19 raiders (2 of 7 towers working, 5 short) and the second 21 (5 short):
+  // both first again. It was 18 raiders (3 of 6) and 21 (4 short).
+  // Escalation by years (ruling 1534): both come from one side now (stage 1): the first is 18 raiders, 3 of 6 towers working (it was 19, 2 of 7), the second 20, 4 short (it was 21, 5 short).
+  it('a raid that is warned and short of towers is first at the first warning after year 6 (18 raiders, 3 of 6 towers) and at the second', () => {
     const w = deserialize(serialize(capitalRun().w));
     const seen = [];
     for (let m = 0; m < 80 && seen.length < 2; m++) {
@@ -74,26 +81,34 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     }
     expect(seen.length).toBe(2);
     expect(seen[0].kinds[0]).toBe('raid_towers');                                      // ruling 600: ahead of the Manors' street (28) and everything else
-    expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 3, 3, 3 * ADVICE.tower * 3]);
-    expect([seen[1].kinds[0], seen[1].size, seen[1].raid.count, seen[1].raid.weight]).toEqual(['raid_towers', 21, 4, 4 * ADVICE.tower * 3]);
+    expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 3, 3, 3 * ADVICE.tower * 3]);   // was [19, 7, 2, 5, ...]
+    expect([seen[1].kinds[0], seen[1].size, seen[1].raid.count, seen[1].raid.weight]).toEqual(['raid_towers', 20, 4, 4 * ADVICE.tower * 3]);                   // was 21 raiders, 5 short
     expect(ADVICE.towerWarned).toBe(3);
   });
 
   // Version 6.0 (Tracks A and C merged): crime 8 at the fourth (Track C alone: 10).
-  it('the late run, at year 15, names sickness in 13 homes, then the four Manors\' street, water and crime; its towers are enough, so no raid item', () => {
+  // Version 8.4 wave 2 (ruling 1521): with 8.4's raid clock crime is 12 and third, water fourth (was water 12, then crime 8); the run ends with its sixth late raid
+  // under way, and Advice has no raid item while raiders are on the map.
+  // Escalation by years (ruling 1534): crime 16 (was 12), still third.
+  it('the late run, at year 15, names sickness in 13 homes, then the four Manors\' street, crime and water; no raid item', () => {
     const { w } = lateRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['home_need', 'water', 12], ['crime', null, 8]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['crime', null, 16], ['home_need', 'water', 12]]);
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
   // Version 6.0 (Tracks A and C merged; the grand run answers the court now): the raid lacks 2 towers, not 4, so sickness leads (Track C alone: the raid 40,
   // sickness 24, 41 jobs unfilled 20.5, water 12).
-  it('the grand district run, at year 10, names sickness in 8 homes first, then the 2 towers a raid lacks, the 28 jobs no worker fills and crime', () => {
+  // Version 8.4 (Track G): with the luxuries the run plays differently from year 9; at year 10 no job goes unfilled enough to rank, so crime is third and
+  // water for 6 homes fourth.
+  // Version 8.4 wave 2 (rulings 1478, 1521; settles Track G's moved pin): with the luxuries and 8.4's raid clock, at year 10 no home is sick enough to rank; water for 6
+  // homes leads, then 22 unfilled jobs, the 1 tower the next raid lacks (7 needed, 6 working) and crime in 3 homes. Track G measured [illness 8, raid 2, crime 6, water 6];
+  // 8.3 had [illness 8, raid 2, workers_short 28, crime 6].
+  it('the grand district run, at year 10, names water for 6 homes first, then 22 unfilled jobs, the 1 tower a raid lacks and crime', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['illness', null, 8, 24], ['raid_towers', null, 2, 20], ['workers_short', null, 28, 14], ['crime', null, 6, 12]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['home_need', 'water', 6, 12], ['workers_short', null, 22, 11], ['raid_towers', null, 1, 10], ['crime', null, 3, 6]]);
   });
 });

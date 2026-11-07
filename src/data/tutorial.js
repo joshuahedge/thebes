@@ -32,6 +32,7 @@ export const TUTORIAL_CARDS = [
   { id: 'locusts', mark: 'ring', first: 'locusts' },   // a band of farms warned, a farm's sheet with Harvest now: a ring on the first farm
   { id: 'raid', mark: 'ring', first: 'raid' },         // a raid's ruins, a wrecked building's rubble: a ring on the rubble
   { id: 'event', mark: 'ring', first: 'cityEvent' },   // Version 7.0 (Track E): a city event's card with its choices and what each does: a ring on the choices (its first moment: the first event is offered)
+  { id: 'elephants', mark: 'ring', first: 'elephants' },   // Version 8.4 (Track E): war elephants at a wall under the towers' arrows: a ring on the elephants (its first moment: a raid with them warned)
 ];
 export const INTRO_CARDS = TUTORIAL_CARDS.filter((c) => c.intro);
 

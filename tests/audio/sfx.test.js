@@ -32,7 +32,7 @@ describe('audio sfx', () => {
     let on = false, created = 0;
     const ctx = fakeAudio();
     const sfx = createSfx({ create: () => { created++; return ctx; }, enabled: () => on, vibrate: null, audioSession: null });
-    expect(sfx.names).toEqual(['place', 'road', 'demolish', 'upgrade', 'milestone', 'alert', 'goal', 'horn', 'coin', 'market', 'fire', 'battle', 'bells', 'oars']);   // Stage 3: the raid horn and the coin tick; Version 7.0 (Track S): the living world's five
+    expect(sfx.names).toEqual(['place', 'road', 'demolish', 'upgrade', 'milestone', 'alert', 'goal', 'horn', 'coin', 'market', 'fire', 'battle', 'bells', 'oars', 'trumpet', 'fanfare']);   // Version 8.4: the trumpet and the fanfare (wave 0, ruling 1464)   // Stage 3: the raid horn and the coin tick; Version 7.0 (Track S): the living world's five
     expect(sfx.play('place')).toBe(false);
     expect(sfx.unlock()).toBe(false);
     expect(created).toBe(0);

@@ -62,10 +62,10 @@ describe('s3 ui alert tiers', () => {
       const row = r.banner.querySelector('.critical');
       expect([row.className, row.dataset.code]).toEqual(['critical line chip', 'raid_warning']);
       const words = row.querySelector('.warning');
-      expect([words.textContent, words.getAttribute('aria-label')]).toEqual(['Raid from the east · 2 m 12 d', 'Raid from the east · 2 m 12 d: show the whole warning']);
+      expect([words.textContent, words.getAttribute('aria-label')]).toEqual(['Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d', 'Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d: show the whole warning']);
       expect([...row.querySelectorAll('button')].map((b) => b.className)).toEqual(['warning quiet', 'view']);
       expect([row.querySelector('strong'), row.querySelector('.defence'), row.querySelector('.tribute'), row.querySelector('.collapse'), row.querySelector('.more')]).toEqual([null, null, null, null, null]);
-      expect(row.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east · 2 m 12 d'));
+      expect(row.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d'));
       click(words);
       click(row.querySelector('.view'));
       expect(actions).toEqual([['raid_warning', 'warning'], ['raid_warning', 'view']]);   // the raid sheet, then its map point
@@ -73,7 +73,7 @@ describe('s3 ui alert tiers', () => {
       words.focus();
       r.world.day = 65;                                                                    // the countdown moves on: the row is rebuilt, focus stays on the words
       a.refresh();
-      expect(r.banner.querySelector('.warning').textContent).toBe('Raid from the east · 7 d');
+      expect(r.banner.querySelector('.warning').textContent).toBe('Raid from the east\u00a0· 7\u00a0d');
       expect(document.activeElement === r.banner.querySelector('.warning')).toBe(true);
       // A fire nobody reaches outranks the warning (ruling 166): the fires' row is its title and View, the fix is in the list.
       alerts = [warn(r.world, { arrives: 72 }), { code: 'fire', id: r.potter.id }, { code: 'fire', id: r.granary.id }, { code: 'debt' }];
@@ -169,14 +169,14 @@ describe('s3 ui alert tiers', () => {
       expect(r.banner.querySelectorAll('.critical').length).toBe(1);
       const chip = r.banner.querySelector('.critical.chip');
       expect(document.activeElement === chip.querySelector('.expand')).toBe(true);        // focus lands on the button that undoes Shrink
-      expect(chip.querySelector('.expand').textContent).toBe('Raid from the east · 2 m 12 d');   // its words show the whole warning again
+      expect(chip.querySelector('.expand').textContent).toBe('Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d');   // its words show the whole warning again
       expect(chip.querySelector('.expand').getAttribute('aria-expanded')).toBe('false');
-      expect(chip.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east · 2 m 12 d'));
+      expect(chip.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d'));
       a.refresh();
       expect(r.banner.querySelector('.critical.chip') === chip).toBe(true);                // same day, same words: kept
       r.world.day = 65;
       a.refresh();
-      expect(r.banner.querySelector('.chip .expand').textContent).toBe('Raid from the east · 7 d');
+      expect(r.banner.querySelector('.chip .expand').textContent).toBe('Raid from the east\u00a0· 7\u00a0d');
       r.banner.querySelector('.expand').focus();
       click(r.banner.querySelector('.expand'));
       expect([r.banner.querySelector('.chip'), Boolean(r.banner.querySelector('.defence'))]).toEqual([null, true]);
@@ -185,8 +185,8 @@ describe('s3 ui alert tiers', () => {
       r.world.day = 72;                                                                    // raidDay brings them in on this day's step
       a.refresh();
       expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive today.');
-      expect(D.chip('north', 90)).toBe('Raid from the north · 3 months');             // no "0 d" when the days come out at 0 (ruling 174)
-      expect([D.chip('east', 31), D.chip('east', 30), D.chip('east', 29), D.chip('east', 0)]).toEqual(['Raid from the east · 1 m 1 d', 'Raid from the east · 1 month', 'Raid from the east · 29 d', 'Raid from the east · 0 d']);
+      expect(D.chip('north', 90)).toBe('Raid from the north\u00a0· 3 months');             // no "0 d" when the days come out at 0 (ruling 174)
+      expect([D.chip('east', 31), D.chip('east', 30), D.chip('east', 29), D.chip('east', 0)]).toEqual(['Raid from the east\u00a0· 1\u00a0m\u00a01\u00a0d', 'Raid from the east\u00a0· 1 month', 'Raid from the east\u00a0· 29\u00a0d', 'Raid from the east\u00a0· 0\u00a0d']);
     } finally { r.cleanup(); }
   });
 
@@ -374,7 +374,7 @@ describe('s3 ui alert tiers on the page', () => {
           r.ui.alerts.refresh();
           const shell = r.root.getBoundingClientRect();
           const words = r.root.querySelector('#banner .critical .warning');
-          expect([w, size, words.textContent, words.getBoundingClientRect().height > 0]).toEqual([w, size, 'Raid from the east · 2 m 12 d', true]);
+          expect([w, size, words.textContent, words.getBoundingClientRect().height > 0]).toEqual([w, size, 'Raid from the east\u00a0· 2\u00a0m\u00a012\u00a0d', true]);
           const row = r.root.querySelector('#banner .critical').getBoundingClientRect();
           const view = r.root.querySelector('#banner .critical .view').getBoundingClientRect();
           expect([w, size, Math.abs(view.top + view.height / 2 - (row.top + row.height / 2)) < 2]).toEqual([w, size, true]);   // one row: View beside the words, not under them

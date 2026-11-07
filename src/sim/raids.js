@@ -17,7 +17,7 @@
 //                 ids struck so far (at most RAIDS.strikes); wait: days left at the current strike; byTowers, bySoldiers:
 //                 raiders stopped by each; burned: buildings the raid's blazes burned down; stolen: gold taken; shots: the
 //                 day's tower shots [{ from: { x, y }, to: { x, y } }] for the arrows (Track C draws them)
-//   adaptation    1, or less after a lost raid (RAIDS.adaptLost, then + RAIDS.adaptStep per raid up to 1)
+//   adaptation    1, or less after a lost raid (RAIDS.adaptLost, then + RAIDS.adaptStep per 8.3 raid cycle of time up to 1: adaptAfter, ruling 1532)
 //   last          null, or the last raid's report: { index, dir, size, won, byTowers, bySoldiers, towers, burned, stolen,
 //                 day } (day: the day it ended; a raid paid off leaves no report and no mood term)
 // world.soldiers (combat.js), world.nextUnitId (raiders and soldiers share it), and the tallies raids, raidsBeaten,
@@ -30,7 +30,7 @@
 // Alerts (raidAlerts): { code: 'raid_warning', x, y, dir, arrives } and { code: 'raid', x, y, left } (left: raiders still
 // on the map), both critical and pinned at a map point (x, y: the entry, or the band's centre while it is on the map).
 //
-// Stage 4.5 (ruling 317): from raid index RAIDS.twoSidedFrom a raid may come as two bands from two entries (a seeded
+// Stage 4.5 (ruling 317): from raid stage RAIDS.twoSidedFrom (raidStage; Version 8.4: was the index) a raid may come as two bands from two entries (a seeded
 // RAIDS.twoSidedChance). Then warning.size is the total, warning.second = { entry, dir, size } is the second band (the
 // first band's size is the total less it, rounded up), and the warning, its event and the raid_warning alert carry
 // dirs: [the first band's direction, the second's]. On arrival active.second is the second band's own record (entry, dir,
@@ -48,7 +48,7 @@
 //   active.burnedKinds   the types the raid's fires burned down, in order (the report names one kind: "1 storehouse")
 // Stage 4.6 (Armies track, rulings 341, 382-384): every warning, raid and report carries mix ({ foot, archer, chariot, boat },
 // adding up to size: drawMix in src/sim/armies.js, from the size favour's hooks give, so favour changes the total and never the
-// proportions), and each raider its kind. Boats (from raid index 4, a raid from one side, a river reaching a map edge and a bank
+// proportions), and each raider its kind. Boats (from raid stage 4, a raid from one side, a river reaching a map edge and a bank
 // within reach of the city: boatLanding) are the raid's second band: warning.second = { entry: the bank, dir: the edge the river
 // brings them from, size: mix.boat, boat: true, from: the river's mouth }; they land on the bank on arrival and leave from it. A band
 // moves at its slowest kind's pace (ENEMY_TYPES speed: a band of chariots alone is fast). Only raiders that break walls (foot, boat)
@@ -60,6 +60,10 @@
 // food joins it); a band of CHIEFTAIN.fromSize or more has a chieftain (warning.chiefs: the band numbers; active.chiefs: [{ id, band, fell?, left? }], the raider
 // carrying chief: true, more hit points, a harder hand), and raidSize adds bandGrowth. The report (raid.last) adds wrecked, wreckedKinds, taken, chiefs and
 // chiefsFell when there are any. Events: 'raid_wreck' { id, kind, to } and 'raid_loot' { id, goods } (Track B2 draws them).
+// Version 8.4 "Gold and war" (Track R, rulings 1485-1489): later warnings lean to the low Nile (laterWarnDay, leanWait: an arrival within RAIDS.leanDays before Shemu waits for its first day;
+// the first warning never leans); scouts stand at the coming raid's entry for SCOUTS.days before a warning (src/sim/scouts.js scoutsAt, read from the state; a raid_scouts event on their first
+// day and a non-critical { code: 'raid_scouts', x, y, dir, days } alert while they stand); a beaten raid leaves raid.spoils = { until } (src/sim/spoils.js: every unit's pay SPOILS.share less
+// until then) and its mood row is { victory } (raidMood), a lost one's { raid } as before. The report of a beaten raid carries spoils: { until }.
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
@@ -67,7 +71,8 @@
 // theft and RAIDS.strikeDays days there. Reaching the entry it leaves the map and the raid ends, lost after its strikes and
 // beaten in retreat. A target is the nearest (straight line from the band) unstruck building of the warned kind, else of
 // each kind below it in RAIDS.targets, else any other building but a home or rubble, that the band can reach.
-import { RAIDS, RAID_SALT, UNITS } from '../data/raids.js';
+import { RAIDS, RAID_SALT, UNITS, SCOUTS } from '../data/raids.js';
+import { SEASONS } from '../data/tips.js';
 import { RAIDS_LATE } from '../data/s47.js';
 import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -89,9 +94,12 @@ import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
 import { favourRaidSize, favourTributeFactor } from './court.js';
 import { footMix, ENEMY_TYPES } from '../data/armies.js';
-import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome } from './armies.js';
+import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome, elephantRaid, upriverEntry, elephantsIn, raidStrength } from './armies.js';
 import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
+import { raidSpoils, spoilsMonth } from './spoils.js';
+import { scoutsAt } from './scouts.js';
+import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -176,6 +184,35 @@ export function sizeGrowth(world) {
   return Math.min(RAIDS.growthMax, 1 + RAIDS.growthPerYear * years);
 }
 
+// ── The raid's stage (Version 8.4, escalation by years, rulings 1530-1533) ──
+// 8.4's clock brings raids about twice as often as 8.3's, so what grows by the raid grows by the stage instead: the index 8.3's clock (RAIDS.stagePace) would
+// have reached on the raid's warning day. The index still seeds every draw (hash2(seed, index, salt)), so each raid keeps a fresh draw of its own.
+// The days of one 8.3 raid to the next: the mean gap after an arrival plus the warning's days (1,170).
+export const stageCycle = () => RAIDS.stagePace.gap + RAIDS.stagePace.warning;
+// The days after the clock's start from which a stage is reached: 8.3's first warning, then one cycle a stage (stage 3: 4,230 days, 11.75 years).
+export const stageFrom = (stage) => RAIDS.stagePace.first + stage * stageCycle();
+// The same in game years (the words: "about 12 years after the raid clock starts").
+export const stageYears = (stage) => stageFrom(stage) / (DAYS_PER_MONTH * MONTHS_PER_YEAR);
+// The stage 8.3's clock had reached on `day` with the clock started on `clockDay`: the index of its last warning by then (0 before its first).
+export const stageAt = (clockDay, day) => Math.max(0, Math.floor((day - clockDay - RAIDS.stagePace.first) / stageCycle()));
+// The warning day of the raid at `index`: the warning's own day while it is up, the raid under way's (its arrival less RAIDS.warningDays), the day the next
+// one is due (nextWarnDay: the scouts and the warning read the same day), else today. Nothing new is kept: it is read from the raid's state (ruling 1533).
+function warnDayOf(world, index) {
+  const r = world.raid;
+  if (r.warning && r.warning.index === index) return r.warning.day;
+  if (r.active && r.active.index === index) return r.active.day - RAIDS.warningDays;
+  if (index === r.index && r.nextWarnDay !== null && r.nextWarnDay !== undefined) return r.nextWarnDay;
+  return world.day;
+}
+// The stage of the raid at `index` (ruling 1530): 0 for the first raid, otherwise stageAt its warning day, never more than the index. A city whose clock has not
+// started (a test's raid set up by hand) has no years to count, so the stage is the index, as in 8.3.
+export function raidStage(world, index) {
+  if (!(index > 0)) return 0;
+  const start = world.raid.clockDay;
+  if (start === null || start === undefined) return index;
+  return Math.min(index, stageAt(start, warnDayOf(world, index)));
+}
+
 // The bands of a raid warned (or arriving): [{ entry, dir, size }], one or two; the second's size is warning.second.size
 // and the first's the rest of warning.size.
 export function warningBands(w) {
@@ -191,13 +228,28 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 // Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
 // total of a mixed raid.
 // Version 6.0 (ruling 622): times costScale's court (src/sim/costs.js, Track A's; 1 until it is filled in).
+// Version 8.4, Track E (ruling 1503): `size` is the raid's strength (raidStrength in src/sim/armies.js: each war elephant counts as
+// ELEPHANTS.weight raiders); a raid without elephants passes its size, as before.
 export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower') * costScale(world).court);
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
+// Version 8.4 (ruling 1486): the low-Nile lean. When the raid would arrive (the warning's day + RAIDS.warningDays) within RAIDS.leanDays before
+// Shemu's first day, the warning waits so it arrives on that day: never earlier than drawn, no new draw. The first warning (raidDay) never leans.
 export function laterWarnDay(world, fromDay) {
   const span = RAIDS.laterMax - RAIDS.laterMin + 1;
-  return fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
+  const warn = fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
+  return warn + leanWait(warn + RAIDS.warningDays);
+}
+
+// The first day of Shemu as a day of the year (0-359), from SEASONS (src/data/tips.js): the first Shemu month that follows a month of another season.
+const SHEMU_FIRST_DAY = SEASONS.findIndex((s, m) => s === 'shemu' && SEASONS[(m + MONTHS_PER_YEAR - 1) % MONTHS_PER_YEAR] !== 'shemu') * DAYS_PER_MONTH;
+// The days a raid arriving on `arrival` waits for Shemu: the days left to its first day when they are 1 to RAIDS.leanDays, else 0.
+export function leanWait(arrival) {
+  if (!(RAIDS.leanDays > 0) || SHEMU_FIRST_DAY < 0) return 0;
+  const year = DAYS_PER_MONTH * MONTHS_PER_YEAR;
+  const wait = (SHEMU_FIRST_DAY - (arrival % year) + year) % year;
+  return wait > 0 && wait <= RAIDS.leanDays ? wait : 0;
 }
 
 // The warned raid's tribute and the defence it could buy instead, or null with no warning up:
@@ -206,12 +258,14 @@ export function laterWarnDay(world, fromDay) {
 // towers); buildCost: buildN x the tower's price; payable and reason: what payTribute would say now (reason null when
 // payable); dirs: the directions it comes from (two for a two-sided raid, whose size is the total, so the tribute and the
 // towers needed price the total).
+// Version 8.4, Track E (ruling 1503): towers needed are priced from the raid's strength (raidStrength: an elephant counts as ELEPHANTS.weight
+// raiders); size stays the raiders' count. elephants: how many come, present only when there are any.
 export function tributeQuote(world) {
   const w = world.raid.warning;
   if (!w) return null;
-  const need = towersNeeded(w.size), have = workingTowers(world), buildN = Math.max(0, need - have);
+  const need = towersNeeded(raidStrength(w)), have = workingTowers(world), buildN = Math.max(0, need - have);
   const reason = w.first ? 'first_raid' : world.gold - w.tribute < 0 ? 'below_zero' : null;
-  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason, dirs: warningDirs(w) };
+  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason, dirs: warningDirs(w), ...(elephantsIn(w.mix) ? { elephants: elephantsIn(w.mix) } : {}) };
 }
 
 // The payTribute command (spec 4.13, 7.3): pays the warned raid's tribute and cancels the raid: no raiders, no report,
@@ -225,8 +279,8 @@ export function payTribute(world) {
   if (world.gold - w.tribute < 0) return fail('below_zero');
   spend(world, w.tribute);
   world.tally.tributes += 1;
-  world.raid.adaptation = Math.min(1, world.raid.adaptation + RAIDS.adaptStep);
   world.raid.nextWarnDay = laterWarnDay(world, w.arrives);
+  world.raid.adaptation = adaptAfter(world, w.arrives);
   world.raid.warning = null;
   return { ok: true, cost: w.tribute, warnings: [] };
 }
@@ -235,19 +289,34 @@ export function payTribute(world) {
 // RAID_SALT.entry) among world.raiderEntries (a map without any has no raids), its direction, its size and tribute fixed
 // now, the target kind now, arriving RAIDS.warningDays later. The first warning pauses the game; later ones drop 2x or 3x
 // to 1x (setSpeed). index then counts it, so laterWarnDay draws the next raid's gap.
+// Version 8.4 (wave 0 seam): the entry the raid at this index comes in by, a copy of one of world.raiderEntries (which must not be empty).
+// Track E owns the body (elephants come in from upriver); Track R's scouts call it to stand where the next raid will enter.
+// Version 8.4, Track E (ruling 1504): an elephant raid's index (elephantRaid, decided by the stage) comes in by the entry upriver
+// (upriverEntry: nearest the south edge's river mouth, else any mouth); any other raid, or a map with no water at its edges, by the draw.
+export function nextRaidEntry(world, index) {
+  const entries = world.raiderEntries;
+  const up = elephantRaid(world, index) ? upriverEntry(world) : null;
+  return up || { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+}
+
 function raiseWarning(world, events) {
   const r = world.raid, entries = world.raiderEntries;
   if (!entries.length) return;
   const index = r.index, first = index === 0;
-  const entry = { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+  const entry = nextRaidEntry(world, index);
   const single = raidSize(world);
-  const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
-    ? secondBand(world, index, entry, single + 1) : null;
+  // Version 8.4 (ruling 1531): two bands and boats wait for the raid's stage (raidStage), not its index; the draws stay the index's.
+  const stage = raidStage(world, index);
+  const second = comesTwoSided(world, index, stage) ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
-  const landing = !first && !second && enemyMayCome('boat', index) ? boatLanding(world, index) : null;
+  const landing = !first && !second && enemyMayCome('boat', stage) ? boatLanding(world, index) : null;
   const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
-  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
+  // Version 8.4, Track E (rulings 1503, 1507): the tribute prices the raid's strength (an elephant counts as ELEPHANTS.weight raiders), and a
+  // raid with war elephants says how many (warning.elephants, the event's too); one without is as in 8.3.
+  const elephants = elephantsIn(mix);
+  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, raidStrength({ size, mix })), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
+  if (elephants) w.elephants = elephants;
   const wealth = first ? 0 : wealthDraw(world);
   if (wealth > 0) w.wealth = wealth;   // Stage 4.7 (ruling 470): the raiders the city's wealth drew, said in the warning
   if (second) w.second = second;
@@ -258,7 +327,7 @@ function raiseWarning(world, events) {
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(elephants ? { elephants } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
 }
 
 // Version 6.0 (Track B1, ruling 683): the bands of a warned raid a chieftain leads, as band numbers (0, or 1 for a two-sided raid's second): every
@@ -269,9 +338,12 @@ function chiefBands(world, w) {
   return warningBands(w).map((band, k) => (band.size >= CHIEFTAIN.fromSize && !band.boat ? k : -1)).filter((k) => k >= 0);
 }
 
+// Whether the raid at this index comes as two bands (ruling 317), at its stage; the scouts (src/sim/scouts.js) ask it too, so they stand on both sides (ruling 1538).
+export const comesTwoSided = (world, index, stage = raidStage(world, index)) => index > 0 && stage >= RAIDS.twoSidedFrom && world.raiderEntries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world);
+
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
 // from an edge the first does not use when the map has one; the total is split, the first band taking the larger half.
-function secondBand(world, index, entry, total) {
+export function secondBand(world, index, entry, total) {
   const others = world.raiderEntries.filter((e) => e.x !== entry.x || e.y !== entry.y);
   const dir = entryDir(world, entry);
   const otherEdge = others.filter((e) => entryDir(world, e) !== dir);
@@ -299,10 +371,17 @@ export function raidDay(world, events = null) {
   if (!raidsOn(world)) return;
   if (r.warning) { if (day >= r.warning.arrives) arrive(world, events); }
   else if (r.nextWarnDay !== null && day >= r.nextWarnDay) raiseWarning(world, events);
+  // Version 8.4 (ruling 1487): the day the scouts appear (SCOUTS.days before the warning) says so once; scoutsAt (src/sim/scouts.js) is the state they are drawn from.
+  else if (events && day === r.nextWarnDay - SCOUTS.days && scoutsAt(world)) {
+    const s = scoutsAt(world);
+    events.push({ type: 'raid_scouts', index: r.index, entry: { ...s.entry }, dir: s.dir, days: s.days, ...(s.bands.length > 1 ? { dirs: s.dirs.slice() } : {}) });
+  }
 }
 
-// STUB. The month-end raid step, run by runMonth before mood (nothing required yet; kept so a later rule has its seam).
-export function raidMonth(world, events = null) {}
+// The month-end raid step, run by runMonth after the month's pay and before mood. Version 8.4 (ruling 1488): the pay the captured weapons saved this month.
+export function raidMonth(world, events = null) {
+  spoilsMonth(world);
+}
 
 // A raid's bands (Stage 4.5, ruling 317): band 0 is the active record itself, band 1 (a two-sided raid) is active.second;
 // a raider belongs to band 1 when it has band: 1.
@@ -356,6 +435,9 @@ export function raidAlerts(world) {
     const w = r.warning;
     out.push({ code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives, ...(w.second ? { dirs: warningDirs(w), points: warningBands(w).map((b) => ({ x: b.entry.x, y: b.entry.y, dir: b.dir })) } : {}) });
   }
+  // Version 8.4 (ruling 1487): the scouts at the coming raid's entry, an info alert (never critical): { code: 'raid_scouts', x, y, dir, days } (days: to the warning).
+  const scouts = scoutsAt(world);
+  if (scouts) out.push({ code: 'raid_scouts', x: scouts.entry.x, y: scouts.entry.y, dir: scouts.dir, days: scouts.days, ...(scouts.bands.length > 1 ? { dirs: scouts.dirs.slice() } : {}) });
   return out;
 }
 
@@ -401,8 +483,13 @@ function arrive(world, events) {
   if (w.second && w.second.boat) {
     kinds[0] = land;
     kinds[1] = new Array(bands[1].size).fill('boat');
-  } else if (w.second) land.forEach((kind, j) => kinds[j % 2 === 1 && kinds[1].length < bands[1].size ? 1 : 0].push(kind));
-  else kinds[0] = land;
+  } else if (w.second) {
+    // Version 8.4, Track E (ruling 1504): war elephants all come with the first band, the one from upriver; the rest split as before (band 1
+    // the odd places), band 0 taking what band 1 has no room for. With no elephants this is the 8.3 split exactly.
+    const rest = land.filter((k) => k !== 'elephant');
+    kinds[0] = land.filter((k) => k === 'elephant');
+    rest.forEach((kind, j) => kinds[kinds[1].length < bands[1].size && (j % 2 === 1 || kinds[0].length >= bands[0].size) ? 1 : 0].push(kind));
+  } else kinds[0] = land;
   bands.forEach((band, k) => {
     for (let n = 0; n < band.size; n++) {
       const kind = kinds[k][n] || 'foot';
@@ -429,6 +516,7 @@ function arrive(world, events) {
   r.active = a;
   r.warning = null;
   world.tally.raids += 1;
+  if (elephantsIn(a.mix) && world.tally.elephantsMet !== undefined) world.tally.elephantsMet += elephantsIn(a.mix);   // Version 8.4, Track E: the war elephants that came
   healWalls(world);
   if (world.speed > 1) setSpeed(world, 1);
   if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size, ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}) });
@@ -535,9 +623,17 @@ function trackFires(world, rec) {
   });
 }
 
+// Version 8.4 (ruling 1532): the adaptation after a raid beaten or paid off climbs with the time to the next raid, not by the raid: RAIDS.adaptStep for each
+// stageCycle (8.3's mean 1,170 days from one arrival to the next) from this arrival to the next one (raid.nextWarnDay, already drawn, plus the warning's days),
+// up to 1. At 8.3's pace that is adaptStep a raid, as in 8.3; at 8.4's about half, so the recovery after a lost raid takes 8.3's years.
+function adaptAfter(world, arrival) {
+  const days = world.raid.nextWarnDay + RAIDS.warningDays - arrival;
+  return Math.min(1, world.raid.adaptation + (RAIDS.adaptStep * days) / stageCycle());
+}
+
 // The raid is over (spec 4.13): no raider is left on the map. Beaten (won) when the raiders retreated or all fell, lost
 // when a band left after its strikes. The report becomes raid.last; the tallies, the adaptation (a lost raid sets
-// RAIDS.adaptLost, any other adds RAIDS.adaptStep up to 1) and the next warning (laterWarnDay after the arrival day)
+// RAIDS.adaptLost, any other climbs by adaptAfter up to 1) and the next warning (laterWarnDay after the arrival day)
 // follow; hit wall tiles heal; soldiers out walk back. A two-sided raid's report carries dirs, a granary strike's food
 // (foodStolen) and a home strike's fled residents (fled) are kept when there are any.
 function endRaid(world, events, won) {
@@ -550,14 +646,17 @@ function endRaid(world, events, won) {
     // Version 6.0 (Track B1): what the band wrecked and took, and its chieftains (how many led it and how many fell); absent when none.
     ...(a.wrecked ? { wrecked: a.wrecked, wreckedKinds: a.wreckedKinds.slice() } : {}), ...(a.taken ? { taken: { ...a.taken } } : {}),
     ...(a.chiefs ? { chiefs: a.chiefs.length, chiefsFell: a.chiefs.filter((c) => c.fell).length } : {}),
+    // Version 8.4 (wave 0 seam, Track E): what the elephants did (ivory, stampedes); nothing when none came.
+    ...raidReportExtras(a),
   };
   r.active = null;
   r.last = report;
   world.tally[won ? 'raidsBeaten' : 'raidsLost'] += 1;
-  r.adaptation = won ? Math.min(1, r.adaptation + RAIDS.adaptStep) : RAIDS.adaptLost;
   r.nextWarnDay = laterWarnDay(world, a.day);
+  r.adaptation = won ? adaptAfter(world, a.day) : RAIDS.adaptLost;
   healWalls(world);
   for (const s of world.soldiers) if (s.task === 'out') s.task = 'back';
+  raidSpoils(world, report, won, events);   // Version 8.4 (wave 0 seam, Track R): the captured weapons of a beaten raid
   if (events) events.push({ type: 'raid_end', won, report: JSON.parse(JSON.stringify(report)) });
 }
 
@@ -676,8 +775,11 @@ function reach(world, a, k, events) {
 
 // The raid mood term (spec 4.9, DANGER_MOOD): { raid: raidBeaten or raidLost } for raidDays after the last raid ended,
 // by its outcome; {} otherwise (and for a raid paid off, which leaves no report).
+// Version 8.4 (ruling 1488): a beaten raid is a { victory } row, DANGER_MOOD.raidBeaten (+4) for victoryDays (90); a lost one keeps { raid } at raidLost for raidDays.
 export function raidMood(world) {
   const last = world.raid.last;
-  if (!last || world.day - last.day >= DANGER_MOOD.raidDays) return {};
-  return { raid: last.won ? DANGER_MOOD.raidBeaten : DANGER_MOOD.raidLost };
+  if (!last) return {};
+  const age = world.day - last.day;
+  if (last.won) return age < DANGER_MOOD.victoryDays ? { victory: DANGER_MOOD.raidBeaten } : {};
+  return age < DANGER_MOOD.raidDays ? { raid: DANGER_MOOD.raidLost } : {};
 }

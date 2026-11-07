@@ -56,6 +56,8 @@ export const NEED_ICONS = {
   jewellery: { segs: [['M', [2.4, 0.9]], ['L', [7.6, 0.9]], ['L', [9.7, 3.9]], ['L', [5, 9.7]], ['L', [0.3, 3.9]], ['Z']], fill: '#2E9E8F' },
   desirability: { segs: [['M', [5, 0.4]], ['Q', [9.6, 0.4], [9.6, 4.2]], ['Q', [9.6, 7.2], [5.6, 7.2]], ['L', [5.6, 9.6]], ['L', [4.4, 9.6]], ['L', [4.4, 7.2]], ['Q', [0.4, 7.2], [0.4, 4.2]], ['Q', [0.4, 0.4], [5, 0.4]], ['Z']], fill: UI.desirability },
   merge: { segs: [...box(0.6, 0.6, 4.6, 4.6), ...box(5.4, 0.6, 9.4, 4.6), ...box(0.6, 5.4, 4.6, 9.4), ...box(5.4, 5.4, 9.4, 9.4)], fill: '#6B5B45' },
+  // Version 8.4 (Track G): a luxury, as a crown of three points on a band.
+  luxury: { segs: [['M', [0.6, 8.6]], ['L', [0.6, 2.4]], ['L', [3, 5.4]], ['L', [5, 1]], ['L', [7, 5.4]], ['L', [9.4, 2.4]], ['L', [9.4, 8.6]], ['Z'], ...box(0.6, 8.8, 9.4, 9.8)], fill: '#B07A1E' },
 };
 // The icon a need gets (an unknown need falls back to a plain dot, never to nothing).
 export const needIcon = (need) => NEED_ICONS[need] || { segs: circle(5, 5, 3.6), fill: UI.label };

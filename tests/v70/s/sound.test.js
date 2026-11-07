@@ -160,7 +160,7 @@ describe('v70 s sound: the effects', () => {
   it('has five new short, quiet voices made only of oscillators: market, fire, battle, bells and oars', () => {
     const NEW = ['market', 'fire', 'battle', 'bells', 'oars'];
     const sfx = createSfx({ audioSession: null, vibrate: null, enabled: () => true, context: ctxFor() });
-    expect(sfx.names.slice(-5)).toEqual(NEW);
+    expect(sfx.names.slice(-7, -2)).toEqual(NEW);   // Version 8.4 added the trumpet and the fanfare after them
     for (const name of NEW) {
       expect(SFX[name].length).toBeGreaterThan(2);
       for (const n of SFX[name]) {

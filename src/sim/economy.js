@@ -3,6 +3,8 @@ import { TIERS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { soldiersPayOf, costScale } from './costs.js';
+import { TAX_RATES } from '../data/palace.js';
+import { taxRateOf } from './palace.js';
 import { lacksRoad } from './reach.js';
 
 // Version 6.0 (Track 0, ruling 622): a building's monthly upkeep and one worker's monthly wage in this city, after costScale's upkeep
@@ -14,9 +16,12 @@ const wagesOf = (scale, staff) => Math.round(staff * wageIn(scale));
 
 // The month's figures as the city stands now: taxes from the homes' residents, wages for the staff in post, the buildings'
 // upkeep and the soldiers' pay. monthlyEconomy pays exactly these at the month's end, and monthForecast shows them ahead.
+// Version 8.4, Track G (ruling 1465): taxes are at the palace's tax rate (taxRateOf), rounded to whole gold once for the city; taxesNormal is what
+// they would be at Normal (the score's taxes term reads it, ruling 1466, and the palace sheet words each rate's effect from it).
 export function monthFigures(world) {
-  let taxes = 0;
-  for (const h of housesOf(world)) if (h.tier >= 1) taxes += h.residents * TIERS[h.tier].tax;
+  let taxesNormal = 0;
+  for (const h of housesOf(world)) if (h.tier >= 1) taxesNormal += h.residents * TIERS[h.tier].tax;
+  const taxes = Math.round(taxesNormal * TAX_RATES[taxRateOf(world)].factor);
   let wages = 0;
   let upkeep = 0;
   const scale = costScale(world);
@@ -26,14 +31,19 @@ export function monthFigures(world) {
     wages += wagesOf(scale, b.staff);
   }
   const soldiers = soldiersPayOf(world);               // spec 4.11: every soldier, in peace too, a paused barracks' as well
-  return { taxes, wages, upkeep, soldiers, net: taxes - wages - upkeep - soldiers };
+  return { taxes, wages, upkeep, soldiers, net: taxes - wages - upkeep - soldiers, taxesNormal };
 }
 
+// Version 8.4, Track G: last month's record also keeps taxesNormal, rush (the Rush premium paid, which monumentMonth fills) and luxuries (the gold paid to
+// caravans and boats for luxuries, which tradeMonth fills); the month end at Low or High adds 1 to taxLowMonths or taxHighMonths (for 9.0's "the Generous").
 export function monthlyEconomy(world) {
-  const { taxes, wages, upkeep, soldiers, net } = monthFigures(world);
+  const { taxes, wages, upkeep, soldiers, net, taxesNormal } = monthFigures(world);
   world.gold += net;
-  world.stats.lastMonth = { taxes, wages, upkeep, soldiers, net, monuments: 0 };   // Stage 4: monumentMonth fills monuments (it is not in net: it was paid daily)
+  world.stats.lastMonth = { taxes, wages, upkeep, soldiers, net, monuments: 0, taxesNormal, rush: 0, luxuries: 0 };   // Stage 4: monumentMonth fills monuments (it is not in net: it was paid daily)
   if (net > 0) world.tally.profitMonths += 1;
+  const rate = taxRateOf(world);
+  if (rate === 'low') world.tally.taxLowMonths += 1;
+  if (rate === 'high') world.tally.taxHighMonths += 1;
 }
 
 // Stage 4.5 (Task 4b, ruling 316): the forecast, pure from the state. { taxes, wages, upkeep, soldiers, net } are this month's

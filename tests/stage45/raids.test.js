@@ -4,7 +4,7 @@
 // total; the first raid stays 3 and cannot be paid off; Peaceful has none. Every sentence is computed from the sim's own
 // numbers, and each is tested for a single band and for two.
 import { describe, it, expect } from '../harness.js';
-import { raidDay, raidAlerts, raidDirs, raidSize, baseRaidSize, wealthDraw, wealthCap, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
+import { raidDay, raidAlerts, raidDirs, raidSize, baseRaidSize, wealthDraw, wealthCap, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs, stageFrom } from '../../src/sim/raids.js';
 import { hash2 } from '../../src/sim/rng.js';
 import { serialize, deserialize } from '../../src/save/serialize.js';
 import { RAIDS, RAID_SALT, UNITS } from '../../src/data/raids.js';
@@ -41,8 +41,9 @@ function dayAt(w, day, events = []) {
 }
 
 // A raid that is due to be warned today, as the clock would have it at raid index `index`.
+// Version 8.4 (ruling 1531): two bands wait for the raid's stage, so the clock starts where 8.3's would have reached this index today (the stage is the index).
 function due(w, { index = 3, day = 3000 } = {}) {
-  Object.assign(w.raid, { clockDay: 0, nextWarnDay: day, index });
+  Object.assign(w.raid, { clockDay: day - stageFrom(index), nextWarnDay: day, index });
   w.day = day;
   return w;
 }
@@ -392,7 +393,7 @@ describe('s45 raid words', () => {
       expect(alertText(alert, w).title).toBe(`Raiders from ${from} are after your storehouses`);
       const m = bannerModel(w, triage(w, [alert]).critical);
       expect(m.title).toBe(`Raiders from ${from} are after your storehouses. They arrive in 2 months.`);
-      expect(m.chip).toBe(`Raid from ${from} · 2 months`);
+      expect(m.chip).toBe(`Raid from ${from}\u00a0· 2 months`);
       expect(m.defence).toBe(`or build ${q.buildN} towers facing ${dirs.join(' and ')} (≈ ${q.buildCost} gold)`);
       expect(RAID_TEXT.towers(w)).toBe(`Build ${q.buildN} towers facing ${dirs.join(' and ')} (≈ ${q.buildCost} gold)`);
       expect(q.size).toBe(warn.size);                                                // the total, never a band
@@ -401,9 +402,9 @@ describe('s45 raid words', () => {
   it('says a band-less alert of the old shape as before (a direction only)', () => {
     const w = warned(false);
     expect(alertText({ code: 'raid_warning', dir: 'east' }, w).title).toBe('Raiders from the east are after your storehouses');
-    expect(D.chip('east', 12)).toBe('Raid from the east · 12 d');
-    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north · 12 d');
-    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east · 12 d');
+    expect(D.chip('east', 12)).toBe('Raid from the east\u00a0· 12\u00a0d');
+    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north\u00a0· 12\u00a0d');
+    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east\u00a0· 12\u00a0d');
   });
   it('words the raid under way by the bands still on the map, and the report by both directions', () => {
     const w = city();

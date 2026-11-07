@@ -29,10 +29,10 @@ const stored = (storage) => JSON.parse(storage.data['thebes.settings'] || '{}');
 
 describe('v60 d2 picture cards: the thirteen', () => {
   it('are the seven intro cards and six more with a first moment each, in order, every one with words, an alt text and a mark kind', () => {
-    expect(TUTORIAL_CARDS.length).toBe(14);                                                           // Version 7.0 (Track E) adds the first city event's card after the six (tests/v70/e)
+    expect(TUTORIAL_CARDS.length).toBe(15);                                                           // Version 7.0 (Track E) adds the first city event's card after the six (tests/v70/e); Version 8.4 (Track E) the war elephants' (tests/v84/e)
     expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);
     expect(TUTORIAL_CARDS.slice(7, 13).map((c) => [c.id, Boolean(c.first), Boolean(MOMENTS[c.first])])).toEqual(NEW_IDS.map((id) => [id, true, true]));
-    expect(TUTORIAL_CARDS.slice(13).map((c) => [c.id, c.first, Boolean(MOMENTS[c.first])])).toEqual([['event', 'cityEvent', true]]);
+    expect(TUTORIAL_CARDS.slice(13).map((c) => [c.id, c.first, Boolean(MOMENTS[c.first])])).toEqual([['event', 'cityEvent', true], ['elephants', 'elephants', true]]);
     for (const c of TUTORIAL_CARDS) {
       const w = CARDS4_TEXT.cards[c.id];
       expect([c.id, w.title.length > 0, w.words.length > 20, w.alt.length > 20, w.words.split('. ').length <= 3, c.mark === 'ring' || c.mark === 'arrow']).toEqual([c.id, true, true, true, true, true]);
@@ -61,7 +61,7 @@ describe('v60 d2 picture cards: the thirteen', () => {
       expect(why).toContain(`raiders ${DANGER_UI_TEXT.duration(RAIDS.warningDays)} after it`);
       expect(why.includes(`${RAIDS.warningDays} days ahead`)).toBe(false);                      // the old words ("at 250 people, the warning 90 days ahead") were wrong
     }
-    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('24 months');
+    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('10 months');   // Version 8.4 wave 2 (rulings 1463, 1521): was '24 months' (720 days; now 300)
     for (const word of ['plague', 'low Nile', 'locusts', 'wrecking buildings', 'looting storehouses']) expect([word, cards.includes(word)]).toEqual([word, true]);
     expect(cards.includes('Dangers never come')).toBe(false);                                   // raids and fires do come in the first years
   });
@@ -221,7 +221,7 @@ describe('v60 d2 picture cards: in the page', () => {
     const s = await open();
     try {
       s.api.hooks.pictureCards();
-      expect(document.querySelector('.pc-count').textContent).toBe('1 of 14');
+      expect(document.querySelector('.pc-count').textContent).toBe('1 of 15');   // Version 8.4 (Track E): the war elephants' card is the fifteenth
       document.querySelector('.pc-close').click();
     } finally { s.cleanup(); }
     const f = await open({ settings: { cardsSeen: false } });

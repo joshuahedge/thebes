@@ -108,7 +108,7 @@ describe('v70 contract trade rules', () => {
   it('reserves the Quay\'s and incense\'s ids; Track T adds their rows', () => {
     expect([QUAY_TYPE, QUAY_SIZE, INCENSE_GOOD]).toEqual(['quay', { w: 2, d: 1 }, 'incense']);
     for (const [id, row] of Object.entries(V70_BUILDINGS)) expect(BUILDINGS[id]).toBe(row);
-    for (const [id, row] of Object.entries(V70_GOODS)) expect(GOODS[id]).toBe(row);
+    for (const [id, row] of Object.entries(V70_GOODS)) expect(GOODS[id]).toEqual({ ...row, luxury: true, perResidentPerMonth: 0.01 });   // Version 8.4: incense is a luxury (ruling 1461)
   });
 });
 

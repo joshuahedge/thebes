@@ -1,5 +1,6 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY, newPrestigeUnlocks } from '../sim/world.js';
 import { newTradeSettings } from '../data/trade.js';
+import { LUXURY_GRACE_DAYS } from '../data/v84.js';
 import { newEventState, EVENT_V9_WAIT } from '../data/cityEvents.js';
 import { newReignState, newDemandState } from '../data/reign.js';
 import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
@@ -295,8 +296,21 @@ function v9ToV10(w) {
   };
 }
 
+// v10 -> v11 (Version 8.4, wave 0, ruling 1460). The city keeps everything it had, its raid clock and scheduled warning included. The new
+// tallies start at 0, and a Villa's or Estate's luxury need starts to count LUXURY_GRACE_DAYS after the load day, so no home falls on load.
+// The 8.4 fields that are optional (the palace's tax rate, a site's rush, a raid's spoils) stay absent, which means 8.3's behaviour.
+function v10ToV11(w) {
+  const tally = isRec(w.tally) ? w.tally : {};
+  return {
+    ...w,
+    version: 11,
+    tally: { ...tally, ...Object.fromEntries(STAGE84_TALLY.map((k) => [k, 0])) },
+    luxuryFrom: (Number.isInteger(w.day) ? w.day : 0) + LUXURY_GRACE_DAYS,
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9, 9: v9ToV10 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9, 9: v9ToV10, 10: v10ToV11 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

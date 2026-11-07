@@ -5,7 +5,7 @@
 // the matchup table (counterModel).
 //
 // Units: world.soldiers (every trained unit, each with kind: src/data/armies.js); away: world.army.away (newArmyState).
-import { UNIT_KINDS, UNIT_TYPES, ENEMY_TYPES, ENEMY_KINDS, MIX, MATCHUPS, SITUATIONS, footMix } from '../data/armies.js';
+import { UNIT_KINDS, UNIT_TYPES, ENEMY_TYPES, ENEMY_KINDS, MIX_KINDS, MIX, MATCHUPS, SITUATIONS, footMix, ELEPHANTS, TOWER_VS, SHUNS } from '../data/armies.js';
 import { RAID_SALT, UNITS } from '../data/raids.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from './world.js';
@@ -13,6 +13,7 @@ import { hash2 } from './rng.js';
 import { riskOf } from './costs.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T, buildable } from './terrain.js';
+import { raidStage } from './raids.js';
 
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 const kindOf = (u) => u.kind || 'soldier';
@@ -144,20 +145,47 @@ export function armyAlerts(world) {
 }
 
 // ── The raid's mix (rulings 341, 382) ──
-// May a kind come with the raid at this 0-based index? From its fromRaid (raid fromRaid - 1 as an index) on.
-export const enemyMayCome = (kind, index) => index >= ENEMY_TYPES[kind].fromRaid - 1;
+// May a kind come with a raid at this stage (raidStage in src/sim/raids.js: 8.3's raid index for its warning day, ruling 1531)? From its fromRaid (raid fromRaid - 1
+// as a stage) on.
+export const enemyMayCome = (kind, stage) => stage >= ENEMY_TYPES[kind].fromRaid - 1;
 
 // The composition of the raid at `index` with `size` raiders (MIX in src/data/armies.js): the first raid all on foot; each other kind
 // from its raid, by its share, the difficulty and a seeded jitter (hash2(seed, index x 4 + the kind's place, RAID_SALT.mix)); boats
 // only when `boats` (a raid from one side on a map whose river reaches an edge, with a bank to land on). Counts add up to size.
+// Version 8.4, Track E (rulings 1500, 1506): then a raid whose index draws elephants (elephantRaid) brings min(ELEPHANTS.max, floor(size /
+// ELEPHANTS.per)) of them, taken from its raiders on foot. Elephants break walls as the foot do, so together they keep MIX.footMin of the raid
+// (a raid of 8 or more always has room for its 1 to 3, and one raider on foot at least stays); mix.elephant is set only when there are any.
+// No other kind's draw or count moves, so a raid without elephants has 8.3's mix exactly.
 export function drawMix(world, index, size, { boats = false } = {}) {
+  const mix = drawShares(world, index, size, boats);
+  const want = elephantRaid(world, index) ? Math.min(ELEPHANTS.max, Math.floor(size / ELEPHANTS.per)) : 0;
+  const n = Math.max(0, Math.min(want, mix.foot - 1));
+  if (n > 0) { mix.foot -= n; mix.elephant = n; }
+  return mix;
+}
+
+// Whether the raid at this 0-based index is an elephant raid (ruling 1500): from ENEMY_TYPES.elephant.fromRaid, a seeded ELEPHANTS.chance by
+// the stage (the draw hash2(seed, index, RAID_SALT.elephant) keeps the index), so the scouts and the entry know it before the raid's size is fixed. Never on
+// the first raid. A raid too small for one (under ELEPHANTS.per raiders) brings none, but still comes in from upriver (nextRaidEntry).
+// Version 8.4 (ruling 1531): from the raid's stage, read from its warning day (raidStage: the day it is due before it is warned, so the scouts agree).
+export const elephantRaid = (world, index) => index > 0 && enemyMayCome('elephant', raidStage(world, index)) && hash2(world.seed, index, RAID_SALT.elephant) < ELEPHANTS.chance;
+
+// The elephants in a mix (0 when it has none, or a mix from before 8.4).
+export const elephantsIn = (mix) => (mix && mix.elephant > 0 ? mix.elephant : 0);
+// A raid's strength for the towers it needs and its tribute (ruling 1503): its size, each elephant counted as ELEPHANTS.weight raiders. A
+// raid (or warning) without elephants is its size, as in 8.3.
+export const raidStrength = (r) => r.size + (ELEPHANTS.weight - 1) * elephantsIn(r.mix);
+
+function drawShares(world, index, size, boats) {
   const mix = footMix(size);
   if (index === 0 || size < 1) return mix;
   const factor = MIX.riskFactor[0] + MIX.riskFactor[1] * riskOf(world);
-  const others = ENEMY_KINDS.filter((k) => k !== 'foot');
+  const others = MIX_KINDS.filter((k) => k !== 'foot');
+  // Version 8.4 (ruling 1531): a kind's start and its share's growth read the raid's stage; the jitter keeps the index's draw.
+  const stage = raidStage(world, index);
   for (const k of others) {
-    if (!enemyMayCome(k, index) || (k === 'boat' && !boats)) continue;
-    const m = MIX[k], since = index - (ENEMY_TYPES[k].fromRaid - 1);
+    if (!enemyMayCome(k, stage) || (k === 'boat' && !boats)) continue;
+    const m = MIX[k], since = stage - (ENEMY_TYPES[k].fromRaid - 1);
     const jitter = 1 - MIX.jitter + 2 * MIX.jitter * hash2(world.seed, index * 4 + ENEMY_KINDS.indexOf(k), RAID_SALT.mix);
     let n = Math.round(size * Math.min(m.max, m.base + m.perRaid * since) * factor * jitter);
     if (size >= MIX.minAtSize) n = Math.max(1, n);
@@ -207,6 +235,30 @@ function riverWater(world) {
 }
 
 const edgeOf = (world, t) => (t.x >= world.size - 1 ? 'east' : t.x <= 0 ? 'west' : t.y <= 0 ? 'north' : 'south');
+
+// ── Upriver (Version 8.4, Track E, ruling 1504) ──
+// The water tiles on the map's edges (riverWater's mouths, found without the flood).
+function edgeWater(world) {
+  const n = world.size, out = [];
+  for (let k = 0; k < n; k++) {
+    for (const [x, y] of [[k, 0], [k, n - 1], [0, k], [n - 1, k]]) if (world.terrain[idx(n, x, y)] === T.WATER && !out.some((t) => t.x === x && t.y === y)) out.push({ x, y });
+  }
+  return out;
+}
+// The raider entry an elephant raid's first band comes in by: the one nearest a river mouth on the south edge (the Nile flows north, so
+// that is upriver), else the one nearest any mouth; null on a map whose edges have no water (the Great oasis), where the raid keeps its own
+// draw. Maps store no flow, so the south edge stands for upriver on every map. Ties go to the entry listed first.
+export function upriverEntry(world) {
+  const entries = world.raiderEntries || [], mouths = edgeWater(world);
+  if (!entries.length || !mouths.length) return null;
+  const south = mouths.filter((t) => edgeOf(world, t) === 'south'), pool = south.length ? south : mouths;
+  let best = null, bd = Infinity;
+  for (const e of entries) {
+    const d = Math.min(...pool.map((t) => Math.hypot(t.x - e.x, t.y - e.y)));
+    if (d < bd) { bd = d; best = e; }
+  }
+  return { ...best };
+}
 
 // Where a raid's boats would land now, or null: a river bank (open, buildable-looking land, 4-linked to river water that reaches a
 // map edge) within ENEMY_TYPES.boat.landWithin tiles (square) of a building, picked by hash2(seed, index, RAID_SALT.boatBank); and
@@ -265,12 +317,21 @@ export function counterModel(mix) {
         (f > 1 ? helps : weak).push({ unit, situation, factor: f });
       }
     }
-    helps.sort((a, b) => b.factor - a.factor || UNIT_KINDS.indexOf(a.unit) - UNIT_KINDS.indexOf(b.unit));
+    // Version 8.4, Track E (ruling 1501): a tower's matchup (TOWER_VS) is a help like a unit's, as { unit: 'tower', situation: null }.
+    if (Number.isFinite(TOWER_VS[kind]) && TOWER_VS[kind] !== 1) (TOWER_VS[kind] > 1 ? helps : weak).push({ unit: 'tower', situation: null, factor: TOWER_VS[kind] });
+    const order = (u) => (u === 'tower' ? UNIT_KINDS.length : UNIT_KINDS.indexOf(u));
+    helps.sort((a, b) => b.factor - a.factor || order(a.unit) - order(b.unit));
     const e = ENEMY_TYPES[kind];
     out.push({ kind, n: mix[kind], helps, weak, traits: {
       turnedByWalls: !e.breaksWalls, noRocky: Number.isFinite(e.charge), shootsTowers: Number.isFinite(e.range), range: e.range || 0,
       lands: Number.isFinite(e.landWithin), landWithin: e.landWithin || 0,
       speed: enemySpeed(kind), pace: kind === 'boat' ? enemySpeed(kind) : landPace, footSpeed: enemySpeed('foot'),
+      // Version 8.4, Track E (rulings 1500-1502): what an elephant does beyond the table. tramples: its blow lands on every unit beside it;
+      // stampedes: an arrow may send it back through its own band (ELEPHANTS.panicChance); wallBreak: how many times faster than a raider on
+      // foot it breaks a wall (wallDamage / foot's damage); shunnedBy: your unit kinds that never go out to it (SHUNS).
+      tramples: Boolean(e.trample), stampedes: kind === 'elephant' && ELEPHANTS.panicChance > 0,
+      wallBreak: e.breaksWalls ? (e.wallDamage || e.damage) / ENEMY_TYPES.foot.damage : 0,
+      shunnedBy: UNIT_KINDS.filter((u) => (SHUNS[u] || []).includes(kind)),
     } });
   }
   return out;

@@ -29,6 +29,8 @@ export const UNIT_OF_BUILDING = Object.fromEntries(UNIT_KINDS.map((k) => [UNIT_T
 
 // ── Enemies (ruling 341) ──
 // fromRaid: the raid (1st, 2nd, ...) from which the kind may come; raid.index is 0-based, so it may come once index >= fromRaid - 1.
+// Version 8.4 (escalation by years, ruling 1531): counted in 8.3's raids: the raid's stage (src/sim/raids.js raidStage, the index 8.3's clock would have
+// reached on its warning day) stands for the index, so a kind comes in the year it came in 8.3 however often 8.4's clock brings raids.
 // A boat also needs a river that reaches a map edge. A raid's composition is its mix: { foot, archer, chariot, boat } counts that add
 // up to its size (warning.mix, active.mix and the report's mix); a raider carries kind (one of ENEMY_KINDS). A city from before Stage
 // 4.6 has an all-foot mix on a warning or raid under way.
@@ -43,12 +45,27 @@ export const ENEMY_TYPES = {
   archer: { fromRaid: 3, hp: 8, damage: 2, speed: 1, breaksWalls: false, range: 4 },
   chariot: { fromRaid: 6, hp: 14, damage: 3, speed: 2, breaksWalls: false, charge: 3 },
   boat: { fromRaid: 5, hp: UNITS.raider.hp, damage: UNITS.raider.damage, speed: UNITS.raider.speed, breaksWalls: true, landWithin: 4 },
+  // Version 8.4, Track E (rulings 1500-1503): the war elephant. wallDamage: what it deals the wall in its band's way a day (others deal their
+  // damage); trample: its damage goes to every unit beside it, not one. It comes as ELEPHANTS says, never by MIX's shares.
+  // Escalation by years (ruling 1531): fromRaid 4 counts 8.3's raids, as every row here does: stage 3, about 12 years after the clock starts, when 8.4's
+  // clock brought its 8th raid (design Q14: "about 12 to 13 years after the clock starts"). It was 8, counted in 8.4's raids.
+  elephant: { fromRaid: 4, hp: 60, damage: 3, speed: 1, breaksWalls: true, wallDamage: 6, trample: true },
 };
 export const ENEMY_KINDS = Object.keys(ENEMY_TYPES);
-export const footMix = (size) => Object.fromEntries(ENEMY_KINDS.map((k) => [k, k === 'foot' ? size : 0]));
+// Ruling 1506: a mix always has the four 8.3 kinds; it carries elephant only when the raid brings any (absent means 0), so a raid without
+// elephants, its warning, its report and its save read exactly as in 8.3. Every reader takes a missing mix.elephant as 0.
+export const MIX_KINDS = ENEMY_KINDS.filter((k) => k !== 'elephant');
+export const footMix = (size) => Object.fromEntries(MIX_KINDS.map((k) => [k, k === 'foot' ? size : 0]));
+
+// War elephants (Version 8.4, Track E, rulings 1500-1505): from raid stage ENEMY_TYPES.elephant.fromRaid - 1 (ruling 1531), a raid draws
+// hash2(seed, index, RAID_SALT.elephant) < chance; then it brings min(max, floor(size / per)) elephants, taken from its raiders on foot (who
+// keep MIX.footMin of the raid). weight: an elephant counts as this many raiders for the towers a raid needs and its tribute (raidStrength).
+// ivory: what a felled elephant leaves in the nearest working store with room. panicChance: an elephant an arrow takes below half its hit
+// points stampedes with this chance (once: hash2(seed, its id, RAID_SALT.panic)), dealing its damage to every raider of its own band.
+export const ELEPHANTS = { chance: 0.5, per: 8, max: 3, weight: 4, ivory: 10, panicChance: 0.5 };
 
 // The raid's mix (ruling 382): from its raid on, each kind but foot takes a share of the raid, share = min(max, base + perRaid x
-// raids since it first may come) x the difficulty's factor (riskFactor[0] + riskFactor[1] x its risk: 0.75 on Relaxed, 1 on Normal,
+// raids since it first may come, counted in stages: ruling 1531) x the difficulty's factor (riskFactor[0] + riskFactor[1] x its risk: 0.75 on Relaxed, 1 on Normal,
 // 1.25 on Hard) x a seeded jitter between 1 - jitter and 1 + jitter (hash2(seed, raid index x 4 + kind, RAID_SALT.mix)), rounded; a
 // kind that may come brings at least 1 once the raid is minAtSize or more. Foot keep at least footMin of the raid (others give way,
 // the largest first). The first raid is always on foot (RAIDS.firstSize). Boats come only on a raid from one side (one band): their
@@ -75,15 +92,22 @@ export const MIX = {
 // The raid sheet's "what helps against each enemy" lines are read from this table (counterLines in src/sim/armies.js). Raiders by
 // boat fight as raiders on foot do once landed.
 export const SITUATIONS = ['wall', 'melee', 'open', 'nearWall', 'gate'];
+// Version 8.4, Track E (ruling 1501): against a war elephant archers deal 2x at range (open or near a wall) and half in melee, soldiers half in
+// melee (x 1.5 holding a gate: 0.75); your chariots never go out to one (combat.js), so they have no cell.
 export const MATCHUPS = {
-  soldier: { foot: { gate: 1.5 }, archer: { gate: 1.5 }, chariot: { gate: 1.5 }, boat: { gate: 1.5 } },
-  archer: { foot: { wall: 2, melee: 0.5 }, boat: { wall: 2, melee: 0.5 } },
+  soldier: { foot: { gate: 1.5 }, archer: { gate: 1.5 }, chariot: { gate: 1.5 }, boat: { gate: 1.5 }, elephant: { melee: 0.5, gate: 1.5 } },
+  archer: { foot: { wall: 2, melee: 0.5 }, boat: { wall: 2, melee: 0.5 }, elephant: { open: 2, nearWall: 2, melee: 0.5 } },
   chariot: { archer: { open: 2, nearWall: 0.5 }, foot: { open: 2, nearWall: 0.5 }, boat: { open: 2, nearWall: 0.5 } },
 };
 export const matchup = (unit, enemy, situation) => {
   const row = MATCHUPS[unit] && MATCHUPS[unit][enemy];
   return row && Number.isFinite(row[situation]) ? row[situation] : 1;
 };
+// A tower's shot against an enemy kind (ruling 1501): DEFENCE.towerDamage x this (1 for a kind not listed). Towers had no matchup before 8.4.
+export const TOWER_VS = { elephant: 1.5 };
+export const towerVs = (enemy) => (Number.isFinite(TOWER_VS[enemy]) ? TOWER_VS[enemy] : 1);
+// Your units that never go out to an enemy kind (ruling 1501): a chariot takes the nearest other raider, or waits.
+export const SHUNS = { chariot: ['elephant'] };
 
 // Distances and the rest (ruling 380, 383, 385):
 //   wallNear   a standing wall within this many tiles makes a spot nearWall, none makes it open
@@ -125,6 +149,7 @@ export const ARMY_TIPS = [
   { id: 'archers_on_walls', trigger: 'archeryRangePlaced', priority: false },   // an archery range placed
   { id: 'chariots_in_open', trigger: 'stablesPlaced', priority: false },         // a stables placed
   { id: 'mixed_raid', trigger: 'mixedRaidWarned', priority: false },             // a raid with archers, chariots or boats warned
+  { id: 'war_elephants', trigger: 'elephantsWarned', priority: false },          // Version 8.4, Track E: a raid with war elephants warned
 ];
 // The Armies track's raid draws extend RAID_SALT in src/data/raids.js (hash2(world.seed, raid index, RAID_SALT.x), the raids'
 // own pattern): mix 8105, mix2 8106, boatEntry 8107, boatBank 8108 (registered there by Track 0).

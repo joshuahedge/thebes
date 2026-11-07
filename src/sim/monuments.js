@@ -20,7 +20,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MATERIALS, PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
-import { workGoldPerUnit, extraGoldOf, canPayNoDebt, costOf } from './costs.js';
+import { workGoldPerUnit, extraGoldOf, canPayNoDebt, costOf, rushGoldPerUnit } from './costs.js';
 import { spend } from './money.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { allBuildings, isSite, isFinished, isMonument } from './world.js';
@@ -77,6 +77,11 @@ export function offeringSource(world, good) {
 function offeringDue(world, b, course = b.site.course) {
   if (!isGreatWork(b) || course >= MONUMENTS[b.type].courses.length || course % GREAT_WORK.perStage !== 0) return false;
   return offeringsMade(world, b) <= stageOfCourse(course);
+}
+// Whether the stores hold less than the offering the great work's stage under way asks.
+function offeringShort(world, b) {
+  const o = offeringOf(world, stageOfCourse(b.site.course));
+  return Boolean(o) && storedOf(world, o.good) < o.n;
 }
 // The great work's offering, as its stage begins: true when nothing is owed now, false while the stores hold less (the course waits).
 // Pushes { type: 'offering_made', id, stage, good, n }.
@@ -271,7 +276,15 @@ const snap = (v) => (Math.abs(v - Math.round(v)) < EPS ? Math.round(v) : v);
 // its staffing like any producer's (spec 4.16). Whether it works at all is isWorking's (MIN_STAFF_RATIO, not burning).
 // Version 8.3 (ruling 1431): times the speed it walks at to the site it works (crewSpeedAt: `site`, or the one today's crew plan gives the guild;
 // a guild with no site works at 1).
-export const crewDayUnits = (world, g, site = undefined) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, site);
+// Version 8.4 (ruling 1467): times MONUMENT.rushPace while that site's course is rushed (rushPaceOf).
+export function crewDayUnits(world, g, site = undefined) {
+  const s = site === undefined ? world.buildings[crewPlan(world).get(g.id)] || null : site;
+  return baseDayUnits(world, g, s) * rushPaceOf(s);
+}
+// The same without the rush: what the crew lays on that site at its own pace (Rush's quote compares the two).
+const baseDayUnits = (world, g, s) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, s);
+// MONUMENT.rushPace on a site under way whose course is rushed (site.rush), else 1.
+export const rushPaceOf = (s) => (isSite(s) && s.site.rush ? MONUMENT.rushPace : 1);
 
 // The road tiles from a guild to a site (the walk its crew makes), Infinity when no road or ferry joins them.
 export const crewDistance = (world, g, site) => reachDistance(roadReach(world, g, Infinity), world, site);
@@ -366,18 +379,73 @@ export function setCamp(world, id) {
   return { ok: true, price: q.price };
 }
 
+// ── Rush a course (Version 8.4, Track G: design 2b, rulings 1467, 1474-1476) ─────────────────────────────────────────
+// While site.rush is set, every crew at the site lays MONUMENT.rushPace x its day's units (crewDayUnits) at rushGoldPerUnit (MONUMENT.rushGold x the work
+// gold) a unit, paid day by day as work gold is (workPay; a day that would take the treasury below 0 is not worked). It covers the course under way only:
+// a rushed crew stops at the course's end (planCrew), and commitCrew clears site.rush as the course ends (tally.coursesRushed). Materials are still needed,
+// and the great temple's offerings, the gilding and the capstone still wait. Nothing is paid for units not laid, so Cancel owes and refunds nothing.
+// The premium (the rushed price less the work gold) is tallied in rushGold and last month's rush.
+
+// What Rush this course would do now, at today's crews (the crew plan's working crews, each at its own staffing and walk) and full supply:
+// { ok, reason, units (left in the course under way), days (to lay them at the crews' pace), daysRushed (rushed), saved (days - daysRushed),
+//   extra (the premium for those units, whole gold), perDay (extra a day saved, rounded), dayGold (one rushed day's gold, rounded up), rate (the units the working crews lay a day, before the rush: 0 with no crew) }.
+// reason, the first that applies: 'not_site', 'finished', 'has_rush' (already rushed: the numbers are still the quote's), 'no_crew' (no crew works it today),
+// 'waiting_offering' (the great work's stage waits for its offering), 'waiting_gilding' / 'waiting_capstone' (the last course waits for gold it cannot
+// pay), 'no_gold' (the treasury holds less than one rushed day).
+export function rushQuote(world, id) {
+  const b = world.buildings[id];
+  const none = { ok: false, units: 0, days: 0, daysRushed: 0, saved: 0, extra: 0, perDay: 0, dayGold: 0, rate: 0 };
+  if (!isMonument(b) || !b.site) return { ...none, reason: 'not_site' };
+  if (b.site.done !== null) return { ...none, reason: 'finished' };
+  const c = courseOf(b);
+  const units = Math.max(0, unitsOf(c) - b.site.laid.stone - b.site.laid.bricks);
+  const rate = siteCrews(world, b).map((r) => world.buildings[r.id]).filter((g) => g && isWorking(world, g)).reduce((n, g) => n + baseDayUnits(world, g, b), 0);
+  const work = workGoldPerUnit(world, b.style), rush = rushGoldPerUnit(world, b.style);
+  const days = rate > EPS ? Math.ceil(units / rate - EPS) : 0;
+  const daysRushed = rate > EPS ? Math.ceil(units / (rate * MONUMENT.rushPace) - EPS) : 0;
+  const saved = days - daysRushed, extra = Math.round(units * (rush - work));
+  const q = { rate, units: snap(units), days, daysRushed, saved, extra, perDay: saved > 0 ? Math.round(extra / saved) : extra, dayGold: Math.ceil(rate * MONUMENT.rushPace * rush - EPS) };
+  let reason = null;
+  if (b.site.rush) reason = 'has_rush';
+  else if (!(rate > EPS)) reason = 'no_crew';
+  else if (saved < 1) reason = 'too_short';   // ruling 1535: a rush that saves under a day buys nothing
+  else if (offeringDue(world, b) && offeringShort(world, b)) reason = 'waiting_offering';
+  else if (extraDue(b) && !canPayNoDebt(world, extraGoldOf(world, b.type, b.style))) reason = `waiting_${MONUMENTS[b.type].extra.kind}`;
+  else if (!canPayNoDebt(world, q.dayGold)) reason = 'no_gold';
+  return { ...q, ok: reason === null, reason };
+}
+
+// The setRush command: on rushes the course under way (rushQuote must allow it); off cancels at any time, with nothing refunded and nothing owed. Not
+// undoable, needs no gold now (it is paid day by day). { ok: true, warnings: [], rush } or { ok: false, reason } (rushQuote's; off: 'not_site', 'finished').
+export function setRush(world, id, on) {
+  const b = world.buildings[id];
+  if (on) {
+    const q = rushQuote(world, id);
+    if (!q.ok) return { ok: false, reason: q.reason, warnings: [] };
+    b.site.rush = true;
+    return { ok: true, warnings: [], rush: true, quote: q };
+  }
+  if (!isMonument(b) || !b.site) return { ok: false, reason: 'not_site', warnings: [] };
+  if (b.site.done !== null) return { ok: false, reason: 'finished', warnings: [] };
+  delete b.site.rush;
+  delete b.site.rushShort;
+  return { ok: true, warnings: [], rush: false };
+}
+
 // What one crew would lay today with `cap` units of work (pure: the site is not touched). It lays the course under way
 // from the stockpile in the course's recipe proportion (ruling 239: a course naming two materials waits when either is
 // missing) and carries on into the next course when it finishes one, until its work for the day is done, a material
 // runs out (short: the first missing, in MATERIALS order) or the monument is finished. It stops at the start of the last
 // course while the kind's gilding or capstone is unpaid (ruling 241: monumentDay pays it as the course begins). st is the
 // site's course, laid and stock afterwards; courses how many it finished; by the units of each material laid.
-function planCrew(b, cap, offered = Infinity) {
+// Version 8.4 (ruling 1467): a rushed crew (oneCourse) stops at the end of the course under way: the rush, and its price, cover that course only.
+function planCrew(b, cap, offered = Infinity, oneCourse = false) {
   const m = MONUMENTS[b.type];
   const st = { course: b.site.course, laid: { ...b.site.laid }, stock: { ...b.site.stock } };
   const p = { units: 0, by: { stone: 0, bricks: 0 }, courses: 0, short: null, st };
   let left = cap;
   while (left > EPS && st.course < m.courses.length) {
+    if (oneCourse && p.courses > 0) break;
     if (extraDue(b, st.course)) break;
     // Version 6.0: the great work stops at a stage's first course until its offering is made (monumentDay's payOffering, the next day).
     if (isGreatWork(b) && st.course % GREAT_WORK.perStage === 0 && stageOfCourse(st.course) >= offered) break;
@@ -416,6 +484,11 @@ function commitCrew(world, b, p, events) {
   const courses = MONUMENTS[b.type].courses.length;
   for (const g of MATERIALS) world.tally[`${g}Laid`] = snap(world.tally[`${g}Laid`] + p.by[g]);
   let before = events ? prestigeOf(world) : 0;
+  if (p.courses > 0 && s.rush) {                                            // Version 8.4 (ruling 1467): the rushed course is laid: the rush ends with it
+    delete s.rush;
+    delete s.rushShort;
+    world.tally.coursesRushed += 1;
+  }
   for (let k = 0; k < p.courses; k++) {
     s.course += 1;
     s.laid = { stone: 0, bricks: 0 };
@@ -459,10 +532,12 @@ function payExtra(world, b) {
 // A crew's work gold for `units` (ruling 240): workGoldPerUnit x units plus the site's carried fraction, paid in whole
 // gold; { pay, carry } with 0 <= carry < 1. A sum within EPS of a whole number is that number, so a month of a full
 // crew pays exactly 20 x workGoldPerUnit (130 at Normal, src/data/monuments.js), less a fraction it carries.
+// Version 8.4 (ruling 1467): a rushed course's units at rushGoldPerUnit; premium is the share of pay above the work gold (whole gold), for the tallies.
 function workPay(world, b, units) {
-  const owed = snap(b.site.carry + units * workGoldPerUnit(world, b.style));   // Stage 4.6: a gilded site pays 10% more (ruling 394)
+  const rushed = rushPaceOf(b) > 1;
+  const owed = snap(b.site.carry + units * (rushed ? rushGoldPerUnit(world, b.style) : workGoldPerUnit(world, b.style)));   // Stage 4.6: a gilded site pays 10% more (ruling 394)
   const pay = Math.floor(owed);
-  return { pay, carry: owed - pay };
+  return { pay, carry: owed - pay, premium: rushed ? Math.round((pay * (MONUMENT.rushGold - 1)) / MONUMENT.rushGold) : 0 };
 }
 
 const burning = (g) => Boolean(g.fire && g.fire.stage === 'fire');
@@ -533,17 +608,21 @@ export function monumentDay(world, events = null) {
       if (!isSite(b)) break;
       if (!payExtra(world, b)) { waiting = true; break; }
       if (!payOffering(world, b, events)) { waiting = 'offering'; break; }
-      const p = planCrew(b, crewDayUnits(world, g, b), isGreatWork(b) ? offeringsMade(world, b) : Infinity);
-      const { pay, carry } = workPay(world, b, p.units);
+      const p = planCrew(b, crewDayUnits(world, g, b), isGreatWork(b) ? offeringsMade(world, b) : Infinity, Boolean(s.rush));
+      const { pay, carry, premium } = workPay(world, b, p.units);
       if (p.units > EPS && !canPayNoDebt(world, pay)) continue;          // its day would cross 0: it does not work
       if (p.short) { s.month.starvedDays += 1; short = short || p.short; }
       if (p.units <= EPS) continue;
       world.gold -= pay;
       s.carry = carry;
       s.month.gold += pay;
+      if (premium > 0) { world.tally.rushGold += premium; s.month.rush = (s.month.rush || 0) + premium; }   // Version 8.4: the Rush premium
       commitCrew(world, b, p, events);
       units += p.units;
     }
+    // Version 8.4 (ruling 1476): a rushed course whose crews were short of a material today says which ("Rushed: waiting for stone").
+    if (s.rush && short) s.rushShort = short;
+    else delete s.rushShort;
     if (units > EPS || !isSite(b)) { s.idle = 0; s.reason = null; continue; }
     s.idle += 1;
     s.reason = stallReason(world, b, guilds, working, waiting, short);
@@ -555,17 +634,19 @@ export function monumentDay(world, events = null) {
 // its last (a site finished before this month keeps its last), a month in which a crew stood idle for lack of material
 // marks it starved (the Steady hands feat), and stats.lastMonth.monuments is the month's monument gold (work, gilding and
 // capstone; founding counts with building costs). Complete in the contract; Track A owns it.
+// Version 8.4 (Track G): stats.lastMonth.rush is the month's Rush premium (part of monuments).
 export function monumentMonth(world, events = null) {
-  let gold = 0;
+  let gold = 0, rush = 0;
   for (const b of allBuildings(world)) {
     if (!b.site) continue;
     const mo = b.site.month;
     gold += mo.gold;
+    rush += mo.rush || 0;
     if (mo.starvedDays > 0) b.site.starved = true;
     if (b.site.done === null || mo.units > 0 || mo.gold > 0) b.site.last = { units: mo.units, gold: mo.gold, crews: mo.crews };
     b.site.month = { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 };
   }
-  if (world.stats.lastMonth) world.stats.lastMonth.monuments = gold;
+  if (world.stats.lastMonth) { world.stats.lastMonth.monuments = gold; world.stats.lastMonth.rush = rush; }
 }
 
 // Monument warnings (spec 4.16, ruling 211, 244): { code: 'site_stalled', id, reason } for every unpaused, unfinished,

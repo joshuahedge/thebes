@@ -1,4 +1,4 @@
-import { FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS } from './goods.js';
+import { FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS, LUXURY_GOODS } from './goods.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from './monuments.js';
 import { S46_BUILDINGS } from './s46.js';
 import { V60_BUILDINGS } from './v60.js';
@@ -18,11 +18,11 @@ export const BUILDINGS = {
     name: 'Granary', w: 2, d: 2, cost: 80, upkeep: 6, workers: 6, priority: 'essential', category: 'food',
     needsRoad: true, stores: ['grain', 'figs', 'game', 'fish'], capacity: 600,   // Stage 4.6 (ruling 363): game and fish are foods too
   },
-  // stock: the most of each good a bazaar keeps (spec 4.10).
+  // stock: the most of each good a bazaar keeps (spec 4.10). Version 8.4, Track G (ruling 1468): it sells the luxuries too, 40 of each at most.
   bazaar: {
     name: 'Bazaar', w: 2, d: 2, cost: 60, upkeep: 8, workers: 6, priority: 'services', category: 'services',
-    needsRoad: true, sells: [...FOOD_GOODS, ...HOUSEHOLD_GOODS], capacity: 300, reach: 10, supplyReach: 16,
-    stock: { grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 },
+    needsRoad: true, sells: [...FOOD_GOODS, ...HOUSEHOLD_GOODS, ...LUXURY_GOODS], capacity: 300, reach: 10, supplyReach: 16,
+    stock: { grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100, ...Object.fromEntries(LUXURY_GOODS.map((g) => [g, 40])) },
   },
   temple: {
     name: 'Temple', w: 2, d: 2, cost: 120, upkeep: 10, workers: 6, priority: 'services', category: 'services',

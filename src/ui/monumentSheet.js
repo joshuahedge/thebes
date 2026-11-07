@@ -38,7 +38,11 @@ import { GOLD } from '../render/art/palette.js';
 import { allBuildings, housesOf, isSite, isFinished, isMonument } from '../sim/world.js';
 import * as monumentsSim from '../sim/monuments.js';
 import { siteStatus, siteCrews, campQuote, setCamp, crewSpeedAt, crewDistance, guildSite, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige, stalledGuild, guildBurning } from '../sim/monuments.js';
-import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
+import { palaceQuote, enlargePalace, palaceMood, setTaxRate, taxRateOf } from '../sim/palace.js';
+import { TAX_ORDER } from '../data/palace.js';
+import { rushQuote, setRush } from '../sim/monuments.js';
+import { monthFigures } from '../sim/economy.js';
+import { V84_G_TEXT } from './text.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
@@ -178,6 +182,32 @@ export function campModel(world, b, crews = siteCrews(world, b)) {
   return { show: true, ok: quote.ok, text: quote.ok ? W.campButton(quote.price) : W.campNoGold(quote.price, world.gold), quote };
 }
 
+// ── Version 8.4, Track G: Rush a course and the tax rate (rulings 1465, 1467, 1474-1476) ──
+
+// Rush on a site's sheet, from the sim's rushQuote: [{ key, text, rush?, cancel? }].
+//   rushed: 'rush' says how it goes ("Rushed: about N days to go", or "Rushed: waiting for stone" when today's crews were short), with Cancel (cancel: true);
+//   can be rushed: 'rush' is the button with its days and gold (rush: the quote), 'rush-how' what it does and the quote's terms;
+//   cannot: 'rush' says why (no gold for a rushed day, an offering, the gilding or the capstone first). None with no crew (the crews row and the cause say so).
+export function rushRows(world, b) {
+  if (!isSite(b)) return [];
+  const q = rushQuote(world, b.id), W = V84_G_TEXT;
+  if (b.site.rush) return [{ key: 'rush', text: b.site.rushShort ? W.rushedShort(b.site.rushShort) : q.rate > 0 ? W.rushed(q) : W.rushedNoCrew, cancel: true }];   // ruling 1539: no crew (pace 0), no days to count; keyed on the pace, not on days (a laid course has 0 days with a crew)
+  if (q.ok) return [{ key: 'rush', text: W.rushButton(q), rush: q }, { key: 'rush-how', text: `${W.rushHow}. ${W.rushQuoteNote(q)}` }];
+  const why = W.rushWhy[q.reason];
+  if (!why) return [];
+  return [{ key: 'rush', text: typeof why === 'function' ? why(q, world.gold) : why }];
+}
+
+// The palace's Taxes row (ruling 1465): the three rates, each with its effect on this month's taxes and on mood, said before the tap, from monthFigures'
+// taxesNormal and TAX_RATES. { normal, rate, choices: [{ rate, name, line, checked, aria }] }.
+export function taxModel(world) {
+  const normal = monthFigures(world).taxesNormal, rate = taxRateOf(world), W = V84_G_TEXT;
+  return {
+    normal, rate,
+    choices: TAX_ORDER.map((r) => ({ rate: r, name: W.rateNames[r], line: W.rateLine(r, normal), checked: r === rate, aria: W.rateAria(r, normal, r === rate) })),
+  };
+}
+
 // The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews (and the walk and speed
 // of each slowed crew, Version 8.3), the cause of the last day without work (with its fix), each material (with the keep rows Advice's fix gives), pace, gold, prestige.
 export function siteRows(world, b, s = siteStatus(world, b)) {
@@ -198,6 +228,8 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   const stalledGood = s.reason === 'no_stone' || s.reason === 'no_bricks' ? s.reason.slice(3) : null;
   const merged = stalledGood !== null && keep.some((k) => k.goods.includes(stalledGood));
   if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: merged ? null : causeFix(world, b, s.reason, s) });
+  // Version 8.4 (Track G; ruling 1539: below the cause, so "Waiting for bricks" is read before the offer to hurry): Rush this course, with its price and the days it saves, or how the rush is going
+  if (!s.finished) rows.push(...rushRows(world, b));
   for (const g of MATERIALS) {
     const m = s.materials[g];
     if (!m) continue;
@@ -367,17 +399,57 @@ export function createMonumentUi(ctx) {
     const g = world.buildings[f.view];
     return button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(g.type)), onClick: () => ctx.selectBuilding(f.view) });
   }
-  const rowList = (cls, rows, site = null) => el('ul', { class: `s4-rows ${cls}` }, rows.map((r) => el('li', { class: `row-${r.key}`, dataset: { row: r.key } }, r.camp ? [button(r.text, { class: 'camp primary', style: { flex: '1 1 100%' }, onClick: () => camp(site, r.camp) })] : [
-    el('span', { class: 'text', text: r.text }),
-    Number.isFinite(r.share) ? el('span', { class: 'meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.floor(r.share * 100)), 'aria-label': r.text }, [
-      el('span', { class: 'fill', style: { width: `${Math.floor(r.share * 100)}%` } })]) : null,
-    fixButton(r),
-  ])));
+  const rowList = (cls, rows, site = null) => el('ul', { class: `s4-rows ${cls}` }, rows.map((r) => el('li', { class: `row-${r.key}`, dataset: { row: r.key } }, r.camp ? [button(r.text, { class: 'camp primary', style: { flex: '1 1 100%' }, onClick: () => camp(site, r.camp) })]
+    : r.rush ? [button(r.text, { class: 'rush primary', style: { flex: '1 1 100%' }, onClick: () => rush(site, r.rush) })]   // Version 8.4: Rush, its price and days on the button
+    : [
+      el('span', { class: 'text', text: r.text }),
+      Number.isFinite(r.share) ? el('span', { class: 'meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.floor(r.share * 100)), 'aria-label': r.text }, [
+        el('span', { class: 'fill', style: { width: `${Math.floor(r.share * 100)}%` } })]) : null,
+      fixButton(r),
+      r.cancel ? button(V84_G_TEXT.rushCancel, { class: 'rush-cancel quiet', 'aria-label': `${V84_G_TEXT.rushCancel}: ${r.text}`, onClick: () => cancelRush(site) }) : null,
+    ])));
+
+  // Version 8.4 (ruling 1474): Rush asks first, with the days and the gold; the command judges it again on yes (the city may have changed), and a refusal says why.
+  function rush(b, q) {
+    store.set({ confirmDialog: { text: V84_G_TEXT.rushAsk(b.type, q), confirmLabel: V84_G_TEXT.rushOk, destructive: false, onConfirm: () => {
+      const r = setRush(world, b.id, true);
+      if (!r.ok) { if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rushRefused(r.reason)); return; }
+      if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rushSet(b.type));
+      after({ kind: 'rush', result: r, undoable: false });
+    } } });
+  }
+  // Cancel needs no question: nothing is refunded and nothing more is owed.
+  function cancelRush(b) {
+    const r = setRush(world, b.id, false);
+    if (!r.ok) return;
+    if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rushCancelled(b.type));
+    after({ kind: 'rush', result: r, undoable: false });
+  }
+  // The palace's Taxes: one radio group of three choices, each saying what it would do this month (the word and a tick say which is in force, not colour alone).
+  function taxPart(b) {
+    const m = taxModel(world), W = V84_G_TEXT;
+    const chosen = { background: 'var(--teal-soft)', borderColor: 'var(--teal)', boxShadow: 'inset 0 0 0 2px var(--teal)', color: 'var(--ink)' };
+    return [
+      el('h3', { class: 'tax-head', text: W.taxHead }),
+      el('p', { class: 'tax-note small muted', text: W.taxNote }),
+      el('div', { class: 'tax-choices', role: 'radiogroup', 'aria-label': W.taxHead, style: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' } }, m.choices.map((c) => el('button', {
+        type: 'button', role: 'radio', 'aria-checked': String(c.checked), class: 'choice tile tax-choice', 'aria-label': c.aria, dataset: { rate: c.rate },
+        style: { width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '2px', minHeight: '52px', padding: '6px 14px', textAlign: 'left', ...(c.checked ? chosen : {}) },
+        onClick: () => { if (!c.checked) setTax(b, c.rate); },
+      }, [el('span', { class: 'tile-name', text: c.checked ? `${c.name} ✓ (${W.rateNow})` : c.name }), el('span', { class: 'tile-line small', text: c.line })]))),
+    ];
+  }
+  function setTax(b, rate) {
+    const r = setTaxRate(world, b.id, rate);
+    if (!r.ok) return;
+    if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rateSet(rate, monthFigures(world).taxesNormal));
+    after({ kind: 'tax', result: r, undoable: false });
+  }
 
   function buildingPart(b) {
     if (isSite(b)) return [rowList('site', siteRows(world, b), b)];
     if (isFinished(b)) return [rowList('finished', finishedRows(world, b))];
-    if (b.type === 'palace') return [rowList('palace', palaceRows(world, b))];
+    if (b.type === 'palace') return [rowList('palace', palaceRows(world, b)), ...taxPart(b)];
     const line = ['builders_guild', 'quarry', 'brickworks'].includes(b.type) ? supplyLine(world, b) : '';
     return line ? [el('p', { class: 'work-status supply-line', text: line })] : [];
   }

@@ -5,15 +5,15 @@ import { RELEASES } from '../../../src/data/releases.js';
 import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v711 docs releases', () => {
-  it('7.1.1 carries its merge commit (8.3, 8.2.1, 8.2, 8.1 and 8.0 are newer), and 7.1 carries its own', () => {
-    expect([RELEASES[5].version, RELEASES[5].date, RELEASES[5].title, RELEASES[5].build, APP_VERSION]).toEqual(['7.1.1', '2026-10-24', 'Clearer first steps', 'a6eae26', '8.3']);
-    expect([RELEASES[6].version, RELEASES[6].build]).toEqual(['7.1', 'e032f2c']);
+  it('7.1.1 carries its merge commit (8.4, 8.3, 8.2.1, 8.2, 8.1 and 8.0 are newer), and 7.1 carries its own', () => {
+    expect([RELEASES[6].version, RELEASES[6].date, RELEASES[6].title, RELEASES[6].build, APP_VERSION]).toEqual(['7.1.1', '2026-10-24', 'Clearer first steps', 'a6eae26', '8.4']);
+    expect([RELEASES[7].version, RELEASES[7].build]).toEqual(['7.1', 'e032f2c']);
   });
   it('names what changed, including the skip and the goal', () => {
-    const notes = [...RELEASES[5].new, ...RELEASES[5].fixed].join(' ').toLowerCase();
+    const notes = [...RELEASES[6].new, ...RELEASES[6].fixed].join(' ').toLowerCase();
     for (const word of ['seat of the two lands', 'great temple', "skip, i've played before", 'how to play', 'undo', 'close button', 'middle']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
   it('every note is one plain sentence of a sensible length', () => {
-    for (const line of [...RELEASES[5].new, ...RELEASES[5].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
+    for (const line of [...RELEASES[6].new, ...RELEASES[6].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
   });
 });

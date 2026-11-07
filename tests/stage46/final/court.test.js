@@ -15,7 +15,7 @@ import {
 import { FAVOUR, COURT, COURT_SALT, REQUESTS } from '../../../src/data/court.js';
 import { HUNTING, FISHING } from '../../../src/data/river.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
-import { raidSize, baseRaidSize, raidDay, tributeQuote } from '../../../src/sim/raids.js';
+import { raidSize, baseRaidSize, raidDay, tributeQuote, stageFrom } from '../../../src/sim/raids.js';
 import { scoreOf } from '../../../src/sim/score.js';
 import { raidsOn } from '../../../src/sim/costs.js';
 import { sendUnits, armyDay, unitsAway, boatLanding } from '../../../src/sim/armies.js';
@@ -355,7 +355,7 @@ describe('s46 final court: boats whose bank was built on (ruling 449)', () => {
     w.milestone = 'market_town';
     addRaw(w, 'storehouse', 6, 15);
     const granary = addRaw(w, 'granary', 16, 15);
-    w.raid.clockDay = 0;
+    w.raid.clockDay = 1000 - stageFrom(4);   // Version 8.4 (ruling 1531): boats wait for the raid's stage; the clock as 8.3's would have it at this index
     w.raid.index = 4;
     w.raid.nextWarnDay = w.day = 1000;
     raidDay(w, []);

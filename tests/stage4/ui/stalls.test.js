@@ -259,7 +259,8 @@ describe('s4 ui the minimap, the palace\'s tip and the scenes', () => {
         const g = api.game(), b = g.world.buildings[g.ui.store.get().selectedId];
         const rows = [...shell.root.querySelectorAll('#sheet .s4-rows li')].map((li) => li.dataset.row);
         if (name === 'sitesheet') {
-          expect([b.type, b.site.course, rows]).toEqual(['pyramid_small', 3, ['progress', 'crews', 'cause', 'material-stone', 'material-bricks', 'pace', 'gold', 'prestige']]);
+          // Version 8.4 (Track G): Rush and its terms come under the crews.
+          expect([b.type, b.site.course, rows]).toEqual(['pyramid_small', 3, ['progress', 'crews', 'cause', 'rush', 'rush-how', 'material-stone', 'material-bricks', 'pace', 'gold', 'prestige']]);
           expect(shell.root.querySelector('#sheet .row-crews').textContent).toBe("Crews: 2 of 4. 2 builders' guilds work here.");
         } else {
           expect([b.type, b.style, rows.slice(0, 3)]).toEqual(['palace', 4, ['style', 'nicer', 'mood']]);
