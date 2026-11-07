@@ -28,6 +28,12 @@ export const AMBIENT = {
   dropOrder: ['rare', 'smoke', 'sway'],   // over budget, drop these first, in this order; the water always stays
   idleFpsCap: 30,                  // paused, with no input for idleAfterMs: cap the frame rate
   idleAfterMs: 2000,
+  runningFpsCap: 60,               // Version 9.0 (V0b, ruling 1600): every other frame, at most this many a second (a 120 Hz phone draws every second one)
+  // Version 9.0, Track V (ruling 1602): the new effects' own budget (a running average, ms a frame on the stress city), and what goes first when
+  // over it: the river's flow (V11), the weather (V10), the dust (V6), the workshops' smoke (V4), the festival's lamps and petals and the Victory's
+  // pennants (V9). Ambient's hold and restore times (render/ambient.js LEVEL_HOLD_MS, RESTORE_AFTER_MS) apply.
+  v90BudgetMs: 2,
+  v90DropOrder: ['flow', 'weather', 'dust', 'smoke', 'festival'],
 };
 
 // Processions (spec 5.7 items 3 and 4, rulings 214, 257), drawn as walkers (src/render/walkers.js), Track E. A festival's

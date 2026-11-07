@@ -59,7 +59,7 @@ describe('s3 art ambient', () => {
     const f = frame(on(), w, 5000);
     const strokes = f.ground.filter((c) => c.k === 'stroke');
     expect(strokes.length).toBeGreaterThan(3);
-    expect(strokes.length).toBeLessThan(GLINT_STEPS + 2 + 2 + 1);               // glint alpha steps, two banks, two reed colours
+    expect(strokes.length).toBeLessThan(GLINT_STEPS + 2 + 2 + 3 + 1);           // glint alpha steps, two banks, two reed colours; Version 9.0 (V11): the flow's three steps (was GLINT_STEPS + 2 + 2 + 1)
     expect(f.ground.filter((c) => c.k === 'line').length).toBe(0);              // never one call per glint or blade
     const rows = riverRows(w, 0, 31);
     const glints = [];

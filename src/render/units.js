@@ -33,6 +33,7 @@ import { ART } from './art/registry.js';
 import { p, U } from './iso.js';
 import { gentleShapes } from './fire.js';
 import { scoutWalkers } from './scouts.js';
+import { cheering } from './v90/moment.js';
 
 // Unit ids in the walkers list are UNIT_ID_BASE + the unit's id, so they never meet a walker's (a building id).
 export const UNIT_ID_BASE = 100000;
@@ -57,10 +58,15 @@ const volleys = new WeakMap();               // world -> { key, start }: when th
 const scenes = new WeakMap();                // world -> { sparks, falls, banners }: the blows, falls and fallen banners still showing
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
+// Version 9.0, Track V (V2): a unit's glide starts on the day the sim moved it (the whole day of timeDays, not the frame that noticed it) and takes
+// GLIDE_DAYS, so it stands where the sim has it for the rest of the day: never a day behind, and a blow lands where the unit is drawn. Before 9.0 it
+// took the whole next day, a day behind the sim at its end.
+export const GLIDE_DAYS = 0.6;
 const glide = (t, timeDays) => {
-  const f = clamp01(timeDays - t.at);
+  const f = clamp01((timeDays - t.at) / GLIDE_DAYS);
   return { x: t.fromX + (t.x - t.fromX) * f, y: t.fromY + (t.y - t.fromY) * f };
 };
+const standsAt = (t, timeDays) => timeDays - t.at >= GLIDE_DAYS || (t.x === t.fromX && t.y === t.fromY);   // V1: no glide under way, so no step
 const dirOf = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : dx < 0 ? 3 : 2) : (dy > 0 ? 2 : 0));
 // The Motion level of a call: its own option, else for unitsAt (which createUI calls with none) the interface's hook; drawUnitMarks always gets the
 // level from its caller (createUI passes motion), and without one is as it was before Version 6.0: Full unless reducedMotion.
@@ -133,16 +139,16 @@ function placed(world, timeDays, now = hooks.now()) {
     if (!t) t = { x: s.x, y: s.y, fromX: s.x, fromY: s.y, at: timeDays, dir: 2, hp: s.u.hp };
     else if (t.x !== s.x || t.y !== s.y) {
       const now2 = glide(t, timeDays);
-      Object.assign(t, { fromX: now2.x, fromY: now2.y, x: s.x, y: s.y, at: timeDays, dir: dirOf(s.x - now2.x, s.y - now2.y) });
+      Object.assign(t, { fromX: now2.x, fromY: now2.y, x: s.x, y: s.y, at: Math.floor(timeDays), dir: dirOf(s.x - now2.x, s.y - now2.y) });   // V2: from the day the sim moved it
     }
-    const at = glide(t, timeDays);
+    const at = glide(t, timeDays), stand = standsAt(t, timeDays);
     // A company out of its barracks stands spread (the sim keeps them on one spot): the offset is the drawing's; pairs are judged without it (unitsAt).
     const scrum = s.side === 'soldier' && !s.home && s.u.task === 'out' ? SCRUM[s.u.id % SCRUM.length] : null;
     const ox = scrum ? scrum[0] * FIGHT.spread : 0, oy = scrum ? scrum[1] * FIGHT.spread : 0;
     if (s.u.hp < t.hp && !s.home) scene.sparks.push({ x: at.x + ox, y: at.y + oy, at: now });
     Object.assign(t, { hp: s.u.hp, side: s.side, chief: s.chief, barracks: s.u.barracks, gates: s.gates, last: { x: at.x + ox, y: at.y + oy } });
     m.set(s.u.id, t);
-    out.push({ ...s, ...at, dir: t.dir, ox, oy });
+    out.push({ ...s, ...at, dir: t.dir, ox, oy, stand });
   }
   for (const id of [...m.keys()]) {
     if (seen.has(id)) continue;
@@ -152,11 +158,23 @@ function placed(world, timeDays, now = hooks.now()) {
     if (fellInField(world, { ...t, ...at })) {
       scene.falls.push({ x: at.x, y: at.y, at: now, side: t.side });
       if (t.chief) scene.banners.push({ x: at.x, y: at.y, at: now, id });
+      if (t.side === 'raider') noteFight(world, t.chief ? 'chief' : 'fall', at);   // Version 9.0 (V5): where the fight was, and where a chieftain fell
     }
     m.delete(id);
   }
   return out;
 }
+
+// Version 9.0, Track V (V5): the last places blows were traded, a raider fell and a chieftain fell, per world, drawing side only; the beaten raid's moment
+// on the map (src/render/v90/raidMoment.js) stands there. fightOf(world) -> { clash, fall, chief } (each { x, y } or undefined).
+const fights = new WeakMap();
+function noteFight(world, what, at) {
+  let f = fights.get(world);
+  if (!f) { f = {}; fights.set(world, f); }
+  f[what] = { x: at.x, y: at.y, day: world.day };
+  if (what === 'chief') f.fall = f[what];
+}
+export const fightOf = (world) => fights.get(world) || {};
 
 const inRange = (x, y, r) => !r || (x >= r.x0 && x <= r.x1 + 1 && y >= r.y0 && y <= r.y1 + 1);
 const fighterOf = (s) => (s.side === 'soldier' ? (s.base === 'soldier' ? 'soldier' : null) : s.chief ? 'chief' : s.base === 'foot' || s.base === 'boat' ? 'raider' : null);
@@ -199,9 +217,15 @@ function fighting(list, level, now) {
 export function unitsAt(world, timeDays, range = null, options = {}) {
   const now = options.now === undefined ? hooks.now() : options.now;
   const list = placed(world, timeDays, now);
-  const { poses } = fighting(list, levelOf(options), now);
+  const { poses, clashes } = fighting(list, levelOf(options), now);
+  if (clashes.length) noteFight(world, 'clash', clashes[0]);
   const out = [];
-  for (const s of list) if (inRange(s.x, s.y, range)) out.push({ id: UNIT_ID_BASE + s.u.id, kind: poses.get(s.u.id) || s.kind, x: s.x + s.ox, y: s.y + s.oy, dir: s.dir });
+  for (const s of list) {
+    if (!inRange(s.x, s.y, range)) continue;
+    // Version 9.0 (V5): after a beaten raid, a soldier on foot out near the last fight raises his spear
+    const kind = poses.get(s.u.id) || (s.kind === 'soldier' && !s.home && cheering(world, s.x, s.y) ? 'soldier_cheer' : s.kind);
+    out.push({ id: UNIT_ID_BASE + s.u.id, kind, x: s.x + s.ox, y: s.y + s.oy, dir: s.dir, ...(s.stand ? { stand: true } : {}) });
+  }
   out.push(...scoutWalkers(world, timeDays, range));   // Version 8.4 (wave 0 seam): the scouts before a warning (Track R, src/render/scouts.js)
   return out;
 }

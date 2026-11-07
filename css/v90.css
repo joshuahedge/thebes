@@ -1,2 +1,10 @@
 /* Version 9.0 "Dynasty" (wave 0, ruling 1563; Track V owns this file): the panels' slide and any other 9.0 style. Loaded after every
-   earlier sheet; it only adds. Wave 0 leaves it empty. */
+   earlier sheet; it only adds. */
+
+/* Track V (V12, rulings 1604, 1608): a sheet and the side panel come in over 160 ms as they open, and a toast over 150 ms, instead of snapping in.
+   Opacity only: nothing moves, so no box a player or a test measures is ever somewhere else mid-way, and a tap lands where it always did. Off in the
+   lesson (body.lesson-on), so a sheet a step opens is whole at once under its pointer. Full only (ruling 1601): there is no reduced form. */
+@keyframes v90-panel-in { from { opacity: 0; } to { opacity: 1; } }
+body:not(.lesson-on) #sheet:not([hidden]) { animation: v90-panel-in 160ms ease-out; }
+body:not(.lesson-on) #panel:not([hidden]) { animation: v90-panel-in 160ms ease-out; }
+body:not(.lesson-on) .toast { animation: v90-panel-in 150ms ease-out; }

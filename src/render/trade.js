@@ -4,7 +4,7 @@
 // time and keeps nothing but caches of paths: the same frame always looks the same. src/render/v70.js calls both from createUI's frame.
 //   tradeWalkers(world, timeDays, range, motion)       figures joined to the walkers and depth-sorted with them, each { id, kind, x, y, dir },
 //                                                       kind an art slot fig.<kind> of src/render/art/trade.js, ids from TRADE_ID_BASE up
-//   drawTradeGround(g, world, range, now, motion)      a boat's wake: drawn with the boat itself (its figure), so nothing here
+//   drawTradeGround(g, world, range, now, motion)      a boat's wake (Version 9.0, Track V: V8), under the boat
 //
 // A visit (ruling 876): the caravan or boat sets out ARRIVAL.inDays (scaled to its path, within [minDays, maxDays]) before the caravan day, so
 // it reaches the post or Quay as the sim trades, stays ARRIVAL.stayDays, and goes back the way it came. Motion: Full and Gentle both show it
@@ -18,6 +18,8 @@ import { wharfSide } from './art/river.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx, inBounds, NEIGHBOURS4 } from '../sim/grid.js';
+import { drawWake } from './v90/wakes.js';
+import { frameTimeOf } from './v90/clock.js';
 
 export const TRADE_ID_BASE = 4000000;   // after the carts (3000000 + store id)
 export const ARRIVAL = { tilesPerDay: 3, minDays: 2, maxDays: 8, stayDays: 2, caravanGap: 0.8, boatGap: 1.6 };
@@ -173,4 +175,22 @@ export function tradeWalkers(world, timeDays, range = null, motion = 'full') {
   return out;
 }
 
-export function drawTradeGround() {}
+// Version 9.0, Track V (V8): each trade boat under way leaves a wake (render/v90/wakes.js), at the frame's game time (render/v90/clock.js), heading along
+// the leg of its path it is on (the other way when it goes back). A moored boat and a caravan leave none; Still shows no boat sailing, so no wake.
+export function drawTradeGround(g, world, range, now, motion) {
+  const routes = world.trade && world.trade.routes;
+  if (!routes || motion === 'still') return;
+  const timeDays = frameTimeOf(world);
+  let boats = 0;
+  Object.keys(PARTNERS).filter((id) => routes[id]).forEach((id) => {
+    const at = arrivalAt(world, id);
+    if (!at || !byRiver(id)) return;
+    const slot = boats++;                                                    // as tradeWalkers counts them
+    const path = boatPath(world, at);
+    if (!path) return;
+    const v = visitAt(timeDays, path.length, routes[id].since || 0, slot * ARRIVAL.boatGap);
+    if (!v || v.stay) return;
+    const pt = along(world, path, v.f), back = v.left ? -1 : 1;
+    if (inRange(range, pt.x, pt.y)) drawWake(g, pt.x, pt.y, pt.dx * back, pt.dy * back, now);
+  });
+}

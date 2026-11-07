@@ -29,6 +29,7 @@ import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
 import { hauler, UNIT_SCALE } from './art/figures.js';
 import { raiderElephant } from './art/armies.js';
 import { noteStampede } from './units.js';
+import { noteBuilt, noteUpgrade } from './v90/scaffold.js';
 
 export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot, stampede: 1800 };
 // Version 8.4 (Track E): how far (tiles) a stampede is seen to run under Full, and the words of its label and of ivory's (the event's own numbers).
@@ -70,7 +71,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
     // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under Gentle and Still.
     sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: !full(), start: now }); },
     // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise (Full only).
-    rise(id, x, y, w, d, now) { if (full()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
+    rise(id, x, y, w, d, now) { noteBuilt(id); if (full()) add({ kind: 'rise', id, x, y, w, d, start: now }); },   // Version 9.0 (V3): and its scaffold for a game day
     // id -> how far each rising building is up, in [0, 1). Given the world, a building no longer in it is dropped.
     risingIds(now, world = null) {
       prune(now, world);
@@ -129,7 +130,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
         const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
         const toName = TIERS[ev.to] ? TIERS[ev.to].name : '';
         const fromName = TIERS[ev.from] ? TIERS[ev.from].name : '';
-        if (ev.type === 'upgrade') { fx.glow(cx, cy, now); fx.label(cx, cy, '+' + toName, GOLD, now); }
+        if (ev.type === 'upgrade') { fx.glow(cx, cy, now); fx.label(cx, cy, '+' + toName, GOLD, now); noteUpgrade(world, b); }   // Version 9.0 (V3): the poles for half a day
         else { fx.pulse(cx, cy, now); fx.label(cx, cy, '−' + fromName, UI.bad, now); }
       }
     },

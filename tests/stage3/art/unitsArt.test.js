@@ -80,17 +80,20 @@ describe('s3 art units', () => {
     expect(unitsAt(w, 0, { x0: 0, y0: 0, x1: 15, y1: 15 }).map((u) => u.id - UNIT_ID_BASE)).toEqual([7, 8, 9]);
     expect(unitsAt(makeTestWorld(), 0)).toEqual([]);
   });
-  it('glides a unit from its last spot to its new one over the next game day', () => {
+  // Version 9.0 (Track V, V2): the glide starts on the day the sim moved the unit and takes GLIDE_DAYS (0.6), not the whole next day (was: 6 -> 7,
+  // the second move's glide from 7.2).
+  it('glides a unit from its last spot to its new one over the start of the day the sim moved it', () => {
     const w = raidWorld([[20, 10]]);
     expect(unitsAt(w, 5.2)[0].x).toBe(20.5);
     w.raid.active.raiders[0].x = 19;                                             // the sim moved it one tile west
     w.day = 6;
     const at = (t) => unitsAt(w, t)[0];
-    expect([at(6).x, at(6.5).x, at(7).x, at(7.6).x]).toEqual([20.5, 20, 19.5, 19.5]);
-    expect(at(6.5).dir).toBe(3);
-    w.raid.active.raiders[0].y = 11;                                             // moved again mid-glide: starts from where it is drawn
-    expect(unitsAt(w, 7.2)[0]).toEqual({ id: UNIT_ID_BASE + 1, kind: 'raider', x: 19.5, y: 10.5, dir: 2 });
-    expect(unitsAt(w, 7.7)[0].y).toBe(11);
+    expect([at(6).x, at(6.3).x, at(6.6).x, at(7.6).x].map((v) => Math.round(v * 1000) / 1000)).toEqual([20.5, 20, 19.5, 19.5]);
+    expect(at(6.3).dir).toBe(3);
+    expect([at(6.3).stand, at(6.7).stand]).toEqual([undefined, true]);           // V1: it steps while it glides and stands once there
+    w.raid.active.raiders[0].y = 11;                                             // moved again: starts from where it is drawn
+    expect(unitsAt(w, 7)[0]).toEqual({ id: UNIT_ID_BASE + 1, kind: 'raider', x: 19.5, y: 10.5, dir: 2 });
+    expect(Math.round(unitsAt(w, 7.3)[0].y * 1000) / 1000).toBe(11);
   });
   it('shows a health bar only once a unit has been hit, as long as its health', () => {
     const w = raidWorld([[20, 10], [22, 10, 6]]);

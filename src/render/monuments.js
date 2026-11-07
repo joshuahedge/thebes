@@ -31,6 +31,7 @@ import { gang } from './art/figures.js';
 import { box } from './art/primitives.js';
 import { GOLD, GOLDC, UI, STONE, WOOD } from './art/palette.js';
 import { p, U, depthKey } from './iso.js';
+import { v90Off } from './v90/dropper.js';
 import { MONUMENT_PLACING } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { V84_G_TEXT as ART_TEXT_V84 } from '../ui/text.js';
@@ -223,9 +224,23 @@ export function gangLayout(b, look, ramp, timeDays) {
   return { working, sleds, people, masons };
 }
 
+// Version 9.0, Track V (V6): dust kicked up behind each loaded sled a working site hauls up its ramp, two soft puffs on the ground at the sled's
+// height, thinning behind it. It goes with V's dropper (src/render/v90/dropper.js).
+export const SLED_DUST = { puffs: 2, gap: 0.16, colour: '#D8C4A0', alpha: 0.32 };
+function sledDust(g, sleds) {
+  for (const s of sleds) {
+    if (!s.loaded) continue;                                                 // a loaded sled, dragged up: an empty one slides back light
+    for (let i = 1; i <= SLED_DUST.puffs; i++) {
+      const q = U(p(s.q[0] - SLED_DUST.gap * i, s.q[1]), s.z);
+      g.circ([q[0], q[1] - 1], 1.4 + i * 0.7, SLED_DUST.colour, { alpha: SLED_DUST.alpha / i });
+    }
+  }
+}
+
 // Draws the gangs of gangLayout: the masons (on the course, further back) first, then the sleds and their haulers.
 function drawGangs(g, layout) {
   gang(g, layout.masons);
+  if (layout.working && !v90Off('dust')) sledDust(g, layout.sleds);
   for (const s of layout.sleds) {
     box(g, s.q[0] - 0.13, s.q[1] - 0.08, 0.26, 0.16, 1, s.z, ['#C9A26A', '#A8814E', '#86705E'], 0);
     if (s.loaded) {                                                          // a dressed limestone block, not a sack: a dark top edge

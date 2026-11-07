@@ -40,6 +40,9 @@ describe('figure art', () => {
       expect(e.bounds).toEqual([-14, -30, 14, 6]);
       expect(e.shadows).toEqual([]);
     }
-    expect(Object.keys(FIGURE_ART).length).toBe(FIGURE_KINDS.length + UNIT_KINDS.length);   // Stage 3: raiders and soldiers, at 1.5x (tests/stage3/art)
+    // Stage 3: raiders and soldiers, at 1.5x (tests/stage3/art); Version 9.0 (Track V): the raised spear's soldier, and each kind's walk slots (was every key)
+    const own = Object.keys(FIGURE_ART).filter((k) => !/\.(m|w0|w1|w0m|w1m)$/.test(k));
+    expect(own.length).toBe(FIGURE_KINDS.length + UNIT_KINDS.length + 1);
+    expect(Object.keys(FIGURE_ART).length).toBe(own.length * 6);
   });
 });
