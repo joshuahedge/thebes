@@ -4,7 +4,7 @@
 // total; the first raid stays 3 and cannot be paid off; Peaceful has none. Every sentence is computed from the sim's own
 // numbers, and each is tested for a single band and for two.
 import { describe, it, expect } from '../harness.js';
-import { raidDay, raidAlerts, raidDirs, raidSize, baseRaidSize, wealthDraw, wealthCap, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
+import { raidDay, raidAlerts, raidDirs, raidSize, baseRaidSize, wealthDraw, wealthCap, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs, stageFrom } from '../../src/sim/raids.js';
 import { hash2 } from '../../src/sim/rng.js';
 import { serialize, deserialize } from '../../src/save/serialize.js';
 import { RAIDS, RAID_SALT, UNITS } from '../../src/data/raids.js';
@@ -41,8 +41,9 @@ function dayAt(w, day, events = []) {
 }
 
 // A raid that is due to be warned today, as the clock would have it at raid index `index`.
+// Version 8.4 (ruling 1531): two bands wait for the raid's stage, so the clock starts where 8.3's would have reached this index today (the stage is the index).
 function due(w, { index = 3, day = 3000 } = {}) {
-  Object.assign(w.raid, { clockDay: 0, nextWarnDay: day, index });
+  Object.assign(w.raid, { clockDay: day - stageFrom(index), nextWarnDay: day, index });
   w.day = day;
   return w;
 }

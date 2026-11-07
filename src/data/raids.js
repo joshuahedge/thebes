@@ -17,7 +17,7 @@ export const RAIDS = {
   wealthStep: 5000,
   wealthMax: 4,
   adaptLost: 0.6,            // a lost raid sets adaptation to this ...
-  adaptStep: 0.2,            // ... and every later raid (beaten, lost or paid off) adds this, up to 1
+  adaptStep: 0.2,            // ... and every later raid beaten or paid off adds this for each stagePace cycle (1,170 days) to the next raid, up to 1 (ruling 1532: was this a raid)
   raidersPerTower: 3,        // towers needed = ceil(raiders / 3)
   tributeShare: 0.8,         // tribute = round(0.8 x towers needed x the tower's price in this city)
   strikes: 3,                // targets a band strikes before it leaves
@@ -26,12 +26,17 @@ export const RAIDS = {
   stealMin: 5,               // ... at least 5 ...
   stealMax: 50,              // ... at most 50, never taking the treasury below 0
   retreatShare: 0.5,         // the band turns back once this share (rounded up) has fallen
-  twoSidedFrom: 3,           // raid index (the 4th raid) from which a raid may come as two bands ...
+  twoSidedFrom: 3,           // raid stage (8.3's 4th raid, about 12 years after the clock starts: ruling 1531) from which a raid may come as two bands ...
   twoSidedChance: 0.35,      // ... with this chance, seeded by hash2(seed, raid index, RAID_SALT.two)
   pillage: [null, 'granary', 'house'],   // a band's strikes by number: the 2nd goes for a granary, the 3rd for a home (else the usual targets)
   foodShare: 0.5,            // a strike at a granary takes this share of each good it holds (rounded up) ...
   fleeShare: 0.25,           // ... and one at a home makes this share of its residents flee (at least 1)
   targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],   // then any other building that is not a home
+  // Version 8.4 (escalation by years, rulings 1530-1532): 8.3's raid clock, the pace raids grow at. A raid's stage (raidStage in src/sim/raids.js) is the
+  // index 8.3's clock would have reached on its warning day: its first warning `first` days after the clock started, each later one a mean `gap` (8.3 drew
+  // 720-1,440) after the last arrival, which came `warning` days after its warning. Raids come as often as the clock above says; what grows by the raid
+  // (the mix, which kinds may come, two bands, the adaptation's climb) reads the stage, so twice the raids are not twice as hard.
+  stagePace: { first: 720, gap: 1080, warning: 90 },
 };
 
 // Stage 4.6 (Track 0 registered them for the Armies track): the raid's mix by enemy kind, the second band's, a boat's entry and its bank.

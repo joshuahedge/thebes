@@ -69,7 +69,7 @@ describe('v60 balance dangers late run', () => {
     for (let y = 7; y <= 15; y++) expect([y, r.yearly[y].gold > 0]).toEqual([y, true]);
     expect(population(r.w)).toBeGreaterThanOrEqual(1000);
     expect(r.w.milestone).toBe('capital');
-    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 2]);                    // 8.4-BALANCE-OPEN (ruling 1525): was no raid lost
+    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 2]);                    // 8.4-BALANCE-OPEN (rulings 1525, 1534; the same with escalation by years: the 3rd and 6th lost): was no raid lost
     expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.5 * off.yearly[15].gold);
     expect(population(r.w)).toBeGreaterThanOrEqual(0.9 * population(off.w));
     // the player's answers were made, each through the sim's own commands

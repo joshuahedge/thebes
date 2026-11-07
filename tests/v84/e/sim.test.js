@@ -45,8 +45,9 @@ function raidOf(w, list, extra = {}) {
 const unitAt = (w, kind, b, x, y, hp) => { const u = { id: w.nextUnitId++, kind, barracks: b.id, x, y, hp: hp || { soldier: 12, archer: 8, chariot: 16 }[kind], hit: false, task: 'wait' }; w.soldiers.push(u); return u; };
 
 describe('v84 e data: the war elephant is a fifth row of the enemy table', () => {
-  it('has 60 hit points, a raider\'s pace, 6 a day to walls, a trample of 3, and comes from the 8th raid', () => {
-    expect(ENEMY_TYPES.elephant).toEqual({ fromRaid: 8, hp: 60, damage: 3, speed: 1, breaksWalls: true, wallDamage: 6, trample: true });
+  // Version 8.4 wave 2 (ruling 1531): fromRaid counts 8.3's raids (the raid's stage), as every row does: 4, about 12 years after the clock starts (it was 8 of 8.4's raids).
+  it('has 60 hit points, a raider\'s pace, 6 a day to walls, a trample of 3, and comes from stage 3 (8.3\'s 4th raid, 8.4\'s 8th)', () => {
+    expect(ENEMY_TYPES.elephant).toEqual({ fromRaid: 4, hp: 60, damage: 3, speed: 1, breaksWalls: true, wallDamage: 6, trample: true });
     expect(ENEMY_KINDS).toEqual(['foot', 'archer', 'chariot', 'boat', 'elephant']);
     expect(ELEPHANTS).toEqual({ chance: 0.5, per: 8, max: 3, weight: 4, ivory: 10, panicChance: 0.5 });
     expect([ENEMY_TYPES.elephant.hp / ENEMY_TYPES.foot.hp, ENEMY_TYPES.elephant.wallDamage / ENEMY_TYPES.foot.damage, ENEMY_TYPES.elephant.speed === ENEMY_TYPES.foot.speed]).toEqual([6, 3, true]);
@@ -62,8 +63,8 @@ describe('v84 e data: the war elephant is a fifth row of the enemy table', () =>
   });
 });
 
-describe('v84 e mix: from the 8th raid, half of raids bring floor(size / 8) elephants, 1 to 3, taken from the foot', () => {
-  it('never draws them before the 8th raid, nor on the first, and draws about half the raids after, by the index alone', () => {
+describe('v84 e mix: from stage 3, half of raids bring floor(size / 8) elephants, 1 to 3, taken from the foot', () => {
+  it('never draws them before stage 3 (a city with no clock: the index), nor on the first, and draws about half the raids after, by the index alone', () => {
     for (const seed of [1, 7, 11, 2024]) {
       const w = createWorld({ seed, size: 32 });
       for (let i = 0; i < ENEMY_TYPES.elephant.fromRaid - 1; i++) expect([seed, i, elephantRaid(w, i)]).toEqual([seed, i, false]);

@@ -4266,7 +4266,10 @@ Object.assign(ALERT_TEXT, {
 // counterModel, the warning's and the report's own counts). Names in this section start with "v84e".
 import { ENEMY_TYPES as v84eEnemy, ELEPHANTS as v84eElephants, TOWER_VS as v84eTowerVs, matchup as v84eMatchup } from '../data/armies.js';
 import { elephantsIn as v84eIn } from '../sim/armies.js';
-const v84eOrdinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+import { stageYears as v84eStageYears } from '../sim/raids.js';
+// Version 8.4 (escalation by years, ruling 1533): when elephants may first come, in whole years after the raid clock starts (raids escalate by years, not by count).
+const v84eYears = () => Math.round(v84eStageYears(v84eEnemy.elephant.fromRaid - 1));
+const v84eFrom = () => `From about ${v84eYears()} years after the raid clock starts`;
 const v84eFactor = (f) => armFactor(Math.round(f * 100) / 100);
 export const V84E_TEXT = {
   lead: 'War elephants!',
@@ -4329,11 +4332,11 @@ Object.assign(S46_ARMY_TEXT.enemy, { elephant: (n) => plural(n, 'war elephant', 
 Object.assign(TIP_TEXT, {
   war_elephants: `Archers and towers fell elephants; soldiers in melee do ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}, and chariots will not charge them.`,
 });
-TIP_HELP_TEXT.war_elephants = `From the ${v84eOrdinal(v84eEnemy.elephant.fromRaid)} raid, war elephants may come. Archers deal ${armFactor(v84eMatchup('archer', 'elephant', 'open'))}, towers ${armFactor(v84eTowerVs.elephant)}, soldiers ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}. One felled leaves ${v84eElephants.ivory} ivory.`;
+TIP_HELP_TEXT.war_elephants = `About ${v84eYears()} years into raids, elephants may come. Archers deal ${armFactor(v84eMatchup('archer', 'elephant', 'open'))}, towers ${armFactor(v84eTowerVs.elephant)}, soldiers ${armFactor(v84eMatchup('soldier', 'elephant', 'melee'))}. One felled leaves ${v84eElephants.ivory} ivory.`;
 // The picture card at the first raid with war elephants (src/data/tutorial.js 'elephants').
 CARDS4_TEXT.cards.elephants = {
   title: 'War elephants',
-  words: `From the ${v84eOrdinal(v84eEnemy.elephant.fromRaid)} raid, some raids bring war elephants with ${v84eEnemy.elephant.hp} hit points: they trample every unit beside them and break walls ${v84eEnemy.elephant.wallDamage / v84eEnemy.foot.damage}x faster. Archers at range and towers fell them. A felled one leaves ${v84eElephants.ivory} ivory in the nearest storehouse.`,
+  words: `${v84eFrom()}, some raids bring war elephants with ${v84eEnemy.elephant.hp} hit points: they trample every unit beside them and break walls ${v84eEnemy.elephant.wallDamage / v84eEnemy.foot.damage}x faster. Archers at range and towers fell them. A felled one leaves ${v84eElephants.ivory} ivory in the nearest storehouse.`,
   alt: 'War elephants with their riders at a wall inside a ring, towers and archers shooting at them from behind it.',
 };
 // ── end v84 e ──

@@ -98,7 +98,8 @@ describe('v84 e the trumpet, the tip and the picture card', () => {
     expect(TIPS.find((t) => t.id === 'war_elephants').trigger).toBe('elephantsWarned');
     expect(TIP_TEXT.war_elephants).toBe('Archers and towers fell elephants; soldiers in melee do half, and chariots will not charge them.');
     expect(TIP_TEXT.war_elephants.split(/\s+/).length <= 20).toBe(true);
-    expect(TIP_HELP_TEXT.war_elephants).toBe('From the 8th raid, war elephants may come. Archers deal 2x, towers 1.5x, soldiers half. One felled leaves 10 ivory.');
+    // Version 8.4 wave 2 (ruling 1533): raids escalate by years, so the start is said in years (it was "From the 8th raid, war elephants may come.").
+    expect(TIP_HELP_TEXT.war_elephants).toBe('About 12 years into raids, elephants may come. Archers deal 2x, towers 1.5x, soldiers half. One felled leaves 10 ivory.');
     expect(TIP_HELP_TEXT.war_elephants.split(/\s+/).length <= 20).toBe(true);
   });
   it('shows the elephants\' picture card at the first raid with them, and not at a raid without', () => {

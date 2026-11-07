@@ -8,7 +8,7 @@ import { inGame, wait } from './base.js';
 import { place, canPlace, drawRoad } from '../../sim/commands.js';
 import { assignLabour } from '../../sim/labour.js';
 import { allBuildings, makeBuilding, insertBuilding } from '../../sim/world.js';
-import { raidSize, tributeFor, raidTargetKind, entryDir } from '../../sim/raids.js';
+import { raidSize, tributeFor, raidTargetKind, entryDir, stageFrom } from '../../sim/raids.js';
 import { drawMix } from '../../sim/armies.js';
 import { raiderHp } from '../../sim/combat.js';
 import { idx, inBounds } from '../../sim/grid.js';
@@ -130,7 +130,9 @@ async function raidSheet(api, options = {}) {
   const g = inGame(api, 's46-raid-sheet'), { world } = g;
   const r = world.raid;
   const entry = { ...(world.raiderEntries.find((e) => entryDir(world, e) === 'east') || world.raiderEntries[0]) };
-  r.clockDay = r.clockDay === null ? 0 : r.clockDay;
+  // Version 8.4 (ruling 1531): the mix grows by the raid's stage, so the clock is set as 8.3's would have it at the 7th raid (its warning 30 days ago).
+  r.clockDay = Math.min(r.clockDay === null ? 0 : r.clockDay, world.day - 30 - stageFrom(6));
+  r.nextWarnDay = world.day - 30;
   r.last = { index: 5, dir: entryDir(world, entry), size: 8, mix: footMix(8), won: true, byTowers: 6, bySoldiers: 2, towers: 3, burned: 0, stolen: 0, day: Math.max(0, world.day - 300) };
   r.index = 6;
   const size = Math.max(14, raidSize(world));

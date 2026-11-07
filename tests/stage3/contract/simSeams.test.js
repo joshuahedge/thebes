@@ -180,7 +180,9 @@ describe('s3 contract raid seams', () => {
     const next = laterWarnDay(w, 890);
     expect(next >= 890 + RAIDS.laterMin && next <= 890 + RAIDS.laterMax).toBe(true);
     expect(payTribute(w)).toEqual({ ok: true, cost: 360, warnings: [] });
-    expect([w.gold, w.tally.tributes, w.raid.adaptation, w.raid.warning, w.raid.nextWarnDay]).toEqual([640, 1, Math.min(1, 0.6 + RAIDS.adaptStep), null, next]);
+    // Version 8.4 wave 2 (ruling 1532): the adaptation climbs adaptStep for each 1,170 days (8.3's mean) to the next arrival (it was adaptStep a raid).
+    const climb = (RAIDS.adaptStep * (next + RAIDS.warningDays - 890)) / 1170;
+    expect([w.gold, w.tally.tributes, w.raid.adaptation, w.raid.warning, w.raid.nextWarnDay]).toEqual([640, 1, Math.min(1, 0.6 + climb), null, next]);
     expect(payTribute(w).reason).toBe('no_warning');
     w.raid.warning = { index: 0, entry: { x: 31, y: 16 }, dir: 'east', size: 3, tribute: null, target: 'building', day: 720, arrives: 810, first: true };
     const q = tributeQuote(w);

@@ -68,6 +68,7 @@ describe('s3 contract data', () => {
       tributeShare: 0.8, strikes: 3, strikeDays: 2, stealShare: 0.01, stealMin: 5, stealMax: 50, retreatShare: 0.5,
       twoSidedFrom: 3, twoSidedChance: 0.35, pillage: [null, 'granary', 'house'], foodShare: 0.5, fleeShare: 0.25,
       targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],
+      stagePace: { first: 720, gap: 1080, warning: 90 },   // Version 8.4 wave 2 (ruling 1530): 8.3's clock, the pace raids escalate at
     });
     for (const t of RAIDS.targets) expect(Boolean(BUILDINGS[t])).toBe(true);
     expect(new Set(Object.values(RAID_SALT)).size).toBe(Object.keys(RAID_SALT).length);

@@ -10,7 +10,7 @@ import { sampleCity, look, wait } from '../v60/base.js';
 import { place, canPlace, drawRoad } from '../../sim/commands.js';
 import { assignLabour } from '../../sim/labour.js';
 import { allBuildings, makeBuilding, insertBuilding } from '../../sim/world.js';
-import { raidDay, raidSize, tributeFor, raidTargetKind, entryDir, nextRaidEntry } from '../../sim/raids.js';
+import { raidDay, raidSize, tributeFor, raidTargetKind, entryDir, nextRaidEntry, stageFrom } from '../../sim/raids.js';
 import { drawMix, elephantRaid, raidStrength } from '../../sim/armies.js';
 import { raiderHp } from '../../sim/combat.js';
 import { wouldStampede } from '../../sim/elephants.js';
@@ -121,8 +121,11 @@ export async function wallScene(api, options = {}) {
 
 export async function warningScene(api, options = {}) {
   const world = sampleCity(api, 'v84-e-warning', options);
-  const r = world.raid, index = elephantIndex(world);
-  r.clockDay = r.clockDay === null ? 0 : r.clockDay;
+  const r = world.raid;
+  // Version 8.4 (ruling 1531): elephants wait for the raid's stage, so the clock is set as 8.3's would have it at the 9th raid (the warning 20 days ago).
+  r.clockDay = Math.min(r.clockDay === null ? 0 : r.clockDay, world.day - 20 - stageFrom(8));
+  r.nextWarnDay = world.day - 20;
+  const index = elephantIndex(world);
   r.last = { index: index - 1, dir: 'east', size: 12, mix: footMix(12), won: true, byTowers: 9, bySoldiers: 3, towers: 4, burned: 0, stolen: 0, day: Math.max(0, world.day - 400) };
   r.index = index;
   const size = Math.max(16, raidSize(world));

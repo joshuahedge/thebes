@@ -1,7 +1,7 @@
 // Stage 4.6, the Armies track: the raid's mix, boats, a band's pace and walls turning bands that cannot break them (src/sim/raids.js,
 // src/sim/armies.js), each set up both ways.
 import { describe, it, expect } from '../../harness.js';
-import { raidDay, raidSize } from '../../../src/sim/raids.js';
+import { raidDay, raidSize, stageFrom } from '../../../src/sim/raids.js';
 import { drawMix, boatLanding, raiderKinds, isMixed, counterModel, enemyMayCome } from '../../../src/sim/armies.js';
 import { MIX, ENEMY_TYPES, ENEMY_KINDS, footMix } from '../../../src/data/armies.js';
 import { RAIDS } from '../../../src/data/raids.js';
@@ -22,8 +22,9 @@ function city({ river = false } = {}) {
 }
 
 // Raises the warning for raid `index` through raidDay (its day has come) and returns it.
+// Version 8.4 (ruling 1531): the kinds wait for the raid's stage, so the clock starts where 8.3's would have reached this index on day 1000 (the stage is the index).
 function warn(w, index) {
-  w.raid.clockDay = 0;
+  w.raid.clockDay = 1000 - stageFrom(index);
   w.raid.index = index;
   w.raid.nextWarnDay = w.day = 1000;
   raidDay(w, []);

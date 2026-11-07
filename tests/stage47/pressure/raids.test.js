@@ -2,7 +2,7 @@
 // ahead (src/sim/pressure.js), the raid sheet's words, and the score that does not move (ruling 441).
 import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
-import { raidDay, raidSize, baseRaidSize, wealthDraw, wealthTerms, wealthCap, twoSidedChance, tributeFor, lateRaids } from '../../../src/sim/raids.js';
+import { raidDay, raidSize, baseRaidSize, wealthDraw, wealthTerms, wealthCap, twoSidedChance, tributeFor, lateRaids, stageFrom } from '../../../src/sim/raids.js';
 import { favourRaidSize, favourTributeFactor } from '../../../src/sim/court.js';
 import { pressureMonth } from '../../../src/sim/pressure.js';
 import { scoreRow } from '../../../src/sim/score.js';
@@ -99,6 +99,7 @@ describe('s47 raids wealth: the warning', () => {
     while (!(hash2(seed, index, RAID_SALT.two) >= RAIDS.twoSidedChance && hash2(seed, index, RAID_SALT.two) < RAIDS_LATE.twoSidedChance)) seed++;
     for (const [day, two] of [[LATE + 30, true], [LATE - 60, false]]) {
       const w = city({ day, index });
+      w.raid.clockDay = day - stageFrom(index);   // Version 8.4 (ruling 1531): two bands wait for the stage; the clock as 8.3's would have it at this index
       w.seed = seed;
       expect(twoSidedChance(w)).toBe(two ? RAIDS_LATE.twoSidedChance : RAIDS.twoSidedChance);
       raidDay(w, []);

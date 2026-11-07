@@ -17,7 +17,7 @@
 //                 ids struck so far (at most RAIDS.strikes); wait: days left at the current strike; byTowers, bySoldiers:
 //                 raiders stopped by each; burned: buildings the raid's blazes burned down; stolen: gold taken; shots: the
 //                 day's tower shots [{ from: { x, y }, to: { x, y } }] for the arrows (Track C draws them)
-//   adaptation    1, or less after a lost raid (RAIDS.adaptLost, then + RAIDS.adaptStep per raid up to 1)
+//   adaptation    1, or less after a lost raid (RAIDS.adaptLost, then + RAIDS.adaptStep per 8.3 raid cycle of time up to 1: adaptAfter, ruling 1532)
 //   last          null, or the last raid's report: { index, dir, size, won, byTowers, bySoldiers, towers, burned, stolen,
 //                 day } (day: the day it ended; a raid paid off leaves no report and no mood term)
 // world.soldiers (combat.js), world.nextUnitId (raiders and soldiers share it), and the tallies raids, raidsBeaten,
@@ -30,7 +30,7 @@
 // Alerts (raidAlerts): { code: 'raid_warning', x, y, dir, arrives } and { code: 'raid', x, y, left } (left: raiders still
 // on the map), both critical and pinned at a map point (x, y: the entry, or the band's centre while it is on the map).
 //
-// Stage 4.5 (ruling 317): from raid index RAIDS.twoSidedFrom a raid may come as two bands from two entries (a seeded
+// Stage 4.5 (ruling 317): from raid stage RAIDS.twoSidedFrom (raidStage; Version 8.4: was the index) a raid may come as two bands from two entries (a seeded
 // RAIDS.twoSidedChance). Then warning.size is the total, warning.second = { entry, dir, size } is the second band (the
 // first band's size is the total less it, rounded up), and the warning, its event and the raid_warning alert carry
 // dirs: [the first band's direction, the second's]. On arrival active.second is the second band's own record (entry, dir,
@@ -48,7 +48,7 @@
 //   active.burnedKinds   the types the raid's fires burned down, in order (the report names one kind: "1 storehouse")
 // Stage 4.6 (Armies track, rulings 341, 382-384): every warning, raid and report carries mix ({ foot, archer, chariot, boat },
 // adding up to size: drawMix in src/sim/armies.js, from the size favour's hooks give, so favour changes the total and never the
-// proportions), and each raider its kind. Boats (from raid index 4, a raid from one side, a river reaching a map edge and a bank
+// proportions), and each raider its kind. Boats (from raid stage 4, a raid from one side, a river reaching a map edge and a bank
 // within reach of the city: boatLanding) are the raid's second band: warning.second = { entry: the bank, dir: the edge the river
 // brings them from, size: mix.boat, boat: true, from: the river's mouth }; they land on the bank on arrival and leave from it. A band
 // moves at its slowest kind's pace (ENEMY_TYPES speed: a band of chariots alone is fast). Only raiders that break walls (foot, boat)
@@ -184,6 +184,35 @@ export function sizeGrowth(world) {
   return Math.min(RAIDS.growthMax, 1 + RAIDS.growthPerYear * years);
 }
 
+// ── The raid's stage (Version 8.4, escalation by years, rulings 1530-1533) ──
+// 8.4's clock brings raids about twice as often as 8.3's, so what grows by the raid grows by the stage instead: the index 8.3's clock (RAIDS.stagePace) would
+// have reached on the raid's warning day. The index still seeds every draw (hash2(seed, index, salt)), so each raid keeps a fresh draw of its own.
+// The days of one 8.3 raid to the next: the mean gap after an arrival plus the warning's days (1,170).
+export const stageCycle = () => RAIDS.stagePace.gap + RAIDS.stagePace.warning;
+// The days after the clock's start from which a stage is reached: 8.3's first warning, then one cycle a stage (stage 3: 4,230 days, 11.75 years).
+export const stageFrom = (stage) => RAIDS.stagePace.first + stage * stageCycle();
+// The same in game years (the words: "about 12 years after the raid clock starts").
+export const stageYears = (stage) => stageFrom(stage) / (DAYS_PER_MONTH * MONTHS_PER_YEAR);
+// The stage 8.3's clock had reached on `day` with the clock started on `clockDay`: the index of its last warning by then (0 before its first).
+export const stageAt = (clockDay, day) => Math.max(0, Math.floor((day - clockDay - RAIDS.stagePace.first) / stageCycle()));
+// The warning day of the raid at `index`: the warning's own day while it is up, the raid under way's (its arrival less RAIDS.warningDays), the day the next
+// one is due (nextWarnDay: the scouts and the warning read the same day), else today. Nothing new is kept: it is read from the raid's state (ruling 1533).
+function warnDayOf(world, index) {
+  const r = world.raid;
+  if (r.warning && r.warning.index === index) return r.warning.day;
+  if (r.active && r.active.index === index) return r.active.day - RAIDS.warningDays;
+  if (index === r.index && r.nextWarnDay !== null && r.nextWarnDay !== undefined) return r.nextWarnDay;
+  return world.day;
+}
+// The stage of the raid at `index` (ruling 1530): 0 for the first raid, otherwise stageAt its warning day, never more than the index. A city whose clock has not
+// started (a test's raid set up by hand) has no years to count, so the stage is the index, as in 8.3.
+export function raidStage(world, index) {
+  if (!(index > 0)) return 0;
+  const start = world.raid.clockDay;
+  if (start === null || start === undefined) return index;
+  return Math.min(index, stageAt(start, warnDayOf(world, index)));
+}
+
 // The bands of a raid warned (or arriving): [{ entry, dir, size }], one or two; the second's size is warning.second.size
 // and the first's the rest of warning.size.
 export function warningBands(w) {
@@ -250,8 +279,8 @@ export function payTribute(world) {
   if (world.gold - w.tribute < 0) return fail('below_zero');
   spend(world, w.tribute);
   world.tally.tributes += 1;
-  world.raid.adaptation = Math.min(1, world.raid.adaptation + RAIDS.adaptStep);
   world.raid.nextWarnDay = laterWarnDay(world, w.arrives);
+  world.raid.adaptation = adaptAfter(world, w.arrives);
   world.raid.warning = null;
   return { ok: true, cost: w.tribute, warnings: [] };
 }
@@ -276,11 +305,13 @@ function raiseWarning(world, events) {
   const index = r.index, first = index === 0;
   const entry = nextRaidEntry(world, index);
   const single = raidSize(world);
-  const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
+  // Version 8.4 (ruling 1531): two bands and boats wait for the raid's stage (raidStage), not its index; the draws stay the index's.
+  const stage = raidStage(world, index);
+  const second = !first && stage >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
     ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
-  const landing = !first && !second && enemyMayCome('boat', index) ? boatLanding(world, index) : null;
+  const landing = !first && !second && enemyMayCome('boat', stage) ? boatLanding(world, index) : null;
   const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
   // Version 8.4, Track E (rulings 1503, 1507): the tribute prices the raid's strength (an elephant counts as ELEPHANTS.weight raiders), and a
   // raid with war elephants says how many (warning.elephants, the event's too); one without is as in 8.3.
@@ -590,9 +621,17 @@ function trackFires(world, rec) {
   });
 }
 
+// Version 8.4 (ruling 1532): the adaptation after a raid beaten or paid off climbs with the time to the next raid, not by the raid: RAIDS.adaptStep for each
+// stageCycle (8.3's mean 1,170 days from one arrival to the next) from this arrival to the next one (raid.nextWarnDay, already drawn, plus the warning's days),
+// up to 1. At 8.3's pace that is adaptStep a raid, as in 8.3; at 8.4's about half, so the recovery after a lost raid takes 8.3's years.
+function adaptAfter(world, arrival) {
+  const days = world.raid.nextWarnDay + RAIDS.warningDays - arrival;
+  return Math.min(1, world.raid.adaptation + (RAIDS.adaptStep * days) / stageCycle());
+}
+
 // The raid is over (spec 4.13): no raider is left on the map. Beaten (won) when the raiders retreated or all fell, lost
 // when a band left after its strikes. The report becomes raid.last; the tallies, the adaptation (a lost raid sets
-// RAIDS.adaptLost, any other adds RAIDS.adaptStep up to 1) and the next warning (laterWarnDay after the arrival day)
+// RAIDS.adaptLost, any other climbs by adaptAfter up to 1) and the next warning (laterWarnDay after the arrival day)
 // follow; hit wall tiles heal; soldiers out walk back. A two-sided raid's report carries dirs, a granary strike's food
 // (foodStolen) and a home strike's fled residents (fled) are kept when there are any.
 function endRaid(world, events, won) {
@@ -611,8 +650,8 @@ function endRaid(world, events, won) {
   r.active = null;
   r.last = report;
   world.tally[won ? 'raidsBeaten' : 'raidsLost'] += 1;
-  r.adaptation = won ? Math.min(1, r.adaptation + RAIDS.adaptStep) : RAIDS.adaptLost;
   r.nextWarnDay = laterWarnDay(world, a.day);
+  r.adaptation = won ? adaptAfter(world, a.day) : RAIDS.adaptLost;
   healWalls(world);
   for (const s of world.soldiers) if (s.task === 'out') s.task = 'back';
   raidSpoils(world, report, won, events);   // Version 8.4 (wave 0 seam, Track R): the captured weapons of a beaten raid

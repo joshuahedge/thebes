@@ -61,7 +61,7 @@ describe('v70 balance events: what the long runs drew', () => {
   it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, floors kept for the offerings still owed', () => {
     const r = greatWorkRun();
     checkRecord('great', r.eventRec, 10 * YEAR);
-    expect(r.won).toBe(null);                                                            // 8.4-BALANCE-OPEN (ruling 1525): was won (day 6,855)
+    expect(r.won).toBe(null);                                                            // 8.4-BALANCE-OPEN (rulings 1525, 1534; still not won with escalation by years): was won (day 6,855)
     const owed = GREAT_WORK.offerings[r.offerings.length];
     expect(r.w.trade.floors[owed.good] > 0).toBe(true);                                  // keepOfferings: the offering still owed keeps its floor
   });
