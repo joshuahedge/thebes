@@ -702,6 +702,9 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 #banner .critical .text { flex: 1 1 6em; }
 #banner .critical .defence { display: block; }
 #banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+/* Ruling 1539: on the wide layout the banner is capped at the map's free width (the side panel's edge less the gutters), so a long title (the elephants') wraps and
+   its buttons wrap under it, none of them clipped under the panel. */
+body[data-layout="wide"] #banner { max-width: calc(100vw - var(--panel-w) - 24px - var(--safe-left) - var(--safe-right)); }
 #banner .critical .more { white-space: nowrap; }
 #banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
 /* The phone's alert row (ruling 167): one row, the icon, the words and View side by side. The words wrap to two lines at

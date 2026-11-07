@@ -133,7 +133,7 @@ describe('v84 g the Luxury row, the Trade sheet and City advice', () => {
       expect(row.querySelector('.name').textContent).toBe('Luxury');
       expect(row.querySelector('.cause').textContent).toBe('No luxury is bought: none reaches its bazaar');
       const price = tradePrices(world, 'byblos').sells.cedar;
-      expect(row.querySelector('.fix .muted').textContent).toBe(`Open a route to Byblos and buy cedar (${price} gold each)`);
+      expect(row.querySelector('.fix .muted').textContent).toBe(`Open a route to Byblos (${routeCostOf(world, 'byblos')} gold) and buy cedar (${price} gold each)`);   // ruling 1539: the route's price in the fix
       const step = sheetOf(r).querySelector('.step-line');
       expect(step.textContent.includes(`open a route to Byblos and buy cedar for this home's luxury (${routeCostOf(world, 'byblos')} gold for the route)`)).toBe(true);
       fire(row.querySelector('.show-me'), 'click');
@@ -164,7 +164,7 @@ describe('v84 g the Luxury row, the Trade sheet and City advice', () => {
     const spare = cityAdvice(w).find((x) => x.kind === 'gold_spare');
     expect([spare.fix.select, spare.data.months]).toEqual([p.id, Math.floor(100000 / 41)]);
     const sw = adviceWords(spare, w);
-    expect([sw.what, sw.fix, sw.action.label]).toEqual([`Gold is piling up: 100,000 gold, ${Math.floor(100000 / 41)} months of taxes`, 'Lower taxes at the palace for mood, or rush a monument', 'Show me']);
+    expect([sw.what, sw.fix, sw.action.label]).toEqual([`Gold is piling up: 100,000 gold, ${Math.floor(100000 / 41)} months of taxes`, 'Lower taxes at the palace for mood', 'Show me']);   // no site stands: nothing to rush (ruling 1539)
     setTaxRate(w, p.id, 'low');
     expect(cityAdvice(w).some((x) => x.kind === 'gold_spare')).toBe(false);   // already Low: the player has acted
     w.gold = 12 * 41;

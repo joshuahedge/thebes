@@ -15,10 +15,13 @@ export function scoutWalkers(world, timeDays, range = null) {
   const s = scoutsAt(world);
   if (!s) return [];
   const n = scoutCount(world), out = [];
-  for (let k = 0; k < n; k++) {
-    const x = s.entry.x + 0.5 + SPOTS[k][0], y = s.entry.y + 0.5 + SPOTS[k][1];
-    if (range && !(x >= range.x0 && x <= range.x1 + 1 && y >= range.y0 && y <= range.y1 + 1)) continue;
-    out.push({ id: SCOUT_ID_BASE + k, kind: 'raider', x, y, dir: FACING[s.dir] });
-  }
+  // Ruling 1538: both bands of a two-sided raid have scouts (the second band's take ids 10 up).
+  s.bands.forEach((band, b) => {
+    for (let k = 0; k < n; k++) {
+      const x = band.entry.x + 0.5 + SPOTS[k][0], y = band.entry.y + 0.5 + SPOTS[k][1];
+      if (range && !(x >= range.x0 && x <= range.x1 + 1 && y >= range.y0 && y <= range.y1 + 1)) continue;
+      out.push({ id: SCOUT_ID_BASE + b * 10 + k, kind: 'raider', x, y, dir: FACING[band.dir] });
+    }
+  });
   return out;
 }

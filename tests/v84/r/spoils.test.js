@@ -119,16 +119,19 @@ describe('v84 r captured weapons: the words are the sim\'s own', () => {
       const w = rig.world;
       w.soldiers = [unit(w, 'archer'), unit(w, 'archer'), unit(w, 'archer'), unit(w, 'soldier')];
       const sheetText = () => { rig.store.set(openSheet(rig.store.get(), 'summary')); return rig.root.querySelector('#sheet').textContent; };
-      expect(sheetText().includes('Captured weapons')).toBe(false);
-      expect(explainStat(w, 'gold').notes.some((n) => n.includes('Captured weapons'))).toBe(false);
+      expect(sheetText().toLowerCase().includes('captured weapons')).toBe(false);
+      expect(explainStat(w, 'gold').lines.some((l) => l[0].includes('aptured weapons'))).toBe(false);
       w.raid.spoils = { until: w.day + 140 };
       const s = spoilsSaving(w);
       expect(s).toEqual({ less: 6, daysLeft: 140 });
       const note = V84R_TEXT.weaponsNote(s);
       expect(note).toBe('Captured weapons: 6 less, 140 days left');
-      expect(sheetText()).toContain(note);
+      const label = 'Army pay (captured weapons: 6 less, 140 days left)';             // ruling 1539: part of the soldiers' row's label, no line of its own
+      expect(V84R_TEXT.soldiersRow('Army pay', s)).toBe(label);
+      expect(sheetText()).toContain(label);
       expect(sheetText()).toContain('−20');                                           // the row beside it shows the discounted pay
-      expect(explainStat(w, 'gold').notes).toContain(note);
+      expect(explainStat(w, 'gold').lines.some((l) => l[0] === label && l[1].includes('20'))).toBe(true);
+      expect(explainStat(w, 'gold').notes.some((n) => n.includes('aptured weapons'))).toBe(false);
       w.day += 139;
       expect(V84R_TEXT.weaponsNote(spoilsSaving(w))).toBe('Captured weapons: 6 less, 1 day left');
     } finally { rig.cleanup(); }
