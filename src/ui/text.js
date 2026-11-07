@@ -4383,7 +4383,6 @@ export const V90_L_TEXT = {
   rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
   medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
   rowName: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,
-  mapAlt: 'A top-down picture of the map, as the city stood when the throne passed',
   // A row opened.
   partsHead: 'The five parts',
   featsHead: 'Feats',
@@ -4393,9 +4392,8 @@ export const V90_L_TEXT = {
   playMapNote: 'Opens New city on this seed, level, layout and size. A city you have is replaced unless you export it first.',
   // Side by side (the Pass sheet and a ruler row with a rival).
   sideHead: (name) => `Side by side with ${name}`,
-  sideScores: (mine, theirs, name) => `You ${mine}, ${name} ${theirs}`,
+  notScored: 'not scored',
   you: 'You',
-  sideBar: (who, part, n) => `${who}: ${SCORE_TEXT.parts[part] || part} ${n}`,
   // The install ask (the list's top line, and one toast after the first Pass).
   installAsk: "Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit",
   installButton: 'Install',

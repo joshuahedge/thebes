@@ -45,6 +45,14 @@ describe('v90 l rivals: kept from a link', () => {
       expect([kept.length, kept[0].name, kept[0].heir, kept[0].added, kept[0].splits.town, kept[0].splits.city, kept[0].splits.pyramids === undefined]).toEqual([1, 'Ana', 'merchant', 777, 6, 20, true]);
     } finally { t.cleanup(); }
   });
+  it('never keeps your own link as your rival: the name on it is the dynasty name', () => {
+    const records = createRecords({ storage: memory({ version: 2, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: { name: 'Ana', heir: 'steady' } }) });
+    const t = title({ records, shared: linkHash({ name: 'Ana', heir: 'merchant' }) });
+    try {
+      expect([t.container.querySelector('.shared-score .friend-line') !== null, t.container.querySelector('.rival-line'), t.container.querySelector('.rival-kept')]).toEqual([true, null, null]);
+      expect(records.rivalsFor(11, 'normal')).toEqual([]);
+    } finally { t.cleanup(); }
+  });
   it('shows nothing about a rival for a link without a name, and keeps none', () => {
     const records = createRecords({ storage: memory() });
     const t = title({ records, shared: linkHash() });

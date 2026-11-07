@@ -276,10 +276,17 @@ export async function boot(doc, win, {
     try { rulers = records.rulers().length; } catch (e) { rulers = 0; }
     try { asked = Boolean(askStore && askStore.getItem(INSTALL_ASK_KEY)); } catch (e) { asked = false; }
     if (!rulers || asked) return;
-    try { if (askStore) askStore.setItem(INSTALL_ASK_KEY, '1'); } catch (e) { /* not kept: it may be asked again next time */ }
-    try { const st = win.navigator && win.navigator.storage; if (st && st.persist) st.persist().catch(() => {}); } catch (e) { /* not offered */ }
-    if (installAskDue(flow, { rulers, asked })) ui.toasts.show(V90_L_TEXT.installAsk, { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 });
+    const remember = () => { try { if (askStore) askStore.setItem(INSTALL_ASK_KEY, '1'); } catch (e) { /* not kept: it may be asked again next time */ } };
+    if (!persistAsked) {                                // storage is asked once a page, at the first start after a ruler
+      persistAsked = true;
+      try { const st = win.navigator && win.navigator.storage; if (st && st.persist) st.persist().catch(() => {}); } catch (e) { /* not offered */ }
+    }
+    // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
+    // start must not use the ask up (a start later in the session, or the next visit, shows it).
+    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk, { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
+    else if (flow.env.standalone) remember();
   }
+  let persistAsked = false;
 
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).

@@ -359,7 +359,9 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     }
     const total = sharedTotal(link);
     // Version 9.0 (Track L, ruling 1588): a link with a name is kept as a rival on its map (the same name there replaces the older row), and the panel says so.
-    const rival = link.name && records ? safe(() => records.addRival(link, clock()), null) : null;
+    // Your own link (your dynasty's name on it) never makes you your own rival (ruling 1599).
+    const own = link.name && records ? safe(() => records.dynasty().name === link.name, false) : false;
+    const rival = link.name && records && !own ? safe(() => records.addRival(link, clock()), null) : null;
     // Stage 4 (ruling 259): a t1 link (older scoring) is compared only with your best made under its own score version.
     const best = records ? safe(() => records.bestFor(link.seed, link.difficulty, { version: link.version, variant: link.variant, size: link.size }), null) : null;
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {

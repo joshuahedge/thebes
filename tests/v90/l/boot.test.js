@@ -181,6 +181,12 @@ describe('v90 l boot: the install ask', () => {
       try { await flush(); expect(calls.length).toBe(before); } finally { none.cleanup(); }
     });
   });
+  it('keeps the ask for later when the device cannot install yet (Chrome before its prompt), and marks an installed device as done', async () => {
+    const early = await bootRig({ params: 'skipTitle=1', env: { ua: CHROME, standalone: false, hasBeforeInstallPrompt: false } });
+    try { expect([asks(early), early.storage.getItem(INSTALL_ASK_KEY)]).toEqual([[], null]); } finally { early.cleanup(); }
+    const installed = await bootRig({ params: 'skipTitle=1', env: { ua: CHROME, standalone: true, hasBeforeInstallPrompt: true } });
+    try { expect([asks(installed), installed.storage.getItem(INSTALL_ASK_KEY)]).toEqual([[], '1']); } finally { installed.cleanup(); }
+  });
   it('does not come on a device with no ruler, one already asked, or one that cannot install', async () => {
     const none = await bootRig({ params: 'skipTitle=1', records: null });
     try { expect([asks(none), none.storage.getItem(INSTALL_ASK_KEY)]).toEqual([[], null]); } finally { none.cleanup(); }

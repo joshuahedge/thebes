@@ -19,7 +19,7 @@ export function sideBySide(mine, rival, { id = 'side-by-side' } = {}) {
     return el('div', { class: `sbs-line ${cls}`, dataset: { part, side: cls } }, [
       el('span', { class: 'sbs-name', text: who }),
       n === null ? el('span', { class: 'sbs-bar none', 'aria-hidden': 'true' }) : el('span', { class: 'part-bar sbs-bar', 'aria-hidden': 'true' }, [el('span', { class: `fill ${cls}`, style: { width: `${clampPart(n)}%` } })]),
-      el('strong', { class: 'sbs-number', text: n === null ? 'not scored' : String(n) }),
+      el('strong', { class: 'sbs-number', text: n === null ? L.notScored : String(n) }),
     ]);
   };
   return el('section', { class: 'side-by-side', 'aria-labelledby': `${id}-head` }, [
