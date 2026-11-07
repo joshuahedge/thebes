@@ -2,16 +2,18 @@
 // The ids are src/data/v90.js HEIRS; src/sim/dynasty.js reads both tables (titleOf, heirFactor), and the words quote them (Track D's text.js section).
 
 // The titles in their order (design section 3, ruling 1565): at the Pass each compares one measure of the reign with its bar, and the highest fit
-// (measure over bar) among the titles whose bar is met wins; a tie goes to the earlier row; none met is the Steady. The bars are first values
-// (ruling 1566): wave 2's balance check sets them.
+// (measure over bar) among the titles whose bar is met wins; a tie goes to the earlier row; none met is the Steady. The bars were first values
+// (ruling 1566); wave 2's balance check set them from every balance run's measures (rulings 1621-1623): the Unconquered 3 -> 5 raids and the
+// Builder 2,000 -> 4,600 units, so the great-work run is the Builder, the 20-year dangers runs the Unconquered and the 6-year capital run the
+// Bountiful; the share bars stay (the scripted runs trade little and never set Low, so a fixture earns those two).
 //   unconquered  raids beaten, none lost and no tribute paid (never on Peaceful)
 //   builder      monument units laid (stone and bricks)
 //   merchant     trade income over the bills (wages, upkeep and soldiers' pay), counted at month ends from Market town
 //   bountiful    month ends with every Cottage-or-better home fed, over month ends from Town; at least `months` of them
 //   generous     month ends at the Low tax rate, over month ends from Town; at least `months`, with High in at most `highMax` of them
 export const TITLES = [
-  { id: 'unconquered', bar: 3 },
-  { id: 'builder', bar: 2000 },
+  { id: 'unconquered', bar: 5 },
+  { id: 'builder', bar: 4600 },
   { id: 'merchant', bar: 0.40 },
   { id: 'bountiful', bar: 0.90, months: 24 },
   { id: 'generous', bar: 0.50, months: 24, highMax: 0.1 },

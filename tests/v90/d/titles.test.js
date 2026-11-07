@@ -18,10 +18,10 @@ function city({ milestone = 'city', difficulty = 'normal', ...tally } = {}) {
 }
 
 describe('v90 d titles: the data', () => {
-  it('has the design\'s five titles in their order, with the first bars (ruling 1566)', () => {
+  it('has the design\'s five titles in their order, with the bars wave 2 set (rulings 1566, 1621-1623)', () => {
     expect(TITLES).toEqual([
-      { id: 'unconquered', bar: 3 },
-      { id: 'builder', bar: 2000 },
+      { id: 'unconquered', bar: 5 },     // 9.0 wave 2 (ruling 1621): was 3
+      { id: 'builder', bar: 4600 },      // 9.0 wave 2 (ruling 1622): was 2,000
       { id: 'merchant', bar: 0.40 },
       { id: 'bountiful', bar: 0.90, months: 24 },
       { id: 'generous', bar: 0.50, months: 24, highMax: 0.1 },
@@ -35,22 +35,22 @@ describe('v90 d titles: the data', () => {
 });
 
 describe('v90 d titles: each rule at its bar and either side', () => {
-  it('the Unconquered: 3 raids beaten, none lost and no tribute paid', () => {
-    expect(titleOf(city({ raidsBeaten: 2 })).id).toBe('steady');
-    expect(titleOf(city({ raidsBeaten: 3 })).id).toBe('unconquered');
-    expect(titleOf(city({ raidsBeaten: 4 })).fit).toBe(4 / 3);
-    expect(titleOf(city({ raidsBeaten: 5, raidsLost: 1 })).id).toBe('steady');
-    expect(titleOf(city({ raidsBeaten: 5, tributes: 1 })).id).toBe('steady');
+  it('the Unconquered: 5 raids beaten, none lost and no tribute paid', () => {
+    expect(titleOf(city({ raidsBeaten: 4 })).id).toBe('steady');
+    expect(titleOf(city({ raidsBeaten: 5 })).id).toBe('unconquered');
+    expect(titleOf(city({ raidsBeaten: 6 })).fit).toBe(6 / 5);
+    expect(titleOf(city({ raidsBeaten: 7, raidsLost: 1 })).id).toBe('steady');
+    expect(titleOf(city({ raidsBeaten: 7, tributes: 1 })).id).toBe('steady');
   });
   it('never the Unconquered on Peaceful (no raids), whatever the counts say', () => {
     const w = city({ raidsBeaten: 9, difficulty: 'peaceful' });
     const row = titleMeasures(w).find((r) => r.id === 'unconquered');
     expect([titleOf(w).id, row.ok, row.raids, row.fit]).toEqual(['steady', false, false, 0]);
   });
-  it('the Builder: 2,000 monument units, stone and bricks together', () => {
-    expect(titleOf(city({ stoneLaid: 1000, bricksLaid: 999 })).id).toBe('steady');
-    expect(titleOf(city({ stoneLaid: 1000, bricksLaid: 1000 })).id).toBe('builder');
-    expect(titleOf(city({ stoneLaid: 3000 })).measure).toBe(3000);
+  it('the Builder: 4,600 monument units, stone and bricks together', () => {
+    expect(titleOf(city({ stoneLaid: 2300, bricksLaid: 2299 })).id).toBe('steady');
+    expect(titleOf(city({ stoneLaid: 2300, bricksLaid: 2300 })).id).toBe('builder');
+    expect(titleOf(city({ stoneLaid: 6000 })).measure).toBe(6000);
   });
   it('the Merchant: trade income over the bills, 0.40', () => {
     expect(titleOf(city({ tradeGold: 399, billsPaid: 1000 })).id).toBe('steady');
@@ -94,16 +94,16 @@ describe('v90 d titles: each rule at its bar and either side', () => {
 
 describe('v90 d titles: the highest fit, ties and the runner-up', () => {
   it('takes the highest fit among the titles met', () => {
-    const t = titleOf(city({ raidsBeaten: 3, stoneLaid: 3000 }));   // 1 and 1.5
+    const t = titleOf(city({ raidsBeaten: 5, stoneLaid: 6900 }));   // 1 and 1.5
     expect([t.id, t.fit, t.runnerUp]).toEqual(['builder', 1.5, 'unconquered']);
   });
   it('breaks a tie by the table\'s order', () => {
-    expect(titleOf(city({ raidsBeaten: 3, stoneLaid: 2000 })).id).toBe('unconquered');
-    expect(titleOf(city({ stoneLaid: 2000, tradeGold: 400, billsPaid: 1000 })).id).toBe('builder');
+    expect(titleOf(city({ raidsBeaten: 5, stoneLaid: 4600 })).id).toBe('unconquered');
+    expect(titleOf(city({ stoneLaid: 4600, tradeGold: 400, billsPaid: 1000 })).id).toBe('builder');
     expect(titleOf(city({ tradeGold: 450, billsPaid: 1000, fedMonths: 24, townMonths: 24, lowMonths: 12 })).id).toBe('merchant');   // 1.125 beats 1.111 and 1
   });
   it('names the closest title as the runner-up even when none is met, and leaves out one that may not be earned', () => {
-    const t = titleOf(city({ stoneLaid: 1500, tradeGold: 100, billsPaid: 1000 }));
+    const t = titleOf(city({ stoneLaid: 3450, tradeGold: 100, billsPaid: 1000 }));
     expect([t.id, t.runnerUp]).toEqual(['steady', 'builder']);   // 0.75 beats 0.25
     expect(titleOf(city({ raidsBeaten: 2, raidsLost: 1 })).runnerUp).toBe(null);
   });

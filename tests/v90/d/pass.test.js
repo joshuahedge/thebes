@@ -22,7 +22,7 @@ import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 function capital() {
   const w = createWorld({ seed: 11 });
   buildSampleCity(w);
-  w.tally.stoneLaid = 2500;
+  w.tally.stoneLaid = 5000;   // 9.0 wave 2 (ruling 1622, the Builder's bar 2,000 -> 4,600): was 2,500
   return w;
 }
 
@@ -119,7 +119,7 @@ describe('v90 d pass: the interface', () => {
       expect(s.querySelector('.head h2').textContent).toBe(V90_D_TEXT.menuPass);
       expect(s.querySelector('.pass-title').textContent).toBe('Ramesses I will be remembered as the Builder.');
       expect(s.querySelector('.pass-why').textContent).toBe(V90_D_TEXT.whyLine('builder', titleOf(w).rows));
-      expect(s.querySelector('.pass-why').textContent).toBe('2,500 units of stone and brick laid on monuments');
+      expect(s.querySelector('.pass-why').textContent).toBe('5,000 units of stone and brick laid on monuments');   // ruling 1622: was 2,500
       expect(s.querySelector('.pass-runner').textContent).toBe('Close behind: the Merchant');
       expect(s.querySelector('.pass-heir').textContent).toBe("Your heir's city: monuments rise 15% faster; taxes 5% lower");
       expect(s.querySelector('.pass-score').textContent).toBe(V90_D_TEXT.sealedScore(kept.score, kept.medal));
