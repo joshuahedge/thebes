@@ -57,13 +57,12 @@ describe('v70 balance events: what the long runs drew', () => {
   });
 
   // Version 8.4 wave 2 (rulings 1521, 1525): with 8.4's raid clock the run is not won (B7, tests/v60/a/balance.test.js): four offerings are made and the fifth is still owed
-  // at year 20, so its good keeps its floor. It was: won, every offering made, no floor left.
-  it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, floors kept for the offerings still owed', () => {
+  // at year 20, so its good keeps its floor. It was: won, every offering made, no floor left. The retune (rulings 1540, 1542) wins it again (day 6,380).
+  it('the great-work run plays years 10 to 20 with the events on: whole rows, none before year 10, every offering made and no floor left', () => {
     const r = greatWorkRun();
     checkRecord('great', r.eventRec, 10 * YEAR);
-    expect(r.won).toBe(null);                                                            // 8.4-BALANCE-OPEN (rulings 1525, 1534; still not won with escalation by years): was won (day 6,855)
-    const owed = GREAT_WORK.offerings[r.offerings.length];
-    expect(r.w.trade.floors[owed.good] > 0).toBe(true);                                  // keepOfferings: the offering still owed keeps its floor
+    expect(r.won !== null).toBe(true);
+    expect(r.w.trade.floors).toEqual({});                                                // keepOfferings: every offering made, no floor left
   });
 
   it('the dangers-on runs: the late run has the events from day 0 (never before Town and its first months), the grand district run from year 7, the great-work runs from year 10', () => {

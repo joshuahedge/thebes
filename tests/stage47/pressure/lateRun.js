@@ -7,7 +7,7 @@
 //   - each month end it sends the yearly tribute once the stores hold all of it (and, from month 10, whatever they hold);
 //   - with defend (the default), it answers a raid warning its towers cannot meet (towersNeeded, the tribute sheet's own count) by building
 //     towers while the treasury keeps RESERVE (measured without it: the year-11 and year-14 raids, 25 raiders each with 6 drawn by wealth and
-//     from two sides, beat the city's two towers and burn them).
+//     from two sides, beat the city's two towers and burn them). Version 8.4 (the retune, ruling 1540): each band's towers by the building it strikes first.
 //   - Version 6.0 (Track A, ruling 660): with answer (the default), it answers the court as a steady player (tests/v60/a/answer.js): letters read,
 //     requests sent when the stores or treasury hold them, demands accepted when it can meet them and sent when ready, declined otherwise. The
 //     careless run (tests/v60/a/careless.test.js) switches this off with the defence and the stocks.
@@ -19,8 +19,10 @@ import { advanceDays } from '../../../src/sim/clock.js';
 import { place, canPlace } from '../../../src/sim/commands.js';
 import { housesOf, population, allBuildings } from '../../../src/sim/world.js';
 import { quotaOf, quotaStatus, sendQuota } from '../../../src/sim/pressure.js';
-import { towersNeeded, workingTowers } from '../../../src/sim/raids.js';
+import { towersNeeded, workingTowers, warningBands, firstRaidTarget } from '../../../src/sim/raids.js';
 import { raidStrength } from '../../../src/sim/armies.js';
+import { DEFENCE } from '../../../src/data/raids.js';
+import { nearestFit } from '../../../src/ui/placement.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { setFetch } from '../../../src/sim/carts.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
@@ -42,19 +44,46 @@ function tiers(w) {
   return out;
 }
 
-// Builds towers until the warned raid's towers needed are standing (staffing is the city's), at the first free spots, while the treasury keeps
-// RESERVE. Returns how many it built.
+// Version 8.4 (the retune, ruling 1540): where each band of a warned raid strikes first, and the towers the raid sheet asks for there. The sheet
+// gives the size, the sides and the mix; a player reads each side and meets each band where it will strike (firstRaidTarget, the building the advice's
+// tower item aims at since ruling 787). A band's share of the sheet's strength (a war elephant counting as 4) is its share of the raiders.
+export const NEAR_TARGET = DEFENCE.towerRange + 2;   // a tower this close to the first target shoots the band on its last steps and through the strike
+export function bandAims(w, warn) {
+  const strength = raidStrength(warn);
+  return warningBands(warn).map((band) => {
+    const first = firstRaidTarget(w, band.entry, warn.target);
+    const aim = first ? { x: first.x + first.w / 2, y: first.y + first.d / 2 } : { x: band.entry.x, y: band.entry.y };
+    return { aim, need: towersNeeded(Math.ceil((strength * band.size) / warn.size)) };
+  });
+}
+export const towersNear = (w, at) => allBuildings(w).filter((b) => b.type === 'tower' && Math.hypot(b.x + 0.5 - at.x, b.y + 0.5 - at.y) <= NEAR_TARGET).length;
+
+// Builds towers until each band of the warned raid has its towers needed standing by the building it strikes first (staffing is the city's), while the
+// treasury keeps RESERVE: the run's tower spots near that building first, nearest first, then where Show me's search lands from it (nearestFit leaves out
+// spots with no road, so each tower can be staffed). Returns how many it built.
+// Version 8.4 (the retune, ruling 1540): it counted the towers standing anywhere against the whole raid, at spots tried east first; 8.4's early raids come
+// on foot from one side (the north in this run), so the year-10 raid of 20 met 3 of the 7 towers it needed and was lost. Now each band is met where it strikes.
 export function meetWarning(w, built) {   // exported for the Wave 4 danger player (tests/v60/balance/respond.js)
   const warn = w.raid.warning;
   if (!warn || warn.first) return 0;
   let n = 0;
-  const standing = () => allBuildings(w).filter((b) => b.type === 'tower').length;
-  for (const [x, y] of TOWER_SPOTS) {
-    if (standing() >= towersNeeded(raidStrength(warn))) break;   // Version 8.4 (ruling 1521): the raid sheet's count, a war elephant counting as 4
-    if (w.gold - costOf(w, 'tower') < RESERVE) break;
-    if (!canPlace(w, 'tower', x, y).ok) continue;
-    const r = place(w, 'tower', x, y);
-    if (r.ok) { n++; built.push({ day: w.day, x, y }); }
+  for (const { aim, need } of bandAims(w, warn)) {
+    const dist = ([x, y]) => Math.hypot(x + 0.5 - aim.x, y + 0.5 - aim.y);
+    const spots = TOWER_SPOTS.filter((s) => dist(s) <= NEAR_TARGET).sort((p, q) => dist(p) - dist(q));
+    for (let round = 0; round < 3; round++) spots.push(...[[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([dx, dy]) => ({ x: aim.x + dx * 2 * round, y: aim.y + dy * 2 * round })));
+    for (const s of spots) {
+      if (towersNear(w, aim) >= need) break;
+      if (w.gold - costOf(w, 'tower') < RESERVE) return n;
+      let [x, y] = Array.isArray(s) ? s : [null, null];
+      if (x === null) {
+        const g = nearestFit(w, { kind: 'building', type: 'tower' }, s.x, s.y, null, w.size);
+        [x, y] = [g.x, g.y];
+        if (dist([x, y]) > NEAR_TARGET) continue;
+      }
+      if (!canPlace(w, 'tower', x, y).ok) continue;
+      const r = place(w, 'tower', x, y);
+      if (r.ok) { n++; built.push({ day: w.day, x, y }); }
+    }
   }
   return n;
 }

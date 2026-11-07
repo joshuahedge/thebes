@@ -59,20 +59,26 @@ describe('v60 a balance great work', () => {
   // (indexes 7, 9 and 11); it still reaches the Seat on day 3,690 and founds the temple, makes 4 of the 5 offerings, and is not won: the treasury is below 0 in years
   // 17-19 (the lowest -11,128, 2,689 at the end). The pins hold what is measured, so a change that brings the win back fails here and says so. Each 8.3 bound is kept
   // in its comment: won in years 18-20 with every offering made and the treasury never below 0.
-  // Escalation by years (rulings 1530-1534; B7 STILL NOT MET): it loses 1 of its 13 raids (index 7, year 12; was 3), the fourth offering waits to day 7,050 (the temple's
-  // work stops in years 15-18 for want of gold), and it is not won: the lowest -8,222 (year 18), 3,877 at the end.
-  it('reaches the Seat of the Two Lands and founds the great temple on Normal; with 8.4\'s raid clock it is not won by year 20 (B7 not met: a moved pin)', () => {
+  // Escalation by years (rulings 1530-1534) left it unwon (1 of 13 raids lost, the lowest -8,222). The retune (rulings 1540, 1542): each raid band met where it strikes
+  // first and the stores' surplus beer, linen and jewellery sold, so the potters' storehouse has room for clay again and the Townhouses keep their pottery. Measured: every
+  // one of the 13 raids beaten, the five offerings on days 3,720, 4,260, 4,740, 5,250 and 5,760, won on day 6,380 (year 18) with 8,866 the lowest and 9,456 at the end.
+  it('reaches the Seat of the Two Lands and finishes the great temple in years 18-20 on Normal, never below 0, with every offering made and every raid beaten', () => {
     const r = greatWorkRun();
     expect(r.insane).toEqual([]);
     expect(r.w.difficulty).toBe('normal');
     expect(r.w.day).toBe(GREAT_YEARS * YEAR_DAYS);
     expect(r.ranks.seat).toBe(3690);
     expect(r.temple.guilds).toBe(4);
-    expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3]);                                   // 8.4-BALANCE-OPEN (ruling 1534): was [0, 1, 2, 3, 4]
-    expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.slice(0, 4).map((o) => o.good));
-    expect(r.won).toBe(null);                                                                        // 8.4-BALANCE-OPEN (ruling 1534): was won in years 18-20, the reign sealed won
-    expect(Math.round(r.lowestGold)).toBe(-8222);                                                    // 8.4-BALANCE-OPEN (ruling 1534): was above 0
-    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 1]);
+    expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3, 4]);
+    expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.map((o) => o.good));
+    expect(r.won !== null).toBe(true);
+    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(18);
+    expect(yearOf(r.won.day)).toBeLessThanOrEqual(20);
+    expect(r.w.reign.won).toBe(r.won.day);
+    expect(r.w.reign.seal.won).toBe(true);
+    expect(r.w.tally.greatWorkStages).toBe(GREAT_WORK.stages.length);
+    expect(r.lowestGold).toBeGreaterThan(0);
+    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect(yearOf(r.ranks.seat)).toBe(11);
     expect(r.elapsed).toBeLessThan(60000);
   });

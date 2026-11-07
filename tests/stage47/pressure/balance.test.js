@@ -44,10 +44,10 @@ describe('s47 balance late', () => {
     // when the run ends on day 5,400; every raid that has ended was beaten. It was: every raid warned has ended beaten.
     const ended = r.raids.filter((x) => x.won !== undefined);
     expect([ended.length, r.raids.length - ended.length <= 1]).toEqual([r.raids.length - (r.w.raid.active || r.w.raid.warning ? 1 : 0), true]);
-    // Escalation by years (ruling 1534; B6 NOT MET): raids at stages 1-3 come on foot from one side, so the second raid of year 10 (20 raiders on day 3,241, from one
-    // side where 8.4's index rule had sent two bands with archers) breaks through the run's towers: lost. The rest are beaten.
-    expect(ended.map((x) => x.won)).toEqual([true, false, true, true, true]);   // 8.4-BALANCE-OPEN (ruling 1534): was every raid that has ended beaten
-    expect(r.snapshots[LATE_YEARS].raidsLost).toBe(1);                       // 8.4-BALANCE-OPEN (ruling 1534): was 0
+    // Escalation by years (ruling 1534) lost the second raid of year 10 (20 on foot from the north) to towers built east first. The retune (ruling 1540): the driver meets
+    // each band by the building it strikes first (meetWarning), and every raid that has ended is beaten again (measured: 5 of 5, the sixth under way; none lost).
+    expect(ended.map((x) => x.won)).toEqual(ended.map(() => true));
+    expect(r.snapshots[LATE_YEARS].raidsLost).toBe(0);
     expect(r.elapsed).toBeLessThan(10000);
   });
 

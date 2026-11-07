@@ -62,14 +62,16 @@ describe('v60 balance dangers late run', () => {
   // Version 8.4 wave 2 (rulings 1521, 1525): with 8.4's raid clock the run meets 10 raids by year 15 (8.3: 5) and loses two: the third (19 raiders on day 1,739, in
   // year 5, against the Market town's three towers) and the seventh (25 raiders in year 11, with 4 towers in reach); the rest holds (the lowest 12,235, 16,310 at year 15
   // against 17,613 with the dangers off). It was: every raid beaten.
-  it('survives a steady player\'s answers: the treasury above 0 from the grace\'s end, the people and the rank kept, and not a ruin beside the same city with the dangers off (8.4: two raids lost)', () => {
+  // The retune (rulings 1540, 1541): the player meets each raid sheet from the capital years on, each band by the building it strikes first, and none of the 10 raids
+  // is lost again (the tenth under way at the end; the lowest 13,967, 18,942 at year 15).
+  it('survives a steady player\'s answers: the treasury above 0 from the grace\'s end, the people and the rank kept, no raid lost, and not a ruin beside the same city with the dangers off', () => {
     const { r, rec } = lateDangerRun();
     const off = lateRun();
     expect(r.lowestGold).toBeGreaterThan(0);
     for (let y = 7; y <= 15; y++) expect([y, r.yearly[y].gold > 0]).toEqual([y, true]);
     expect(population(r.w)).toBeGreaterThanOrEqual(1000);
     expect(r.w.milestone).toBe('capital');
-    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 2]);                    // 8.4-BALANCE-OPEN (rulings 1525, 1534; the same with escalation by years: the 3rd and 6th lost): was no raid lost
+    expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 0]);
     expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.5 * off.yearly[15].gold);
     expect(population(r.w)).toBeGreaterThanOrEqual(0.9 * population(off.w));
     // the player's answers were made, each through the sim's own commands
@@ -81,14 +83,15 @@ describe('v60 balance dangers late run', () => {
 });
 
 describe('v60 balance dangers grand district run', () => {
-  it('meets and survives the dangers to year 10: plague, a low Nile, locusts and blight, a wreck and a looting, none before year 3, all raids beaten, the treasury above 0', () => {
+  // The retune (ruling 1540): the player's towers now stand by each band's first strike, so all 6 raids are beaten before a band reaches a storehouse or a building it
+  // could wreck: no wreck and no looting in this run any more (it met at least one of each). The late run with the dangers on still meets a wreck (above).
+  it('meets and survives the dangers to year 10: plague, a low Nile, locusts and blight, none before year 3, all raids beaten before they wreck or loot, the treasury above 0', () => {
     const { g, rec } = grandDangerRun();
     const t = g.w.tally;
     expect(t.plagues).toBeGreaterThanOrEqual(1);
     expect(t.droughts).toBeGreaterThanOrEqual(1);
     expect(t.swarms + t.blights).toBeGreaterThanOrEqual(1);
-    expect(t.wrecked).toBeGreaterThanOrEqual(1);
-    expect(t.looted).toBeGreaterThanOrEqual(1);
+    expect([t.wrecked, t.looted]).toEqual([0, 0]);
     checkGrace(rec);
     checkAdvice(rec);
     expect(g.lowestGold).toBeGreaterThan(0);

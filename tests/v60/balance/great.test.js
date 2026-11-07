@@ -16,12 +16,15 @@ describe('v60 balance great work margin', () => {
   // Version 8.4: with Tracks G and R merged, won on day 6,855 (was 7,021) with 7,472 the lowest (was 3,945); see tests/v60/a/balance.test.js.
   // Wave 2 (rulings 1521, 1525; B7 NOT MET, left for the controller): with 8.4's raid clock the run is not won and holds -11,128 at its lowest (see tests/v60/a/balance.test.js).
   // B7 asks for a win on day 6,900-7,100 and never under 2,000 gold from the Seat on; the 8.3 pin was a win with 100 days to spare and 2,000 the lowest.
-  // Escalation by years (rulings 1530-1534; B7 STILL NOT MET): raids escalate at 8.3's pace and the run loses 1 of its 13 raids (was 3), but it is still not won: the
-  // temple's work stops in years 15-18 for want of gold (taxes fall to about 33,000 a year as raids drive people out), the lowest -8,222 (was -11,128).
-  it('with 8.4\'s raid clock: not won, the margin gone (B7 not met: a moved pin; it was a win with 100 days to spare, never under 2,000 gold)', () => {
+  // Escalation by years (rulings 1530-1534) left it unwon (the lowest -8,222). The retune (rulings 1540, 1542; tests/v60/a/balance.test.js): won on day 6,380 with 8,866
+  // the lowest, 9,194 the lowest from the Seat on, every raid beaten. That meets the 8.3 pin (100 days to spare, never under 2,000 gold) and B7's floor of gold, but the win
+  // comes 520 days before B7's band (day 6,900-7,100): the player who sells the surplus finishes sooner, and no sensible keep moves it into the band (Keep 300: day 6,520;
+  // 400, 600 or 800: not won, the run is that sensitive). Left for Josh: B7's band as measured (ruling 1543).
+  it('with 8.4\'s raid clock: won with at least 100 days to spare, never under 2,000 gold', () => {
     const r = greatWorkRun();
-    expect(r.won).toBe(null);                                                    // 8.4-BALANCE-OPEN (ruling 1534): was won by day 7,100
-    expect(Math.round(r.lowestGold)).toBe(-8222);                               // 8.4-BALANCE-OPEN (ruling 1534): was at least 2,000
+    expect(r.won !== null).toBe(true);
+    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS - 100);
+    expect(r.lowestGold).toBeGreaterThanOrEqual(2000);
     expect(GREAT_YEARS * YEAR_DAYS).toBe(7200);
   });
 });
@@ -38,13 +41,18 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // works quarter burns from year 12 (storehouses, potters, quarries: the mood's fire and burned rows stand at -14 for years), the books run at a loss from year 12, and the
   // run reaches the Seat on day 3,720 but is not won: the lowest -11,326, 402 at the end. Measured too: with later gaps of 540-900 days (outside the design's Q11) it wins
   // on day 6,406 with 21,237 the lowest; war elephants off, a bigger Victory row and the luxury thrift change nothing.
-  // Escalation by years (rulings 1530-1534): every one of its 13 raids is beaten (the 8.3 pin holds again), but it is still not won: the lowest -5,366 (in year 18), 7,962 at the end.
-  it('the tuned seed (5) with the player\'s habits and 8.4\'s raid clock: reaches the Seat, every raid beaten, not won (B7 not met: a moved pin)', () => {
+  // Escalation by years (rulings 1530-1534): every raid beaten but not won (the lowest -5,366). The retune (rulings 1540-1546): the temple's plot cleared of the grand years'
+  // towers so the north road and the quarries reach it, the surplus sold, the course rushed while the treasury holds the spending player's line, the towers stood down
+  // between raids so their workers go to the crews. Measured: won on day 6,927 with 7,732 the lowest, 13 raids, none lost. B7 (won by day 7,200, no raid lost) is met;
+  // the 6.0.1 pin (won by day 6,800, never under 20,000 from year 10) is not: the crews still stand short of workers for months at a time.
+  it('the tuned seed (5) with the player\'s habits and 8.4\'s raid clock: reaches the Seat and is won by year 20 with every raid beaten (B7)', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
     expect(r.ranks.seat).toBe(3720);
-    expect(r.won).toBe(null);                                                    // 8.4-BALANCE-OPEN (ruling 1534): was won by day 6,800
-    expect(Math.round(r.lowestGold)).toBe(-5366);                               // 8.4-BALANCE-OPEN (ruling 1534): was at least 20,000 from year 10
-    expect([raids, raidsLost]).toEqual([13, 0]);                                 // none lost (measured with escalation by years: 13 raids, all beaten)
+    expect(r.won !== null).toBe(true);
+    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
+    expect(r.won.day).toBe(6927);                                                // 8.4-BALANCE-OPEN (ruling 1547): was won by day 6,800
+    expect(Math.round(r.lowestGold)).toBe(7732);                                 // 8.4-BALANCE-OPEN (ruling 1547): was at least 20,000 from year 10
+    expect([raids, raidsLost]).toEqual([13, 0]);
     expect(r.insane).toEqual([]);
   });
   // Version 8.4 (Track G, rulings 1468 and 1478; a MOVED pin for wave 2's balance check): with the luxury need this seed, played by the script as it was (no habits),
@@ -52,12 +60,14 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // won on day 6,084), so no Estate holds long enough. The pin holds what was measured, so a change that brings the win back fails here and says so.
   // Wave 2 (rulings 1521, 1525; settles Track G's moved pin; B7 NOT MET): with 8.4's raid clock too, this seed never reaches Great Capital (Track G measured it there on
   // day 3,660), is in debt from year 9 (the lowest -64,927) and loses 3 of its 11 raids. 8.3: won on day 6,084, never under 4,490 from year 10, no raid lost.
-  // Escalation by years (rulings 1530-1534): Great Capital on day 3,660 again (as Track G measured) and all 11 raids beaten (the 8.3 pin holds), but never the Seat:
-  // in debt from year 12, the lowest -46,638 at the end (was -64,927).
-  it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (B7 not met: a moved pin)', () => {
+  // Escalation by years (rulings 1530-1534): Great Capital on day 3,660 and every raid beaten, never the Seat (the lowest -46,638). The retune (ruling 1540) beats every raid
+  // again and moves the debt (the lowest -36,172, at the end), but the script as it was never reaches the Seat: its treasury is gone by year 12, before the great work's
+  // habits apply, and with the habits it does not reach Great Capital at all (3 of 11 raids lost, the lowest -21,073). B7's fallback is met (Great Capital, no raid lost);
+  // the 8.3 pin is not.
+  it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (the 8.3 pin not met)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);        // 8.4-BALANCE-OPEN (ruling 1534): was won by day 6,200
-    expect(Math.round(r.lowestGold)).toBe(-46638);                                                 // 8.4-BALANCE-OPEN (ruling 1534): was at least 4,000 from year 10
-    expect([raids, raidsLost]).toEqual([11, 0]);                                                    // none lost (measured with escalation by years: 11 raids, all beaten)
+    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);        // 8.4-BALANCE-OPEN (ruling 1547): was won by day 6,200
+    expect(Math.round(r.lowestGold)).toBe(-36172);                                                 // 8.4-BALANCE-OPEN (ruling 1547): was at least 4,000 from year 10
+    expect([raids, raidsLost]).toEqual([11, 0]);
   });
 });

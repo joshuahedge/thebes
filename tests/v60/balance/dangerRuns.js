@@ -17,7 +17,10 @@ export const SNAPSHOT_YEARS = [4, 6, 8, 10, 12, 15];
 let late = null;
 export function lateDangerRun() {
   if (late) return late;
-  const player = dangerPlayer({ snapshotYears: SNAPSHOT_YEARS });
+  // Version 8.4 (the retune, ruling 1541): the player meets each raid sheet from the capital years on (defend: the late run's meetWarning, each band met by
+  // its first strike). The capital script lays its three towers at Market town and no more, and 8.4's clock brings raids of 16-19 on foot from the north
+  // in years 3-5: the year-5 raid met those three and was lost.
+  const player = dangerPlayer({ snapshotYears: SNAPSHOT_YEARS, defend: true });
   const events = eventPlayer();
   const base = runCapital(72, { dangers: true, onMonth: player.onMonth, events });
   const r = runLate({ base, onMonth: player.onMonth, events });

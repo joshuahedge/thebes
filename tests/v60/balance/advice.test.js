@@ -29,7 +29,8 @@ const TOP = {
   // Wave 2 (rulings 1521, 1525, 1528): the great-work run with 8.4's raid clock is not won (B7, tests/v60/a/balance.test.js); crime leads at 14 and a far good at 16
   // (Track G measured 14 stranded, 16 home_need; 8.3 had 14 home_need).
   // Escalation by years (ruling 1534): a far good at 14 and a home's need at 20 (was crime at 14, stranded at 20).
-  great: { 12: 'home_need', 14: 'stranded', 16: 'stranded', 18: 'stranded', 20: 'home_need' },
+  // The retune (rulings 1540, 1542; the run is won on day 6,380): crime at 14 and a home's need at 16 (was a far good at both).
+  great: { 12: 'home_need', 14: 'crime', 16: 'home_need', 18: 'stranded', 20: 'home_need' },
 };
 
 function sensible(label, rows) {

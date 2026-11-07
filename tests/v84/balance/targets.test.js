@@ -6,10 +6,11 @@
 //   - capital spending run: 28,729 gold at year 6 (today's habits: 50,457), never below 255, 19.0% of its Normal-rate taxes on the new jobs over the last 24
 //     months (all of it Rush: the treasury never reaches 12 months of taxes, 43,320, so Low is never set) and 91.7% spent in all;
 //   - late spending run: 15,124 gold at year 15, 1.39 years of profit (today's habits: 17,613 and 1.68), every quota met, every raid ended beaten;
+//     with escalation by years 1.52 and one raid lost; with the retune (rulings 1540-1548) 16,160 and 1.55 (today's habits: 19,602 and 1.82), every raid beaten;
 //   - far-site run: the two guilds walk 42 and 44 road tiles, each crew lays 16 units a month, 20 with the camp (50 gold for a 500 founding) and 40 rushed at
 //     19.5 gold a unit (the work gold 6.5);
 //   - great-work run: 13 raids by year 20 (8.3: 7), 4 with war elephants (8 met, 2 felled, 2 stampeded, 20 ivory), two of them beaten; with escalation by years
-//     (ruling 1534) 3 with war elephants (6 met, 3 felled, 1 stampeded, 30 ivory), all beaten;
+//     (ruling 1534) 3 with war elephants (6 met, 3 felled, 1 stampeded, 30 ivory), all beaten; with the retune 3 again (6 met, 1 felled, 10 ivory), all beaten;
 //   - grand run: the first Fine manor, Villa and Estate in months 74, 90 and 100; an Estate stands at year 10 with its luxury met.
 import { describe, it, expect } from '../../harness.js';
 import { capitalRun, runCapital } from '../../stage4/balance/capitalRun.js';
@@ -84,27 +85,30 @@ describe('v84 balance spending (B2, B3)', () => {
     const { late, lateMonths } = spendingRuns();
     expect(late.insane).toEqual([]);
     const ratio = late.yearly[15].gold / profitAtNormal(lateMonths, 15);
-    // Escalation by years (ruling 1534; B3 NOT MET): the spending late run loses the same raid as the late run (day 3,241: 20 raiders from one side) and ends year 15
-    // with 16,595 gold, 1.52 years of profit (it was 15,124, 1.39, every raid beaten).
-    expect(Math.round(ratio * 100) / 100).toBe(1.52);                                   // 8.4-BALANCE-OPEN (ruling 1534): was at most 1.5
+    // Escalation by years (ruling 1534; B3 NOT MET): the spending late run lost the same raid as the late run and ended year 15 at 1.52 years of profit (it was 1.39).
+    // The retune (rulings 1540, 1548; B3 STILL NOT MET): every raid beaten again, 16,160 gold at year 15, 1.55 years of profit. The spending player never reaches its
+    // lines in years 7-15 (the court's due takes about a third of the treasury each New Year, so it peaks near 4.5 months of taxes, under Rush's 6 and Low's 12), so the
+    // ratio is set by the due and the run's other outflows, and swings from year to year (years 13-15: 1.62, 1.42, 1.55); a raid beaten no longer pays its theft.
+    expect(Math.round(ratio * 100) / 100).toBe(1.55);                                   // 8.4-BALANCE-OPEN (ruling 1548): was at most 1.5
     expect(ratio).toBeGreaterThan(0);
     const years = late.quotas.filter((q) => q.year <= 15);
     expect(years.map((q) => q.result)).toEqual(years.map(() => 'met'));
-    expect(late.raids.filter((x) => x.won !== undefined).map((x) => x.won)).toEqual([true, false, true, true, true]);   // 8.4-BALANCE-OPEN (ruling 1534): was every raid beaten
-    expect(late.w.tally.raidsLost).toBe(1);                                             // 8.4-BALANCE-OPEN (ruling 1534): was 0
+    expect(late.raids.filter((x) => x.won !== undefined).every((x) => x.won)).toBe(true);   // the retune (ruling 1540): every raid beaten again
+    expect(late.w.tally.raidsLost).toBe(0);
     expect(late.lowestGold).toBeGreaterThan(0);
   });
 });
 
 describe('v84 balance the late run\'s raids (B6)', () => {
-  // Escalation by years (ruling 1534; B6 NOT MET): 6 raids in years 8-15 as before, but the second of year 10 is lost (see tests/stage47/pressure/balance.test.js).
-  it('meets 5 to 8 raids in years 7-15, and keeps tally.raids = beaten + lost (+1 under way); with escalation by years one is lost', () => {
+  // Escalation by years (ruling 1534) lost the second raid of year 10; the retune (ruling 1540) meets each band where it strikes first, and all 6 are beaten again (the
+  // sixth under way at the end; see tests/stage47/pressure/balance.test.js).
+  it('meets 5 to 8 raids in years 7-15, all beaten, and keeps tally.raids = beaten + lost (+1 under way)', () => {
     const r = lateRun();
     const arrived = r.raids.filter((x) => x.day + RAIDS.warningDays <= 15 * YEAR);
     expect([arrived.length >= 5, arrived.length <= 8]).toEqual([true, true]);
-    expect(r.raids.filter((x) => x.won !== undefined).map((x) => x.won)).toEqual([true, false, true, true, true]);   // 8.4-BALANCE-OPEN (ruling 1534): was every raid beaten
+    expect(r.raids.filter((x) => x.won !== undefined).every((x) => x.won)).toBe(true);
     const t = r.w.tally;
-    expect([t.raidsLost, t.raids]).toEqual([1, t.raidsBeaten + t.raidsLost + (r.w.raid.active ? 1 : 0)]);         // 8.4-BALANCE-OPEN (ruling 1534): was 0 lost
+    expect([t.raidsLost, t.raids]).toEqual([0, t.raidsBeaten + t.raidsLost + (r.w.raid.active ? 1 : 0)]);
   });
 });
 
