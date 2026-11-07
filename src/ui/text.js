@@ -4350,3 +4350,20 @@ CARDS4_TEXT.cards.elephants = {
   alt: 'War elephants with their riders at a wall inside a ring, towers and archers shooting at them from behind it.',
 };
 // ── end v84 e ──
+
+// Version 9.0, Track D (dynasty: Pass the throne, the title, the heir's trait; rulings 1565-1584). Track D writes only between this header and its end line.
+// The game menu's row (src/ui/menu.js, wave 0), shown while hooks.passThrone exists.
+export const V90_D_TEXT = {
+  menuPass: 'Pass the throne',
+};
+// ── end v90 d ──
+
+// Version 9.0, Track L (the ruler list and rivals; rulings 1585-1599). Track L writes only between this header and its end line.
+// The game menu's row (src/ui/menu.js, wave 0), shown while hooks.rulers exists.
+export const V90_L_TEXT = {
+  menuRulers: 'Rulers',
+};
+// ── end v90 l ──
+
+// Version 9.0, Track V (animations and visual effects; rulings 1600-1619). Track V writes only between this header and its end line.
+// ── end v90 v ──

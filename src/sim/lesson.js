@@ -37,8 +37,9 @@ export function chapterAt(at) {
 
 // The lesson's city: the fixed map, the guide off (the lesson is the guide), nothing built. world.lesson marks it (never saved): the court makes no demand of it
 // (src/sim/demands.js demandsOn), since the lesson's one row is the only guidance and a demand's tip and alert would be a second.
+// Version 9.0 (ruling 1564): always the Steady, whatever heir the device's dynasty holds, so no trait changes what a step needs or moves the staged raid.
 export function lessonWorld() {
-  const world = createWorld({ seed: LESSON.seed, size: LESSON.size, difficulty: LESSON.difficulty, mapVariant: LESSON.variant });
+  const world = createWorld({ seed: LESSON.seed, size: LESSON.size, difficulty: LESSON.difficulty, mapVariant: LESSON.variant, heir: 'steady' });
   setGuide(world, false);
   world.lesson = true;
   return world;

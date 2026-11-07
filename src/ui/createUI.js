@@ -92,6 +92,8 @@ import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
+import { SPLITS } from '../data/scoring.js';
+import { onSplit } from './v90/rivalToast.js';   // Version 9.0 (wave 0 seam): the rival toast at a new split (Track L)
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -120,6 +122,7 @@ export function createUI({
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
   let undoToast = null;  // Version 7.0 (Track P): the "placed · Undo" toast's node, so Delete knows whether that Undo is still offered
   const seams = () => [danger, scoreUi, monumentUi, ...s46].filter(Boolean);
+  let splitsSeen = null;                                 // Version 9.0: the splits already told to onSplit (null until the seams exist; noteSplits)
   let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
@@ -293,6 +296,8 @@ export function createUI({
     cancelPlacing: () => placement.cancel(),   // Version 7.1.1 (ruling 1115): the lesson card puts away a tool that is still on
     pickSource: (id, good) => sourcePick.start(id, good),
   };
+  // Version 9.0 (wave 0 seam, ruling 1563): the splits the city had when the interface opened; each one recorded after that goes once to onSplit.
+  splitsSeen = new Set(SPLITS.filter((id) => Number.isInteger(world.splits[id])));
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
@@ -718,7 +723,13 @@ export function createUI({
       if (cheer) celebrations.show(cheer);
     }
     speedControl.render();                             // the sim may have changed the speed (a first fire or raid warning)
+    noteSplits();
     for (const s of seams()) s.onEvents(events);
+  }
+  // Version 9.0 (wave 0 seam, ruling 1563): each split whose first day the city has recorded since the last look, once (src/ui/v90/rivalToast.js).
+  function noteSplits() {
+    if (!splitsSeen) return;
+    for (const id of SPLITS) if (!splitsSeen.has(id) && Number.isInteger(world.splits[id])) { splitsSeen.add(id); onSplit(world, id, seamCtx); }
   }
   function cheerSound() { sfx.play('goal'); sfx.buzz(20); }
   // The caption for one sim event, or null. Achievements stay quiet while the guide runs (spec 3.8): the sim

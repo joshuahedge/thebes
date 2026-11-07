@@ -8,7 +8,7 @@ import { RAID_SALT } from '../../../src/data/raids.js';
 import { V84_TALLY, LUXURY_GRACE_DAYS } from '../../../src/data/v84.js';
 import { drawDrift } from '../../../src/sim/trade.js';
 import { createRng, hash2 } from '../../../src/sim/rng.js';
-import { createWorld, WORLD_VERSION, STAGE84_TALLY, newTally } from '../../../src/sim/world.js';
+import { createWorld, WORLD_VERSION, STAGE84_TALLY, STAGE90_TALLY, newTally } from '../../../src/sim/world.js';
 import { serialize, deserialize, validateWorld, REQUIRED, TALLY_KEYS } from '../../../src/save/serialize.js';
 import { CURRENT_VERSION } from '../../../src/save/migrate.js';
 import { nextRaidEntry } from '../../../src/sim/raids.js';
@@ -40,6 +40,8 @@ function v10City() {
   const v10 = JSON.parse(serialize(w));
   delete v10.luxuryFrom;
   for (const k of STAGE84_TALLY) delete v10.tally[k];
+  delete v10.heir;                                     // Version 9.0 (world version 12) is not in a version 10 save either
+  for (const k of STAGE90_TALLY) delete v10.tally[k];
   v10.version = 10;
   return { w, v10 };
 }
@@ -81,7 +83,7 @@ describe('v84 w0 trade: Byblos and Nubia trade the new goods, and no 8.3 price m
 describe('v84 w0 save: world version 11', () => {
   it('creates a version 11 world with the new tallies at 0 and the luxury need counting from day 0', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([11, 11, 11]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([12, 12, 12]);   // Version 9.0 made it 12 (tests/v90/w0)
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     expect(STAGE84_TALLY).toEqual(V84_TALLY);
     for (const k of V84_TALLY) { expect([k, w.tally[k]]).toEqual([k, 0]); expect(TALLY_KEYS).toContain(k); }
@@ -100,7 +102,7 @@ describe('v84 w0 save: world version 11', () => {
   it('loads an 8.3 (v10) city: the tallies at 0, the need from the load day + 360, and a year played as the 8.3 city plays it', () => {
     const { w, v10 } = v10City();
     const loaded = deserialize(JSON.stringify(v10));
-    expect(loaded.version).toBe(11);
+    expect(loaded.version).toBe(12);                                                // 9.0: the chain goes on to 12
     expect(LUXURY_GRACE_DAYS).toBe(360);
     expect(loaded.luxuryFrom).toBe(v10.day + 360);
     for (const k of V84_TALLY) expect([k, loaded.tally[k]]).toEqual([k, 0]);

@@ -18,6 +18,7 @@ import { hasNewLand, GRASS } from '../data/s47.js';
 import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
 import { buildingsInRange } from './chunkIndex.js';
+import { effectsV90 } from './v90/effects.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -262,6 +263,7 @@ export function createRenderer({
     if (opts.fire) opts.fire(g, range);
     if (opts.units) opts.units(g, range);
     if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now, world);
+    effectsV90(g, view, world, { ...opts, range, cam });   // Version 9.0 (wave 0 seam): Track V's effects, above the effects pass and under the overlays
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);

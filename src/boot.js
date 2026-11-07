@@ -159,7 +159,10 @@ export async function boot(doc, win, {
     // variant: the layout a shared score's link names (Start this seed), which beats the seed's own pick.
     const mapVariant = MAP_VARIANTS.includes(variant) ? variant : MAP_VARIANTS.includes(variantParam) ? variantParam : chosen || stress || sample ? 'classic' : 'auto';
     const mapSize = isMapSize(size) ? size : isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
-    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), size: mapSize, difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant });
+    // Version 9.0 (ruling 1564): the city plays under the dynasty's heir (the newest ruler's title; the Steady on a new device). The sample and stress
+    // cities of the development flags stay the Steady, so the shots and the budgets do not move with what the device holds.
+    const heir = stress || sample ? 'steady' : records.dynasty().heir;
+    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), size: mapSize, difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant, heir });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);

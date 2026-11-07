@@ -1,4 +1,5 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY, STAGE90_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { HEIR_DEFAULT } from '../data/v90.js';
 import { newTradeSettings } from '../data/trade.js';
 import { LUXURY_GRACE_DAYS } from '../data/v84.js';
 import { newEventState, EVENT_V9_WAIT } from '../data/cityEvents.js';
@@ -309,8 +310,21 @@ function v10ToV11(w) {
   };
 }
 
+// v11 -> v12 (Version 9.0, wave 0, ruling 1560). The city keeps everything it had and plays on as an 8.4 city: it is the Steady (no trait
+// bends any number), and the four month-end counts start at 0, so the share titles need their 24 counted months from the load. A seal's
+// `passed` and `title` are optional and stay absent on every older seal.
+function v11ToV12(w) {
+  const tally = isRec(w.tally) ? w.tally : {};
+  return {
+    ...w,
+    version: 12,
+    tally: { ...tally, ...Object.fromEntries(STAGE90_TALLY.map((k) => [k, 0])) },
+    heir: HEIR_DEFAULT,
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9, 9: v9ToV10, 10: v10ToV11 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9, 9: v9ToV10, 10: v10ToV11, 11: v11ToV12 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

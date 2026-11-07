@@ -30,6 +30,7 @@ import { cartDay } from './carts.js';
 import { pressureMonth } from './pressure.js';
 import { v60Day, v60Month } from './v60.js';
 import { v70Day, v70Month } from './v70.js';
+import { countDynastyMonth } from './dynasty.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -58,6 +59,7 @@ export function runMonth(world, events = null) {
   checkFeats(world, events);                           // Stage 3 (src/sim/feats.js)
   clearUndo(world);
   recordGoodsMonth(world, goods, held, heldAfter, tradeSpent);   // after monthlyEconomy (it starts stats.lastMonth) and tradeMonth
+  countDynastyMonth(world);                            // Version 9.0: the titles' month-end counts, once stats.lastMonth is whole (src/sim/dynasty.js)
   // The month-end row: Welcome back's trends, and from Stage 3 the city score and its four parts (spec 4.19).
   world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood, ...scoreRow(world) });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
