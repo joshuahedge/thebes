@@ -372,8 +372,17 @@ describe('v90 v dust, fire fought, the festival and the weather (V6, V7, V9, V10
     w.day = SEASONS.indexOf('akhet') * DAYS_PER_MONTH + 3;
     const wet = spyDraw();
     drawWeather(wet.g, w, ALL, 0);
-    expect([wet.calls.filter((c) => c.k === 'ell').length, wet.calls.filter((c) => c.k === 'stroke').length]).toEqual([6, 0]);
+    expect([wet.calls.filter((c) => c.k === 'ell').length, wet.calls.filter((c) => c.k === 'stroke').length]).toEqual([WEATHER.clouds * (2 * WEATHER.soft - 1), 0]);
     for (const c of wet.calls) if (c.k === 'ell') expect(c.a[4].alpha).toBeLessThan(0.25);
+    // soft edges: each lobe's layers shrink inward, every layer far fainter than the whole
+    const ells = wet.calls.filter((c) => c.k === 'ell');
+    expect(ells[1].a[1]).toBeLessThan(ells[0].a[1]);
+    for (const c of ells) expect(c.a[4].alpha).toBeLessThan(WEATHER.alpha / 2);
+    w.lesson = true;                                                                // no clouds over the lesson's dimming
+    const les = spyDraw();
+    drawWeather(les.g, w, ALL, 0);
+    expect(les.calls.filter((c) => c.k === 'ell').length).toBe(0);
+    w.lesson = false;
     w.day = SEASONS.indexOf('shemu') * DAYS_PER_MONTH + 3;
     let gusts = 0;
     for (let now = 900; now < 40000; now += 1800) {                                 // mid-window, where a gust is at its fullest
@@ -432,7 +441,7 @@ describe('v90 v the dropper (ruling 1602)', () => {
     expect(spy.calls.filter((c) => c.k === 'ell').length).toBe(0);                // the clouds are shed
     const on = spyDraw();
     drawV90(on.g, w, { range: ALL, now: 0 });
-    expect(on.calls.filter((c) => c.k === 'ell').length).toBe(6);
+    expect(on.calls.filter((c) => c.k === 'ell').length).toBe(WEATHER.clouds * (2 * WEATHER.soft - 1));   // the soft clouds' layers
     resetV90Dropper();
     effectsV90(spyDraw().g, { width: 100, height: 100 }, w, { range: ALL, now: 0 });
     expect(v90Dropper.stats.dropped).toEqual([]);

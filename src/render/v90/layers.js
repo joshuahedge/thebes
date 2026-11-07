@@ -166,7 +166,7 @@ export function drawFestive(g, world, walkers, range, now) {
 }
 
 // ── V10: the weather ──
-export const WEATHER = { clouds: 3, alpha: 0.1, tilesPerSecond: 0.25, radius: [4, 7], gusts: 12, gustMs: 1800, sand: '#E8D3A2' };
+export const WEATHER = { clouds: 3, alpha: 0.1, soft: 4, tilesPerSecond: 0.25, radius: [4, 7], gusts: 12, gustMs: 1800, sand: '#E8D3A2' };
 const edges = new WeakMap();                 // world -> [tile index of each desert tile beside non-desert land] (the terrain never changes in play)
 export function desertEdge(world) {
   let e = edges.get(world);
@@ -198,12 +198,22 @@ export function cloudsAt(world, range, now) {
   }
   return out;
 }
+// A shadow is a soft cluster: each lobe is WEATHER.soft nested ellipses, each a share of the alpha, so the middle reaches about WEATHER.alpha
+// and the edge fades out instead of ending in a hard rim (a flat oval read as a rendering fault in the polish review). No clouds in the lesson:
+// over its spotlight's dimming they read as a smudge.
 export function drawWeather(g, world, range, now) {
   let n = 0;
-  for (const c of cloudsAt(world, range, now)) {
+  const clouds = world.lesson ? [] : cloudsAt(world, range, now), k = WEATHER.soft;
+  for (const c of clouds) {
     const q = p(c.x, c.y), r = c.r * 16;
-    g.ell(q, r, r * 0.5, SHADOW, { alpha: WEATHER.alpha });                 // the shadow: a soft cluster, never darker than a quarter
-    g.ell([q[0] + r * 0.5, q[1] - r * 0.12], r * 0.6, r * 0.3, SHADOW, { alpha: WEATHER.alpha * 0.6 });
+    for (let i = 0; i < k; i++) {
+      const s = 1 - i / k;
+      g.ell(q, r * s, r * 0.5 * s, SHADOW, { alpha: WEATHER.alpha / k });
+    }
+    for (let i = 1; i < k; i++) {
+      const s = 1 - i / k;
+      g.ell([q[0] + r * 0.5, q[1] - r * 0.12], r * 0.75 * s, r * 0.375 * s, SHADOW, { alpha: (WEATHER.alpha * 0.6) / (k - 1) });
+    }
     n++;
   }
   if (seasonAt(world).season !== 'shemu' || !range) return n;
