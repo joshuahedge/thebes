@@ -2,6 +2,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS, LUXURY_GOODS } from '../data/goods.js';
 import { useOf, TIERS, MAX_TIER } from '../data/housing.js';
 import { GOOD_VALUE } from '../data/court.js';
+import { INCENSE_GOOD } from '../data/trade.js';
+import { EVENT_NUMBERS } from '../data/cityEvents.js';
+import { FESTIVAL } from '../data/raids.js';
 import { allBuildings, housesOf } from './world.js';
 import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { isWorking } from './labour.js';
@@ -25,7 +28,12 @@ const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] ||
 
 // ── Version 8.4, Track G (design 2c, ruling 1468): the luxuries, one pool as the foods are ──
 // The luxuries in the order a home takes and uses them: the cheapest by GOOD_VALUE first (incense, cedar, ivory), so the dearest is kept longest.
-export const LUXURY_ORDER = LUXURY_GOODS.slice().sort((a, b) => (GOOD_VALUE[a] || 0) - (GOOD_VALUE[b] || 0) || LUXURY_GOODS.indexOf(a) - LUXURY_GOODS.indexOf(b));
+// Version 8.4 fix wave (ruling 1535): incense goes last whatever it is worth, so a home spends cedar and ivory first and the Opet festival's incense is not eaten.
+export const LUXURY_ORDER = LUXURY_GOODS.slice().sort((a, b) => (a === INCENSE_GOOD) - (b === INCENSE_GOOD) || (GOOD_VALUE[a] || 0) - (GOOD_VALUE[b] || 0) || LUXURY_GOODS.indexOf(a) - LUXURY_GOODS.indexOf(b));
+// The incense the stores keep back for the Opet festival (ruling 1535): its full festival takes EVENT_NUMBERS.opet.incense from the stores (cityEvents.js
+// incenseReaches, CHOICES.opet), so the bazaars' top-up leaves that much while a working temple could be offered one.
+const festivalIncense = (world) => (world.danger.festivalDay === null || world.day - world.danger.festivalDay >= FESTIVAL.every)
+  && allBuildings(world).some((b) => b.type === 'temple' && isWorking(world, b)) ? EVENT_NUMBERS.opet.incense : 0;
 // A home's luxuries in stock, of every kind.
 export const luxuryOnHand = (house) => LUXURY_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
 // A home's luxury need for a month at `tier`'s use (0.01 a resident x the use, rounded up per home: a Villa of 150 uses 3, an Estate of 180 uses 4).
@@ -47,6 +55,11 @@ export function restockBazaars(world) {
       if (!luxuries && LUXURY_GOODS.includes(good)) continue;
       let need = (def.stock[good] || 0) - (bz.store[good] || 0);
       if (need <= 0) continue;
+      if (good === INCENSE_GOOD) {   // what the stores hold beyond the festival's incense, in the whole city
+        const held = allBuildings(world).reduce((n, o) => n + ((BUILDINGS[o.type].stores || []).includes(good) ? o.store[good] || 0 : 0), 0);
+        need = Math.min(need, held - festivalIncense(world));
+        if (need <= 0) continue;
+      }
       const sources = buildingsInReach(world, bz, def.supplyReach,
         (o) => (BUILDINGS[o.type].stores || []).includes(good) && (o.store[good] || 0) > 0);
       for (const { b: src } of sources) {

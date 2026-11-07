@@ -38,8 +38,8 @@ describe('v84 g luxury: the need', () => {
     expect(luxuryNeed({ residents: 125, tier: 7 })).toBe(2);                      // 1.25 at its own use
   });
 
-  it('counts a luxury of any kind, and any mix, taking the cheapest first (incense, cedar, ivory)', () => {
-    expect(LUXURY_ORDER).toEqual(['incense', 'cedar', 'ivory']);
+  it('counts a luxury of any kind, and any mix, taking cedar and ivory before incense (ruling 1535)', () => {
+    expect(LUXURY_ORDER).toEqual(['cedar', 'ivory', 'incense']);
     for (const good of LUXURY_GOODS) {
       const { world, home } = luxuryStreet({ luxury: { [good]: 3 } });
       expect([good, needCause(world, home, 'luxury')]).toEqual([good, null]);
@@ -48,7 +48,7 @@ describe('v84 g luxury: the need', () => {
     }
     const { world, home } = luxuryStreet({ luxury: { incense: 1, cedar: 1, ivory: 4 } });
     month(world);
-    expect([home.met.luxury, home.stock.incense, home.stock.cedar, home.stock.ivory]).toEqual([true, 0, 0, 3]);
+    expect([home.met.luxury, home.stock.incense, home.stock.cedar, home.stock.ivory]).toEqual([true, 1, 0, 2]);   // ruling 1535: the incense is kept (3 used: the cedar, then two ivory)
   });
 
   it('downgrades a Villa after two months without a luxury, as any missing need', () => {

@@ -291,7 +291,7 @@ export function payTribute(world) {
 // to 1x (setSpeed). index then counts it, so laterWarnDay draws the next raid's gap.
 // Version 8.4 (wave 0 seam): the entry the raid at this index comes in by, a copy of one of world.raiderEntries (which must not be empty).
 // Track E owns the body (elephants come in from upriver); Track R's scouts call it to stand where the next raid will enter.
-// Version 8.4, Track E (ruling 1504): an elephant raid's index (elephantRaid, decided by the index alone) comes in by the entry upriver
+// Version 8.4, Track E (ruling 1504): an elephant raid's index (elephantRaid, decided by the stage) comes in by the entry upriver
 // (upriverEntry: nearest the south edge's river mouth, else any mouth); any other raid, or a map with no water at its edges, by the draw.
 export function nextRaidEntry(world, index) {
   const entries = world.raiderEntries;
@@ -514,7 +514,7 @@ function arrive(world, events) {
   r.active = a;
   r.warning = null;
   world.tally.raids += 1;
-  if (elephantsIn(a.mix)) world.tally.elephantsMet += elephantsIn(a.mix);   // Version 8.4, Track E: the war elephants that came
+  if (elephantsIn(a.mix) && world.tally.elephantsMet !== undefined) world.tally.elephantsMet += elephantsIn(a.mix);   // Version 8.4, Track E: the war elephants that came
   healWalls(world);
   if (world.speed > 1) setSpeed(world, 1);
   if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size, ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}) });

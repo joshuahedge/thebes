@@ -4186,6 +4186,7 @@ export const V84_G_TEXT = {
   rushCancelled: (type) => `The rush at the ${ui4Lower(type)} is cancelled: nothing more is paid`,
   // Why Rush cannot be had now (rushQuote's reasons), shown in place of the button.
   rushWhy: {
+    too_short: "Rush would save less than a day",
     waiting_offering: "Rush: this stage waits for its offering first",
     waiting_gilding: "Rush: the last course waits for the gilding's gold first",
     waiting_capstone: "Rush: the last course waits for the capstone's gold first",

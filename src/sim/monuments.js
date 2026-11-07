@@ -408,6 +408,7 @@ export function rushQuote(world, id) {
   let reason = null;
   if (b.site.rush) reason = 'has_rush';
   else if (!(rate > EPS)) reason = 'no_crew';
+  else if (saved < 1) reason = 'too_short';   // ruling 1535: a rush that saves under a day buys nothing
   else if (offeringDue(world, b) && offeringShort(world, b)) reason = 'waiting_offering';
   else if (extraDue(b) && !canPayNoDebt(world, extraGoldOf(world, b.type, b.style))) reason = `waiting_${MONUMENTS[b.type].extra.kind}`;
   else if (!canPayNoDebt(world, q.dayGold)) reason = 'no_gold';

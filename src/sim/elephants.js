@@ -30,16 +30,17 @@ export const PANIC_BY = ['tower', 'archer'];
 export const wouldStampede = (world, r) => hash2(world.seed, r.id, RAID_SALT.panic) < ELEPHANTS.panicChance;
 
 // The day's panic (ruling 1502), after the day's blows: each elephant still standing that is below half its hit points for the first time
-// draws once (panicChecked); if the last blow it took today was an arrow (lastBy: raider id -> 'tower' | 'archer' | 'soldier' | 'chariot')
-// and the draw says so, it stampedes: its damage (ENEMY_TYPES.elephant.damage) to every other raider of its band still standing, through
+// draws once (panicChecked, set only when the last blow it took today was an arrow: lastBy is raider id -> 'tower' | 'archer' | 'soldier' | 'chariot')
+// and, if the draw says so, it stampedes: its damage (ENEMY_TYPES.elephant.damage) to every other raider of its band still standing, through
 // hurt(raider, damage, 'stampede'), and it leaves the raiders (combat.js drops every raider with stampede: true). Returns the stampeders;
 // { type: 'stampede', id, x, y, to } tells the drawing (to: its band's entry, where it runs).
 export function panicDay(world, a, lastBy, hurt, events = null) {
   const out = [];
   for (const r of a.raiders) {
     if (!isElephant(r) || !alive(r) || r.panicChecked || r.hp * 2 >= ENEMY_TYPES.elephant.hp) continue;
+    if (!PANIC_BY.includes(lastBy.get(r.id))) continue;   // ruling 1536 (amends 1502): only an arrow uses up the check; a melee blow leaves it for a later arrow
     r.panicChecked = true;
-    if (!PANIC_BY.includes(lastBy.get(r.id)) || !wouldStampede(world, r)) continue;
+    if (!wouldStampede(world, r)) continue;
     r.stampede = true;
     out.push(r);
     for (const o of a.raiders) if (o !== r && alive(o) && !o.stampede && bandOf(o) === bandOf(r)) hurt(o, ENEMY_TYPES.elephant.damage, 'stampede');

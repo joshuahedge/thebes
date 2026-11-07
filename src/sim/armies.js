@@ -165,7 +165,7 @@ export function drawMix(world, index, size, { boats = false } = {}) {
 }
 
 // Whether the raid at this 0-based index is an elephant raid (ruling 1500): from ENEMY_TYPES.elephant.fromRaid, a seeded ELEPHANTS.chance by
-// the index alone (hash2(seed, index, RAID_SALT.elephant)), so the scouts and the entry know it before the raid's size is fixed. Never on
+// the stage (the draw hash2(seed, index, RAID_SALT.elephant) keeps the index), so the scouts and the entry know it before the raid's size is fixed. Never on
 // the first raid. A raid too small for one (under ELEPHANTS.per raiders) brings none, but still comes in from upriver (nextRaidEntry).
 // Version 8.4 (ruling 1531): from the raid's stage, read from its warning day (raidStage: the day it is due before it is warned, so the scouts agree).
 export const elephantRaid = (world, index) => index > 0 && enemyMayCome('elephant', raidStage(world, index)) && hash2(world.seed, index, RAID_SALT.elephant) < ELEPHANTS.chance;

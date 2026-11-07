@@ -294,7 +294,7 @@ describe('v84 e panic: an arrow below half may send an elephant back through its
     const { w, a } = setUp(true, 'soldier');
     const el = a.raiders[0];
     combatDay(w, []);
-    expect([el.hp < 30, el.panicChecked, a.stampeded, a.raiders.includes(el)]).toEqual([true, true, undefined, true]);
+    expect([el.hp < 30, el.panicChecked, a.stampeded, a.raiders.includes(el)]).toEqual([true, undefined, undefined, true]);   // ruling 1536: a melee blow leaves the check for a later arrow
   });
   it('counts as fallen for the retreat, drops no ivory, and never makes a raid lost: the last raider stampeding beats it', () => {
     const w = city();
