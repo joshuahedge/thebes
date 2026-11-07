@@ -176,10 +176,10 @@ export function tradeWalkers(world, timeDays, range = null, motion = 'full') {
 }
 
 // Version 9.0, Track V (V8): each trade boat under way leaves a wake (render/v90/wakes.js), at the frame's game time (render/v90/clock.js), heading along
-// the leg of its path it is on (the other way when it goes back). A moored boat and a caravan leave none; Still shows no boat sailing, so no wake.
-export function drawTradeGround(g, world, range, now, motion) {
+// the leg of its path it is on (the other way when it goes back). A moored boat and a caravan leave none. Effects are Full only (ruling 1601).
+export function drawTradeGround(g, world, range, now) {
   const routes = world.trade && world.trade.routes;
-  if (!routes || motion === 'still') return;
+  if (!routes) return;
   const timeDays = frameTimeOf(world);
   let boats = 0;
   Object.keys(PARTNERS).filter((id) => routes[id]).forEach((id) => {

@@ -29,7 +29,7 @@ import { T } from '../sim/terrain.js';
 import { ART, slotFor } from './art/registry.js';
 import { BIG } from './art/housing.js';
 import { TERRAIN, WOOD, SHADOW } from './art/palette.js';
-import { v90Off, spend } from './v90/dropper.js';
+import { v90Off, spend, spentSoFar } from './v90/dropper.js';
 import { drawWake } from './v90/wakes.js';
 
 export const LEVEL_HOLD_MS = 2000;           // the budget can drop one more kind at most this often
@@ -51,19 +51,21 @@ const SALT = { glint: 501, ripple: 502, reed: 503, tree: 504, crop: 505, pool: 5
 
 // The idle frame rate (spec 5.6): paused, with no input for idleAfterMs, frames are capped at fpsCap. createUI notes every
 // pointer, key and wheel input and the game loop asks allow(now, paused) before drawing a frame (it still runs the sim).
-// A frame is allowed once 1000 / fpsCap ms (less a few ms of slack, so a 60 Hz display draws every second frame) have
-// passed since the last one drawn.
+// A frame is allowed when its due time comes (1000 / fpsCap ms after the last due time, a little slack either side).
 // Version 9.0, Track V (V0b, ruling 1600): every other frame is capped at runningFpsCap (60) the same way, so a 120 Hz phone draws every second frame
-// and a 60 Hz one every frame. The sim still runs its days on every frame the loop sees; only the drawing waits.
+// and a 60 Hz one every frame (ruling 1637: stepping the due time, a 90 or 144 Hz screen draws close to 60 too). The sim still runs its days on every frame the loop sees; only the drawing waits.
 export function createFrameGate({ idleAfterMs = AMBIENT.idleAfterMs, fpsCap = AMBIENT.idleFpsCap, runningFpsCap = AMBIENT.runningFpsCap } = {}) {
-  let lastInput = -Infinity, lastDrawn = -Infinity;
-  const gap = 1000 / fpsCap - 4, runningGap = 1000 / runningFpsCap - 4;
+  let lastInput = -Infinity, due = -Infinity;
+  const gap = 1000 / fpsCap, runningGap = 1000 / runningFpsCap, SLACK_MS = 2;
   return {
     noteInput(now) { lastInput = now; },
+    // Ruling 1637: the next draw is due a whole period after the last one was due (not after it was drawn), so 90, 120 and 144 Hz screens all
+    // draw close to the cap; a frame within SLACK_MS before its due time counts, and a loop that fell more than a period behind starts again from now.
     allow(now, paused) {
-      const idle = paused && now - lastInput >= idleAfterMs;
-      if (now - lastDrawn >= (idle ? gap : runningGap)) { lastDrawn = now; return true; }
-      return false;
+      const idle = paused && now - lastInput >= idleAfterMs, period = idle ? gap : runningGap;
+      if (now < due - SLACK_MS) return false;
+      due = now - due > period ? now + period : due + period;
+      return true;
     },
   };
 }
@@ -358,7 +360,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     if (g) lateByG.delete(g);                // a late layer left from a frame that never drew it is stale: drop it
     if (world) stateByWorld.set(world, { level: enabled() ? level() : 'still', dropped: enabled() ? stats.dropped.slice() : [], now });
     if (!enabled() || !g || !range) return;
-    const started = clock();
+    const started = clock(), vStart = spentSoFar();   // V's own layers (flow, wakes, workshop smoke) are timed into V's budget, not this one (ruling 1638)
     const off = new Set(AMBIENT.dropOrder.slice(0, dropLevel));
     const moving = full();                   // Gentle: glints and smoke in place; no ripple shift, sway, crops or rare life
     if (!moving) for (const k of ['sway', 'rare']) off.add(k);
@@ -368,7 +370,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     if (rows.size) {
       drawGlints(g, world, range, now, rows, moving);
       drawRipples(g, rows, now, moving);
-      if (moving && !v90Off('flow')) drawFlow(g, world, rows, range, now);   // Version 9.0 (V11): the river flowing, the first of V's effects to go
+      if (!v90Off('flow')) drawFlow(g, world, rows, range, now);   // Version 9.0 (V11): the river flowing, the first of V's effects to go
       if (!off.has('sway')) drawReeds(g, world, range, now, rows);
       if (!off.has('rare')) {
         const boat = rareAt(world, 'felucca', now), ducks = rareAt(world, 'ducks', now);
@@ -376,9 +378,9 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
         if (ducks) drawDucks(g, rows, range, ducks);
       }
     }
-    pending = { ms: clock() - started, now };
+    pending = { ms: Math.max(0, clock() - started - (spentSoFar() - vStart)), now };
     lateByG.set(g, () => {
-      const lateStart = clock();
+      const lateStart = clock(), lateV = spentSoFar();
       for (const id in world.buildings) {
         const b = world.buildings[id];
         if (!inRange(b, range)) continue;
@@ -387,14 +389,18 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
         else if (b.type === 'house' && BIG[b.tier] && BIG[b.tier].pool && !screened(world, b)) drawPoolGlint(g, b, [0.32, 1.24, 0.6, 0.3], now, moving);
         if (!off.has('smoke')) {
           const base = smokeBase(world, b);
-          if (base) drawSmoke(g, b, base, now, wind, !moving);
+          if (base) {
+            const mine = V90_SMOKE.has(b.type), t0 = mine ? clock() : 0;
+            drawSmoke(g, b, base, now, wind, !moving);
+            if (mine) spend(clock() - t0);                         // 9.0's workshop smoke counts in V's budget only (ruling 1638)
+          }
         }
       }
       if (!off.has('rare')) {
         const bird = rareAt(world, 'bird', now);
         if (bird) drawBird(g, artBox(range), bird);
       }
-      const ms = (pending ? pending.ms : 0) + clock() - lateStart;
+      const ms = (pending ? pending.ms : 0) + Math.max(0, clock() - lateStart - (spentSoFar() - lateV));
       pending = null;
       account(ms, now);
     });

@@ -28,7 +28,7 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const inView = (x, y, r) => !r || (x >= r.x0 - 1 && x <= r.x1 + 2 && y >= r.y0 - 1 && y <= r.y1 + 2);
 
 // ── V6: dust on the move ──
-export const DUST = { cap: 30, periodMs: 700, colour: '#D8C4A0', alpha: 0.34, behind: 4 };
+export const DUST = { cap: 30, periodMs: 700, colour: '#D8C4A0', alpha: 0.34, behind: 4, fadeIn: 0.2 };
 const RAIDER_KINDS = /^(raider|chief)/;
 // The walkers that kick up dust: raiders that are walking (not standing, not in a fight's pose) and carts on desert sand.
 export function dustSources(world, walkers) {
@@ -51,7 +51,7 @@ export function drawDust(g, world, walkers, range, now) {
     const q = p(w.x, w.y), back = w.dir === 2 || w.dir === 3 ? 1 : -1, big = w.cart ? 1 : 1.3;
     for (let i = 0; i < 2; i++) {
       const ph = ((now / DUST.periodMs + (w.id % 97) * 0.37 + i * 0.5) % 1 + 1) % 1;
-      g.circ([q[0] + back * (DUST.behind + ph * 6) * big, q[1] - 1 - ph * 2.5], (1.4 + ph * 2.2) * big, DUST.colour, { alpha: DUST.alpha * (1 - ph) });
+      g.circ([q[0] + back * (DUST.behind + ph * 6) * big, q[1] - 1 - ph * 2.5], (1.4 + ph * 2.2) * big, DUST.colour, { alpha: DUST.alpha * Math.min(1, ph / DUST.fadeIn) * (1 - ph) });   // in over the first part of its life, out over the rest: none pops on or off
     }
   }
   return list.length;
@@ -217,6 +217,7 @@ export function drawWeather(g, world, range, now) {
     segs.push(['M', [a[0], a[1] - 2]], ['L', [b[0], b[1] - 2]]);
     gusts++;
   }
-  if (segs.length) g.stroke(segs, WEATHER.sand, 1, 0.55);
+  const fade = Math.sin(Math.PI * ((now % WEATHER.gustMs) / WEATHER.gustMs));   // a gust fades in and out over its window, so a new set never pops in
+  if (segs.length && fade > 0.01) g.stroke(segs, WEATHER.sand, 1, 0.55 * fade);
   return n + gusts;
 }
