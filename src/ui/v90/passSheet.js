@@ -75,7 +75,8 @@ export function createPassSheets(ctx) {
         button(W.notYet, { class: 'pass-not-yet', onClick: () => store.set(closeSheet(store.get())) }),
       ]),
     ]));
-    passSheetExtras(body, world, { ...ctx, records: records() });
+    // Track L's side by side reads the rival from the records (ctx.records, else ctx.hooks.records) and the sealed score the sheet shows (ctx.score).
+    passSheetExtras(body, world, { ...ctx, records: records(), score: kept.score, hooks: ctx.hooks });
   }
 
   function heirCard(body, { close, setTitle } = {}) {
