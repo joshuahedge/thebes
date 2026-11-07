@@ -6,6 +6,8 @@
 import { p } from './iso.js';
 import { ferryLinks, landingsOf, mateOf } from '../sim/ferries.js';
 import { cartsOnFerries } from './carts.js';
+import { drawWake } from './v90/wakes.js';
+import { frameTimeOf } from './v90/clock.js';
 
 export const FERRY_ID_BASE = 4100000;   // after the trade figures (4000000 +): base + the lower landing's id
 
@@ -32,6 +34,17 @@ export function ferryGround(g, world, range) {
     g.ctx.setLineDash(runs ? [4 * g.scale, 3 * g.scale] : [1.5 * g.scale, 4 * g.scale]);
     g.line(from, to, runs ? '#FFFFFF' : '#E8EEF4', runs ? 1.7 : 1.3, runs ? 0.95 : 0.75);
     g.ctx.setLineDash([]);
+  }
+  // Version 9.0, Track V (V8): the running crossings' boats leave a wake (render/v90/wakes.js) while under way, at the frame's game time; not at a landing.
+  // While a cart rides the crossing the link's own boat is left out (ferryWalkers), so its wake is too: a wake goes only with a boat that is drawn.
+  const timeDays = frameTimeOf(world), links = ferryLinks(world), rides = links.length ? cartsOnFerries(world, timeDays, range, 'full') : [];
+  for (const l of links) {
+    if (rides.some((r) => carries(world, l, r))) continue;
+    const [ax, ay] = centre(l.a), [bx, by] = centre(l.b), dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+    const raw = boatFraction(l.water, timeDays, l.a.id), f = Math.min(1 - 1 / len, Math.max(1 / len, raw));
+    if (f !== raw) continue;                                                 // at a landing: no way on
+    const x = ax + dx * f, y = ay + dy * f, back = boatFraction(l.water, timeDays + 0.05, l.a.id) < raw ? -1 : 1;
+    if (inRange(range, x, y)) drawWake(g, x, y, (dx / len) * back, (dy / len) * back, timeDays * 1000, 0.8);
   }
 }
 

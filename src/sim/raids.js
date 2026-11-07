@@ -99,6 +99,7 @@ import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
 import { raidSpoils, spoilsMonth } from './spoils.js';
 import { scoutsAt } from './scouts.js';
+import { firstWarnAfterOf } from './dynasty.js';
 import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -362,7 +363,7 @@ export function raidDay(world, events = null) {
   const r = world.raid, day = world.day;
   if (raidsOn(world) && r.clockDay === null && Math.max(world.tally.peakPeople, population(world)) >= RAIDS.clockPeople) {
     r.clockDay = day;
-    r.nextWarnDay = day + RAIDS.firstWarnAfter;
+    r.nextWarnDay = day + firstWarnAfterOf(world);   // Version 9.0 (Track D): RAIDS.firstWarnAfter, 100 days less for the heir of the Unconquered
   }
   trackFires(world, r.active);
   trackFires(world, r.last);

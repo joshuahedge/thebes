@@ -5,11 +5,11 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v80 u release: Version 8.0 "Clear and calm"', () => {
   it('is the sixth entry with its merge commit (8.4, 8.3, 8.2.1, 8.2 and 8.1 are newer), and 7.1.1 carries its own', () => {
-    expect([RELEASES[5].version, RELEASES[5].date, RELEASES[5].title, RELEASES[5].build]).toEqual(['8.0', '2026-10-24', 'Clear and calm', '702481b']);
-    expect([RELEASES[6].version, RELEASES[6].build]).toEqual(['7.1.1', 'a6eae26']);
+    expect([RELEASES[6].version, RELEASES[6].date, RELEASES[6].title, RELEASES[6].build]).toEqual(['8.0', '2026-10-24', 'Clear and calm', '702481b']);
+    expect([RELEASES[7].version, RELEASES[7].build]).toEqual(['7.1.1', 'a6eae26']);
   });
   it('names what changed in the words a player would look for, each note one plain sentence', () => {
-    const notes = [...RELEASES[5].new, ...RELEASES[5].fixed];
+    const notes = [...RELEASES[6].new, ...RELEASES[6].fixed];
     const text = notes.join(' ').toLowerCase();
     for (const word of ['patterned band', 'title screen', 'new city', 'more choices', 'options', 'tray', 'placing', 'single house', 'undo', 'full motion', 'bring a city from safari', 'place']) expect([word, text.includes(word)]).toEqual([word, true]);
     for (const line of notes) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);

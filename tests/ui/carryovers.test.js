@@ -127,6 +127,6 @@ describe('ui carry-overs', () => {
     expect(canvas.width).toBe(600);
     expect(cache.size()).toBe(before);                                          // cleared and refilled at 2x, not doubled
     expect(counter.misses).toBe(misses + before);
-    expect(createRenderer({ canvas: document.createElement('canvas'), dpr: 3 }).dpr).toBe(3);
+    expect(createRenderer({ canvas: document.createElement('canvas'), dpr: 3 }).dpr).toBe(2);   // Version 9.0 (ruling 1600): the canvas caps at DPR 2 (was 3)
   });
 });

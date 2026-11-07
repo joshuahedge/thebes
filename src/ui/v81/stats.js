@@ -143,7 +143,7 @@ export function explainStat(world, kind, deps = {}) {
     if (!n.on) out.notes.push(B.date.off);
     else {
       out.notes.push(n.level ? B.date.nextKnown(n) : B.date.nextUnknown(n));
-      if (n.nilometer) out.notes.push(B.date.nilometer);
+      if (n.nilometer) out.notes.push(B.date.nilometer(world));
       const standing = Object.values(world.buildings).filter((b) => b.type === 'nilometer');
       const idle = standing.length && !n.nilometer ? standing[0] : null;
       if (idle) {

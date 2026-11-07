@@ -2305,7 +2305,7 @@ export const S46_ARMY_TEXT = {
   ofCap: (n, cap, away = 0) => (away > 0 ? `${n} here, ${away} away, of ${cap}` : `${n} of ${cap}`),
   full: (kind, n, cap, away = 0) => `Full: ${away > 0 ? `${n} here and ${away} away, of ${cap}` : `${n} of ${cap}`} ${armUnitPlural[kind]}; it trains another when one is wounded`,
   trains: (kind) => `Trains one ${armUnitOne[kind]} every ${armUnits[kind].trainDays} days at full staff, slower when short of workers`,
-  pay: (kind) => `Each ${armUnitOne[kind]} is paid ${armUnits[kind].pay} gold a month at home, in peace too`,
+  pay: (kind, pay = armUnits[kind].pay) => `Each ${armUnitOne[kind]} is paid ${pay} gold a month at home, in peace too`,
   patrolLine: (kind) => `Goes out to raiders within ${armUnits[kind].patrol} tiles`,
   archerDoes: `Shoots a raider up to ${armUnits.archer.range} tiles away; on a wall or tower it deals ${armM('archer', 'foot', 'wall')} to raiders on foot, ${armM('archer', 'foot', 'melee')} in melee`,
   chariotDoes: `Deals ${armM('chariot', 'foot', 'open')} in the open (no wall within ${armArmy.wallNear} tiles), ${armM('chariot', 'foot', 'nearWall')} nearer a wall; it cannot pass a gate`,
@@ -4350,3 +4350,214 @@ CARDS4_TEXT.cards.elephants = {
   alt: 'War elephants with their riders at a wall inside a ring, towers and archers shooting at them from behind it.',
 };
 // ── end v84 e ──
+
+// Version 9.0, Track D (dynasty: Pass the throne, the title, the heir's trait; rulings 1565-1584). Track D writes only between this header and its end line.
+// The game menu's row (src/ui/menu.js, wave 0), shown while hooks.passThrone exists.
+// Every number here is the sim's or the data's own: src/data/dynasty.js TITLES and TRAITS, src/sim/dynasty.js titleOf's rows and passScore.
+import { TITLES as d90Titles, TRAITS as d90Traits, PASS_FROM as d90PassFrom, deeperLoss as d90DeeperLoss } from '../data/dynasty.js';
+const d90Pct = (f) => `${Math.round(Math.abs(f - 1) * 100)}%`;              // a factor's change: 1.15 -> "15%", 0.8 -> "20%"
+const d90Share = (f) => `${Math.round(f * 100)}%`;                          // a share: 0.4 -> "40%"
+const d90Bar = (id) => d90Titles.find((t) => t.id === id);
+const d90Roman = (n) => {
+  let out = '', k = Math.max(1, Math.floor(n));
+  for (const [v, s] of [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]) while (k >= v) { out += s; k -= v; }
+  return out;
+};
+const d90City = () => (MILESTONES.find((m) => m.id === d90PassFrom) || { name: 'City', population: 400 });
+export const V90_D_TEXT = {
+  menuPass: 'Pass the throne',
+  titleNames: { unconquered: 'the Unconquered', builder: 'the Builder', merchant: 'the Merchant', bountiful: 'the Bountiful', generous: 'the Generous', steady: 'the Steady' },
+  // "Ramesses II": the dynasty's name and the regnal number the game adds (ruling 1575).
+  regnal: (name, n) => `${name} ${d90Roman(n)}`,
+  heirOf: (id) => `Heir of ${V90_D_TEXT.titleNames[id] || V90_D_TEXT.titleNames.steady}`,
+  // The trait's two lines (design section 4), from TRAITS.
+  strength: {
+    builder: () => `monuments rise ${d90Pct(d90Traits.builder.crews)} faster`,
+    unconquered: () => `soldiers' pay ${d90Pct(d90Traits.unconquered.pay)} lower`,
+    bountiful: () => `farms yield ${d90Pct(d90Traits.bountiful.farms)} more`,
+    merchant: () => `partners pay ${d90Pct(d90Traits.merchant.buys)} more for what they buy`,
+    generous: () => `${d90Pct(d90Traits.generous.arrivals)} more newcomers`,
+  },
+  weakness: {
+    builder: () => `taxes ${d90Pct(d90Traits.builder.taxes)} lower`,
+    unconquered: () => `the first raid warning comes ${d90Traits.unconquered.sooner} days sooner`,
+    bountiful: () => `a low flood takes ${d90Traits.bountiful.floodLoss === 1.5 ? 'half again as much' : `${d90Traits.bountiful.floodLoss}x as much`} of the harvest`,
+    merchant: () => `workshops make ${d90Pct(d90Traits.merchant.workshops)} less`,
+    generous: () => `High taxes take ${d90Traits.generous.high}x, not ${g84Rates.high.factor}x`,
+  },
+  traitLine: (id) => (V90_D_TEXT.strength[id] ? `${V90_D_TEXT.strength[id]()}; ${V90_D_TEXT.weakness[id]()}` : 'a plain start, with no strength and no weakness'),
+  // The new city's first-screen line (a caption in the guidance row) and the score sheet's header.
+  heirLine: (id) => `${V90_D_TEXT.heirOf(id)}: ${V90_D_TEXT.traitLine(id)}`,
+  heirCaption: (id) => V90_D_TEXT.heirOf(id),
+  heirCaptionWhy: (id) => `${V90_D_TEXT.traitLine(id).replace(/^./, (c) => c.toUpperCase())}. The city summary says it again.`,
+  // Why the title (titleOf's row for it), and how far each title is (the score sheet's "Close behind").
+  whyLine: (id, rows) => {
+    const r = (rows || []).find((x) => x.id === id);
+    if (!r) return "No title's mark was reached: the Steady is the plain one";
+    switch (id) {
+      case 'unconquered': return `${plural(r.beaten, 'raid', 'raids')} beaten, none lost and no tribute paid`;
+      case 'builder': return `${ui4Gold(r.units)} units of stone and brick laid on monuments`;
+      case 'merchant': return `Trade paid ${d90Share(r.measure)} of the bills (${ui4Gold(r.gold)} of ${ui4Gold(r.bills)} gold) from Market town`;
+      case 'bountiful': return `Every home fed at ${r.fed} of ${plural(r.months, 'month end', 'month ends')} from Town`;
+      case 'generous': return `Taxes at Low for ${r.low} of ${plural(r.months, 'month end', 'month ends')} from Town`;
+      default: return "No title's mark was reached: the Steady is the plain one";
+    }
+  },
+  progressLine: (r) => {
+    const bar = d90Bar(r.id) || {};
+    switch (r.id) {
+      case 'unconquered': return !r.raids ? 'no raids on this level' : r.lost > 0 || r.tributes > 0 ? 'out of reach: a raid was lost or a tribute paid' : `${r.beaten} of ${plural(bar.bar, 'raid', 'raids')} beaten`;
+      case 'builder': return `${ui4Gold(r.units)} of ${ui4Gold(bar.bar)} units laid`;
+      case 'merchant': return r.bills > 0 ? `trade paid ${d90Share(r.measure)} of the bills; ${d90Share(bar.bar)} earns it` : 'counted from Market town';
+      case 'bountiful': return r.months < bar.months ? `${r.months} of ${bar.months} month ends from Town counted` : `every home fed at ${d90Share(r.measure)} of month ends; ${d90Share(bar.bar)} earns it`;
+      case 'generous': return r.months < bar.months ? `${r.months} of ${bar.months} month ends from Town counted`
+        : r.high > bar.highMax * r.months ? `High taxes at ${r.high} of ${r.months} month ends: at most ${d90Share(bar.highMax)}` : `Low taxes at ${d90Share(r.measure)} of month ends; ${d90Share(bar.bar)} earns it`;
+      default: return '';
+    }
+  },
+  closeBehind: (id) => `Close behind: ${V90_D_TEXT.titleNames[id]}`,
+  closeBehindFull: (r) => `Close behind: ${V90_D_TEXT.titleNames[r.id]} (${V90_D_TEXT.progressLine(r)})`,
+  // The score sheet (from City): what the reign would be remembered as if the throne passed today.
+  rememberedAs: (id) => `Remembered as: ${V90_D_TEXT.titleNames[id]}`,
+  rememberedNote: 'If the throne passed today. How the reign is played decides it.',
+  // Pass the throne's sheet (design section 2): its five parts.
+  remembered: (name, n, id) => `${V90_D_TEXT.regnal(name, n)} will be remembered as ${V90_D_TEXT.titleNames[id]}.`,
+  heirGetsHead: 'What your heir gets',
+  heirCity: (id) => `Your heir's city: ${V90_D_TEXT.traitLine(id)}`,
+  scoreHead: 'The score kept',
+  sealedScore: (score, medal) => `Sealed score: ${ui4Gold(score)} (${medal ? SCORE_TEXT.medals[medal].toLowerCase() : 'no medal'})`,
+  sealedFrom: (day) => `The best of this reign's seals, from ${dateLabelD90(day)}, is higher than today's score, so it is kept.`,
+  sealedToday: "Today's score: the best this reign has had.",
+  replaced: "Your city is replaced by your heir's. Export it first to keep a copy.",
+  nameLabel: "Your dynasty's name",
+  nameHint: (max) => `Up to ${max} characters: letters, digits, spaces and ' - . only. The game adds the number.`,   // max: src/save/records.js RULER_NAME_MAX
+  passButton: 'Pass the throne',
+  notYet: 'Not yet',
+  // The heir's new-city card (8.2's), headed so; its Start passes the throne.
+  heirCardHead: "Your heir's city",
+  passedToast: (name, n, id) => `${V90_D_TEXT.regnal(name, n)} is remembered as ${V90_D_TEXT.titleNames[id]}. The heir's city begins.`,
+  passFailed: "Couldn't pass the throne: the city is as it was",
+  // Why Pass the throne cannot be had (canPassThrone's reasons).
+  notYetPass: (people) => `Pass the throne from ${d90City().name} (${d90City().population} people)${people > 0 ? `: ${plural(people, 'more person', 'more people')}` : ': at this month\'s end'}`,
+  // The one-time caption at City.
+  cityCaption: 'You may now pass the throne (game menu)',
+  cityCaptionWhy: "Your ruler is remembered by a title earned from the reign, and the heir's city takes its trait.",
+};
+// The month's date for "from ..." (the seal's day): "year 3, month 4".
+const dateLabelD90 = (day) => `year ${Math.floor(day / (SCORE_DAYS_PER_MONTH * SCORE_MONTHS_PER_YEAR)) + 1}, month ${Math.floor(day / SCORE_DAYS_PER_MONTH) % SCORE_MONTHS_PER_YEAR + 1}`;
+// The palace's Taxes row says what each choice takes in this city (src/ui/monumentSheet.js taxModel's `at`: economy.js taxesAt, with the Generous's High and the
+// Builder's 5%); without `at` the words are 8.4's.
+{
+  const W = V84_G_TEXT, line = W.rateLine;
+  W.rateLine = (rate, normal, at = null) => {
+    if (!at) return line(rate, normal);
+    if (rate === 'normal') return `${ui4Gold(at.normal)} gold a month in taxes, no change to mood`;
+    const gold = at[rate] - at.normal;
+    return `${ui4Gold(Math.abs(gold))} gold a month ${gold < 0 ? 'less' : 'more'}, mood ${g84Signed(g84Rates[rate].mood)}`;
+  };
+  W.rateAria = (rate, normal, now, at = null) => `Taxes ${W.rateNames[rate]}: ${W.rateLine(rate, normal, at)}${now ? ' (now)' : ''}`;
+  W.rateSet = (rate, normal, at = null) => `Taxes ${W.rateNames[rate].toLowerCase()}: ${W.rateLine(rate, normal, at)}`;
+}
+// The flood's words say what this city's floodplain farms will grow (ruling 1583): `factor` is the sim's (src/sim/flood.js levelHarvest, nextFlood's harvest,
+// floodLook's factor and levelFactor), with the Bountiful's deeper loss; without it the words are 8.4's (the data's level, prepared or not), and for any other
+// city the sim's factor is that same number.
+{
+  const R = S46_RIVER_TEXT;
+  const pct = (id, prepared, factor) => (Number.isFinite(factor) ? `${Math.round(factor * 100)}%` : rvPct(id, prepared));
+  R.forecastCaption = (id, prepared = false, factor = null) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${pct(id, prepared, factor)}${rvPrepNote(id, prepared)}`;
+  R.riseCaption = (id, prepared = false, factor = null) => `The Nile is rising: a ${rvName(id)} flood. Farms on the floodplain grow ${pct(id, prepared, factor)}${rvPrepNote(id, prepared)}`;
+  R.farmRowNext = (id, prepared = false, factor = null) => `${rvName(id)} flood coming: ${pct(id, prepared, factor)} from month ${rvFirstMonth}`;
+  R.nilometerKnown = (id, factor = null) => `${rvName(id)}: floodplain farms ${pct(id, true, factor)}`;   // shown only while it is staffed, so prepared
+  R.nilometerNext = (n) => `${R.nilometerKnown(n.level.id, n.harvest)}${n.monthsTo > 0 ? `, in ${rvMonths(n.monthsTo)}` : ''}`;
+  const nilometerRow = R.nilometerRow;
+  R.nilometerRow = (look, working, nextFlood = null) => {
+    if (working && look.on && (look.phase === 'rising' || look.phase === 'high') && look.applied) return { label: R.nilometerLabelNow, value: R.nilometerKnown(look.applied.id, look.factor) };
+    if (working && look.on && look.phase === 'draining' && look.applied) return { label: R.nilometerLabelLast, value: R.nilometerKnown(look.applied.id, look.factor) };
+    if (working && look.on && !(nextFlood && nextFlood.level) && look.phase === 'forecast' && look.level) return { label: R.nilometerLabel, value: R.nilometerKnown(look.level.id, look.levelFactor) };
+    return nilometerRow(look, working, nextFlood);
+  };
+  const floodLine = R.floodLine;
+  R.floodLine = (look) => (look.phase === 'forecast' && look.level
+    ? `Next flood: ${rvName(look.level.id)}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${pct(look.level.id, look.levelPrepared, look.levelFactor)}${rvPrepNote(look.level.id, look.levelPrepared)}`
+    : floodLine(look));
+  // Fix wave: before a first flood the farm's row and the First flood card say the levels of this city (the Bountiful's low flood is deeper), not the data's.
+  // `range` is { min, max } as factors (src/ui/s46/river.js); the card's whyFor(world) is read by createUI.
+  const farmRow = R.farmRow;
+  R.farmRow = (look, range = null) => (look.applied || !range ? farmRow(look)
+    : `The flood decides this farm's harvest, from ${Math.round(range.min * 100)}% to ${Math.round(range.max * 100)}%; the first flood comes in month ${rvFirstMonth}`);
+  FIRST_TEXT.first_flood.whyFor = (world) => {
+    const times = (d90Traits[world && world.heir] || {}).floodLoss || 1;
+    return `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${Math.round(d90DeeperLoss(l.harvest, times) * 100)}%`).join(', ')}.`;
+  };
+}
+// The heir_trait tip (src/data/tips.js), and How to play's Dynasty entry.
+TIP_TEXT.heir_trait = "This city has its heir's trait: a strength and a weakness from the last ruler's title. The summary names it.";   // at most 20 words (tests/ui/tips.test.js)
+V70_HELP.p.push({ head: 'Dynasty', text: (() => {
+  const b = (id) => d90Bar(id), city = d90City();
+  const titles = `the Unconquered (${plural(b('unconquered').bar, 'raid', 'raids')} beaten, none lost and no tribute paid; never on Peaceful), the Builder (${ui4Gold(b('builder').bar)} units of monuments laid), the Merchant (trade paying ${d90Share(b('merchant').bar)} of the bills from Market town), the Bountiful (every home fed at ${d90Share(b('bountiful').bar)} of month ends from Town) or the Generous (Low taxes at ${d90Share(b('generous').bar)} of month ends from Town, High at most ${d90Share(b('generous').highMax)}); the share titles count ${b('bountiful').months} month ends first`;
+  const traits = ['builder', 'unconquered', 'bountiful', 'merchant', 'generous'].map((id) => `${V90_D_TEXT.heirOf(id)}: ${V90_D_TEXT.traitLine(id)}`).join('. ');
+  return `From ${city.name} (${city.population} people), Pass the throne in the game menu ends the reign. The ruler is remembered by a title earned from how it was played: the highest of ${titles}. With none, the ruler is the Steady. The score kept is the best of the reign's seals and the day's. The heir's city takes the title's trait, a strength and a weakness: ${traits}. The score never counts a trait. New city without passing keeps the trait you have.`;
+})() });
+// ── end v90 d ──
+
+// Version 9.0, Track L (the ruler list and rivals; rulings 1585-1599). Track L writes only between this header and its end line.
+// The game menu's row (src/ui/menu.js, wave 0), shown while hooks.rulers exists.
+export const V90_L_TEXT = {
+  menuRulers: 'Rulers',
+  sheetTitle: 'Rulers',
+  // The title card's records box: the button that opens the list.
+  recordsButton: (n) => `Rulers (${n})`,
+  recordsButtonLabel: (n) => `Open the ruler list, ${plural(n, 'ruler', 'rulers')} kept on this device`,
+  empty: 'No rulers yet. A reign you pass on is kept here.',
+  // A ruler's name with its regnal number and title: "Ramesses II the Builder" (Track D's titleNames and regnal; ruling 1575).
+  rulerName: (r) => `${V90_D_TEXT.regnal(r.name, r.n)} ${V90_D_TEXT.titleNames[r.title] || V90_D_TEXT.titleNames.steady}`,
+  heirOfLower: (id) => V90_D_TEXT.heirOf(id).replace(/^./, (c) => c.toLowerCase()),
+  years: (day) => `${(day / 360).toFixed(1)} years`,
+  rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
+  medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
+  rowName: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,
+  // A row opened.
+  partsHead: 'The five parts',
+  featsHead: 'Feats',
+  noFeats: 'No feats earned',
+  mapLine: (r) => `Seed ${r.seed}, ${DIFFICULTY_NAMES[r.difficulty] || r.difficulty}, ${r.mapVariant === 'classic' ? 'classic layout' : `${r.mapVariant} layout`}, ${S46_MAP_TEXT.sizeNote(r.mapSize)}`,
+  playMap: 'Play this map',
+  playMapNote: 'Opens New city on this seed, level, layout and size. A city you have is replaced unless you export it first.',
+  // Side by side (the Pass sheet and a ruler row with a rival).
+  sideHead: (name) => `Side by side with ${name}`,
+  notScored: 'not scored',
+  you: 'You',
+  // The install ask (the list's top line, and one toast after the first Pass).
+  // The Safari line only on iOS (src/save/installFlow.js: platform 'ios'); elsewhere the plain ask.
+  installAsk: (ios) => (ios ? "Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit" : 'Install Thebes to keep your rulers'),
+  installButton: 'Install',
+  installIosLine: 'The installed app starts empty. Export first, then Bring rulers from a file in the app.',
+  // Options > Saves: the ruler's name and Bring rulers from a file.
+  // The field's label is V90_D_TEXT.nameLabel, so one name has one label.
+  nameHint: "Letters, digits, spaces and ' - . only, 16 at most. It names your reigns in the list and goes on the links you share.",
+  nameSaved: (name) => `Ruler name kept: ${name}`,
+  nameRefused: (keep) => `That name has no letters or digits, so it stays ${keep}. Use letters, digits, spaces and ' - .`,
+  nameCleaned: (name) => `Kept as ${name}: only letters, digits, spaces and ' - . are kept, up to 16.`,
+  nameDefault: 'Ramesses',
+  bringLabel: 'Bring rulers from a file',
+  bringNote: 'Pick a Thebes city file you exported. Only its rulers and rivals are added; its city is never brought.',
+  bringAdds: (rulers, rivals) => `Adds ${plural(rulers, 'ruler', 'rulers')} and ${plural(rivals, 'rival', 'rivals')}`,
+  // Said before Merge on a device with no rulers, whose dynasty the file's replaces (src/save/records.js mergedDynasty).
+  bringTakes: (heir, name) => `Your next city will be ${V90_D_TEXT.heirOf(heir).replace(/^./, (c) => c.toLowerCase())}${name ? `, under the name ${name}` : ''}.`,
+  bringNothing: 'Nothing new: this device already has every ruler and rival in that file.',
+  bringMerge: 'Merge',
+  bringCancel: 'Cancel',
+  bringDone: (rulers, rivals) => `Merged. Added ${plural(rulers, 'ruler', 'rulers')} and ${plural(rivals, 'rival', 'rivals')}.`,
+  bringBad: 'That file has no rulers to bring. Pick a Thebes city file (thebes-city-...json) that you exported.',
+  bringNewer: 'That file is from a newer version of Thebes. Update the game, then try again.',
+  bringUnreadable: "That file couldn't be read. Pick the .json file you exported.",
+  // Rivals: the title card's panel and the toast at a new split.
+  rivalLine: (v) => `${v.name} (${V90_L_TEXT.heirOfLower(v.heir)}): ${v.score}`,
+  rivalKept: 'Kept as your rival on this map',
+  rivalSplit: (name, split, diff) => `${split}: ${diff === 0 ? `level with ${name}` : `${plural(Math.abs(diff), 'month', 'months')} ${diff > 0 ? 'ahead of' : 'behind'} ${name}`}`,
+  rivalNotThere: (name, split) => `${split}: ${name} has not got there yet`,
+};
+// ── end v90 l ──
+
+// Version 9.0, Track V (animations and visual effects; rulings 1600-1619). Track V writes only between this header and its end line.
+// ── end v90 v ──

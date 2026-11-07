@@ -29,6 +29,8 @@ import { T } from '../sim/terrain.js';
 import { ART, slotFor } from './art/registry.js';
 import { BIG } from './art/housing.js';
 import { TERRAIN, WOOD, SHADOW } from './art/palette.js';
+import { v90Off, spend, spentSoFar } from './v90/dropper.js';
+import { drawWake } from './v90/wakes.js';
 
 export const LEVEL_HOLD_MS = 2000;           // the budget can drop one more kind at most this often
 export const RESTORE_AFTER_MS = 10000;       // and brings one back only after this long at under half the budget
@@ -36,7 +38,11 @@ export const GENTLE_SMOKE_RISE_PX = 4;       // Gentle: a puff rises at most thi
 const FIELDS = ['farm_grain', 'farm_barley', 'farm_flax'];
 // Tile offsets and art height of the potter's kiln, the brewhouse and (Stage 4) the brickworks' kiln top (src/render/art,
 // Track B's brickworks: the kiln's mouth at (1.56, 0.46), 14 art px up).
-export const SMOKE_FROM = { potter: [1.52, 0.52, 9], brewery: [0.66, 0.46, 10], brickworks: [1.56, 0.46, 14] };
+// Version 9.0, Track V (V4): every workshop and kiln smokes while staffed and working: the weaver's hearth on its house's roof, the jeweller's furnace
+// and the builders' guild's fire (both 2x2: src/render/art/industry.js, supply.js). These three are V's, and go with V's dropper (src/render/v90/dropper.js)
+// as well as ambient's.
+export const SMOKE_FROM = { potter: [1.52, 0.52, 9], brewery: [0.66, 0.46, 10], brickworks: [1.56, 0.46, 14], weaver: [0.5, 0.42, 12], jeweller: [0.86, 0.56, 15], builders_guild: [1.1, 0.6, 18] };
+export const V90_SMOKE = new Set(['weaver', 'jeweller', 'builders_guild']);
 // One appearance per kind per window, starting up to RARE_JITTER_MS in, so they come rareEveryMs apart (45-90 s).
 const RARE_WINDOW_MS = (AMBIENT.rareEveryMs[0] + AMBIENT.rareEveryMs[1]) / 2;
 const RARE_JITTER_MS = (AMBIENT.rareEveryMs[1] - AMBIENT.rareEveryMs[0]) / 2;
@@ -45,16 +51,21 @@ const SALT = { glint: 501, ripple: 502, reed: 503, tree: 504, crop: 505, pool: 5
 
 // The idle frame rate (spec 5.6): paused, with no input for idleAfterMs, frames are capped at fpsCap. createUI notes every
 // pointer, key and wheel input and the game loop asks allow(now, paused) before drawing a frame (it still runs the sim).
-// A frame is allowed once 1000 / fpsCap ms (less a few ms of slack, so a 60 Hz display draws every second frame) have
-// passed since the last one drawn.
-export function createFrameGate({ idleAfterMs = AMBIENT.idleAfterMs, fpsCap = AMBIENT.idleFpsCap } = {}) {
-  let lastInput = -Infinity, lastDrawn = -Infinity;
-  const gap = 1000 / fpsCap - 4;
+// A frame is allowed when its due time comes (1000 / fpsCap ms after the last due time, a little slack either side).
+// Version 9.0, Track V (V0b, ruling 1600): every other frame is capped at runningFpsCap (60) the same way, so a 120 Hz phone draws every second frame
+// and a 60 Hz one every frame (ruling 1637: stepping the due time, a 90 or 144 Hz screen draws close to 60 too). The sim still runs its days on every frame the loop sees; only the drawing waits.
+export function createFrameGate({ idleAfterMs = AMBIENT.idleAfterMs, fpsCap = AMBIENT.idleFpsCap, runningFpsCap = AMBIENT.runningFpsCap } = {}) {
+  let lastInput = -Infinity, due = -Infinity;
+  const gap = 1000 / fpsCap, runningGap = 1000 / runningFpsCap, SLACK_MS = 2;
   return {
     noteInput(now) { lastInput = now; },
+    // Ruling 1637: the next draw is due a whole period after the last one was due (not after it was drawn), so 90, 120 and 144 Hz screens all
+    // draw close to the cap; a frame within SLACK_MS before its due time counts, and a loop that fell more than a period behind starts again from now.
     allow(now, paused) {
-      if (!paused || now - lastInput < idleAfterMs || now - lastDrawn >= gap) { lastDrawn = now; return true; }
-      return false;
+      const idle = paused && now - lastInput >= idleAfterMs, period = idle ? gap : runningGap;
+      if (now < due - SLACK_MS) return false;
+      due = now - due > period ? now + period : due + period;
+      return true;
     },
   };
 }
@@ -134,6 +145,24 @@ function drawRipples(g, rows, now, shifts = true) {
     for (const [y, r] of rows) pts.push([r[side] + (side === 'left' ? 0.32 : -0.32) + shift * wave(now, AMBIENT.ripplePeriodMs, y * 0.13), y + 0.5]);
     if (pts.length > 1) g.stroke(smoothPath(pts), TERRAIN.ripple, 0.6, 0.45);
   }
+}
+
+// Version 9.0, Track V (V11): the river flowing. Faint current lines on the river's rows in view, FLOW.perRow a row, each drifting downstream (+y) at
+// FLOW.tilesPerSecond over its own row and back to its top, fading in at the top and out at the bottom (three alpha steps, one stroke each), so none
+// blinks. Drawn on the water's own banks (riverRows), under the sprites; timed into V's dropper, which sheds it first (ruling 1602).
+export const FLOW = { perRow: 2, tilesPerSecond: 0.35, length: 0.32, alpha: 0.3, colour: '#DCEEF2' };
+export function drawFlow(g, world, rows, range, now) {
+  const started = performance.now(), seed = world.seed | 0, steps = [[], [], []];
+  for (const [y, r] of rows) {
+    if (y < range.y0 - 1 || y > range.y1 + 1) continue;
+    for (let k = 0; k < FLOW.perRow; k++) {
+      const h = hash2(y, k, seed + 9051), u = (((now / 1000) * FLOW.tilesPerSecond + h) % 1 + 1) % 1;
+      const x = r.left + 0.3 + hash2(k, y, seed + 9052) * Math.max(0.1, r.right - r.left - 0.6), a = p(x, y + u), b = p(x, y + u + FLOW.length);
+      steps[u < 0.2 || u > 0.75 ? 0 : u < 0.35 || u > 0.6 ? 1 : 2].push(['M', a], ['L', b]);
+    }
+  }
+  steps.forEach((segs, i) => { if (segs.length) g.stroke(segs, FLOW.colour, 0.6, FLOW.alpha * (i + 1) / 3); });
+  spend(performance.now() - started);
 }
 
 // Reed tips: over each baked clump (terrainWater.js places them by the same hashes), two blades swaying +-3 degrees,
@@ -224,6 +253,7 @@ function drawSmoke(g, b, base, now, wind, inPlace = false) {
 // monument site needs, 'idle'); a chimney while its home is lived in.
 export function smokeBase(world, b) {
   const at = SMOKE_FROM[b.type];
+  if (at && V90_SMOKE.has(b.type) && v90Off('smoke')) return null;   // Version 9.0 (V4): 9.0's workshops go with V's dropper (ruling 1602)
   if (at) return isWorking(world, b) && !b.blocked ? U(p(b.x + at[0], b.y + at[1]), at[2]) : null;
   if (b.type === 'house' && b.tier >= 5 && b.residents > 0) {
     const def = ART[slotFor(b, world)];
@@ -264,6 +294,7 @@ function drawFelucca(g, rows, range, a) {
   const row = rows.get(Math.floor(y));
   if (!row) return;
   const q = p(row.centre, y);
+  drawWake(g, row.centre, y, 0, 1, a.t * RARE_MS.felucca);   // Version 9.0 (V8): its wake, downstream behind it
   g.ell([q[0] + 1, q[1] + 1.2], 6, 1.6, SHADOW, { alpha: 0.18 });
   g.path([['M', [q[0] - 5.5, q[1] - 1]], ['Q', [q[0], q[1] + 2.6], [q[0] + 5.5, q[1] - 1.6]], ['L', [q[0] + 3.5, q[1] - 0.2]], ['L', [q[0] - 4, q[1] + 0.4]], ['Z']], WOOD, { outline: true });
   g.line([q[0], q[1] - 0.2], [q[0] + 0.4, q[1] - 11], '#5A4030', 0.5);
@@ -329,7 +360,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     if (g) lateByG.delete(g);                // a late layer left from a frame that never drew it is stale: drop it
     if (world) stateByWorld.set(world, { level: enabled() ? level() : 'still', dropped: enabled() ? stats.dropped.slice() : [], now });
     if (!enabled() || !g || !range) return;
-    const started = clock();
+    const started = clock(), vStart = spentSoFar();   // V's own layers (flow, wakes, workshop smoke) are timed into V's budget, not this one (ruling 1638)
     const off = new Set(AMBIENT.dropOrder.slice(0, dropLevel));
     const moving = full();                   // Gentle: glints and smoke in place; no ripple shift, sway, crops or rare life
     if (!moving) for (const k of ['sway', 'rare']) off.add(k);
@@ -339,6 +370,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     if (rows.size) {
       drawGlints(g, world, range, now, rows, moving);
       drawRipples(g, rows, now, moving);
+      if (!v90Off('flow')) drawFlow(g, world, rows, range, now);   // Version 9.0 (V11): the river flowing, the first of V's effects to go
       if (!off.has('sway')) drawReeds(g, world, range, now, rows);
       if (!off.has('rare')) {
         const boat = rareAt(world, 'felucca', now), ducks = rareAt(world, 'ducks', now);
@@ -346,9 +378,9 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
         if (ducks) drawDucks(g, rows, range, ducks);
       }
     }
-    pending = { ms: clock() - started, now };
+    pending = { ms: Math.max(0, clock() - started - (spentSoFar() - vStart)), now };
     lateByG.set(g, () => {
-      const lateStart = clock();
+      const lateStart = clock(), lateV = spentSoFar();
       for (const id in world.buildings) {
         const b = world.buildings[id];
         if (!inRange(b, range)) continue;
@@ -357,14 +389,18 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
         else if (b.type === 'house' && BIG[b.tier] && BIG[b.tier].pool && !screened(world, b)) drawPoolGlint(g, b, [0.32, 1.24, 0.6, 0.3], now, moving);
         if (!off.has('smoke')) {
           const base = smokeBase(world, b);
-          if (base) drawSmoke(g, b, base, now, wind, !moving);
+          if (base) {
+            const mine = V90_SMOKE.has(b.type), t0 = mine ? clock() : 0;
+            drawSmoke(g, b, base, now, wind, !moving);
+            if (mine) spend(clock() - t0);                         // 9.0's workshop smoke counts in V's budget only (ruling 1638)
+          }
         }
       }
       if (!off.has('rare')) {
         const bird = rareAt(world, 'bird', now);
         if (bird) drawBird(g, artBox(range), bird);
       }
-      const ms = (pending ? pending.ms : 0) + clock() - lateStart;
+      const ms = (pending ? pending.ms : 0) + Math.max(0, clock() - lateStart - (spentSoFar() - lateV));
       pending = null;
       account(ms, now);
     });

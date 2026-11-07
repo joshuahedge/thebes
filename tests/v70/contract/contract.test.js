@@ -2,7 +2,7 @@
 // none set) and the city events' record; a version 9 city keeps everything it had, gets every switch on and no floor, no event waiting, and no
 // event for a game year from the day it is loaded; then it plays exactly as the city it was saved from.
 import { describe, it, expect } from '../../harness.js';
-import { createWorld, WORLD_VERSION, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY, newTally, newTradeState } from '../../../src/sim/world.js';
+import { createWorld, WORLD_VERSION, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY, STAGE90_TALLY, newTally, newTradeState } from '../../../src/sim/world.js';
 import { serialize, deserialize, validateWorld, REQUIRED, TALLY_KEYS, unpackSave, packSave } from '../../../src/save/serialize.js';
 import { MIGRATIONS, CURRENT_VERSION, migrate } from '../../../src/save/migrate.js';
 import { V70_TALLY } from '../../../src/data/v70.js';
@@ -25,6 +25,8 @@ function v9City() {
   for (const k of STAGE70_TALLY) delete v9.tally[k];
   delete v9.luxuryFrom;                                // Version 8.4 (world version 11) is not in a version 9 save either
   for (const k of STAGE84_TALLY) delete v9.tally[k];
+  delete v9.heir;                                      // nor 9.0's (world version 12)
+  for (const k of STAGE90_TALLY) delete v9.tally[k];
   v9.version = 9;
   // Version 7.0 (Track E): the city events are live now, and a version 9 city meets none for a game year after its load, so the original is held the same
   // way (no event for a year, its tallies at 0) for the comparison of the year they both play (the changed test's reason).
@@ -36,7 +38,7 @@ function v9City() {
 describe('v70 contract world v10', () => {
   it('creates a version 10 world: every trade switch on, no floor, no event waiting, the new tallies at 0', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([11, 11, 11]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([12, 12, 12]);
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     expect(REQUIRED).toContain('cityEvents');
     expect(REQUIRED.includes('events')).toBe(false);
@@ -85,7 +87,7 @@ describe('v70 contract world v10', () => {
     const v10 = MIGRATIONS[9](v9);
     expect(JSON.stringify(v9)).toBe(before);                                          // the migration copies, never edits the save
     expect(v10.version).toBe(10);
-    expect(Object.keys(v10).sort()).toEqual(REQUIRED.filter((k) => k !== 'luxuryFrom').sort());   // Version 8.4's field comes with v11
+    expect(Object.keys(v10).sort()).toEqual(REQUIRED.filter((k) => k !== 'luxuryFrom' && k !== 'heir').sort());   // Version 8.4's field comes with v11, 9.0's with v12
     for (const k of Object.keys(v9)) if (!['version', 'tally', 'trade'].includes(k)) expect([k, v10[k]]).toEqual([k, v9[k]]);
     expect(v10.trade).toEqual({ ...v9.trade, switches: {}, floors: {} });             // routes, orders, drift and quota used as they were
     const day = v9.day;                                                               // the sample city's own start, 90 days on
@@ -94,11 +96,11 @@ describe('v70 contract world v10', () => {
     expect(EVENT_V9_WAIT).toBe(YEAR);
     for (const k of V70_TALLY) expect([k, v10.tally[k]]).toEqual([k, 0]);
     for (const k of STAGE60_TALLY) expect([k, v10.tally[k]]).toEqual([k, v9.tally[k]]);
-    expect(validateWorld(MIGRATIONS[10](v10))).toBe(true);                            // valid once version 11 adds its field
-    expect(migrate(v9)).toEqual(MIGRATIONS[10](v10));
-    expect(deserialize(JSON.stringify(v9)).version).toBe(11);                         // loading runs the chain
+    expect(validateWorld(MIGRATIONS[11](MIGRATIONS[10](v10)))).toBe(true);            // valid once versions 11 and 12 add their fields
+    expect(migrate(v9)).toEqual(MIGRATIONS[11](MIGRATIONS[10](v10)));
+    expect(deserialize(JSON.stringify(v9)).version).toBe(12);                         // loading runs the chain
     const packed = unpackSave(packSave(v9, { savedAt: 1760000000000, lastSpeed: 2 }));
-    expect([packed.world.version, packed.world.cityEvents.nextDay]).toEqual([11, day + YEAR]);
+    expect([packed.world.version, packed.world.cityEvents.nextDay]).toEqual([12, day + YEAR]);
   });
 
   it('loads a version 9 city that then plays a year exactly as the city it was saved from (the events record apart)', () => {
@@ -109,7 +111,8 @@ describe('v70 contract world v10', () => {
     advanceDays(w, YEAR);
     expect([loaded.day, loaded.cityEvents]).toEqual([day + YEAR, { nextDay: day + YEAR, cooldowns: {}, waiting: null }]);   // no event drew in the year
     expect(w.cityEvents).toEqual(newEventState(day + YEAR));
-    const strip = (world) => { const o = JSON.parse(serialize(world)); delete o.cityEvents; delete o.luxuryFrom; return o; };   // 8.4: the load's luxury grace
+    // 8.4: the load's luxury grace. 9.0 (Track D, ruling 1560): the four month-end counts start at the load, so they are left out too (was: compared).
+    const strip = (world) => { const o = JSON.parse(serialize(world)); delete o.cityEvents; delete o.luxuryFrom; for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid', 'lowMonths', 'highMonths']) delete o.tally[k]; return o; };
     expect(strip(loaded)).toEqual(strip(w));
     expect(validateWorld(JSON.parse(serialize(loaded)))).toBe(true);
   });

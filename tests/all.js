@@ -175,3 +175,5 @@ import './v821/all.js';
 import './v83/all.js';
 // Version 8.4 "Gold and war": one aggregator (tests/v84/all.js); nothing is added here.
 import './v84/all.js';
+// Version 9.0 "Dynasty": one aggregator (tests/v90/all.js); nothing is added here.
+import './v90/all.js';

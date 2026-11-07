@@ -14,40 +14,45 @@ import { eventPlayer } from '../../v70/balance/events.js';   // Version 7.0 (wav
 
 export const SNAPSHOT_YEARS = [4, 6, 8, 10, 12, 15];
 
-let late = null;
-export function lateDangerRun() {
-  if (late) return late;
+// Version 9.0 (wave 2, tests/v90/balance): heir the trait both runs play under from day 0 (runCapital's, runGrand's); each heir's run is made once a page.
+const lateOn = new Map();
+export function lateDangerRun({ heir = 'steady' } = {}) {
+  if (lateOn.has(heir)) return lateOn.get(heir);
   // Version 8.4 (the retune, ruling 1541): the player meets each raid sheet from the capital years on (defend: the late run's meetWarning, each band met by
   // its first strike). The capital script lays its three towers at Market town and no more, and 8.4's clock brings raids of 16-19 on foot from the north
   // in years 3-5: the year-5 raid met those three and was lost.
   const player = dangerPlayer({ snapshotYears: SNAPSHOT_YEARS, defend: true });
   const events = eventPlayer();
-  const base = runCapital(72, { dangers: true, onMonth: player.onMonth, events });
+  const base = runCapital(72, { dangers: true, onMonth: player.onMonth, events, heir });
   const r = runLate({ base, onMonth: player.onMonth, events });
-  return (late = { r, rec: player.rec, base, events: events.rec });
+  const out = { r, rec: player.rec, base, events: events.rec };
+  lateOn.set(heir, out);
+  return out;
 }
 
 // Version 6.0.1 (rulings 800-807): the great-work run with the dangers on as in the real game: the grand district run from day 0 with a new city's three-year grace on `seed`,
 // the danger player answering throughout, then the great-work run (tests/v60/a/greatWorkRun.js) to year 20. habits: the player's habits for finding workers (pause a monument
 // for a grand home's step, idle workers to the crews, the site sheet's stall row: grandRun.js setHabits, greatWorkRun.js moveToCrews and followStall); off, the script as it was.
 const greatOn = new Map();
-export function greatDangerRun(seed = 5, { habits = true } = {}) {
-  const key = `${seed}:${habits}`;
+export function greatDangerRun(seed = 5, { habits = true, heir = 'steady' } = {}) {
+  const key = `${seed}:${habits}:${heir}`;
   if (greatOn.has(key)) return greatOn.get(key);
   const player = dangerPlayer({ snapshotYears: [12, 14, 16, 18, 20] });   // Version 7.0 (wave 3): Advice at the great-work years, for the balance note
   const events = eventPlayer();
-  const base = runGrand({ dangers: true, onMonth: player.onMonth, seed, habits });   // the grand years keep the hold: their Estate and Seat are the 6.0.1 path (the wave 3 note), the events come with the great work
+  const base = runGrand({ dangers: true, onMonth: player.onMonth, seed, habits, heir });   // the grand years keep the hold: their Estate and Seat are the 6.0.1 path (the wave 3 note), the events come with the great work
   const r = runGreatWork({ base, onMonth: player.onMonth, habits, events });
   const out = { r, rec: player.rec, events: events.rec, raidsLost: player.rec.raids.filter((x) => !x.won).length, raids: player.rec.raids.length };
   greatOn.set(key, out);
   return out;
 }
 
-let grand = null;
-export function grandDangerRun() {
-  if (grand) return grand;
+const grandOn = new Map();
+export function grandDangerRun({ heir = 'steady' } = {}) {
+  if (grandOn.has(heir)) return grandOn.get(heir);
   const player = dangerPlayer({ defend: true, snapshotYears: [4, 6, 8, 10] });
   const events = eventPlayer();
-  const g = runGrand({ dangers: true, onMonth: player.onMonth, events, eventsFrom: 'grand' });
-  return (grand = { g, rec: player.rec, events: events.rec });
+  const g = runGrand({ dangers: true, onMonth: player.onMonth, events, eventsFrom: 'grand', heir });
+  const out = { g, rec: player.rec, events: events.rec };
+  grandOn.set(heir, out);
+  return out;
 }

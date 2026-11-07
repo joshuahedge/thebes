@@ -130,7 +130,7 @@ export const isWideTitle = (v) => Boolean(v) && v.width >= WIDE_TITLE && v.heigh
 // saved city, Play starts the lesson (the lesson alone, as ruling 617 had it, with I've played before under it); with the lesson done and no city, Play opens
 // the new-city card; with a saved city, New city does. difficulty is a level or a function that gives the device's level now; mapSize a size id and layout
 // a layout id ('auto' is Surprise me), both kept here once chosen so the card shows them when it opens again.
-export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {} }) {
+export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {}, onNewCityBack = () => {} }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
   const primaryNew = !hasSave && !lessonOnly;
@@ -203,7 +203,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     const card = renderNewCityCard({
       difficulty: levelNow(), onDifficulty, mapSize: sizeNow, onMapSize: (id) => { sizeNow = id; onMapSize(id); },
       layout: layoutNow, onLayout: (id) => { layoutNow = id; onLayout(id); }, seed: seedNow, onSeed: (s) => { seedNow = s; onSeed(s); },
-      hasSave, onStart: (pick) => onNewCity(pick), onBack: showCard, wide, previewPx: wide ? (v.width >= 1000 ? 280 : 220) : v && v.height < 700 ? 120 : 160,
+      hasSave, onStart: (pick) => onNewCity(pick), onBack: () => { onNewCityBack(); showCard(); }, wide, previewPx: wide ? (v.width >= 1000 ? 280 : 220) : v && v.height < 700 ? 120 : 160,
     });
     sizes = card;
     showPanelNode([card.element]);
@@ -255,6 +255,8 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     },
     showCard,
     showNewCity,
+    // Version 9.0 (Track L, ruling 1585): Play this map sets the card's choices (a map size id, a layout id, the seed) before showNewCity opens it on that map.
+    setChoices({ mapSize: size = sizeNow, layout: lay = layoutNow, seed: s = seedNow } = {}) { sizeNow = size; layoutNow = lay; seedNow = Number.isInteger(s) || s === null ? s : seedNow; },
     destroy() { window.removeEventListener('resize', checkPhone); clear(container); container.hidden = true; },
   };
 }

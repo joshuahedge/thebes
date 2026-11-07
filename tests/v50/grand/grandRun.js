@@ -336,13 +336,14 @@ export function sendTribute(w) {
 // Version 6.0 (Wave 4, tests/v60/balance): dangers true plays the run with the new dangers on (the grace from day 0), onMonth(w, events, month) a player's answers to them
 // (called after each month end's own play, and through the capital run's years too); both default to the run as it always was.
 // Version 6.0.1: seed is the world's seed (the capital run's: 5 as tuned); habits the player's moving workers out of idle workplaces (setHabits, above).
-export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false, events: eventsPlayer = null, eventsFrom = 'start' } = {}) {
+// Version 9.0 (wave 2, tests/v90/balance): heir the trait the city plays under from day 0 (runCapital's), the Steady as it always was.
+export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false, events: eventsPlayer = null, eventsFrom = 'start', heir = 'steady' } = {}) {
   const started = performance.now();
   skips = {};
   setHabits(withHabits);
   idlePaused.clear();
   monumentsPaused.length = 0;
-  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed, events: eventsFrom === 'start' ? eventsPlayer : null });
+  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed, events: eventsFrom === 'start' ? eventsPlayer : null, heir });
   const w = base.w;
   if (eventsPlayer && eventsFrom !== 'start') releaseEvents(w);   // Version 7.0 (wave 3): the city events come from the grand years (7 on) when the capital years were held
   const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10

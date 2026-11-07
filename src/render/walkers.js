@@ -106,7 +106,7 @@ const loopCum = (world, loop) => (loop.length > 1 ? hopCum(world, loop, (t) => t
 // The walker at distance s (tiles) along the loop, which it walks round and round. With cum, a ferry step takes the crossing's time (crossingTiles of road).
 function positionAt(loop, s, id, kind, cum = null) {
   if (!loop.length) return null;
-  if (loop.length === 1) return { id, kind, x: loop[0].x + 0.5, y: loop[0].y + 0.5, dir: 2 };
+  if (loop.length === 1) return { id, kind, x: loop[0].x + 0.5, y: loop[0].y + 0.5, dir: 2, stand: true };   // Version 9.0 (V1): nowhere to walk: it stands
   if (cum) {
     const total = cum[loop.length], at = stepAt(cum, ((s % total) + total) % total), a = loop[at.i], b = loop[(at.i + 1) % loop.length];
     const dir = b.x > a.x ? 1 : b.x < a.x ? 3 : b.y > a.y ? 2 : 0;

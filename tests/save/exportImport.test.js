@@ -41,6 +41,7 @@ describe('save export and import', () => {
   });
   it('has no import half any more (Version 8.0: Bring a city from Safari is gone)', async () => {
     const mod = await import('../../src/save/exportImport.js');
-    expect(Object.keys(mod).sort()).toEqual(['downloadFile', 'exportFileName', 'exportSave']);
+    // Version 9.0 (Track L, ruling 1586): Bring rulers from a file adds the records-only read and the file picker; a city is still never read back (readRecordsFile leaves the world alone).
+    expect(Object.keys(mod).sort()).toEqual(['bringSummary', 'downloadFile', 'exportFileName', 'exportSave', 'pickTextFile', 'readRecordsFile']);
   });
 });

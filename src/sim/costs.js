@@ -8,10 +8,11 @@ import { ECONOMY } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PARTNERS } from '../data/trade.js';
 import { FIRE } from '../data/fire.js';
-import { FESTIVAL, DEFENCE } from '../data/raids.js';
+import { FESTIVAL, DEFENCE, SPOILS } from '../data/raids.js';
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
-import { soldiersPayWith } from './spoils.js';
+import { soldiersPayWith, soldiersPayFull, spoilsLeft } from './spoils.js';
+import { heirFactor } from './dynasty.js';
 import { MONUMENT_STYLES } from '../data/wonders.js';
 import { COST_SCALE_NONE, COST_GROWTH } from '../data/reign.js';
 
@@ -62,7 +63,13 @@ export const threatsOn = (world) => raidsOn(world);
 // Stage 4.6 (Armies track, ruling 386): every unit at home by its kind's pay (UNIT_TYPES[kind].pay; a soldier's is DEFENCE.soldierPay);
 // units away at the capital are not in world.soldiers, so they are not paid.
 // Version 8.4 (ruling 1488): less SPOILS.share for SPOILS.days after a beaten raid (captured weapons), rounded once; the sum itself is src/sim/spoils.js soldiersPayFull.
-export const soldiersPayOf = (world) => soldiersPayWith(world);
+// Version 9.0 (Track D, ruling 1568): the heir of the Unconquered's pay factor (heirFactor 'pay', x0.8) comes first, then the weapons' share, rounded once
+// (0.8 x 0.75 of the full pay while both hold); any other city's pay is 8.4's.
+export function soldiersPayOf(world) {
+  const heir = heirFactor(world, 'pay');
+  if (heir === 1) return soldiersPayWith(world);
+  return Math.round(soldiersPayFull(world) * heir * (spoilsLeft(world) > 0 ? 1 - SPOILS.share : 1));
+}
 
 // Stage 4 (spec 4.11, 4.16, 4.20). A monument's founding is costOf(world, type) (its BUILDINGS cost). Work gold is
 // MONUMENT.goldPerUnit for each unit laid times the difficulty's cost, NOT rounded here: the site pays whole gold and

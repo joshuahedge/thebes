@@ -66,6 +66,6 @@ describe('v81 b city page: the last year, from the sim\'s month-end record', () 
     expect([w.history.length, again.querySelector('.trend polyline').getAttribute('points').split(' ').length]).toEqual([HISTORY_MONTHS, HISTORY_MONTHS]);
   });
   it('needs no new save version: the record is already in the world (v10)', () => {
-    expect(WORLD_VERSION).toBe(11);
+    expect(WORLD_VERSION).toBe(12);
   });
 });

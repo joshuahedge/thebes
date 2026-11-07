@@ -9,7 +9,23 @@
 
 export const RELEASES = [
   {
-    version: '8.4', date: '2026-11-07', title: 'Gold and war', build: 'live',
+    version: '9.0', date: '2026-11-07', title: 'Dynasty', build: 'live',
+    new: [
+      'Pass the throne: from the City milestone the game menu seals your best score as a ruler, gives it a title, and starts a new city for your heir. The sheet says what you keep and what ends before you tap, and Not yet changes nothing.',
+      'A ruler is remembered as Unconquered, Builder, Merchant, Bountiful or Generous by how the reign went, or as the Steady when no title is met. The score sheet says why, and how close the next title is.',
+      'Each heir has a strength and a weakness, shown on the sheet and on the heir\'s first screen: the Builder\'s crews lay 15% more but taxes are 5% less, and the Unconquered\'s soldiers cost 20% less but the first raid comes 100 days sooner.',
+      'The Rulers list shows every reign with its name, number, title, score and a small map. Open one to see it side by side with a rival or your last reign, or tap Play this map to start again on the same land.',
+      'A friend\'s link now carries their name and heir. It is kept as a rival on its map, and at a new split a toast says how you compare. Bring rulers in Options adds rulers and rivals from a file, never cities.',
+      'Units walk in two poses and glide to where the game moved them. Buildings go up behind scaffold poles, workshops smoke, festivals light lamps and scatter petals, fires fought show their water, and a beaten raid gets its moment on the map.',
+      'The picture draws at most 60 frames a second and no finer than twice the pixels, so phones run cooler. Panels fade open instead of snapping.',
+    ],
+    fixed: [
+      'The Nilometer, the unit pay and the work gold now quote the numbers for your heir\'s city.',
+      'Bring rulers keeps the dynasty you already have, and Play this map\'s choices go back if you press Back.',
+    ],
+  },
+  {
+    version: '8.4', date: '2026-11-07', title: 'Gold and war', build: '222cb61',
     new: [
       'The palace sets the tax rate: Low (a quarter less gold, mood +8), Normal, or High (a quarter more gold, mood -8). Each choice says its effect before you tap, and City advice points at it when gold piles up.',
       'Rush this course: a monument\'s crews lay twice the work a day for three times the work gold, until the course under way is laid. The button says the days it saves and the gold it costs before you tap.',

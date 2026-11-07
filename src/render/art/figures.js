@@ -171,17 +171,19 @@ export function raider(g, gx, gy, z = 0, sc = UNIT_SCALE) {
 
 // A soldier at tile point (gx, gy): a white kilt and a teal collar, a tall spear held upright and a tall, round-topped
 // teal shield in front.
-export function soldier(g, gx, gy, z = 0, sc = UNIT_SCALE) {
-  const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, sk = '#A0663F', hair = '#1E150E';
+// Version 9.0 (Track V, V5): raised, the spear held up high in a lifted arm, after a beaten raid ('soldier_cheer').
+export function soldier(g, gx, gy, z = 0, sc = UNIT_SCALE, raised = false) {
+  const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, sk = '#A0663F', hair = '#1E150E', up = raised ? 5 : 0;
   g.ell([X, Y], 3 * s, 1.1 * s, SHADOW, { alpha: 0.25 });
-  g.line([X + 3 * s, Y + 0.6 * s], [X + 3 * s, Y - 20 * s], WOOD, 0.6 * s);           // the spear, taller than the man
-  g.poly([[X + 3 * s, Y - 22.4 * s], [X + 3.8 * s, Y - 19.6 * s], [X + 2.2 * s, Y - 19.6 * s]], GOLD);
+  g.line([X + 3 * s, Y + (0.6 - up) * s], [X + 3 * s, Y - (20 + up) * s], WOOD, 0.6 * s);   // the spear, taller than the man
+  g.poly([[X + 3 * s, Y - (22.4 + up) * s], [X + 3.8 * s, Y - (19.6 + up) * s], [X + 2.2 * s, Y - (19.6 + up) * s]], GOLD);
   g.line([X - 0.9 * s, Y], [X - 0.9 * s, Y - 3.4 * s], sk, 1.1 * s);
   g.line([X + 0.9 * s, Y], [X + 0.9 * s, Y - 3.4 * s], sk, 1.1 * s);
   g.poly([[X - 2 * s, Y - 2.6 * s], [X + 2 * s, Y - 2.6 * s], [X + 1.5 * s, Y - 5.7 * s], [X - 1.5 * s, Y - 5.7 * s]], '#FAF6EC', { outline: true });
   g.poly([[X - 1.5 * s, Y - 5.6 * s], [X + 1.5 * s, Y - 5.6 * s], [X + 1.7 * s, Y - 8.7 * s], [X - 1.7 * s, Y - 8.7 * s]], sk);
   g.line([X - 1.5 * s, Y - 8.5 * s], [X + 1.5 * s, Y - 8.5 * s], TEAL, 1 * s);
-  g.line([X + 1.8 * s, Y - 8.4 * s], [X + 3 * s, Y - 6.4 * s], sk, 0.9 * s);           // the hand on the spear
+  if (raised) g.line([X + 1.8 * s, Y - 8.4 * s], [X + 3 * s, Y - 12.6 * s], sk, 0.9 * s);   // the arm up, the hand on the spear
+  else g.line([X + 1.8 * s, Y - 8.4 * s], [X + 3 * s, Y - 6.4 * s], sk, 0.9 * s);           // the hand on the spear
   g.circ([X - 0.2 * s, Y - 10.8 * s], 1.75 * s, hair);
   g.circ([X + 0.25 * s, Y - 10.3 * s], 1.4 * s, sk);
   g.line([X - 1.6 * s, Y - 11.4 * s], [X + 1.6 * s, Y - 11.4 * s], '#FAF6EC', 0.6 * s);   // a white headband
@@ -197,3 +199,50 @@ for (const kind of FIGURE_KINDS) {
 // Units stand UNIT_SCALE times as tall, so their slots are that much bigger (the soldier's spear is the tallest point).
 FIGURE_ART['fig.raider'] = { w: 0, d: 0, height: 26, bounds: [-21, -45, 21, 9], shadows: [], draw: (g, x, y) => raider(g, x, y) };
 FIGURE_ART['fig.soldier'] = { w: 0, d: 0, height: 34, bounds: [-21, -45, 21, 9], shadows: [], draw: (g, x, y) => soldier(g, x, y) };
+FIGURE_ART['fig.soldier_cheer'] = { w: 0, d: 0, height: 41, bounds: [-21, -52, 21, 9], shadows: [], draw: (g, x, y) => soldier(g, x, y, 0, UNIT_SCALE, true) };   // Version 9.0 (V5)
+
+// ── Version 9.0, Track V (V1): the walk cycle and facing ──
+// Every walking figure kind gets two step poses and a mirrored copy of each, as more slots of the same sprite (one blit a figure, as before):
+//   <slot>.w0 / .w1      the stride (feet apart, a robe's hem swinging out) and the passing step (feet together, the body up a pixel: the bob)
+//   <slot>.m, .w0m, .w1m the same, mirrored left to right (a figure heading left on screen faces left)
+// The poses are the figure's own drawing seen through a draw helper that moves its feet (the points at ground level, below its knees) out or in,
+// and lifts the rest; the shadow's centre stays on the ground. renderer.js picks the slot from the distance walked and `dir` (walkSlotFor).
+export const WALK = { spread: 1, together: -0.7, bob: 0.7, footBelow: -1, stepsPerTile: 2 };   // art px for a citizen-sized figure; per tile walked
+const offsetFoot = (x, d) => (x > 0.05 ? x + d : x < -0.05 ? x - d : x);
+export function stepped(g, pose, k = 1) {
+  const d = (pose === 0 ? WALK.spread : WALK.together) * k, bob = pose === 1 ? WALK.bob * k : 0, low = WALK.footBelow * k;
+  const f = (q) => (q[1] > low ? [offsetFoot(q[0], d), q[1]] : [q[0], q[1] - bob]);
+  const segs = (list) => list.map((sg) => [sg[0], ...sg.slice(1).map(f)]);
+  return {
+    ...g, poly: (pts, ...r) => g.poly(pts.map(f), ...r), polys: (list, ...r) => g.polys(list.map((pts) => pts.map(f)), ...r),
+    ell: (q, ...r) => g.ell(q[1] > low ? q : f(q), ...r), circ: (q, ...r) => g.circ(f(q), ...r),
+    line: (a, b, ...r) => g.line(f(a), f(b), ...r), stroke: (sg, ...r) => g.stroke(segs(sg), ...r), path: (sg, ...r) => g.path(segs(sg), ...r),
+  };
+}
+// The walk slots of one figure slot's registry entry: `steps` false gives the mirrored copy only (a chariot, a boat raider's craft, an elephant).
+export function walkSlots(slot, def, { steps = true } = {}) {
+  const k = def.height > 20 ? UNIT_SCALE : 1;                                     // a unit's slot is taller (its spear, its crest): it stands UNIT_SCALE as big
+  const mirror = (draw) => (g, x, y) => { g.ctx.save(); g.ctx.scale(-1, 1); draw(g, x, y); g.ctx.restore(); };
+  const [l, t, r, b] = def.bounds, flipped = [-r, t, -l, b];                      // a mirrored copy's box is the box mirrored
+  const out = { [`${slot}.m`]: { ...def, bounds: flipped, draw: mirror(def.draw) } };
+  if (steps) for (const pose of [0, 1]) {
+    const draw = (g, x, y) => def.draw(stepped(g, pose, k), x, y);
+    out[`${slot}.w${pose}`] = { ...def, draw };
+    out[`${slot}.w${pose}m`] = { ...def, bounds: flipped, draw: mirror(draw) };
+  }
+  return out;
+}
+// Kinds whose own drawing faces left (a raider's chariot drives the other way to yours): mirrored when heading right.
+export const FACES_LEFT = new Set(['fig.raider_chariot']);
+// The slot a figure shows: o is the renderer's object for it ({ slot, x, y, dir, stand }); registry the art. A figure heading left on screen
+// (dir 2 or 3: screen x runs with x - y) is mirrored; one walking alternates its two poses every 1 / stepsPerTile of a tile walked (along x or y),
+// one standing shows its plain drawing. A slot with no walk slots is itself.
+export function walkSlotFor(o, registry) {
+  if (!registry[`${o.slot}.m`]) return o.slot;
+  const left = o.dir === 2 || o.dir === 3, m = left !== FACES_LEFT.has(o.slot) ? 'm' : '';
+  if (o.stand || !registry[`${o.slot}.w0`]) return m ? `${o.slot}.m` : o.slot;
+  const n = WALK.stepsPerTile, pose = (Math.floor(o.x * n) + Math.floor(o.y * n)) & 1;
+  return `${o.slot}.w${pose}${m}`;
+}
+export const WALK_VARIANTS = ['.m', '.w0', '.w1', '.w0m', '.w1m'];
+for (const kind of [...FIGURE_KINDS, ...UNIT_KINDS, 'soldier_cheer']) Object.assign(FIGURE_ART, walkSlots(`fig.${kind}`, FIGURE_ART[`fig.${kind}`]));

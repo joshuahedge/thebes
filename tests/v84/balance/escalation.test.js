@@ -200,7 +200,7 @@ describe('v84 balance escalation: the adaptation climbs by the years to the next
 
 describe('v84 balance escalation: saves and words', () => {
   it('keeps no new state: the raid\'s shape and the world version are 8.4\'s, and a warning up keeps its mix through a reload', () => {
-    expect([Object.keys(newRaidState()), WORLD_VERSION]).toEqual([['clockDay', 'nextWarnDay', 'index', 'warning', 'active', 'adaptation', 'last'], 11]);
+    expect([Object.keys(newRaidState()), WORLD_VERSION]).toEqual([['clockDay', 'nextWarnDay', 'index', 'warning', 'active', 'adaptation', 'last'], 12]);   // 9.0 wave 0 made the world version 12 (the heir, ruling 1560); the raid's shape is still 8.4's
     const w = raidCity({ entries: [EAST, WEST] });
     for (let k = 0; k < 4; k++) addRaw(w, 'house', 2 + 2 * k, 2, { tier: 3, residents: 120 });
     dueAt(w, 9, 3);

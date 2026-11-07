@@ -19,6 +19,7 @@ import { idx } from './grid.js';
 import { MILESTONES } from '../data/progression.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { T } from './terrain.js';
+import { TRAITS, deeperLoss } from '../data/dynasty.js';
 
 // progression.js's atLeast and labour.js's isWorking and staffRatio, written out here: both import world.js, and world.js imports this
 // file (the contract's import rule).
@@ -26,6 +27,11 @@ const milestoneIndex = (id) => MILESTONES.findIndex((m) => m.id === id);
 const atLeast = (world, id) => milestoneIndex(world.milestone) >= milestoneIndex(id);
 const staffRatio = (b) => (BUILDINGS[b.type].workers ? b.staff / BUILDINGS[b.type].workers : b.paused ? 0 : 1);
 const isWorking = (b) => !b.paused && !(b.fire && b.fire.stage === 'fire') && staffRatio(b) >= MIN_STAFF_RATIO;
+// Version 9.0 (Track D, rulings 1567, 1572): the heir's trait read from the data, as src/sim/dynasty.js heirFactor reads it (that file imports world.js):
+// the Bountiful's low flood loses half again as much (heirFlood), and its farms grow 15% more (heirFarms, for the summary's food forecast).
+const heirTrait = (world) => TRAITS[world.heir] || {};
+const heirFlood = (world, f) => deeperLoss(f, heirTrait(world).floodLoss || 1);
+const heirFarms = (world) => heirTrait(world).farms || 1;
 
 // The floodplain (ruling 334): 1 for each fertile tile with water within FLOOD.reach tiles (in each direction, a square), else 0. Built
 // from the terrain when a city is made and when an older city is migrated, and saved (world.floodplain); the terrain under it never
@@ -138,7 +144,9 @@ export const appliedLevel = (world) => (world.flood.applied ? floodLevelRow(worl
 
 // Version 8.1 (Track B, ruling 1221): a level's harvest as this city's floodplain farms get it now: a loss (Low) is cut by NILOMETER.lossCut while a working
 // Nilometer stands (the farms were warned and prepared); any other level is its own. The Nilometer is asked only for a loss, so a plain year costs nothing.
-export const levelHarvest = (world, l) => (l ? preparedHarvest(l.harvest, l.harvest < 1 && nilometerWorking(world)) : 1);
+// Version 9.0 (Track D): the heir of the Bountiful's loss is half again as deep (heirFlood), after the Nilometer's cut; every reader of the flood's
+// harvest (the farms, the flood's words, the forecast) comes through here.
+export const levelHarvest = (world, l) => (l ? heirFlood(world, preparedHarvest(l.harvest, l.harvest < 1 && nilometerWorking(world))) : 1);
 // Whether the farms are prepared for this level now: a loss and a working Nilometer.
 export const preparedFor = (world, l) => Boolean(l) && l.harvest < 1 && nilometerWorking(world);
 
@@ -198,7 +206,8 @@ export function floodLook(world) {
   if (monthsTo === null && phase === 'quiet') monthsTo = month < FLOOD.months[0] ? FLOOD.months[0] - month : MONTHS_PER_YEAR - month + FLOOD.months[0];
   const level = record && f.forecast ? floodLevelRow(f.forecast) : null;
   // Version 8.1 (ruling 1221): factor is what the floodplain farms grow now, prepared; prepared says the Nilometer cut the applied level's loss.
-  return { on: true, phase, level, known: Boolean(level), applied, factor: levelHarvest(world, applied), prepared: preparedFor(world, applied), levelPrepared: preparedFor(world, level), monthsTo };
+  // Version 9.0 (Track D, ruling 1583): levelFactor is what they would grow at the known level (levelHarvest: prepared, and the Bountiful's deeper loss), for the words.
+  return { on: true, phase, level, known: Boolean(level), applied, factor: levelHarvest(world, applied), prepared: preparedFor(world, applied), levelPrepared: preparedFor(world, level), levelFactor: level ? levelHarvest(world, level) : null, monthsTo };
 }
 
 // Version 8.1 (Track B, ruling 1222): the next flood as the top bar's flood icon shows it, all year. With a working Nilometer the level of the next rise
@@ -218,7 +227,7 @@ export function nextFlood(world) {
   else if (f.year === target && f.forecast) id = f.forecast;
   const level = id ? floodLevelRow(id) : null;
   const prepared = Boolean(level) && nilometer && level.harvest < 1;
-  return { on: true, year: target, level, monthsTo, nilometer, harvest: level ? preparedHarvest(level.harvest, prepared) : 1, prepared };
+  return { on: true, year: target, level, monthsTo, nilometer, harvest: level ? heirFlood(world, preparedHarvest(level.harvest, prepared)) : 1, prepared };   // Version 9.0: the Bountiful's deeper loss
 }
 
 // The floodplain farms' monthly food, for the summary's forecast: working farms of food (grain, figs: FOOD_GOODS) on the floodplain (barley
@@ -227,12 +236,13 @@ export function nextFlood(world) {
 export function floodOutlook(world, level = null) {
   const l = level || appliedLevel(world);
   const harvest = levelHarvest(world, l);   // Version 8.1 (ruling 1221): as the farms grow it, prepared
+  const heir = heirFarms(world);            // Version 9.0: the heir of the Bountiful's farms grow 15% more, flood or none
   let farms = 0, now = 0, plain = 0;
   for (const b of Object.values(world.buildings)) {
     const def = BUILDINGS[b.type];
     if (!isFloodFarm(b.type) || !FOOD_GOODS.includes(def.produces.good) || !onFloodplain(world, b)) continue;
     if (!isWorking(b)) continue;
-    const monthly = def.produces.perMonth * staffRatio(b);
+    const monthly = def.produces.perMonth * staffRatio(b) * heir;
     farms += 1;
     plain += monthly;
     now += monthly * harvest;

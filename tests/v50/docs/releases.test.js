@@ -5,11 +5,11 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v50 releases', () => {
   it('5.0 is the fifth entry with its merge commit (every version since is newer), and 4.7 carries its own', () => {
-    expect([RELEASES[11].version, RELEASES[11].title, RELEASES[11].build, APP_VERSION]).toEqual(['5.0', 'Know your city', '486006a', '8.4']);
-    expect([RELEASES[12].version, RELEASES[12].build]).toEqual(['4.7', 'b541f9e']);
+    expect([RELEASES[12].version, RELEASES[12].title, RELEASES[12].build, APP_VERSION]).toEqual(['5.0', 'Know your city', '486006a', '9.0']);
+    expect([RELEASES[13].version, RELEASES[13].build]).toEqual(['4.7', 'b541f9e']);
   });
   it('names the features of the version', () => {
-    const notes = RELEASES[11].new.join(' ');
+    const notes = RELEASES[12].new.join(' ');
     for (const word of ['City advice', 'next step', 'Home progress', 'Goods supply', 'Workers', 'Build another', 'Drag areas', 'Route', 'bridge', 'fling', 'two-finger double tap', 'third kind of food', 'Large maps']) {
       expect([word, notes.includes(word)]).toEqual([word, true]);
     }

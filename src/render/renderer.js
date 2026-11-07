@@ -8,7 +8,8 @@ import { ART, slotFor } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
-import { createSpriteCache, drawSprite } from './spriteCache.js';
+import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
+import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
 import { createTerrainBaker, drawTileGrid } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
@@ -18,6 +19,9 @@ import { hasNewLand, GRASS } from '../data/s47.js';
 import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
 import { buildingsInRange } from './chunkIndex.js';
+import { effectsV90 } from './v90/effects.js';
+import { v90Off, spend } from './v90/dropper.js';
+import { scaffoldsAt, drawScaffold } from './v90/scaffold.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -114,13 +118,16 @@ export function collectObjects(world, range, walkers = [], registry = ART, scree
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
     if (cull) { const fd = registry[`fig.${wk.kind}`]; if (fd && !cull.sees(wk.x, wk.y, fd.bounds, fd.height)) continue; }
-    out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y });
+    out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y, dir: wk.dir, stand: Boolean(wk.stand) });   // Version 9.0 (V1): its heading and whether it stands, for its pose
   }
   out.sort(compareDepth);
   return out;
 }
 
 const defaultDpr = () => (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+// Version 9.0, Track V (V0a, ruling 1600): the map's canvas draws at most at this ratio. A DPR-3 phone fills 4/9 of the pixels it did, and the map
+// is a little softer; the page's own text and buttons are not on this canvas and stay sharp.
+export const DPR_CAP = 2;
 
 // drawSprite with only the bottom t share of the sprite's height showing, clipped in device px.
 export function drawRising(ctx, sprite, px, py, zoom, dpr, t) {
@@ -141,11 +148,23 @@ export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
   dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
 }) {
-  const dprOf = typeof dpr === 'function' ? dpr : () => dpr;
+  const rawDpr = typeof dpr === 'function' ? dpr : () => dpr;
+  const dprOf = () => Math.min(DPR_CAP, rawDpr());   // V0a: the canvas's ratio, capped
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
   const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0 };
   let ring = { key: '', done: false };   // Version 5.0 (Task 8): the ring of chunks round the view that is baked, so a fling finds them ready
+  // Version 9.0 (V1): the first time a figure kind is drawn at a zoom bucket and ratio, all its walk slots are drawn into the cache at once, so a figure
+  // that turns or steps later never pays for a new sprite in the middle of play (a frame's cost stays flat once warm).
+  const warmed = new Set();
+  let warmedDpr = currentDpr;
+  function warmWalk(slot, zoom, dpr) {
+    if (dpr !== warmedDpr) { warmed.clear(); warmedDpr = dpr; }
+    const key = `${slot}@${bucketFor(zoom)}`;
+    if (warmed.has(key)) return;
+    warmed.add(key);
+    for (const v of WALK_VARIANTS) if (registry[slot + v]) spriteCache.get(slot + v, zoom, dpr);
+  }
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
@@ -229,6 +248,8 @@ export function createRenderer({
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0, live = 0;
+    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world);                // Version 9.0 (V3): the scaffolds up this frame, by building id
+    const scaffolds = standing.length ? new Map(standing.map((s) => [s.b.id, s])) : null;
     for (const o of objects) {
       // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set
       // (src/render/monuments.js drawMonument through opts.live), never from the sprite cache. Without opts.live (a bare
@@ -240,7 +261,8 @@ export function createRenderer({
         live++;
         continue;
       }
-      const slot = opts.treeSlot && !o.still && o.id >= DECOR_ID_BASE && o.id < FIGURE_ID_BASE ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids run from DECOR_ID_BASE up to FIGURE_ID_BASE)
+      let slot = opts.treeSlot && !o.still && o.id >= DECOR_ID_BASE && o.id < FIGURE_ID_BASE ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids run from DECOR_ID_BASE up to FIGURE_ID_BASE)
+      if (o.id >= FIGURE_ID_BASE && registry[`${o.slot}.m`] && !v90Off('walk')) { slot = walkSlotFor(o, registry); warmWalk(o.slot, zoom, dpr); }   // Version 9.0 (V1): the step pose and facing
       const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);
@@ -249,6 +271,14 @@ export function createRenderer({
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);
       sprites++;
+      const site = scaffolds && o.id < DECOR_ID_BASE ? scaffolds.get(o.id) : null;
+      if (site) {                                                                // Version 9.0 (V3, ruling 1612): its poles in its own depth slot, under what stands in front
+        const t0 = performance.now();
+        ctx.setTransform(1, 0, 0, 1, ox, oy);
+        drawScaffold(g, world, site);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        spend(performance.now() - t0);
+      }
     }
 
     // 3b. Version 7.0 (Track 0 seam; Track S fills it, render/light.js): the light over the city (night's tint, the lamps), in art px with the art
@@ -262,6 +292,7 @@ export function createRenderer({
     if (opts.fire) opts.fire(g, range);
     if (opts.units) opts.units(g, range);
     if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now, world);
+    effectsV90(g, view, world, { ...opts, range, cam });   // Version 9.0 (wave 0 seam): Track V's effects, above the effects pass and under the overlays
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);

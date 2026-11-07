@@ -41,9 +41,10 @@ import { siteStatus, siteCrews, campQuote, setCamp, crewSpeedAt, crewDistance, g
 import { palaceQuote, enlargePalace, palaceMood, setTaxRate, taxRateOf } from '../sim/palace.js';
 import { TAX_ORDER } from '../data/palace.js';
 import { rushQuote, setRush } from '../sim/monuments.js';
-import { monthFigures } from '../sim/economy.js';
+import { monthFigures, taxesAt } from '../sim/economy.js';
 import { V84_G_TEXT } from './text.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
+import { heirFactor } from '../sim/dynasty.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { touchesRoad } from '../sim/reach.js';
@@ -199,12 +200,15 @@ export function rushRows(world, b) {
 }
 
 // The palace's Taxes row (ruling 1465): the three rates, each with its effect on this month's taxes and on mood, said before the tap, from monthFigures'
-// taxesNormal and TAX_RATES. { normal, rate, choices: [{ rate, name, line, checked, aria }] }.
+// taxesNormal and TAX_RATES. { normal, rate, at, choices: [{ rate, name, line, checked, aria }] }.
+// Version 9.0 (Track D): at is each rate's month of taxes as monthFigures would take it (economy.js taxesAt: the Generous's High, the Builder's 5%), and every
+// line is worded from it.
 export function taxModel(world) {
   const normal = monthFigures(world).taxesNormal, rate = taxRateOf(world), W = V84_G_TEXT;
+  const at = Object.fromEntries(TAX_ORDER.map((r) => [r, taxesAt(world, r, normal)]));
   return {
-    normal, rate,
-    choices: TAX_ORDER.map((r) => ({ rate: r, name: W.rateNames[r], line: W.rateLine(r, normal), checked: r === rate, aria: W.rateAria(r, normal, r === rate) })),
+    normal, rate, at,
+    choices: TAX_ORDER.map((r) => ({ rate: r, name: W.rateNames[r], line: W.rateLine(r, normal, at), checked: r === rate, aria: W.rateAria(r, normal, r === rate, at) })),
   };
 }
 
@@ -243,7 +247,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
-  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth) });
+  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth * heirFactor(world, 'crews')) });
   rows.push({ key: 'prestige', text: s.prestige.holds ? U.prestige(s.prestige.now, s.prestige.more) : U.otherHolds(b.type) });
   return rows;
 }
@@ -442,7 +446,7 @@ export function createMonumentUi(ctx) {
   function setTax(b, rate) {
     const r = setTaxRate(world, b.id, rate);
     if (!r.ok) return;
-    if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rateSet(rate, monthFigures(world).taxesNormal));
+    if (ctx.toasts) ctx.toasts.show(V84_G_TEXT.rateSet(rate, monthFigures(world).taxesNormal, taxModel(world).at));
     after({ kind: 'tax', result: r, undoable: false });
   }
 

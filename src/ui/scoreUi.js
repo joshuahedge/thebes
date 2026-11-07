@@ -18,9 +18,10 @@ import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
 import { el, button } from './components.js';
+import { createDynastyUi } from './v90/dynastyUi.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -30,6 +31,7 @@ export function createScoreUi(ctx) {
   const records = () => (ctx.hooks && ctx.hooks.records) || null;
   const clock = () => (typeof ctx.clock === 'function' ? ctx.clock() : Date.now());
   let version = 0, cached = null;
+  const dynasty = createDynastyUi(ctx);                // Version 9.0 (Track D): the heir, the title and Pass the throne's sheets
   // The score now, measured once per refresh, game day and command.
   function current() {
     const key = `${world.day}|${version}`;
@@ -143,9 +145,11 @@ export function createScoreUi(ctx) {
   const canShare = (d) => { const f = given('canShare', () => (typeof nav().canShare === 'function' ? (x) => nav().canShare(x) : null)); return f ? f(d) : true; };
   const download = (file) => given('download', () => (f) => downloadFile(f, document))(file);
   const clipboard = () => given('clipboard', () => nav().clipboard || null);
+  // The name the link carries: the dynasty's (records.dynasty), '' before the player has one, and this city's heir.
+  const ruler = () => { try { return { name: records() ? records().dynasty().name : '', heir: world.heir }; } catch (e) { return {}; } };
   function shareSheet(body) {
     const s = current();
-    const link = shareLink({ seed: world.seed, difficulty: world.difficulty, parts: s.parts, splits: splitMonths(world), variant: world.mapVariant, size: world.mapSize });
+    const link = shareLink({ seed: world.seed, difficulty: world.difficulty, parts: s.parts, splits: splitMonths(world), variant: world.mapVariant, size: world.mapSize, ...ruler() });   // Version 9.0 (Track L, ruling 1588): the dynasty's name and the city's heir ride on the link
     const rows = emojiRow(s.parts);
     const text = SHARE_TEXT.text(s.total, rows, link);
     const pic = preparePicture(s);
@@ -173,10 +177,12 @@ export function createScoreUi(ctx) {
 
   // The summary's score section (spec 4.19): the city score, its medal and the points to the next one, each part with
   // its bar and reason, and the milestone splits.
+  // Version 9.0 (Track D): the heir's line and, from City, what the reign would be remembered as, under the heading (src/ui/v90/dynastyUi.js).
   function summarySection() {
     const s = current();
     return el('section', { class: 'score-section' }, [
       el('h3', { text: SCORE_TEXT.cityScore, dataset: { section: 'score' } }),   // Version 8.1: the score's explainer opens the City page here
+      ...dynasty.summary(),
       el('p', { class: 'score-total' }, [
         el('strong', { class: 'score-number', text: String(s.total) }), ' ',
         el('span', { class: `medal ${s.medal || 'none'}`, text: medalText(s.medal) }),
@@ -238,11 +244,12 @@ export function createScoreUi(ctx) {
 
   // Version 8.1 (Track B): the top bar's score is its own stat now, drawn by src/ui/hud.js (hidden while nobody lives in the city), so the chip this file
   // filled is gone.
+  dynasty.opening();
   return {
-    sheets: { sealReign: sealSheet, shareScore: shareSheet },
+    sheets: { sealReign: sealSheet, shareScore: shareSheet, ...dynasty.sheets },   // Version 9.0: Pass the throne's sheet and the heir's card
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); } },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); dynasty.onEvents(events); } },
     refresh() { if (world) version++; },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
@@ -321,7 +328,7 @@ function stampFor(entry, dpr) {
 // that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio),
 // setDifficulty(level) (Version 6.0, ruling 793: keeps the link's level as the device's, so Start this seed plays it even on the lesson-only card, which
 // has no difficulty choice to click), lessonPending (this device has not finished the lesson: the link's card says where it is) }.
-export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1, setDifficulty = () => {}, lessonPending = false } = {}) {
+export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1, setDifficulty = () => {}, lessonPending = false, onRulers = null } = {}) {
   return (element, { buttonBox, newCity } = {}) => {
     if (!element || !buttonBox) return;
     const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
@@ -329,13 +336,16 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     // The device's records: up to three bests, then the stamps (records read blocked storage as none).
     const bests = records ? safe(() => records.bests(3), []) : [];
     const stamps = records ? safe(() => records.stamps(), []) : [];
-    if (bests.length || stamps.length) {
+    // Version 9.0 (Track L, ruling 1585): the ruler list's button, when a ruler is kept and the title can open the list (onRulers).
+    const rulerCount = records && typeof onRulers === 'function' ? safe(() => records.rulers().length, 0) : 0;
+    if (bests.length || stamps.length || rulerCount) {
       const box = el('div', { class: 'title-records', role: 'group', 'aria-label': TITLE_SCORE_TEXT.records }, [
         ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b) })),
         stamps.length ? el('div', { class: 'stamps' }, [
           ...stamps.slice(0, STAMP_MAX).map((e) => stampFor(e, dpr)),
           stamps.length > STAMP_MAX ? el('span', { class: 'more-stamps small muted', text: TITLE_SCORE_TEXT.moreStamps(stamps.length - STAMP_MAX) }) : null,
         ]) : null,
+        rulerCount ? button(V90_L_TEXT.recordsButton(rulerCount), { class: 'rulers-open', 'aria-label': V90_L_TEXT.recordsButtonLabel(rulerCount), onClick: () => onRulers() }) : null,
       ]);
       const cont = buttonBox.querySelector('.continue');
       if (cont) cont.after(box); else buttonBox.prepend(box);
@@ -353,6 +363,10 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       return;
     }
     const total = sharedTotal(link);
+    // Version 9.0 (Track L, ruling 1588): a link with a name is kept as a rival on its map (the same name there replaces the older row), and the panel says so.
+    // Your own link (your dynasty's name on it) never makes you your own rival (ruling 1599).
+    const own = link.name && records ? safe(() => records.dynasty().name === link.name, false) : false;
+    const rival = link.name && records && !own ? safe(() => records.addRival(link, clock()), null) : null;
     // Stage 4 (ruling 259): a t1 link (older scoring) is compared only with your best made under its own score version.
     const best = records ? safe(() => records.bestFor(link.seed, link.difficulty, { version: link.version, variant: link.variant, size: link.size }), null) : null;
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
@@ -368,6 +382,8 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       link.older ? el('p', { class: 'friend-older small muted', text: SCORE4_TEXT.olderLink }) : null,
       el('p', { class: 'your-best small', text: score4YourBest(best ? best.score : null, link.older) }),
       el('p', { class: 'beat', text: TITLE_SCORE_TEXT.beat(total) }),
+      rival ? el('p', { class: 'rival-line', text: V90_L_TEXT.rivalLine(rival) }) : null,
+      rival ? el('p', { class: 'rival-kept small muted', text: V90_L_TEXT.rivalKept }) : null,
       el('p', { class: 'start-on small muted', text: TITLE_SCORE_TEXT.startOn(link.difficulty) }),
       lessonPending ? el('p', { class: 'friend-lesson small muted', text: D2_TEXT.shareLessonLine }) : null,
       start,

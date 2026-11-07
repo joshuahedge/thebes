@@ -31,6 +31,7 @@ import { storeAccepts, hasSpace } from './production.js';
 import { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart } from './prestige.js';
 import { GREAT_WORK } from '../data/reign.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
+import { heirFactor } from './dynasty.js';
 
 export { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart };
 
@@ -282,7 +283,9 @@ export function crewDayUnits(world, g, site = undefined) {
   return baseDayUnits(world, g, s) * rushPaceOf(s);
 }
 // The same without the rush: what the crew lays on that site at its own pace (Rush's quote compares the two).
-const baseDayUnits = (world, g, s) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, s);
+// Version 9.0 (Track D, ruling 1567): times the heir of the Builder's crews factor (heirFactor 'crews', 1 for any other city), so every quote that counts
+// days from a crew's units (the site's days left, Rush's) says the heir's pace.
+const baseDayUnits = (world, g, s) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, s) * heirFactor(world, 'crews');
 // MONUMENT.rushPace on a site under way whose course is rushed (site.rush), else 1.
 export const rushPaceOf = (s) => (isSite(s) && s.site.rush ? MONUMENT.rushPace : 1);
 

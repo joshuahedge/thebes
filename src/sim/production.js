@@ -11,6 +11,7 @@ import { huntHerd, takeGame } from './wildlife.js';
 import { HARVEST_NOW } from '../data/hazards.js';
 import { droughtFactor, cropFactor, warnedBand, isFarm, cropShare } from './crops.js';
 import { plagueHalted } from './plague.js';
+import { heirFactor } from './dynasty.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
 
@@ -117,7 +118,8 @@ export function produceDay(world) {
     if (!sites.length && !targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
     // Stage 4.6 (River track, ruling 360): a floodplain farm's harvest follows the last flood; a wharf's boat lands more in the flood months.
-    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * harvestFactor(world, b) * crop * (def.fishes ? fishFactor(world) : 1);
+    // Version 9.0 (Track D, ruling 1567): times the heir's rate factor (heirRate: the Bountiful's farms, the Merchant's workshops; 1 for any other city).
+    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * harvestFactor(world, b) * crop * (def.fishes ? fishFactor(world) : 1) * heirRate(world, b);
     b.progress += rate;
     while (b.progress >= 1 - 1e-9) {
       // A hunting lodge (rulings 364, 460) makes each unit of game from the animal in hand (b.gameLeft); with none, its hunters take one animal
@@ -139,10 +141,16 @@ export function produceDay(world) {
 // ── Version 6.0 (Track B1, rulings 687-688): the harvest's factors and Harvest now ──
 // What the year's weather gives a building's crop: the flood's multiplier on a floodplain farm, or a drought's on any farm, whichever is the
 // lower (a low flood in a drought year is not counted twice).
+// Version 9.0 (Track D, ruling 1572): the heir of the Bountiful loses half again as much to a low flood; flood.js levelHarvest makes the flood's factor
+// deeper, so this and every word about the flood read the same number. A drought's share is the hazard's own (its words are crops.js foodOutlook's).
 export function harvestFactor(world, b) {
   const flood = floodHarvestFactor(world, b), drought = droughtFactor(world, b);
   return drought < 1 ? Math.min(flood, drought) : flood;   // a good flood still feeds a farm when there is no drought
 }
+
+// Version 9.0 (Track D, ruling 1567): the heir's factor on a producer's rate: the Bountiful's on a farm, the Merchant's on anything that makes one good
+// from another (a workshop, the brickworks); 1 for anything else and in any other city.
+export const heirRate = (world, b) => (isFarm(b.type) ? heirFactor(world, 'farms') : BUILDINGS[b.type].consumes ? heirFactor(world, 'workshops') : 1);
 
 // The days a farm still rests after Harvest now: 0 before the rest begins (the day after the strike) and once it is over.
 export const restDaysLeft = (world, b) => (b.restUntil > world.day && world.day >= (b.restFrom || 0) ? b.restUntil - world.day : 0);
@@ -161,7 +169,7 @@ export function harvestQuote(world, b) {
   if (!w) return { ok: false, reason: 'not_warned', ...base };
   if ((w.early || []).includes(b.id)) return { ok: false, reason: 'done', ...base };
   if (!isWorking(world, b)) return { ok: false, reason: 'idle', ...base };
-  const want = Math.max(1, Math.round(def.produces.perMonth * HARVEST_NOW.share * staffRatio(world, b) * harvestFactor(world, b)));
+  const want = Math.max(1, Math.round(def.produces.perMonth * HARVEST_NOW.share * staffRatio(world, b) * harvestFactor(world, b) * heirRate(world, b)));   // Version 9.0: the Bountiful's crop too
   const room = outputStores(world, b, base.good).reduce((s, t) => s + Math.max(0, BUILDINGS[t.type].capacity - storeTotal(t)), 0);
   const units = Math.min(want, Math.floor(room));
   if (units < 1) return { ok: false, reason: 'no_room', ...base, want };

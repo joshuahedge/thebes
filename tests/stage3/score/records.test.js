@@ -45,7 +45,7 @@ describe('s3 score records', () => {
     expect(r.load().cities[1].best).toBe(null);
     r.noteCity({ ...w, cityId: null }, 4000);                             // no id: nothing
     expect(r.load().cities.length).toBe(2);
-    expect(JSON.parse(storage.data[RECORDS_KEY]).version).toBe(1);
+    expect(JSON.parse(storage.data[RECORDS_KEY]).version).toBe(2);   // Version 9.0: records version 2 (the rulers, rivals and dynasty: tests/v90/w0)
   });
   it('lists the highest bests, one per seed and level, and labels a best made under an older score version', () => {
     const r = createRecords({ storage: memory({ version: 1, cities: [

@@ -17,14 +17,84 @@
 // begun under score v1 keeps its v1 best ("older scoring") beside its first v2 one. A month-end row without a `version` is
 // a score v1 row. A chronicle entry keeps its own version's parts (a v1 seal has four), and `built` (only when there is
 // one) lists the kinds of each finished mastaba and pyramid at the seal, for the stamp's glyphs (STAMP_KINDS).
+// Version 9.0 (records version 2, rulings 1561 and 1562; wave 0 wrote the shape, Track D's Pass and Track L's list call it):
+//   rulers: [ { id, n, name, title, heir, rank, day, score, parts, medal, version, seed, difficulty, mapVariant, mapSize, map, feats, date[, rival][, mark] } ]
+//   rivals: [ { id, name, heir, seed, difficulty, mapVariant, mapSize, score, parts, splits, version, added } ]
+//   dynasty: { name, heir }
+// A ruler row: one per Pass the throne, never capped. n is the regnal number (1 + the rulers before it of the same name), name the dynasty's
+// name then, title the title the reign earned (one of HEIRS), heir the trait the reign played under, rank its milestone at the Pass; map the
+// 32 x 32 map square (one base-36 character a cell, '' when none: Track L writes mapSquareOf); rival, when the map had one kept, the newest
+// rival as it stood at the Pass; mark is 9.1's. A rival: a friend's score kept from a link with a name, one per name and map (the newer
+// replaces the older), at most RIVALS_MAX, the oldest added going first and never one on the map being played. dynasty: the name chosen at
+// the first Pass ('' until then) and the heir a new city takes (the Steady on a new device). A version 1 blob reads with the three empty.
 import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, PARTS_BY_VERSION, SPLITS, MEDALS, SCORE_FACTOR, STAMP_KINDS } from '../data/scoring.js';
 import { MONUMENT_KINDS } from '../data/monuments.js';
 import { MAP_VARIANTS, DEFAULT_MAP_SIZE, isMapSize } from '../data/map.js';
+import { MILESTONES } from '../data/progression.js';
+import { HEIR_DEFAULT, isHeir } from '../data/v90.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
+import { hasNewLand } from '../data/s47.js';
 
-export const RECORDS_VERSION = 1;
-export const emptyRecords = () => ({ version: RECORDS_VERSION, cities: [], chronicle: [] });
+export const RECORDS_VERSION = 2;
+export const RIVALS_MAX = 50;                 // rulers are never capped; rivals at most this many (ruling 1561)
+export const RULER_NAME_MAX = 16;             // a ruler's name, here and on a link: letters, digits, spaces and '-. (design section 6)
+export const RULER_NAME_DEFAULT = 'Ramesses'; // the name a ruler takes before the dynasty has one (the first Pass asks, prefilled with it)
+export const MAP_SQUARE = 32;                 // a ruler row's map square: MAP_SQUARE x MAP_SQUARE cells
+export const newDynasty = () => ({ name: '', heir: HEIR_DEFAULT });
+export const emptyRecords = () => ({ version: RECORDS_VERSION, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: newDynasty() });
+
+// A ruler's or a rival's name as kept: letters and digits of any script, spaces and '-. only, spaces run together, at most RULER_NAME_MAX; ''
+// when nothing is left.
+export function cleanName(v) {
+  if (typeof v !== 'string') return '';
+  return v.replace(/[^\p{L}\p{N} '\-.]/gu, '').replace(/\s+/g, ' ').trim().slice(0, RULER_NAME_MAX).trim();
+}
+
+// The map square a ruler row keeps, a MAP_SQUARE * MAP_SQUARE string of base-36 cells (row by row), or '' for none. Version 9.0 Track L (ruling 1591):
+// a cell is one character that names the colour share.js drawMapSquare would paint there: 0-7 the eight grounds (src/sim/terrain.js T: desert,
+// fertile, rocky, water, bank, meadow, clay, hills), 8 a rock belt's rock on a map with new land, 9 a road, a a house not yet built up (a plot), b a
+// built-up house, c any other building. share.js mapSquareColour turns a code into its colour; decodeMapSquare gives the codes back.
+export const MAP_CELL = { belt: '8', road: '9', plot: 'a', house: 'b', building: 'c' };
+const ROCKY = 2;                                     // terrain.js T.ROCKY (the belt's colour replaces it on a map with new land)
+export function mapSquareOf(world) {
+  if (!world || !Number.isInteger(world.size) || world.size < 1 || !world.terrain) return '';
+  const n = world.size, m = MAP_SQUARE, land = hasNewLand(world);
+  const over = new Uint8Array(n * n);                // what stands on each tile: 0 nothing, 1 a plot, 2 a house, 3 another building
+  for (const b of allBuildings(world)) {
+    const kind = b.type === 'house' ? (b.tier > 0 ? 2 : 1) : 3;
+    for (let y = Math.max(0, b.y); y < Math.min(n, b.y + b.d); y++) for (let x = Math.max(0, b.x); x < Math.min(n, b.x + b.w); x++) over[y * n + x] = Math.max(over[y * n + x], kind);
+  }
+  let out = '';
+  for (let cy = 0; cy < m; cy++) {
+    for (let cx = 0; cx < m; cx++) {
+      const x0 = Math.floor((cx * n) / m), x1 = Math.max(x0 + 1, Math.floor(((cx + 1) * n) / m));   // the tiles this cell covers (a map under 32 wide gives some cells a tile each)
+      const y0 = Math.floor((cy * n) / m), y1 = Math.max(y0 + 1, Math.floor(((cy + 1) * n) / m));
+      let most = 0, road = false;
+      for (let y = y0; y < Math.min(n, y1); y++) {
+        for (let x = x0; x < Math.min(n, x1); x++) {
+          most = Math.max(most, over[y * n + x]);
+          if (world.road && world.road[y * n + x]) road = true;
+        }
+      }
+      if (most === 3) out += MAP_CELL.building;
+      else if (most === 2) out += MAP_CELL.house;
+      else if (most === 1) out += MAP_CELL.plot;
+      else if (road) out += MAP_CELL.road;
+      else {
+        const t = world.terrain[Math.min(n - 1, (y0 + y1 - 1) >> 1) * n + Math.min(n - 1, (x0 + x1 - 1) >> 1)];
+        out += land && t === ROCKY ? MAP_CELL.belt : Number.isInteger(t) && t >= 0 && t <= 7 ? String(t) : '0';
+      }
+    }
+  }
+  return out;
+}
+const MAP_RE = new RegExp(`^[0-9a-z]{${MAP_SQUARE * MAP_SQUARE}}$`);
+// A map square as its cell codes, MAP_SQUARE * MAP_SQUARE numbers (0 to 35, row by row), or null when the string is not one (not 1,024 base-36 characters).
+export function decodeMapSquare(text) {
+  if (typeof text !== 'string' || !MAP_RE.test(text)) return null;
+  return Array.from(text, (c) => parseInt(c, 36));
+}
 
 function defaultStorage() {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
@@ -106,7 +176,68 @@ function cleanEntry(e) {
   return out;
 }
 
-// Any value read back as records: the well-formed rows and entries, the rest dropped.
+// A score's parts under its own version's list (a v1 score has four), each a number, 0 when missing.
+function cleanParts(parts, version) {
+  const out = {};
+  for (const p of PARTS_BY_VERSION[version] || SCORE_PARTS) out[p] = isObj(parts) && isNum(parts[p]) ? parts[p] : 0;
+  return out;
+}
+const MILESTONE_IDS = MILESTONES.map((m) => m.id);
+// A rival's id: its name and its map's key, so the same name on the same map is the same rival (ruling 1561).
+const rivalId = (r) => `${r.name}@${keyOf(r)}`;
+
+// The rival a ruler row keeps (the newest on its map at the Pass), or null.
+function cleanRivalSnap(v) {
+  if (!isObj(v)) return null;
+  const name = cleanName(v.name);
+  if (!name || !isNum(v.score)) return null;
+  const version = isInt(v.version) ? v.version : SCORE_VERSION;
+  return { id: typeof v.id === 'string' ? v.id : name, name, heir: isHeir(v.heir) ? v.heir : HEIR_DEFAULT, score: v.score, parts: cleanParts(v.parts, version), splits: cleanSplits(v.splits), version };
+}
+
+// A ruler row as stored, or null when it is not one.
+function cleanRuler(r) {
+  if (!isObj(r) || typeof r.id !== 'string' || !r.id || !isInt(r.seed) || !isLevel(r.difficulty) || !isNum(r.score)) return null;
+  const name = cleanName(r.name);
+  if (!name) return null;
+  const version = isInt(r.version) ? r.version : SCORE_VERSION;
+  const out = {
+    id: r.id, n: isInt(r.n) && r.n >= 1 ? r.n : 1, name, title: isHeir(r.title) ? r.title : HEIR_DEFAULT, heir: isHeir(r.heir) ? r.heir : HEIR_DEFAULT,
+    rank: MILESTONE_IDS.includes(r.rank) ? r.rank : null, day: isInt(r.day) && r.day >= 0 ? r.day : 0, score: r.score, parts: cleanParts(r.parts, version),
+    medal: isMedal(r.medal) ? r.medal : null, version, seed: r.seed, difficulty: r.difficulty, mapVariant: variantOf(r.mapVariant), mapSize: sizeOf(r.mapSize),
+    map: typeof r.map === 'string' && MAP_RE.test(r.map) ? r.map : '', feats: Array.isArray(r.feats) ? r.feats.filter((f) => typeof f === 'string') : [],
+    date: isNum(r.date) ? r.date : 0,
+  };
+  const rival = cleanRivalSnap(r.rival);
+  if (rival) out.rival = rival;
+  if (typeof r.mark === 'string' && r.mark) out.mark = r.mark.slice(0, 60);   // 9.1's ("Sea Peoples, week 44"); absent in 9.0
+  return out;
+}
+
+// A rival as stored, or null. Its id is always its name and map's.
+function cleanRival(v) {
+  if (!isObj(v) || !isInt(v.seed) || v.seed < 0 || !isLevel(v.difficulty) || !isNum(v.score)) return null;
+  const name = cleanName(v.name);
+  if (!name) return null;
+  const version = isInt(v.version) ? v.version : SCORE_VERSION;
+  const out = {
+    name, heir: isHeir(v.heir) ? v.heir : HEIR_DEFAULT, seed: v.seed, difficulty: v.difficulty, mapVariant: variantOf(v.mapVariant), mapSize: sizeOf(v.mapSize),
+    score: v.score, parts: cleanParts(v.parts, version), splits: cleanSplits(v.splits), version, added: isNum(v.added) ? v.added : 0,
+  };
+  return { id: rivalId(out), ...out };
+}
+
+function cleanDynasty(d) {
+  const out = newDynasty();
+  if (!isObj(d)) return out;
+  return { name: cleanName(d.name), heir: isHeir(d.heir) ? d.heir : out.heir };
+}
+
+// Rivals by id, the newer added winning a tie of ids.
+function addRivalTo(map, v) { if (!map.has(v.id) || v.added >= map.get(v.id).added) map.set(v.id, v); }
+
+// Any value read back as records: the well-formed rows and entries, the rest dropped. A version 1 blob has no rulers, rivals or dynasty, and
+// reads with the three empty.
 export function normalizeRecords(raw) {
   const out = emptyRecords();
   if (!isObj(raw)) return out;
@@ -114,6 +245,12 @@ export function normalizeRecords(raw) {
   for (const c of Array.isArray(raw.cities) ? raw.cities : []) { const r = cleanCity(c); if (r && !ids.has(r.id)) { ids.add(r.id); out.cities.push(r); } }
   const entries = new Set();
   for (const e of Array.isArray(raw.chronicle) ? raw.chronicle : []) { const r = cleanEntry(e); if (r && !entries.has(r.id)) { entries.add(r.id); out.chronicle.push(r); } }
+  const rulers = new Set();
+  for (const x of Array.isArray(raw.rulers) ? raw.rulers : []) { const r = cleanRuler(x); if (r && !rulers.has(r.id)) { rulers.add(r.id); out.rulers.push(r); } }
+  const rivals = new Map();
+  for (const x of Array.isArray(raw.rivals) ? raw.rivals : []) { const r = cleanRival(x); if (r) addRivalTo(rivals, r); }
+  out.rivals = [...rivals.values()];
+  out.dynasty = cleanDynasty(raw.dynasty);
   return out;
 }
 
@@ -143,11 +280,18 @@ function cap(list, max, kept, age) {
   const drop = new Set(list.filter((x) => !kept.has(x.id)).sort((a, b) => age(a) - age(b)).slice(0, list.length - max).map((x) => x.id));
   return list.filter((x) => !drop.has(x.id));
 }
-function capped(r, max = RECORDS_MAX) {
+// The rivals on one map (a world, or anything with seed, difficulty, mapVariant and mapSize): their ids, which no cap drops.
+const rivalsOnMap = (rivals, map) => new Set(map ? rivals.filter((v) => keyOf(v) === keyOf(map)).map((v) => v.id) : []);
+// playing: the map being played, whose rivals the rivals' cap never drops (ruling 1561). Rulers are never capped.
+function capped(r, max = RECORDS_MAX, playing = null) {
+  const rivals = r.rivals || [];
   return {
     version: RECORDS_VERSION,
     cities: cap(r.cities, max, keptCities(r.cities), (c) => c.updated),
     chronicle: cap(r.chronicle, max, keptEntries(r.chronicle), (e) => e.date),
+    rulers: r.rulers || [],
+    rivals: cap(rivals, RIVALS_MAX, rivalsOnMap(rivals, playing), (v) => v.added),
+    dynasty: r.dynasty || newDynasty(),
   };
 }
 
@@ -161,6 +305,15 @@ function mergeCity(a, b) {
 }
 
 // Two records merged by id (a city row keeps its better best and earlier splits; chronicle entries are unique), capped.
+// Version 9.0 (ruling 1561): rulers by id (the first records' row kept when both have it: it is the same Pass), rivals by name and map (the
+// newer added kept). The dynasty: see mergedDynasty.
+// Version 9.0 (fix wave, ruling 1634): the dynasty after merging b into a. A device that has rulers keeps its own dynasty (a file never changes the heir or the
+// name; only a name the device lacks is filled). A device with no rulers (a new device restoring) takes the file's dynasty, its heir too when the file has rulers.
+export function mergedDynasty(a, b) {
+  const x = normalizeRecords(a), y = normalizeRecords(b);
+  if (x.rulers.length) return { name: x.dynasty.name || y.dynasty.name, heir: x.dynasty.heir };
+  return { name: y.dynasty.name || x.dynasty.name, heir: y.rulers.length ? y.dynasty.heir : x.dynasty.heir };
+}
 export function mergeRecords(a, b) {
   const x = normalizeRecords(a), y = normalizeRecords(b);
   const cities = new Map(x.cities.map((c) => [c.id, c]));
@@ -168,7 +321,13 @@ export function mergeRecords(a, b) {
   const chronicle = [...x.chronicle];
   const seen = new Set(chronicle.map((e) => e.id));
   for (const e of y.chronicle) if (!seen.has(e.id)) { seen.add(e.id); chronicle.push(e); }
-  return capped({ cities: [...cities.values()], chronicle });
+  const rulers = [...x.rulers];
+  const known = new Set(rulers.map((r) => r.id));
+  for (const r of y.rulers) if (!known.has(r.id)) { known.add(r.id); rulers.push(r); }
+  const rivals = new Map(x.rivals.map((v) => [v.id, v]));
+  for (const v of y.rivals) addRivalTo(rivals, v);
+  const dynasty = mergedDynasty(x, y);
+  return capped({ cities: [...cities.values()], chronicle, rulers, rivals: [...rivals.values()], dynasty });
 }
 
 // A month-end row's score version (a row without one is a score v1 row: MIGRATIONS[4] marks them, ruling 253).
@@ -186,9 +345,11 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
       return text ? normalizeRecords(JSON.parse(text)) : emptyRecords();
     } catch (e) { return emptyRecords(); }
   }
-  function write(r) {
-    try { if (storage) storage.setItem(key, JSON.stringify(capped(r, max))); return true; } catch (e) { return false; }
+  function write(r, playing = null) {
+    try { if (storage) storage.setItem(key, JSON.stringify(capped(r, max, playing))); return true; } catch (e) { return false; }
   }
+  // A map's kept rivals, newest added first.
+  const rivalsOf = (r, map) => r.rivals.filter((v) => keyOf(v) === keyOf(map)).sort((p, q) => q.added - p.added);
   return {
     // What the device holds, or emptyRecords() when nothing, unreadable or blocked.
     load: read,
@@ -255,5 +416,58 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     },
     // The sealed reigns, newest first, for the title card's stamps.
     stamps() { return read().chronicle.slice().sort((a, b) => b.date - a.date); },
+
+    // Version 9.0 (wave 0, ruling 1562): the rulers, the rivals and the dynasty. Track D's Pass calls addRuler and setDynasty; Track L's list,
+    // links and toast call the rest.
+    // Pass the throne: the ruler row for this city (seal: the seal the Pass made, sealReign's; title: the title it earned, one of HEIRS), with
+    // the dynasty's name ('Ramesses' before it has one) and the next regnal number for that name, the map's newest rival as it stands now, and
+    // the device's date; returns it, or null when it is not one. The row's id is the city's and the seal's day, so a second call replaces it.
+    addRuler(world, seal, title, now) {
+      const r = read();
+      const name = r.dynasty.name || RULER_NAME_DEFAULT;
+      const id = `${world.cityId || 'city'}:${seal.day}`;
+      const others = r.rulers.filter((x) => x.id !== id);
+      const rival = rivalsOf(r, world)[0] || null;
+      const row = cleanRuler({
+        id, n: others.filter((x) => x.name === name).length + 1, name, title, heir: world.heir, rank: world.milestone, day: seal.day,
+        score: seal.score, parts: seal.parts, medal: seal.medal, version: seal.version,
+        seed: world.seed, difficulty: world.difficulty, mapVariant: world.mapVariant, mapSize: world.mapSize, map: mapSquareOf(world),
+        feats: [...world.feats.earned], date: now, rival,
+      });
+      if (!row) return null;
+      r.rulers = [...others, row];
+      write(r, world);
+      return row;
+    },
+    // Every ruler, newest first (the later Pass first; the higher regnal number on the same date).
+    rulers() { return read().rulers.sort((a, b) => b.date - a.date || b.n - a.n); },
+    // The dynasty: { name ('' until the first Pass names it), heir (the trait a new city takes) }.
+    dynasty() { return read().dynasty; },
+    // Changes the dynasty's name or heir (a name that cleans to nothing, or an heir not in HEIRS, leaves that one as it was); returns it.
+    setDynasty(patch = {}) {
+      const r = read();
+      const name = isObj(patch) && 'name' in patch ? cleanName(patch.name) : '';
+      r.dynasty = { name: name || r.dynasty.name, heir: isObj(patch) && isHeir(patch.heir) ? patch.heir : r.dynasty.heir };
+      write(r);
+      return { ...r.dynasty };
+    },
+    // A friend's link opened (parseShareLink's reading, with Track L's name and heir): kept as a rival on its map, replacing the same name's
+    // older row there; returns the row, or null when the link has no name or is not a good one. playing: the map being played (a world), whose
+    // rivals the cap of RIVALS_MAX never drops. The score is the link's own when it has one, else its parts' total times its level's factor
+    // (share.js sharedTotal's sum).
+    addRival(link, now, { playing = null } = {}) {
+      if (!isObj(link) || link.ok === false || !isObj(link.parts) || !isLevel(link.difficulty)) return null;
+      const score = isNum(link.score) ? link.score : Math.round(Object.values(link.parts).reduce((s, v) => s + (isNum(v) ? v : 0), 0) * SCORE_FACTOR[link.difficulty]);
+      const row = cleanRival({ ...link, mapVariant: link.mapVariant || link.variant, mapSize: link.mapSize || link.size, score, added: now });
+      if (!row) return null;
+      const r = read();
+      r.rivals = [...r.rivals.filter((v) => v.id !== row.id), row];
+      write(r, playing);
+      return row;
+    },
+    // The rivals kept on one map (seed, level, river layout and size, as bestFor), newest added first.
+    rivalsFor(seed, difficulty, variant = 'classic', size = DEFAULT_MAP_SIZE) {
+      return rivalsOf(read(), { seed, difficulty, mapVariant: variant, mapSize: size });
+    },
   };
 }

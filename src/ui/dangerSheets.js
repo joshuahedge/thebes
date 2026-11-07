@@ -23,7 +23,7 @@ import { canAfford } from '../sim/money.js';
 import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
-import { armyRowsModel } from './s46/armies.js';
+import { armyRowsModel, unitPayNow } from './s46/armies.js';
 import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT, S47_PRESSURE_TEXT, B1_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
@@ -163,7 +163,7 @@ function barracksRows(world, b) {
   else if (m.status === 'paused') out.push(line(D.notTrainingPaused));
   else if (m.status === 'short') out.push(line(D.notTrainingUntil(m.short, BUILDINGS.barracks.workers)));
   else out.push(line(D.trains(DEFENCE.trainDays)));
-  out.push(line(D.soldiersPay(DEFENCE.soldierPay)));
+  out.push(line(D.soldiersPay(unitPayNow(world, 'soldier'))));
   if (world.raid.last) out.push(line(D.lastRaidSoldiers(world.raid.last)));
   return out;
 }
