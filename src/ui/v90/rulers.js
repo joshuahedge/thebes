@@ -7,7 +7,7 @@ import { PARTS_BY_VERSION, SCORE_PARTS } from '../../data/scoring.js';
 import { MAP_SQUARE } from '../../save/records.js';
 import { el, button, clear } from '../components.js';
 import { drawMapString } from '../share.js';
-import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, T } from '../text.js';
+import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T } from '../text.js';
 import { sideBySide } from './sideBySide.js';
 
 // The row's picture: the map square on a 32 x 32 canvas the stylesheet scales; a row without one (a ruler brought from a file that had none) gets a blank square.
@@ -45,7 +45,7 @@ export function rulerRow(row, { onPlay = () => {} } = {}) {
     mapCanvas(row),
   ]);
   const detail = el('div', { class: 'ruler-detail', id: detailId, hidden: true }, [
-    el('p', { class: 'ruler-heir', text: L.heirOf(row.heir) }),
+    el('p', { class: 'ruler-heir', text: V90_D_TEXT.heirOf(row.heir) }),
     el('h4', { class: 'small', text: L.partsHead }),
     partsList(row),
     el('p', { class: 'ruler-feats small', text: `${L.featsHead}: ${row.feats.length ? row.feats.map(featName).join(', ') : L.noFeats}` }),
@@ -64,13 +64,13 @@ export function rulerRow(row, { onPlay = () => {} } = {}) {
 
 // Fills body with the list. records: the device's records (rulers()); onPlay(row): Play this map; installAsk: true while the install ask is due (a ruler is
 // kept and the device can install), with onInstall for its button; onBack: a Back button at the foot (the title card's panel has no head to close it).
-export function renderRulers(body, { records, onPlay = () => {}, installAsk = false, onInstall = () => {}, onBack = null } = {}) {
+export function renderRulers(body, { records, onPlay = () => {}, installAsk = false, ios = false, onInstall = () => {}, onBack = null } = {}) {
   clear(body);
   let rulers = [];
   try { rulers = records ? records.rulers() : []; } catch (e) { rulers = []; }
   body.append(el('div', { class: 'rulers-body' }, [
     installAsk && rulers.length ? el('div', { class: 'rulers-install' }, [
-      el('p', { class: 'install-ask small', role: 'note', text: V90_L_TEXT.installAsk }),
+      el('p', { class: 'install-ask small', role: 'note', text: V90_L_TEXT.installAsk(ios) }),
       button(V90_L_TEXT.installButton, { class: 'install-ask-button primary', onClick: onInstall }),
     ]) : null,
     rulers.length ? el('ul', { class: 'rulers-list' }, rulers.map((r) => rulerRow(r, { onPlay }))) : el('p', { class: 'rulers-empty muted', text: V90_L_TEXT.empty }),

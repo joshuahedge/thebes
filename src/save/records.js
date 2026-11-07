@@ -304,13 +304,16 @@ function mergeCity(a, b) {
   return withBests({ ...newer, splits: cleanSplits(splits), updated: Math.max(a.updated, b.updated) }, [...bestsOf(a), ...bestsOf(b)]);
 }
 
-// The newest ruler's date in a list, or -Infinity for none.
-const newestRuler = (rulers) => rulers.reduce((m, r) => Math.max(m, r.date), -Infinity);
-
 // Two records merged by id (a city row keeps its better best and earlier splits; chronicle entries are unique), capped.
 // Version 9.0 (ruling 1561): rulers by id (the first records' row kept when both have it: it is the same Pass), rivals by name and map (the
-// newer added kept). The dynasty stays the first records' (the device's), but takes the second's name when it has none, and the second's
-// heir when the second holds the newest ruler, since a new city's heir is the newest ruler's title.
+// newer added kept). The dynasty: see mergedDynasty.
+// Version 9.0 (fix wave, ruling 1634): the dynasty after merging b into a. A device that has rulers keeps its own dynasty (a file never changes the heir or the
+// name; only a name the device lacks is filled). A device with no rulers (a new device restoring) takes the file's dynasty, its heir too when the file has rulers.
+export function mergedDynasty(a, b) {
+  const x = normalizeRecords(a), y = normalizeRecords(b);
+  if (x.rulers.length) return { name: x.dynasty.name || y.dynasty.name, heir: x.dynasty.heir };
+  return { name: y.dynasty.name || x.dynasty.name, heir: y.rulers.length ? y.dynasty.heir : x.dynasty.heir };
+}
 export function mergeRecords(a, b) {
   const x = normalizeRecords(a), y = normalizeRecords(b);
   const cities = new Map(x.cities.map((c) => [c.id, c]));
@@ -323,10 +326,7 @@ export function mergeRecords(a, b) {
   for (const r of y.rulers) if (!known.has(r.id)) { known.add(r.id); rulers.push(r); }
   const rivals = new Map(x.rivals.map((v) => [v.id, v]));
   for (const v of y.rivals) addRivalTo(rivals, v);
-  const dynasty = {
-    name: x.dynasty.name || y.dynasty.name,
-    heir: newestRuler(y.rulers) > newestRuler(x.rulers) ? y.dynasty.heir : x.dynasty.heir,
-  };
+  const dynasty = mergedDynasty(x, y);
   return capped({ cities: [...cities.values()], chronicle, rulers, rivals: [...rivals.values()], dynasty });
 }
 

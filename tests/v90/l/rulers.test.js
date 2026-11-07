@@ -7,7 +7,7 @@ import { createRecords, mapSquareOf } from '../../../src/save/records.js';
 import { RECORDS_KEY, RECORDS_MAX } from '../../../src/data/scoring.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
-import { V90_L_TEXT } from '../../../src/ui/text.js';
+import { V90_L_TEXT, V90_D_TEXT } from '../../../src/ui/text.js';
 import { mount, fire } from '../../helpers/dom.js';
 import { mountShell } from '../../helpers/uiWorld.js';
 
@@ -55,7 +55,7 @@ describe('v90 l rulers: the list', () => {
       expect([older.querySelector('.ruler-name').textContent, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
       expect(newest.querySelector('.ruler-medal').textContent).toBe('No medal');
       expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12.5 years, score 312, Gold medal');
-      expect([V90_L_TEXT.roman(1), V90_L_TEXT.roman(4), V90_L_TEXT.roman(9), V90_L_TEXT.roman(14), V90_L_TEXT.roman(49)]).toEqual(['I', 'IV', 'IX', 'XIV', 'XLIX']);
+      expect([1, 4, 9, 14, 49].map((n) => V90_D_TEXT.regnal('Ra', n))).toEqual(['Ra I', 'Ra IV', 'Ra IX', 'Ra XIV', 'Ra XLIX']);
       const c = older.querySelector('canvas.ruler-map');
       expect([c.width, c.height, c.getAttribute('aria-hidden')]).toEqual([32, 32, 'true']);
       const px = c.getContext('2d').getImageData(0, 0, 32, 32).data;                // the picture is drawn from the row's map string
@@ -131,7 +131,7 @@ describe('v90 l rulers: the list', () => {
       const body = root.querySelector('#body');
       renderRulers(body, { records, installAsk: true, onInstall: () => asked.push('install') });
       expect(body.querySelector('.rulers-body').firstElementChild.classList.contains('rulers-install')).toBe(true);
-      expect(body.querySelector('.install-ask').textContent).toBe("Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit");
+      expect(body.querySelector('.install-ask').textContent).toBe('Install Thebes to keep your rulers');
       fire(body.querySelector('.install-ask-button'), 'click');
       expect(asked).toEqual(['install']);
       renderRulers(body, { records, installAsk: false });

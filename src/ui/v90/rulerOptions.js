@@ -1,10 +1,10 @@
 // Version 9.0 "Dynasty" (Track L, rulings 1586, 1593): the two rows Options > Saves gains (src/ui/menu.js settingsSheet places them): the ruler's name, a labelled
 // field of at most 16 characters, and Bring rulers from a file, which says what a merge would add before Merge. Both read and write the device's records through
 // hooks.records, and Bring rulers picks its file through hooks.bringRulers() (boot.js; it answers the file's text, or null when none was picked).
-import { RULER_NAME_MAX, cleanName } from '../../save/records.js';
+import { RULER_NAME_MAX, cleanName, mergedDynasty } from '../../save/records.js';
 import { readRecordsFile, bringSummary } from '../../save/exportImport.js';
 import { el, button, clear } from '../components.js';
-import { V90_L_TEXT } from '../text.js';
+import { V90_L_TEXT, V90_D_TEXT } from '../text.js';
 
 // The ruler name field: a label, the field (kept on change: Enter or leaving it), the limit in words and a status line for what was kept or refused.
 export function rulerNameRow(hooks) {
@@ -27,7 +27,7 @@ export function rulerNameRow(hooks) {
     status.textContent = saved === typed ? L.nameSaved(saved) : L.nameCleaned(saved);
   });
   return el('div', { class: 'row ruler-name-row' }, [
-    el('label', { for: 'ruler-name', class: 'ruler-name-label', text: L.nameLabel }),
+    el('label', { for: 'ruler-name', class: 'ruler-name-label', text: V90_D_TEXT.nameLabel }),
     input,
     el('p', { class: 'ruler-name-hint small muted', id: 'ruler-name-hint', text: L.nameHint }),
     status,
@@ -49,7 +49,9 @@ export function bringRulersRow(hooks) {
     if (!read.ok) { say(REASONS[read.reason] || L.bringBad); return; }
     const adds = bringSummary(hooks.records.load(), read.records);
     if (!adds.rulers && !adds.rivals) { say(L.bringNothing); return; }
-    say(L.bringAdds(adds.rulers, adds.rivals), el('div', { class: 'actions' }, [
+    const device = hooks.records.load();
+    const takes = !device.rulers.length && read.records.rulers.length ? mergedDynasty(device, read.records) : null;   // a device with none takes the file's dynasty: say so before Merge
+    say(takes ? `${L.bringAdds(adds.rulers, adds.rivals)}. ${L.bringTakes(takes.heir, takes.name)}` : L.bringAdds(adds.rulers, adds.rivals), el('div', { class: 'actions' }, [
       button(L.bringMerge, { class: 'bring-merge primary', onClick: () => { hooks.records.merge(read.records); say(L.bringDone(adds.rulers, adds.rivals)); } }),
       button(L.bringCancel, { class: 'bring-cancel', onClick: () => clear(answer) }),
     ]));

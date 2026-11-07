@@ -148,13 +148,13 @@ describe('v90 l boot: the lesson has none of it', () => {
       g.ui.store.set(openSheet(g.ui.store.get(), 'rulers'));
       expect(r.root.querySelector('#sheet .ruler')).toBe(null);                          // no sheet of that name in the lesson
       await flush();
-      expect(toasts(r).filter((t) => t === V90_L_TEXT.installAsk)).toEqual([]);
+      expect(toasts(r).filter((t) => t === V90_L_TEXT.installAsk(false))).toEqual([]);
     } finally { r.cleanup(); }
   });
 });
 
 describe('v90 l boot: the install ask', () => {
-  const asks = (r) => toasts(r).filter((t) => t === V90_L_TEXT.installAsk);
+  const asks = (r) => toasts(r).filter((t) => t === V90_L_TEXT.installAsk(false));
   const withPersist = async (fn) => {
     const calls = [];
     const had = Object.getOwnPropertyDescriptor(navigator.storage, 'persist');
@@ -165,7 +165,7 @@ describe('v90 l boot: the install ask', () => {
     await withPersist(async (calls) => {
       const r = await bootRig({ params: 'skipTitle=1' });
       try {
-        expect(asks(r)).toEqual([V90_L_TEXT.installAsk]);
+        expect(asks(r)).toEqual([V90_L_TEXT.installAsk(false)]);
         expect(r.root.querySelector('#toasts .toast .action').textContent).toBe('Install');
         expect(r.storage.getItem(INSTALL_ASK_KEY)).toBe('1');
         await flush();
@@ -201,7 +201,7 @@ describe('v90 l boot: the install ask', () => {
     const r = await bootRig({ params: 'skipTitle=1' });
     try {
       r.api.hooks.rulers();
-      expect(sheetText(r).querySelector('.rulers-install .install-ask').textContent).toBe(V90_L_TEXT.installAsk);
+      expect(sheetText(r).querySelector('.rulers-install .install-ask').textContent).toBe(V90_L_TEXT.installAsk(false));
     } finally { r.cleanup(); }
     const done = await bootRig({ params: 'skipTitle=1', env: { ua: CHROME, standalone: true, hasBeforeInstallPrompt: true } });
     try {
@@ -223,5 +223,61 @@ describe('v90 l boot: the install ask', () => {
       expect(other.root.querySelector('.install-bring')).toBe(null);
       other.cleanup();
     } finally { cleanup(); }
+  });
+});
+
+describe('v90 l boot: fix wave (Play this map backed out of; the install ask on iOS)', () => {
+  const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari';
+  const playFirst = (r) => { r.api.hooks.rulers(); fire(sheetText(r).querySelector('.ruler-row'), 'click'); fire(sheetText(r).querySelector('.play-map'), 'click'); };
+  const levelOf = (card) => card.querySelector('.choice.difficulty[aria-pressed="true"]').dataset.value;
+  it('puts the level, size, layout and seed back when New city is backed out of with Back or Esc, and keeps them when a city starts', async () => {
+    const r = await bootRig({ params: 'skipTitle=1' });
+    try {
+      const g = r.api.game(), before = r.api.hooks.newCityChoices.get();
+      playFirst(r);
+      expect(r.api.hooks.newCityChoices.get()).toEqual({ mapSize: 'large', layout: 'island', seed: 4002 });
+      fire(sheetText(r).querySelector('.guide-back'), 'click');                           // Back
+      expect([g.ui.store.get().sheet, r.api.hooks.newCityChoices.get()]).toEqual([null, before]);
+      g.ui.store.set(openSheet(g.ui.store.get(), 'newCity'));
+      expect(levelOf(sheetText(r))).toBe('normal');                                       // the device's level is as it was
+      const shown = r.api.hooks.newCityChoices.get();                                     // the card drew a preview seed of its own
+      g.ui.store.set({ sheet: null });
+      playFirst(r);
+      g.ui.store.set({ sheet: null });                                                    // Esc closes the sheet the same way
+      expect(r.api.hooks.newCityChoices.get()).toEqual(shown);
+      playFirst(r);
+      fire(sheetText(r).querySelector('.start-city'), 'click');
+      fire(r.root.querySelector('#dialog .ok'), 'click');
+      expect(r.api.game().world.seed).toBe(4002);
+      expect(r.api.hooks.newCityChoices.get().mapSize).toBe('large');                     // a Start keeps what Play this map chose
+    } finally { r.cleanup(); }
+  });
+  it('does the same on the title card: Back from the card it opened restores the choices', async () => {
+    const r = await bootRig();
+    try {
+      const title = r.root.querySelector('#title'), before = r.api.hooks.newCityChoices.get();
+      fire(title.querySelector('.rulers-open'), 'click');
+      fire(title.querySelector('.ruler-row'), 'click');
+      fire(title.querySelector('.play-map'), 'click');
+      expect(title.querySelector('.choice.mapsize[aria-pressed="true"]').dataset.value).toBe('large');
+      fire(title.querySelector('.guide-back'), 'click');
+      expect(r.api.hooks.newCityChoices.get()).toEqual(before);
+      fire(title.querySelector('.new-city'), 'click');
+      expect([title.querySelector('.choice.mapsize[aria-pressed="true"]').dataset.value, levelOf(title)]).toEqual([before.mapSize, 'normal']);
+    } finally { r.cleanup(); }
+  });
+  it('says the Safari line in the toast and the list on an iOS device, and the plain ask on any other', async () => {
+    const ios = await bootRig({ params: 'skipTitle=1', env: { ua: IOS, standalone: false, hasBeforeInstallPrompt: false } });
+    try {
+      expect(toasts(ios)).toContain(V90_L_TEXT.installAsk(true));
+      ios.api.hooks.rulers();
+      expect(sheetText(ios).querySelector('.install-ask').textContent.includes('Safari clears a site\'s data after 7 days')).toBe(true);
+    } finally { ios.cleanup(); }
+    const other = await bootRig({ params: 'skipTitle=1' });
+    try {
+      expect(toasts(other)).toContain('Install Thebes to keep your rulers');
+      other.api.hooks.rulers();
+      expect(sheetText(other).querySelector('.install-ask').textContent).toBe('Install Thebes to keep your rulers');
+    } finally { other.cleanup(); }
   });
 });

@@ -141,8 +141,8 @@ describe('v90 l bring: the ruler name field', () => {
     try {
       expect([r.input.getAttribute('maxlength'), RULER_NAME_MAX]).toEqual(['16', 16]);
       const label = r.row.querySelector('label');
-      expect([label.getAttribute('for'), r.input.id, label.textContent]).toEqual(['ruler-name', 'ruler-name', 'Ruler name']);
-      expect(r.row.querySelector('.ruler-name-hint').textContent.includes('Up to 16 letters, digits and spaces')).toBe(true);
+      expect([label.getAttribute('for'), r.input.id, label.textContent]).toEqual(['ruler-name', 'ruler-name', "Your dynasty's name"]);
+      expect(r.row.querySelector('.ruler-name-hint').textContent.includes("Letters, digits, spaces and ' - . only, 16 at most.")).toBe(true);
       expect(r.input.getAttribute('aria-describedby').split(' ')).toEqual(['ruler-name-hint', 'ruler-name-status']);
       expect(r.status.getAttribute('role')).toBe('status');
     } finally { r.cleanup(); }
