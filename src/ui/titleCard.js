@@ -255,6 +255,8 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     },
     showCard,
     showNewCity,
+    // Version 9.0 (Track L, ruling 1585): Play this map sets the card's choices (a map size id, a layout id, the seed) before showNewCity opens it on that map.
+    setChoices({ mapSize: size = sizeNow, layout: lay = layoutNow, seed: s = seedNow } = {}) { sizeNow = size; layoutNow = lay; seedNow = Number.isInteger(s) ? s : seedNow; },
     destroy() { window.removeEventListener('resize', checkPhone); clear(container); container.hidden = true; },
   };
 }

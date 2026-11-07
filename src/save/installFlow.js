@@ -33,3 +33,9 @@ export function createInstallFlow({ env, hasSave = () => false, getPrompt = () =
     },
   };
 }
+
+// Version 9.0 (Track L, ruling 1587): the install ask comes once, after the first Pass, on a device that is not installed. due({ rulers, asked }): true while a ruler
+// is kept, the ask has not been made on this device (asked, boot's one-time flag) and the device can install (flow.canInstall()). The ruler list's top line shows
+// while a ruler is kept and the device can install; the toast and navigator.storage.persist() at the first Pass use this.
+export const INSTALL_ASK_KEY = 'thebes.installAsk';
+export const installAskDue = (flow, { rulers = 0, asked = false } = {}) => rulers > 0 && !asked && flow.canInstall();

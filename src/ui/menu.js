@@ -7,6 +7,7 @@ import { openSheet } from './modes.js';
 import { FIRE_REACTIONS } from './settings.js';
 import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
+import { rulerNameRow, bringRulersRow } from './v90/rulerOptions.js';   // Version 9.0 (Track L): Options > Saves' ruler name and Bring rulers
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
@@ -164,6 +165,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       canExport ? el('div', { class: 'row export-row' }, [button(T.exportCity, { class: 'export-city', onClick: () => hooks.exportCity() }), el('p', { class: 'export-note small muted', text: V80_U_TEXT.exportNote })]) : null,
       choiceRow(V80_U_TEXT.newCityLevel, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),
       el('p', { class: 'difficulty-note small muted', text: T.difficultyNote }),
+      // Version 9.0 (Track L, rulings 1586, 1593): the ruler's name and Bring rulers from a file; neither in the lesson (its city is never kept).
+      hooks.records && !hooks.lessonRun ? rulerNameRow(hooks) : null,
+      hooks.records && typeof hooks.bringRulers === 'function' && !hooks.lessonRun ? bringRulersRow(hooks) : null,
     ];
     body.append(
       group('sound', G.sound, switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote })),

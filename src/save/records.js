@@ -34,6 +34,7 @@ import { MILESTONES } from '../data/progression.js';
 import { HEIR_DEFAULT, isHeir } from '../data/v90.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
+import { hasNewLand } from '../data/s47.js';
 
 export const RECORDS_VERSION = 2;
 export const RIVALS_MAX = 50;                 // rulers are never capped; rivals at most this many (ruling 1561)
@@ -50,10 +51,50 @@ export function cleanName(v) {
   return v.replace(/[^\p{L}\p{N} '\-.]/gu, '').replace(/\s+/g, ' ').trim().slice(0, RULER_NAME_MAX).trim();
 }
 
-// The map square a ruler row keeps, a MAP_SQUARE * MAP_SQUARE string of base-36 cells, or '' for none. Wave 0 keeps none; Track L writes the
-// encoder (share.js drawMapSquare's colours) and the decoder that draws it.
-export const mapSquareOf = (world) => '';
+// The map square a ruler row keeps, a MAP_SQUARE * MAP_SQUARE string of base-36 cells (row by row), or '' for none. Version 9.0 Track L (ruling 1591):
+// a cell is one character that names the colour share.js drawMapSquare would paint there: 0-7 the eight grounds (src/sim/terrain.js T: desert,
+// fertile, rocky, water, bank, meadow, clay, hills), 8 a rock belt's rock on a map with new land, 9 a road, a a house not yet built up (a plot), b a
+// built-up house, c any other building. share.js mapSquareColour turns a code into its colour; decodeMapSquare gives the codes back.
+export const MAP_CELL = { belt: '8', road: '9', plot: 'a', house: 'b', building: 'c' };
+const ROCKY = 2;                                     // terrain.js T.ROCKY (the belt's colour replaces it on a map with new land)
+export function mapSquareOf(world) {
+  if (!world || !Number.isInteger(world.size) || world.size < 1 || !world.terrain) return '';
+  const n = world.size, m = MAP_SQUARE, land = hasNewLand(world);
+  const over = new Uint8Array(n * n);                // what stands on each tile: 0 nothing, 1 a plot, 2 a house, 3 another building
+  for (const b of allBuildings(world)) {
+    const kind = b.type === 'house' ? (b.tier > 0 ? 2 : 1) : 3;
+    for (let y = Math.max(0, b.y); y < Math.min(n, b.y + b.d); y++) for (let x = Math.max(0, b.x); x < Math.min(n, b.x + b.w); x++) over[y * n + x] = Math.max(over[y * n + x], kind);
+  }
+  let out = '';
+  for (let cy = 0; cy < m; cy++) {
+    for (let cx = 0; cx < m; cx++) {
+      const x0 = Math.floor((cx * n) / m), x1 = Math.max(x0 + 1, Math.floor(((cx + 1) * n) / m));   // the tiles this cell covers (a map under 32 wide gives some cells a tile each)
+      const y0 = Math.floor((cy * n) / m), y1 = Math.max(y0 + 1, Math.floor(((cy + 1) * n) / m));
+      let most = 0, road = false;
+      for (let y = y0; y < Math.min(n, y1); y++) {
+        for (let x = x0; x < Math.min(n, x1); x++) {
+          most = Math.max(most, over[y * n + x]);
+          if (world.road && world.road[y * n + x]) road = true;
+        }
+      }
+      if (most === 3) out += MAP_CELL.building;
+      else if (most === 2) out += MAP_CELL.house;
+      else if (most === 1) out += MAP_CELL.plot;
+      else if (road) out += MAP_CELL.road;
+      else {
+        const t = world.terrain[Math.min(n - 1, (y0 + y1 - 1) >> 1) * n + Math.min(n - 1, (x0 + x1 - 1) >> 1)];
+        out += land && t === ROCKY ? MAP_CELL.belt : Number.isInteger(t) && t >= 0 && t <= 7 ? String(t) : '0';
+      }
+    }
+  }
+  return out;
+}
 const MAP_RE = new RegExp(`^[0-9a-z]{${MAP_SQUARE * MAP_SQUARE}}$`);
+// A map square as its cell codes, MAP_SQUARE * MAP_SQUARE numbers (0 to 35, row by row), or null when the string is not one (not 1,024 base-36 characters).
+export function decodeMapSquare(text) {
+  if (typeof text !== 'string' || !MAP_RE.test(text)) return null;
+  return Array.from(text, (c) => parseInt(c, 36));
+}
 
 function defaultStorage() {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }

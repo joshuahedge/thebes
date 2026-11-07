@@ -85,9 +85,9 @@ describe('v90 w0 records: the rulers', () => {
     const row = r.addRuler(w, seal, 'builder', 1760000000000);
     expect(row).toEqual({
       id: 'c1:3600', n: 1, name: RULER_NAME_DEFAULT, title: 'builder', heir: 'bountiful', rank: 'city', day: 3600, score: seal.score, parts: seal.parts,
-      medal: seal.medal, version: seal.version, seed: 11, difficulty: 'normal', mapVariant: 'east', mapSize: 80, map: '', feats: ['quick_town'], date: 1760000000000,
+      medal: seal.medal, version: seal.version, seed: 11, difficulty: 'normal', mapVariant: 'east', mapSize: 80, map: mapSquareOf(w), feats: ['quick_town'], date: 1760000000000,   // Version 9.0 Track L (ruling 1591): the row keeps the map square now (it was '' in wave 0)
     });
-    expect([RULER_NAME_DEFAULT, MAP_SQUARE, mapSquareOf(w)]).toEqual(['Ramesses', 32, '']);   // Track L writes the map square
+    expect([RULER_NAME_DEFAULT, MAP_SQUARE, mapSquareOf(w).length, row.map.length]).toEqual(['Ramesses', 32, 1024, 1024]);   // Track L writes the map square
     expect(r.rulers()).toEqual([row]);
     expect(stored(storage).rulers).toEqual([row]);
   });

@@ -8,6 +8,8 @@ import { allBuildings } from '../sim/world.js';
 import { hashKey } from '../sim/daily.js';
 import { TERRAIN, UI } from '../render/art/palette.js';
 import { hasNewLand } from '../data/s47.js';
+import { HEIRS } from '../data/v90.js';
+import { cleanName, decodeMapSquare, MAP_SQUARE, MAP_CELL } from '../save/records.js';
 import { SCORE_TEXT, SHARE_TEXT, medalText, DIFFICULTY_NAMES } from './text.js';
 
 // (Version 6.0, Track D1, ruling 742: the weekly seed, This week's Nile, and its ISO-week helper are gone with the title's button.)
@@ -23,14 +25,20 @@ const isPart = (n) => Number.isInteger(n) && n >= 0 && n <= 100;
 // in SHARE.format (t2: five parts, seven splits, SHARE.formats). Stage 4.5: a city on another river layout than the classic one
 // adds '&variant=<name>' after the check (not part of it), so Start this seed builds the same map; classic adds nothing. Stage 4.6 (ruling 333):
 // a city on a Small or Large map adds '&size=48' or '&size=80' the same way; Normal adds nothing, so every older link means the same map.
-export function shareLink({ seed, difficulty, parts, splits, variant = 'classic', size = DEFAULT_MAP_SIZE } = {}) {
+// Version 9.0 (Track L, ruling 1588): a link from a ruler with a name adds '&name=<the name, URL-encoded>&heir=<b|u|f|m|g|s>' after the size, also outside the check;
+// no name (or one that cleans to nothing) adds neither, and every game since 4.5 ignores them.
+export const HEIR_LETTER = { builder: 'b', unconquered: 'u', bountiful: 'f', merchant: 'm', generous: 'g', steady: 's' };
+const HEIR_OF = Object.fromEntries(Object.entries(HEIR_LETTER).map(([id, c]) => [c, id]));
+export function shareLink({ seed, difficulty, parts, splits, variant = 'classic', size = DEFAULT_MAP_SIZE, name = '', heir = 'steady' } = {}) {
   const f = SHARE.formats[SHARE.format];
   if (!Number.isInteger(seed) || seed < 0 || !SHARE.difficulty[difficulty] || !parts || !f.parts.every((p) => isPart(parts[p]))) return '';
   const months = f.splits.map((id) => (splits && Number.isInteger(splits[id]) ? splits[id] : 'x')).join('-');
   const body = `${SHARE.format}.${seed}.${SHARE.difficulty[difficulty]}.${f.parts.map((p) => parts[p]).join('-')}.${months}`;
   const tail = MAP_VARIANTS.includes(variant) && variant !== 'classic' ? `&variant=${variant}` : '';   // classic is left out, so every older link means the same city it always did
   const sized = Object.values(MAP_SIZES).includes(size) && size !== DEFAULT_MAP_SIZE ? `&size=${size}` : '';
-  return `${SHARE.base}#${body}.${shareCheck(body)}${tail}${sized}`;
+  const called = cleanName(name);
+  const who = called ? `&name=${encodeURIComponent(called)}&heir=${HEIR_LETTER[HEIRS.includes(heir) ? heir : 'steady']}` : '';
+  return `${SHARE.base}#${body}.${shareCheck(body)}${tail}${sized}${who}`;
 }
 
 // Reads a location hash: { ok: true, seed, difficulty, parts, splits, version, older, variant } for a good link (variant: the
@@ -59,7 +67,15 @@ export function parseShareLink(hash) {
   const sizeNamed = extra.find((e) => e.startsWith('size='));
   const size = sizeNamed ? Number(sizeNamed.slice('size='.length)) : DEFAULT_MAP_SIZE;
   if (!Object.values(MAP_SIZES).includes(size)) return { ok: false, reason: 'newer_format' };
+  // Version 9.0 (Track L, ruling 1588): the sender's name (cleaned: 16 characters, letters, digits, spaces and '-.) and heir, when the link has them; a name that cleans to nothing
+  // or an unknown heir letter is left out, so the link opens as an 8.4 one.
+  const nameText = extra.find((e) => e.startsWith('name='));
+  let name = '';
+  try { name = nameText ? cleanName(decodeURIComponent(nameText.slice('name='.length))) : ''; } catch (e) { name = ''; }
+  const heirText = extra.find((e) => e.startsWith('heir='));
+  const heir = name && heirText ? HEIR_OF[heirText.slice('heir='.length)] : undefined;
   return {
+    ...(name ? { name, ...(heir ? { heir } : {}) } : {}),
     ok: true, seed: Number(seedText), difficulty: LEVEL_OF[level],
     parts: Object.fromEntries(f.parts.map((p, i) => [p, Number(parts[i])])),
     splits: Object.fromEntries(f.splits.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
@@ -77,6 +93,29 @@ export function emojiRow(parts) {
 }
 
 const TERRAIN_COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay, [TER.HILLS]: TERRAIN.hills };
+
+// The colour a ruler row's map square paints for a cell code (records.js mapSquareOf: 0-7 the grounds, 8 a belt's rock, 9 a road, a a plot, b a built-up house, c another building),
+// the very colours drawMapSquare uses below; any other code is sand.
+export function mapSquareColour(code) {
+  if (code >= 0 && code <= 7) return TERRAIN_COLOURS[code] || TERRAIN.sand;
+  switch (Number.isInteger(code) && code >= 0 && code < 36 ? code.toString(36) : '') {
+    case MAP_CELL.belt: return TERRAIN.beltRock;
+    case MAP_CELL.road: return TERRAIN.road;
+    case MAP_CELL.plot: return TERRAIN.plot;
+    case MAP_CELL.house: return TERRAIN.roadPebble;
+    case MAP_CELL.building: return UI.housing;
+    default: return TERRAIN.sand;
+  }
+}
+
+// Draws a ruler row's 32 x 32 map square (records.js mapSquareOf's string) in the square (x, y, px); false, drawing nothing, for a string that is not one.
+export function drawMapString(g, text, x, y, px) {
+  const cells = decodeMapSquare(text);
+  if (!cells) return false;
+  const s = px / MAP_SQUARE;
+  cells.forEach((c, i) => { g.fillStyle = mapSquareColour(c); g.fillRect(x + (i % MAP_SQUARE) * s, y + Math.floor(i / MAP_SQUARE) * s, Math.ceil(s), Math.ceil(s)); });
+  return true;
+}
 
 // A top-down map of the terrain (and, when given, the roads and buildings of a world) in the square (x, y, px):
 // the title card's stamps and the picture card when no view of the city is at hand.

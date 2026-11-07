@@ -1,7 +1,7 @@
 // The install guide (a sheet in the game, a panel on the title card) and the in-app browser notice (spec 4.17). Decisions come from
 // src/save/installFlow.js; this file only draws them. Version 8.0 (Track U, ruling 1146): the Bring-a-city offer is gone.
 import { el, button, clear } from './components.js';
-import { T } from './text.js';
+import { T, V90_L_TEXT } from './text.js';
 
 export function installGuide(flow, { hasCity = false, onPrompt = () => {} } = {}) {
   return (body) => {
@@ -9,6 +9,7 @@ export function installGuide(flow, { hasCity = false, onPrompt = () => {} } = {}
     if (flow.env.platform === 'ios') {
       if (hasCity) body.append(el('p', { class: 'amber', text: T.installExportFirst }));
       body.append(el('ol', { class: 'steps' }, T.installIosSteps.map((s) => el('li', { text: s }))));
+      body.append(el('p', { class: 'install-bring small', text: V90_L_TEXT.installIosLine }));   // Version 9.0 (Track L, ruling 1587): the installed app starts empty
     } else {
       body.append(el('div', { class: 'actions' }, [button(T.installNow, { class: 'install-now primary', onClick: onPrompt })]));
       body.append(el('p', { class: 'small muted', text: T.installNotOffered }));
