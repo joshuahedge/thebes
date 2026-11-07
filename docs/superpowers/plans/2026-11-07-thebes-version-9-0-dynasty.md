@@ -131,11 +131,11 @@ Merge order D → L → V, then regenerate `sw-files.js`.
   - Bring rulers: how many rulers and rivals the file adds, before Merge.
 
   Every refusal says why (a bad file, a newer file), with what to do.
-- **Motion:** every effect has its Gentle and Still form, readable as a still picture; under reduced motion nothing slides, flashes or shakes.
+- **Motion:** no reduced motion (Josh): effects are Full only. Nothing flashes fast or shakes the screen, and no effect hides a lesson pointer.
 - **Screenshots:** every new or changed screen at 375x667, 390x844, 667x375, 1280x800 and 1920x1080, at 100% and 150% text, before review and after the fix wave. Shots are named `v90-<track>-*.png` in `docs/superpowers/notes/screenshots/raw/v90/`, which is gitignored. The list:
   - **D:** Pass the throne with the title it will give; a new city's first screen with the heir's line; the score sheet's "Remembered as";
   - **L:** the ruler list on a phone; a row open; Play this map's question; a rival's link opened on the title; the rival toast at a new rank; the side by side in the Pass sheet; Bring rulers' question;
-  - **V:** before and after of each effect (the same frame, Full and Gentle), and the frame-time table.
+  - **V:** before and after of each effect (the same frame), and the frame-time table.
 
 ## Tracks
 
@@ -187,8 +187,8 @@ V first measures **before** on 8.4 (every budget test's figure printed, and the 
 
 - **V0a. DPR cap:** `renderer.js` draws the canvas at `min(devicePixelRatio, 2)`; the UI is untouched. A test with a DPR-3 stand-in sees a 2x canvas.
 - **V0b. Frame cap:** `createFrameGate` caps a running game at 60 frames a second (the paused 30 stays). A test at a 120 Hz stand-in sees half the frames.
-- **Reduced motion (Q18):** `settings.js` reads the device's Reduce motion live again (`matchMedia('(prefers-reduced-motion: reduce)')` and its change event), mapping to Gentle; nothing is stored and no Motion row returns. The rig's switch stays.
-- **V1. Walk cycle and facing:** two step poses and a mirrored copy for every figure kind (`art/figures.js`, `art/armies.js`), chosen in `renderer.js` from distance walked and `dir`. Gentle one pose; Still today's.
+- **No reduced motion (Josh, Q18):** the device's Reduce motion is not read; production stays Full (ruling 1147 stands) and `settings.js` is not touched. **Every new effect is Full only:** no Gentle or Still form, no motion-level branch, and no Gentle/Still tests or screenshots. Where this section says Gentle or Still below, ignore it. The lesson rule (no effect hides a pointer) stands.
+- **V1. Walk cycle and facing:** two step poses and a mirrored copy for every figure kind (`art/figures.js`, `art/armies.js`), chosen in `renderer.js` from distance walked and `dir`.
 - **V2. Units in step:** `units.js` glides each unit between the sim's last two tiles on `timeDays`, so it is never a day behind.
 - **V3. Building goes up:** a placed building rises behind scaffold poles over 1 game day with a dust puff; an upgrade shows the poles for half a day. Drawing only.
 - **V4. Smoke from every workshop:** `SMOKE_FROM` gains every workshop and kiln, puffing only while staffed and working; inside ambient's dropper.
@@ -245,7 +245,7 @@ V first measures **before** on 8.4 (every budget test's figure printed, and the 
     - the ruler list on the phone, Play this map, and Bring rulers in the installed app;
     - the install ask in Safari;
     - a friend's link opened, the toast at a new rank, the side by side;
-    - each effect on a real phone: smoothness, battery warmth, and Reduce motion on;
+    - each effect on a real phone: smoothness and battery warmth;
   - rulings Part 27;
   - a What's new entry for **9.0 "Dynasty"**, with 8.4's build set to its last commit on main before 9.0's merge, and the pinned release tests moved down one;
   - `APP_VERSION` set to 9.0.
@@ -271,8 +271,8 @@ V first measures **before** on 8.4 (every budget test's figure printed, and the 
 1589. A rival is kept per map; the same name on the same map replaces the older row; at most 50. — Cost if wrong: a friend with two names counts twice.
 1590. At a new split, the newest rival on the map is compared in a toast. — Cost if wrong: a player with many rivals sees one.
 1600. The canvas draws at most at DPR 2, and a running game at most 60 frames a second. — Cost if wrong: a DPR-3 phone's map is a little softer.
-1601. The device's Reduce motion is read live again, mapping to Gentle; nothing is stored and no Motion row returns (amends ruling 1147). — Cost if wrong: a player with Reduce motion on sees the calmer forms.
+1601. No reduced motion (Josh, 7 Nov): the device's Reduce motion is not read, production stays Full (ruling 1147 stands), and 9.0's effects are Full only, with no Gentle or Still forms. — Cost if wrong: a player who turned Reduce motion on still sees every effect; adding the forms later means touching each effect.
 1602. V's effects share a 2 ms budget on the stress city with their own dropper (V11, V10, V6, V4, V9 shed in that order); an effect that would break T8 or T9 is cut and reported. — Cost if wrong: a slow phone sees fewer effects.
 1603. Every effect is drawing only: a building's rise, the scaffold and the beaten raid's moment never change what the sim does or when. — Cost if wrong: none to the sim.
-1604. Panels slide only outside the lesson and under Full. — Cost if wrong: the lesson's panels snap open.
+1604. Panels slide only outside the lesson. — Cost if wrong: the lesson's panels snap open.
 1620. The balance check owns every balance and frame pin; the suite runs T1 for the Builder and T3 for the Unconquered, and the other heirs' long runs are a reported probe. — Cost if wrong: a heir's long-run drift is caught only by the next balance check.

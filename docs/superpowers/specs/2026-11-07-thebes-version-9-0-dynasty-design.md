@@ -1,6 +1,8 @@
 # Thebes 9.0 "Dynasty": design (approved)
 
-**Josh's answers (7 Nov 2026):** "All recommended". Every open question in section 8 (Q1-Q19) is settled at its recommendation, and the targets in section 9 stand as written.
+**Josh's answers (7 Nov 2026):** "All recommended", then one change: **"I don't want reduced motion."** Every open question in section 8 is settled at its recommendation except Q18, and the targets in section 9 stand as written.
+
+**Q18 and Q19 as settled (this overrides every mention of reduced motion, Gentle or Still below):** the game does not read the device's Reduce motion, and production keeps running Full as it has since 8.0 (ruling 1147 stands). 9.0's new effects are built for Full only: they need no Gentle or Still form and need not read the motion level. There is no effects switch in Settings; the dropper alone sheds effects on a slow phone. The lesson rule is unchanged: no effect may hide a lesson pointer.
 
 **For Josh:** 9.0 is the third of v9's four releases (`2026-10-27-thebes-v9-roadmap-design.md`, section 4). It covers note 6, "Make the game something players keep coming back to", with the four parts of the Dynasty:
 - Pass the throne;
@@ -210,7 +212,7 @@ Each cost is the estimate for the stress city at 1280x800, zoom 1, headless (the
 - **Q15. Cap the canvas at DPR 2 and 60 fps while running?** Recommended: yes, both (V0a, V0b). Why: the cheapest frame time there is, and it pays for every effect below.
 - **Q16. The scope?** Recommended: V0a-V0b, then V1-V10 in rank order, with V11 and V12 only if the budget allows (T12). Why: V1-V5 make the city feel alive at about 0.7 ms together.
 - **Q17. The frame budget on a mid phone?** Recommended: 2 ms for V's new effects together, under a dropper, measured headless on the stress city as the existing budgets are. Why: it matches ambient's yardstick, and nothing else measures a phone.
-- **Q18. Reduced motion, which production ignores since 8.0?** Recommended: read the device's Reduce motion again, live and never stored, mapping to Gentle; no Motion row comes back. Why: 1147's problem was a stored level nobody could change; a live read cannot strand anyone.
+- **Q18. Reduced motion, which production ignores since 8.0?** **Josh: no reduced motion; production stays Full and the device setting is not read.** The recommendation was: read the device's Reduce motion again, live and never stored, mapping to Gentle; no Motion row comes back. Why: 1147's problem was a stored level nobody could change; a live read cannot strand anyone.
 - **Q19. A Settings switch for effects?** Recommended: no. The dropper sheds effects on a slow phone, and reduced motion covers the rest. Why: Josh's clean Options, and no player has asked.
 
 ## 9. Balance and frame targets
