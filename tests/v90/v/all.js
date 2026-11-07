@@ -2,3 +2,4 @@
 import './effects.test.js';   // the frame's caps, each effect's drawing and caps, the dropper
 import './budget.test.js';    // T9: V's layers on the stress city with every effect live
 import './lesson.test.js';    // no effect hides a lesson pointer: every step at 375x667
+import './fix.test.js';       // the fix wave: one budget per layer, wakes with boats, fades, Full only

@@ -41,7 +41,9 @@ export const v90Dropper = createDropper();
 let forced = null;
 export function forceV90Off(kinds = null) { forced = kinds; }
 export const v90Off = (kind) => Boolean(forced && (forced === 'all' || forced.includes(kind))) || v90Dropper.off(kind);
-let spent = 0;
-export function spend(ms) { spent += ms; }
+let spent = 0, spentEver = 0;
+export function spend(ms) { spent += ms; spentEver += ms; }
+// V's spending so far, never reset: ambient reads it before and after its own layers to leave V's share out of its own budget (ruling 1638).
+export const spentSoFar = () => spentEver;
 export function takeSpent() { const s = spent; spent = 0; return s; }
 export function resetV90Dropper() { v90Dropper.reset(); spent = 0; }

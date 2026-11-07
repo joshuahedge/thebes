@@ -61,7 +61,17 @@ describe('v90 v the frame', () => {
   });
   it('draws a running game at most 60 frames a second: a 120 Hz screen draws every second frame, a 60 Hz one all (V0b), and paused and idle 30 as before', () => {
     const count = (hz, frames, paused, from = 0, gate = createFrameGate()) => { let n = 0; for (let i = 0; i < frames; i++) if (gate.allow(from + (i * 1000) / hz, paused)) n++; return n; };
-    expect([AMBIENT.runningFpsCap, count(120, 120, false), count(60, 60, false), count(144, 144, false) <= 72]).toEqual([60, 60, 60, true]);
+    expect([AMBIENT.runningFpsCap, count(120, 120, false), count(60, 60, false)]).toEqual([60, 60, 60]);
+    // ruling 1637: the due time steps by a period, so 90, 120 and 144 Hz screens each draw close to 60 a second (not 45 or 72)
+    for (const hz of [90, 120, 144]) {
+      const n = count(hz, hz * 4, false) / 4;
+      expect([hz, n >= 55 && n <= 61]).toEqual([hz, true]);
+    }
+    let jitter = 0;                                                                // a 60 Hz screen whose frames come up to 1.5 ms early or late still draws nearly all
+    const gate60 = createFrameGate();
+    let drawn60 = 0;
+    for (let i = 0; i < 240; i++) { jitter = (jitter * 7 + 3) % 11; if (gate60.allow((i * 1000) / 60 + (jitter / 10) * 3 - 1.5, false)) drawn60++; }
+    expect(drawn60 / 4 >= 55 && drawn60 / 4 <= 61).toBe(true);
     const gate = createFrameGate();
     gate.noteInput(0);
     expect(count(120, 120, true, 0, gate)).toBe(60);                               // paused but just touched: the running cap
@@ -366,7 +376,7 @@ describe('v90 v dust, fire fought, the festival and the weather (V6, V7, V9, V10
     for (const c of wet.calls) if (c.k === 'ell') expect(c.a[4].alpha).toBeLessThan(0.25);
     w.day = SEASONS.indexOf('shemu') * DAYS_PER_MONTH + 3;
     let gusts = 0;
-    for (let now = 0; now < 40000; now += 1800) {
+    for (let now = 900; now < 40000; now += 1800) {                                 // mid-window, where a gust is at its fullest
       const hot = spyDraw();
       drawWeather(hot.g, w, ALL, now);
       for (const c of hot.calls) if (c.k === 'stroke') gusts = Math.max(gusts, c.a[0].length / 2);
