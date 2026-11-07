@@ -1,6 +1,7 @@
 // requestAnimationFrame driver with a fixed timestep of whole game-days (spec 7.4). The sim only ever
 // sees tickDay, so the rules behave the same on every device; rendering gets a fractional day for motion.
 import { tickDay, daysForSeconds } from '../sim/clock.js';
+import { noteFrameTime } from './v90/clock.js';
 
 export const MAX_FRAME_SECONDS = 0.25; // a hidden tab or a hitch never becomes a burst of days
 export const MAX_DAYS_PER_FRAME = 12;
@@ -28,6 +29,7 @@ export function createGameLoop({ world, render, onEvents = null, allowFrame = nu
       events.length = 0;
     }
     if (allowFrame && !allowFrame(t)) return;
+    noteFrameTime(world, world.day + acc);   // Version 9.0 (Track V): the frame's game time, for the effects that run on game days
     render({ timeDays: world.day + acc, dt, steps, now: t });
   }
 

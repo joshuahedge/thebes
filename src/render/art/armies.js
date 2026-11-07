@@ -7,7 +7,7 @@
 import { box, crs, qd, door, parapet, p, U, quad, hs } from './primitives.js';
 import { pennant } from './services.js';
 import { DEFENCE_EMBLEM, shellSlot } from './defence.js';
-import { UNIT_SCALE } from './figures.js';
+import { UNIT_SCALE, walkSlots } from './figures.js';
 import { MUD2, STONE, TEAL, TEAL_DARK, GOLD, WOOD, RED, SHADOW, TERRAIN, THATCH } from './palette.js';
 import { boundsFor } from '../iso.js';
 import { FIGHTERS, POSES, FACES, CHIEF_SCALE, SACK } from '../../data/battle.js';
@@ -355,6 +355,10 @@ export const ARMY_ART = {
   'fig.raider_elephant': { w: 0, d: 0, height: 40, bounds: [-24, -64, 28, 10], shadows: [], draw: (g, x, y) => raiderElephant(g, x, y) },   // Version 8.4, Track E
   ...FIGHT_ART,                                    // Version 6.0 (Track B2): fighting poses, the chieftain, a raider with a sack
 };
+// Version 9.0, Track V (V1): the walk poses and the mirrored copies (art/figures.js walkSlots). The figures on foot step; a chariot, a raider's chariot
+// and an elephant are mirrored only (their legs are a horse's or an elephant's, which the stride does not fit).
+for (const slot of ['fig.archer', 'fig.raider_archer', 'fig.raider_boat', 'fig.chief', 'fig.raider_sack']) Object.assign(ARMY_ART, walkSlots(slot, ARMY_ART[slot]));
+for (const slot of ['fig.chariot', 'fig.raider_chariot', 'fig.raider_elephant']) Object.assign(ARMY_ART, walkSlots(slot, ARMY_ART[slot], { steps: false }));
 
 // The slot an Armies building shows when it is not just its type, else null. Version 6.0 (Track B2): rubble that remembers what stood there
 // (b.was) shows that building's burned-out or wrecked shell (defence.js shellSlot); old rubble keeps its heap.

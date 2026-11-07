@@ -17,6 +17,7 @@
 import { seamBase } from '../s46/seam.js';
 import { setBattleHooks, resetBattleHooks } from '../../render/units.js';
 import { MOMENT } from '../../data/battle.js';
+import { beatenRaidOnMap } from '../../render/v90/raidMoment.js';
 import { openSheet } from '../modes.js';
 import { POLITE } from '../alerts.js';
 import { B2_TEXT, B1_TEXT, DANGER_UI_TEXT, V84R_TEXT, plural } from '../text.js';
@@ -126,6 +127,7 @@ export function createBattleUi(ctx) {
         } else if (e.type === 'raid_end' && e.report) {
           if (moment) moment.node.remove();
           moment = { report: e.report, day: world.day, node: build(e.report) };
+          beatenRaidOnMap(world, e.report);                               // Version 9.0 (Track V, V5): a beaten raid's moment on the map too
           const t = momentWords(e.report);
           announce(`${t.title}. ${t.detail}`);
           if (e.report.won && ctx.sfx && typeof ctx.sfx.play === 'function') ctx.sfx.play('fanfare');   // Version 8.4 (ruling 1489): the celebration's sound
