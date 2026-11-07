@@ -11,7 +11,8 @@
 import { seamBase } from './seam.js';
 import { BUILDINGS } from '../../data/buildings.js';
 import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason, nextFlood, preparedFor, levelHarvest } from '../../sim/flood.js';
-import { floodLevelRow } from '../../data/river.js';
+import { floodLevelRow, FLOOD_LEVELS } from '../../data/river.js';
+import { heirLoss } from '../../sim/dynasty.js';
 import { huntingOutlook, huntRest, crocsNear, scareable, scareOf } from '../../sim/wildlife.js';
 import { isWorking } from '../../sim/labour.js';
 import { el } from '../components.js';
@@ -21,13 +22,19 @@ import { forMap, forMapNodes } from '../v82/oasisText.js';
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 
+// Version 9.0 (fix wave, Track D): the lowest and highest a floodplain farm can grow at this city (the Bountiful's low flood loses more; heirLoss is the sim's rule).
+const harvestRange = (world) => {
+  const all = FLOOD_LEVELS.map((l) => heirLoss(world, l.harvest));
+  return { min: Math.min(...all), max: Math.max(...all) };
+};
+
 // The rows of a building's sheet, as nodes: pure of the DOM but el, so the tests can read their words.
 export function riverRows(world, b) {
   const out = [];
   const look = floodLook(world);
   if (isFloodFarm(b.type)) {
     if (look.on && onFloodplain(world, b)) {
-      out.push(row(R.floodRowLabel, look.applied ? `${Math.round(look.factor * 100)}%` : '100%'), line(R.farmRow(look)));   // Version 8.1: as the farm grows it (prepared, ruling 1221)
+      out.push(row(R.floodRowLabel, look.applied ? `${Math.round(look.factor * 100)}%` : '100%'), line(R.farmRow(look, harvestRange(world))));   // Version 8.1: as the farm grows it (prepared, ruling 1221)
       if (look.known && look.level && (look.phase === 'forecast')) out.push(line(R.farmRowNext(look.level.id, look.levelPrepared, look.levelFactor)));   // Version 9.0: the sim's factor (ruling 1583)
     } else if (look.on) out.push(line(R.farmOff));
   }

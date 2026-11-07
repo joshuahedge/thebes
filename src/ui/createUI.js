@@ -749,7 +749,7 @@ export function createUI({
     if (e.type === 'first') {
       if (!FIRST_TEXT[e.id]) return null;
       const at = Number.isFinite(e.x) && Number.isFinite(e.y) ? { x: e.x, y: e.y } : null;
-      return { tier: 'first', text: FIRST_TEXT[e.id].head, why: FIRST_TEXT[e.id].why, reward: e.reward, at, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
+      return { tier: 'first', text: FIRST_TEXT[e.id].head, why: FIRST_TEXT[e.id].whyFor ? FIRST_TEXT[e.id].whyFor(world) : FIRST_TEXT[e.id].why, reward: e.reward, at, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
     }
     if (e.type === 'achievement') {
       if (guideActive(world) || !ACHIEVEMENT_NAMES[e.id]) return null;

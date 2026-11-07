@@ -28,7 +28,7 @@ function v11City() {
 }
 
 describe('v90 w0 save: world version 12', () => {
-  it('creates a version 12 world, the Steady, with the four month-end counts at 0', () => {
+  it('creates a version 12 world, the Steady, with the six month-end counts at 0', () => {
     const w = createWorld({ seed: 4 });
     expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([12, 12, 12]);
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
@@ -76,7 +76,7 @@ describe('v90 w0 save: world version 12', () => {
     expect([loaded.version, loaded.heir]).toEqual([12, 'steady']);
     for (const k of V90_TALLY) expect([k, loaded.tally[k]]).toEqual([k, 0]);
     expect(loaded.raid.nextWarnDay).toEqual(w.raid.nextWarnDay);
-    // Track D (ruling 1560): the four counts start at the load, so they differ from the never-saved city's by its first 90 days' worth; every other
+    // Track D (ruling 1560): the six counts start at the load, so they differ from the never-saved city's by its first 90 days' worth; every other
     // number is the same after a year. Was: the whole world equal, the counts 0 (wave 0 counted nothing).
     const counts = (x) => Object.fromEntries(V90_TALLY.map((k) => [k, x.tally[k]]));
     const before = counts(w);

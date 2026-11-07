@@ -2305,7 +2305,7 @@ export const S46_ARMY_TEXT = {
   ofCap: (n, cap, away = 0) => (away > 0 ? `${n} here, ${away} away, of ${cap}` : `${n} of ${cap}`),
   full: (kind, n, cap, away = 0) => `Full: ${away > 0 ? `${n} here and ${away} away, of ${cap}` : `${n} of ${cap}`} ${armUnitPlural[kind]}; it trains another when one is wounded`,
   trains: (kind) => `Trains one ${armUnitOne[kind]} every ${armUnits[kind].trainDays} days at full staff, slower when short of workers`,
-  pay: (kind) => `Each ${armUnitOne[kind]} is paid ${armUnits[kind].pay} gold a month at home, in peace too`,
+  pay: (kind, pay = armUnits[kind].pay) => `Each ${armUnitOne[kind]} is paid ${pay} gold a month at home, in peace too`,
   patrolLine: (kind) => `Goes out to raiders within ${armUnits[kind].patrol} tiles`,
   archerDoes: `Shoots a raider up to ${armUnits.archer.range} tiles away; on a wall or tower it deals ${armM('archer', 'foot', 'wall')} to raiders on foot, ${armM('archer', 'foot', 'melee')} in melee`,
   chariotDoes: `Deals ${armM('chariot', 'foot', 'open')} in the open (no wall within ${armArmy.wallNear} tiles), ${armM('chariot', 'foot', 'nearWall')} nearer a wall; it cannot pass a gate`,
@@ -4354,7 +4354,7 @@ CARDS4_TEXT.cards.elephants = {
 // Version 9.0, Track D (dynasty: Pass the throne, the title, the heir's trait; rulings 1565-1584). Track D writes only between this header and its end line.
 // The game menu's row (src/ui/menu.js, wave 0), shown while hooks.passThrone exists.
 // Every number here is the sim's or the data's own: src/data/dynasty.js TITLES and TRAITS, src/sim/dynasty.js titleOf's rows and passScore.
-import { TITLES as d90Titles, TRAITS as d90Traits, PASS_FROM as d90PassFrom } from '../data/dynasty.js';
+import { TITLES as d90Titles, TRAITS as d90Traits, PASS_FROM as d90PassFrom, deeperLoss as d90DeeperLoss } from '../data/dynasty.js';
 const d90Pct = (f) => `${Math.round(Math.abs(f - 1) * 100)}%`;              // a factor's change: 1.15 -> "15%", 0.8 -> "20%"
 const d90Share = (f) => `${Math.round(f * 100)}%`;                          // a share: 0.4 -> "40%"
 const d90Bar = (id) => d90Titles.find((t) => t.id === id);
@@ -4430,7 +4430,7 @@ export const V90_D_TEXT = {
   sealedToday: "Today's score: the best this reign has had.",
   replaced: "Your city is replaced by your heir's. Export it first to keep a copy.",
   nameLabel: "Your dynasty's name",
-  nameHint: (max) => `Up to ${max} letters, digits and spaces. The game adds the number.`,   // max: src/save/records.js RULER_NAME_MAX
+  nameHint: (max) => `Up to ${max} characters: letters, digits, spaces and ' - . only. The game adds the number.`,   // max: src/save/records.js RULER_NAME_MAX
   passButton: 'Pass the throne',
   notYet: 'Not yet',
   // The heir's new-city card (8.2's), headed so; its Start passes the throne.
@@ -4480,6 +4480,15 @@ const dateLabelD90 = (day) => `year ${Math.floor(day / (SCORE_DAYS_PER_MONTH * S
   R.floodLine = (look) => (look.phase === 'forecast' && look.level
     ? `Next flood: ${rvName(look.level.id)}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${pct(look.level.id, look.levelPrepared, look.levelFactor)}${rvPrepNote(look.level.id, look.levelPrepared)}`
     : floodLine(look));
+  // Fix wave: before a first flood the farm's row and the First flood card say the levels of this city (the Bountiful's low flood is deeper), not the data's.
+  // `range` is { min, max } as factors (src/ui/s46/river.js); the card's whyFor(world) is read by createUI.
+  const farmRow = R.farmRow;
+  R.farmRow = (look, range = null) => (look.applied || !range ? farmRow(look)
+    : `The flood decides this farm's harvest, from ${Math.round(range.min * 100)}% to ${Math.round(range.max * 100)}%; the first flood comes in month ${rvFirstMonth}`);
+  FIRST_TEXT.first_flood.whyFor = (world) => {
+    const times = (d90Traits[world && world.heir] || {}).floodLoss || 1;
+    return `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${Math.round(d90DeeperLoss(l.harvest, times) * 100)}%`).join(', ')}.`;
+  };
 }
 // The heir_trait tip (src/data/tips.js), and How to play's Dynasty entry.
 TIP_TEXT.heir_trait = "This city has its heir's trait: a strength and a weakness from the last ruler's title. The summary names it.";   // at most 20 words (tests/ui/tips.test.js)

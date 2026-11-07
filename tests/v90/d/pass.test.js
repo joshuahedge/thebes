@@ -213,7 +213,7 @@ describe('v90 d pass: Start when the records fail, and a double tap', () => {
       const seals = r.world.seals.length;
       r.start(); r.start();
       expect([r.world.seals.length - seals, r.started.length, r.toasts]).toEqual([1, 1, []]);
-      expect(r.log.map((x) => x[0])).toEqual(['setDynasty', 'noteCity', 'addSeal', 'addRuler', 'setDynasty']);
+      expect(r.log.map((x) => x[0])).toEqual(['setDynasty', 'addRuler', 'noteCity', 'addSeal', 'setDynasty']);   // fix wave: the ruler row first, so a failed Pass leaves no city row or stamp
     } finally { r.cleanup(); }
   });
   it('undoes the seal, says so and starts no city when the ruler row is not kept or a write throws', () => {
@@ -223,6 +223,9 @@ describe('v90 d pass: Start when the records fail, and a double tap', () => {
         const seals = r.world.seals.length;
         r.start();
         expect([JSON.stringify(opts), r.world.seals.length - seals, r.started.length, r.toasts]).toEqual([JSON.stringify(opts), 0, 0, [V90_D_TEXT.passFailed]]);
+        // Fix wave: no city row and no chronicle stamp stay written, and the dynasty's name goes back to what it was.
+        expect([JSON.stringify(opts), r.log.some((x) => x[0] === 'noteCity' || x[0] === 'addSeal')]).toEqual([JSON.stringify(opts), false]);
+        if (opts.throwOn !== 'setDynasty') expect(r.log.at(-1)).toEqual(['setDynasty', { name: '' }]);
       } finally { r.cleanup(); }
     }
   });

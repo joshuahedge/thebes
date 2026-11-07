@@ -12,11 +12,15 @@ import { UNIT_TYPES, UNIT_OF_BUILDING } from '../../data/armies.js';
 import { MIN_STAFF_RATIO } from '../../data/labour.js';
 import { isWorking } from '../../sim/labour.js';
 import { horseGrainOf, grainHeld, isMixed } from '../../sim/armies.js';
+import { heirFactor } from '../../sim/dynasty.js';
 import { el } from '../components.js';
 import { S46_ARMY_TEXT as A, DANGER_UI_TEXT as D } from '../text.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
+// Version 9.0 (fix wave, Track D): a unit's pay a month as this city pays it, the heir of the Unconquered's pay factor on the data's (soldiersPayOf rounds the
+// whole bill once; one unit's is shown to a tenth of a gold).
+export const unitPayNow = (world, kind) => Math.round(UNIT_TYPES[kind].pay * heirFactor(world, 'pay') * 10) / 10;
 const needed = (type) => Math.ceil(BUILDINGS[type].workers * MIN_STAFF_RATIO);
 
 // The rows' model, pure for the tests: { kind, n, cap, away: [{ n, days }], status: 'full' | 'burning' | 'paused' | 'short' | 'training',
@@ -49,7 +53,7 @@ function unitRows(world, b) {
     else if (m.status === 'short') out.push(line(D.notTrainingUntil(m.short, BUILDINGS[b.type].workers)));
     else out.push(line(A.trains(m.kind)));
     out.push(line(m.kind === 'archer' ? A.archerDoes : A.chariotDoes, 'small'));
-    out.push(line(A.pay(m.kind)));
+    out.push(line(A.pay(m.kind, unitPayNow(world, m.kind))));
     if (m.horses) {
       out.push(line(A.horses(m.horses.each, m.horses.now), 'small'), line(A.grainHeld(m.horses.held)));
       if (m.horses.hungry) out.push(line(A.hungry, 'small coral'));
