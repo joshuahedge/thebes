@@ -18,6 +18,7 @@ import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
 import { el, button } from './components.js';
+import { createDynastyUi } from './v90/dynastyUi.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
   sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT,
@@ -30,6 +31,7 @@ export function createScoreUi(ctx) {
   const records = () => (ctx.hooks && ctx.hooks.records) || null;
   const clock = () => (typeof ctx.clock === 'function' ? ctx.clock() : Date.now());
   let version = 0, cached = null;
+  const dynasty = createDynastyUi(ctx);                // Version 9.0 (Track D): the heir, the title and Pass the throne's sheets
   // The score now, measured once per refresh, game day and command.
   function current() {
     const key = `${world.day}|${version}`;
@@ -173,10 +175,12 @@ export function createScoreUi(ctx) {
 
   // The summary's score section (spec 4.19): the city score, its medal and the points to the next one, each part with
   // its bar and reason, and the milestone splits.
+  // Version 9.0 (Track D): the heir's line and, from City, what the reign would be remembered as, under the heading (src/ui/v90/dynastyUi.js).
   function summarySection() {
     const s = current();
     return el('section', { class: 'score-section' }, [
       el('h3', { text: SCORE_TEXT.cityScore, dataset: { section: 'score' } }),   // Version 8.1: the score's explainer opens the City page here
+      ...dynasty.summary(),
       el('p', { class: 'score-total' }, [
         el('strong', { class: 'score-number', text: String(s.total) }), ' ',
         el('span', { class: `medal ${s.medal || 'none'}`, text: medalText(s.medal) }),
@@ -238,11 +242,12 @@ export function createScoreUi(ctx) {
 
   // Version 8.1 (Track B): the top bar's score is its own stat now, drawn by src/ui/hud.js (hidden while nobody lives in the city), so the chip this file
   // filled is gone.
+  dynasty.opening();
   return {
-    sheets: { sealReign: sealSheet, shareScore: shareSheet },
+    sheets: { sealReign: sealSheet, shareScore: shareSheet, ...dynasty.sheets },   // Version 9.0: Pass the throne's sheet and the heir's card
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); } },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); dynasty.onEvents(events); } },
     refresh() { if (world) version++; },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },

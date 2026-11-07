@@ -76,11 +76,18 @@ describe('v90 w0 save: world version 12', () => {
     expect([loaded.version, loaded.heir]).toEqual([12, 'steady']);
     for (const k of V90_TALLY) expect([k, loaded.tally[k]]).toEqual([k, 0]);
     expect(loaded.raid.nextWarnDay).toEqual(w.raid.nextWarnDay);
-    expect(loaded).toEqual(w);
+    // Track D (ruling 1560): the four counts start at the load, so they differ from the never-saved city's by its first 90 days' worth; every other
+    // number is the same after a year. Was: the whole world equal, the counts 0 (wave 0 counted nothing).
+    const counts = (x) => Object.fromEntries(V90_TALLY.map((k) => [k, x.tally[k]]));
+    const before = counts(w);
+    const without = (x) => { const o = JSON.parse(serialize(x)); for (const k of V90_TALLY) delete o.tally[k]; return o; };
+    expect(without(loaded)).toEqual(without(w));
     advanceDays(w, 360);
     advanceDays(loaded, 360);
-    expect(loaded).toEqual(w);
-    for (const k of V90_TALLY) expect([k, loaded.tally[k]]).toEqual([k, 0]);   // wave 0 counts nothing; Track D's countDynastyMonth fills them
+    expect(without(loaded)).toEqual(without(w));
+    const after = counts(w);
+    expect(counts(loaded)).toEqual(Object.fromEntries(V90_TALLY.map((k) => [k, after[k] - before[k]])));
+    expect(loaded.tally.townMonths).toBe(12);
   });
 });
 

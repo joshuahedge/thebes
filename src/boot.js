@@ -38,6 +38,7 @@ import { TIPS } from './data/tips.js';
 import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH } from './sim/lesson.js';
 import { seenKey } from './ui/cardMoments.js';
+import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
 
 const HOUR = 3600 * 1000;
 
@@ -212,6 +213,16 @@ export async function boot(doc, win, {
       setLayout: (id) => { newCityLayout = id; },
       setSeed: (s) => { newCitySeed = s; },
     },
+    // Version 9.0 (Track D, rulings 1569, 1573): the game menu's Pass the throne opens its sheet over the paused city (src/ui/v90/passSheet.js), offered from
+    // City (canPassThrone, which the menu reads) and never in the lesson. The heir's card's Start writes the seal and the records, then calls startHeir: the
+    // heir's city on the card's choices (newCityChoices), whose heir is the dynasty's new one (freshWorld reads records.dynasty().heir); notice says so.
+    passThrone() {
+      if (!current || current.lesson || !canPassThrone(current.world).ok) return;
+      if (current.world.speed > 0) current.ui.speedControl.set(0);
+      current.ui.store.set(openSheet(current.ui.store.get(), 'passThrone'));
+    },
+    canPassThrone: () => Boolean(current && !current.lesson && canPassThrone(current.world).ok),
+    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice })); },
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -259,7 +270,7 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }) }, ...uiOptions });

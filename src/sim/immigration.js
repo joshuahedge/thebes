@@ -5,6 +5,7 @@ import { removeResidents, leaveCap, lotReady, stockLot, capacityOf } from './hou
 import { splitHouse } from './merge.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { isLot } from './largePlots.js';
+import { heirFactor } from './dynasty.js';
 
 export function vacancies(world) {
   const out = [];
@@ -19,9 +20,11 @@ export function vacancies(world) {
   return out;
 }
 
+// Version 9.0 (Track D, ruling 1567): times the heir of the Generous's arrivals factor (heirFactor 'arrivals'), rounded once; any other city's is 8.4's.
 export function monthlyArrivals(world) {
   if (world.mood < MOOD.arrivalsMin) return 0;
-  return Math.round(((MOOD.arrivalBase + MOOD.arrivalPerPop * population(world)) * world.mood) / MOOD.arrivalMoodDivisor);
+  const base = ((MOOD.arrivalBase + MOOD.arrivalPerPop * population(world)) * world.mood) / MOOD.arrivalMoodDivisor, heir = heirFactor(world, 'arrivals');
+  return Math.round(heir === 1 ? base : base * heir);
 }
 
 export function arrivalsBatch(world) {

@@ -27,8 +27,8 @@ function undoableIds(world) {
 export const featsFor = (world) => FEATS.filter((f) => !f.raids || raidsOn(world));
 
 // Every home at Cottage or above fed at the last month end (house.met, as the No one hungry achievement reads it), with
-// at least `people` people.
-function fedNow(world, people) {
+// at least `people` people. Version 9.0 (Track D): exported for the Bountiful's month-end count (src/sim/dynasty.js countDynastyMonth, fedNow(world, 0)).
+export function fedNow(world, people) {
   if (population(world) < people) return false;
   const homes = housesOf(world).filter((h) => h.tier >= 3);
   return homes.length > 0 && homes.every((h) => Boolean(h.met && h.met.food));

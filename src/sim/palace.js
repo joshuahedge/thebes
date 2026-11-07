@@ -11,6 +11,7 @@ import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
 import { palacePriceOf, canPayNoDebt } from './costs.js';
 import { spend } from './money.js';
+import { heirHighFactor } from './dynasty.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -78,6 +79,14 @@ const isRate = (rate) => typeof rate === 'string' && Object.prototype.hasOwnProp
 export function taxRateOf(world) {
   const b = palaceOf(world);
   return b && isRate(b.tax) ? b.tax : 'normal';
+}
+
+// Version 9.0 (Track D, ruling 1567): a rate's factor on the month's taxes (TAX_RATES'), but High takes the heir of the Generous's own (src/sim/dynasty.js
+// heirHighFactor: x1.15, not x1.25). economy.js monthFigures and the palace's Taxes row both read it, so the choices say what the month will take.
+export function taxFactorOf(world, rate = taxRateOf(world)) {
+  const r = isRate(rate) ? rate : 'normal';
+  const high = r === 'high' ? heirHighFactor(world) : null;
+  return high === null ? TAX_RATES[r].factor : high;
 }
 
 // The Taxes mood row: the rate's mood (+8 Low, -8 High, 0 Normal). Unlike the Palace row it asks for no road: taxes are gathered anyway.

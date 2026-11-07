@@ -28,6 +28,7 @@ import { storeAccepts, storeTotal } from './production.js';
 import { createRng, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { ferryEdges } from './ferries.js';
+import { heirFactor } from './dynasty.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { tradeAllowed, heldBack } from './tradeRules.js';
 
@@ -116,12 +117,14 @@ export const tradePost = (world) => activePost(world) || posts(world)[0] || null
 // Today's prices: what the partner pays for each good it buys, and asks for each good it sells, after this
 // year's drift, in whole gold (never below 1). Stage 4: a good with from (Memphis's stone) is listed only from that
 // milestone (ruling 255), here and so in the caravans and the trade sheet.
+// Version 9.0 (Track D, ruling 1567): what a partner pays for a good it buys is times the heir of the Merchant's buys factor (heirFactor 'buys'), rounded
+// once with the drift; what it asks is never traited.
 export function tradePrices(world, partnerId) {
   const p = PARTNERS[partnerId];
   const drift = world.trade.drift[partnerId] || {};
-  const price = (good, base) => Math.max(1, Math.round(base * (1 + (drift[good] || 0))));
-  const side = (list) => Object.fromEntries(Object.entries(list).filter(([, t]) => !t.from || atLeast(world, t.from)).map(([good, t]) => [good, price(good, t.price)]));
-  return { buys: side(p.buys), sells: side(p.sells) };
+  const price = (good, base, heir) => Math.max(1, Math.round(heir === 1 ? base * (1 + (drift[good] || 0)) : base * (1 + (drift[good] || 0)) * heir));
+  const side = (list, heir) => Object.fromEntries(Object.entries(list).filter(([, t]) => !t.from || atLeast(world, t.from)).map(([good, t]) => [good, price(good, t.price, heir)]));
+  return { buys: side(p.buys, heirFactor(world, 'buys')), sells: side(p.sells, 1) };
 }
 
 // The day of the next caravan month end: caravans come at the end of every CARAVAN_EVERY_MONTHS-th month.

@@ -19,14 +19,17 @@ const noStorage = { getItem: () => null, setItem() {} };
 const source = (path) => fetch(path).then((r) => r.text());
 
 describe('v90 w0 seams: the dynasty, each a stub with 8.4 behaviour', () => {
-  it('bends no lever, names every reign the Steady and counts nothing', () => {
+  // Track D filled the seams (rulings 1565-1567): the Steady still bends no lever; this sample city has earned no title; the month-end count now counts
+  // (tests/v90/d covers each rule). Was: titleOf gave exactly { id: 'steady', fit: 0 } and countDynastyMonth changed nothing.
+  it('bends no lever for the Steady, names this reign the Steady and counts the month end', () => {
     const w = createWorld({ seed: 11 });
     buildSampleCity(w);
     for (const lever of ['crews', 'taxes', 'pay', 'firstWarn', 'harvest', 'flood', 'buys', 'workshops', 'arrivals', 'high']) expect([lever, heirFactor(w, lever)]).toEqual([lever, 1]);
-    expect(titleOf(w)).toEqual({ id: 'steady', fit: 0 });
-    const before = serialize(w);
+    const t = titleOf(w);
+    expect([t.id, t.fit]).toEqual(['steady', 0]);
+    const town = w.tally.townMonths;
     countDynastyMonth(w);
-    expect(serialize(w)).toBe(before);
+    expect(w.tally.townMonths).toBe(town + 1);
   });
   it('calls the month-end count once a month, after the goods\' month record and before the month-end row', async () => {
     const clock = await source('/src/sim/clock.js');
@@ -38,8 +41,9 @@ describe('v90 w0 seams: the dynasty, each a stub with 8.4 behaviour', () => {
     expect(at('recordGoodsMonth(') < at('countDynastyMonth(world)') && at('countDynastyMonth(world)') < at('world.history.push(')).toBe(true);
     const w = createWorld({ seed: 11 });
     buildSampleCity(w);
+    const town = w.tally.townMonths;
     advanceDays(w, 90);
-    for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid']) expect([k, w.tally[k]]).toEqual([k, 0]);
+    expect(w.tally.townMonths).toBe(town + 3);   // Track D: three month ends counted (was: every count stayed 0)
   });
 });
 

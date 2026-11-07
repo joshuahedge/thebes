@@ -3,8 +3,8 @@ import { TIERS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { soldiersPayOf, costScale } from './costs.js';
-import { TAX_RATES } from '../data/palace.js';
-import { taxRateOf } from './palace.js';
+import { taxRateOf, taxFactorOf } from './palace.js';
+import { heirFactor } from './dynasty.js';
 import { lacksRoad } from './reach.js';
 
 // Version 6.0 (Track 0, ruling 622): a building's monthly upkeep and one worker's monthly wage in this city, after costScale's upkeep
@@ -18,10 +18,12 @@ const wagesOf = (scale, staff) => Math.round(staff * wageIn(scale));
 // upkeep and the soldiers' pay. monthlyEconomy pays exactly these at the month's end, and monthForecast shows them ahead.
 // Version 8.4, Track G (ruling 1465): taxes are at the palace's tax rate (taxRateOf), rounded to whole gold once for the city; taxesNormal is what
 // they would be at Normal (the score's taxes term reads it, ruling 1466, and the palace sheet words each rate's effect from it).
+// Version 9.0 (Track D, ruling 1567): the rate's factor is taxFactorOf's (the Generous's High), and the heir of the Builder's taxes factor
+// (heirFactor 'taxes') comes after it (taxesAt); taxesNormal stays untraited, so the score of two heirs in one state is the same.
 export function monthFigures(world) {
   let taxesNormal = 0;
   for (const h of housesOf(world)) if (h.tier >= 1) taxesNormal += h.residents * TIERS[h.tier].tax;
-  const taxes = Math.round(taxesNormal * TAX_RATES[taxRateOf(world)].factor);
+  const taxes = taxesAt(world, taxRateOf(world), taxesNormal);
   let wages = 0;
   let upkeep = 0;
   const scale = costScale(world);
@@ -32,6 +34,13 @@ export function monthFigures(world) {
   }
   const soldiers = soldiersPayOf(world);               // spec 4.11: every soldier, in peace too, a paused barracks' as well
   return { taxes, wages, upkeep, soldiers, net: taxes - wages - upkeep - soldiers, taxesNormal };
+}
+
+// Version 9.0 (Track D): the month's taxes at one rate, whole gold, from taxesNormal: the rate's factor (taxFactorOf), then the heir's (the Builder's
+// x0.95). monthFigures takes it at the rate in force; the palace's Taxes row quotes each choice from it.
+export function taxesAt(world, rate, taxesNormal) {
+  const heir = heirFactor(world, 'taxes');
+  return Math.round(heir === 1 ? taxesNormal * taxFactorOf(world, rate) : taxesNormal * taxFactorOf(world, rate) * heir);
 }
 
 // Version 8.4, Track G: last month's record also keeps taxesNormal, rush (the Rush premium paid, which monumentMonth fills) and luxuries (the gold paid to
