@@ -4495,6 +4495,64 @@ V70_HELP.p.push({ head: 'Dynasty', text: (() => {
 // The game menu's row (src/ui/menu.js, wave 0), shown while hooks.rulers exists.
 export const V90_L_TEXT = {
   menuRulers: 'Rulers',
+  sheetTitle: 'Rulers',
+  // The title card's records box: the button that opens the list.
+  recordsButton: (n) => `Rulers (${n})`,
+  recordsButtonLabel: (n) => `Open the ruler list, ${plural(n, 'ruler', 'rulers')} kept on this device`,
+  empty: 'No rulers yet. A reign you pass on is kept here.',
+  // The titles as the list words them (the heir ids of src/data/v90.js), and the trait's name: "Heir of the Merchant".
+  titleWords: { builder: 'the Builder', unconquered: 'the Unconquered', bountiful: 'the Bountiful', merchant: 'the Merchant', generous: 'the Generous', steady: 'the Steady' },
+  heirOf: (id) => `Heir of ${V90_L_TEXT.titleWords[id] || V90_L_TEXT.titleWords.steady}`,
+  heirOfLower: (id) => `heir of ${V90_L_TEXT.titleWords[id] || V90_L_TEXT.titleWords.steady}`,
+  // A ruler's name with its regnal number and title: "Ramesses II the Builder".
+  rulerName: (r) => `${r.name} ${V90_L_TEXT.roman(r.n)} ${V90_L_TEXT.titleWords[r.title] || V90_L_TEXT.titleWords.steady}`,
+  roman: (n) => {
+    if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
+    let out = '', left = n;
+    for (const [v, s] of [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]) while (left >= v) { out += s; left -= v; }
+    return out;
+  },
+  years: (day) => `${(day / 360).toFixed(1)} years`,
+  rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
+  medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
+  rowName: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,
+  // A row opened.
+  partsHead: 'The five parts',
+  featsHead: 'Feats',
+  noFeats: 'No feats earned',
+  mapLine: (r) => `Seed ${r.seed}, ${DIFFICULTY_NAMES[r.difficulty] || r.difficulty}, ${r.mapVariant === 'classic' ? 'classic layout' : `${r.mapVariant} layout`}, ${S46_MAP_TEXT.sizeNote(r.mapSize)}`,
+  playMap: 'Play this map',
+  playMapNote: 'Opens New city on this seed, level, layout and size. A city you have is replaced unless you export it first.',
+  // Side by side (the Pass sheet and a ruler row with a rival).
+  sideHead: (name) => `Side by side with ${name}`,
+  notScored: 'not scored',
+  you: 'You',
+  // The install ask (the list's top line, and one toast after the first Pass).
+  installAsk: "Install Thebes to keep your rulers: Safari clears a site's data after 7 days without a visit",
+  installButton: 'Install',
+  installIosLine: 'The installed app starts empty. Export first, then Bring rulers from a file in the app.',
+  // Options > Saves: the ruler's name and Bring rulers from a file.
+  nameLabel: 'Ruler name',
+  nameHint: "Up to 16 letters, digits and spaces (and ' - .). It names your reigns in the list and goes on the links you share.",
+  nameSaved: (name) => `Ruler name kept: ${name}`,
+  nameRefused: (keep) => `That name has no letters or digits, so it stays ${keep}. Use letters, digits, spaces and ' - .`,
+  nameCleaned: (name) => `Kept as ${name}: only letters, digits, spaces and ' - . are kept, up to 16.`,
+  nameDefault: 'Ramesses',
+  bringLabel: 'Bring rulers from a file',
+  bringNote: 'Pick a Thebes city file you exported. Only its rulers and rivals are added; its city is never brought.',
+  bringAdds: (rulers, rivals) => `Adds ${plural(rulers, 'ruler', 'rulers')} and ${plural(rivals, 'rival', 'rivals')}`,
+  bringNothing: 'Nothing new: this device already has every ruler and rival in that file.',
+  bringMerge: 'Merge',
+  bringCancel: 'Cancel',
+  bringDone: (rulers, rivals) => `Merged. Added ${plural(rulers, 'ruler', 'rulers')} and ${plural(rivals, 'rival', 'rivals')}.`,
+  bringBad: 'That file has no rulers to bring. Pick a Thebes city file (thebes-city-...json) that you exported.',
+  bringNewer: 'That file is from a newer version of Thebes. Update the game, then try again.',
+  bringUnreadable: "That file couldn't be read. Pick the .json file you exported.",
+  // Rivals: the title card's panel and the toast at a new split.
+  rivalLine: (v) => `${v.name} (${V90_L_TEXT.heirOfLower(v.heir)}): ${v.score}`,
+  rivalKept: 'Kept as your rival on this map',
+  rivalSplit: (name, split, diff) => `${split}: ${diff === 0 ? `level with ${name}` : `${plural(Math.abs(diff), 'month', 'months')} ${diff > 0 ? 'ahead of' : 'behind'} ${name}`}`,
+  rivalNotThere: (name, split) => `${split}: ${name} has not got there yet`,
 };
 // ── end v90 l ──
 

@@ -18,10 +18,11 @@ import { createTitleCard, createBackdrop } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
-import { exportSave, downloadFile } from './save/exportImport.js';
-import { T, D2_TEXT, V711_TEXT } from './ui/text.js';
+import { exportSave, downloadFile, pickTextFile } from './save/exportImport.js';
+import { T, D2_TEXT, V711_TEXT, V90_L_TEXT } from './ui/text.js';
 import { el, button } from './ui/components.js';
-import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
+import { detectEnvironment, readEnvironment, createInstallFlow, installAskDue, INSTALL_ASK_KEY } from './save/installFlow.js';
+import { renderRulers } from './ui/v90/rulers.js';   // Version 9.0 (Track L): the ruler list
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
 import { openSheet } from './ui/modes.js';
 import { registerServiceWorker, applyUpdate } from './pwa.js';
@@ -197,6 +198,21 @@ export async function boot(doc, win, {
       return r.ok;
     },
     newCity() { if (current && current.lesson) return; withCards(() => startGame(startPicked())); },
+    // Version 9.0 (Track L, rulings 1585, 1586): the game menu's Rulers opens the list as a sheet; Bring rulers from a file (Options > Saves) picks a file and answers its
+    // text (null when none is picked); Play this map keeps the row's seed, level, layout and size as the next new city's choices and opens New city's card, whose
+    // Start asks the replace question as always. The lesson has none of the three (its game's hooks drop them).
+    rulers() { if (current && !current.lesson) current.ui.store.set(openSheet(current.ui.store.get(), 'rulers')); },
+    bringRulers: () => pickTextFile(doc),
+    playMap(row) {
+      settings.set({ difficulty: row.difficulty });
+      newCitySize = isMapSize(row.mapSize) ? row.mapSize : DEFAULT_MAP_SIZE;
+      newCityLayout = MAP_VARIANTS.includes(row.mapVariant) ? row.mapVariant : 'auto';
+      newCitySeed = row.seed;
+      if (current && !current.lesson) {
+        if (current.world.speed > 0) current.ui.speedControl.set(0);   // the card opens over a paused game, as the menu's New city does
+        current.ui.store.set(openSheet(current.ui.store.get(), 'newCity'));
+      } else if (title) { title.card.setChoices({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed }); title.card.showNewCity(); }
+    },
     // After 8.3 (ruling 1454): the game menu's Home: the city is saved, then the title shows with Continue; false (and the game stays) when the save fails.
     async home() {
       if (!current || current.lesson) return false;
@@ -261,6 +277,28 @@ export async function boot(doc, win, {
     return { ...settings, get() { const v = settings.get(); if (v !== from) { from = v; shown = { ...v, seenTips: seenAll }; } return shown; } };
   }
 
+  // Version 9.0 (Track L, ruling 1587): what the ruler list needs: the records, Play this map, and the install ask while it is due (a ruler is kept and the device can install).
+  const rulersDeps = ({ onBack = null, onInstall }) => ({ records, onPlay: (row) => hooks.playMap(row), installAsk: flow.canInstall(), onInstall, onBack });
+  // The install ask, once, at the first start of a city after the first Pass (a ruler is kept and the device has not been asked): the storage is asked to persist again,
+  // and a device that can install gets one toast with Install. The device remembers it was asked, installed or not.
+  const askStore = (() => { try { return storage || win.localStorage || null; } catch (e) { return null; } })();
+  function noteFirstPass(ui) {
+    let rulers = 0, asked = false;
+    try { rulers = records.rulers().length; } catch (e) { rulers = 0; }
+    try { asked = Boolean(askStore && askStore.getItem(INSTALL_ASK_KEY)); } catch (e) { asked = false; }
+    if (!rulers || asked) return;
+    const remember = () => { try { if (askStore) askStore.setItem(INSTALL_ASK_KEY, '1'); } catch (e) { /* not kept: it may be asked again next time */ } };
+    if (!persistAsked) {                                // storage is asked once a page, at the first start after a ruler
+      persistAsked = true;
+      try { const st = win.navigator && win.navigator.storage; if (st && st.persist) st.persist().catch(() => {}); } catch (e) { /* not offered */ }
+    }
+    // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
+    // start must not use the ask up (a start later in the session, or the next visit, shows it).
+    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk, { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
+    else if (flow.env.standalone) remember();
+  }
+  let persistAsked = false;
+
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).
   function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null } = {}) {
@@ -270,12 +308,13 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
-      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }) }, ...uiOptions });
+      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
     current = { world, ui, loop, cam, lesson: Boolean(lesson) };
+    if (!lesson) noteFirstPass(ui);
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
@@ -399,6 +438,8 @@ export async function boot(doc, win, {
       // plays the link's level even on the lesson-only card (setDifficulty), and says where the lesson is while this device has not finished it.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
+        // Version 9.0 (Track L, ruling 1585): the records box's Rulers button opens the list as the card's one panel, with Back.
+        onRulers: () => title && title.card.showPanel((body, back) => renderRulers(body, rulersDeps({ onBack: back, onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); } }))),
         setDifficulty: (level) => settings.set({ difficulty: level }), lessonPending: settings.get().lessonDone !== true,
         startSeed: (seed, variant = null, size = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant, size || DEFAULT_MAP_SIZE) : withCards(() => startGame(freshWorld({ seed, variant, size: size || DEFAULT_MAP_SIZE })))),
       }),
