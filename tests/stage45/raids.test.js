@@ -393,7 +393,7 @@ describe('s45 raid words', () => {
       expect(alertText(alert, w).title).toBe(`Raiders from ${from} are after your storehouses`);
       const m = bannerModel(w, triage(w, [alert]).critical);
       expect(m.title).toBe(`Raiders from ${from} are after your storehouses. They arrive in 2 months.`);
-      expect(m.chip).toBe(`Raid from ${from} · 2 months`);
+      expect(m.chip).toBe(`Raid from ${from}\u00a0· 2 months`);
       expect(m.defence).toBe(`or build ${q.buildN} towers facing ${dirs.join(' and ')} (≈ ${q.buildCost} gold)`);
       expect(RAID_TEXT.towers(w)).toBe(`Build ${q.buildN} towers facing ${dirs.join(' and ')} (≈ ${q.buildCost} gold)`);
       expect(q.size).toBe(warn.size);                                                // the total, never a band
@@ -402,9 +402,9 @@ describe('s45 raid words', () => {
   it('says a band-less alert of the old shape as before (a direction only)', () => {
     const w = warned(false);
     expect(alertText({ code: 'raid_warning', dir: 'east' }, w).title).toBe('Raiders from the east are after your storehouses');
-    expect(D.chip('east', 12)).toBe('Raid from the east · 12\u00a0d');
-    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north · 12\u00a0d');
-    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east · 12\u00a0d');
+    expect(D.chip('east', 12)).toBe('Raid from the east\u00a0· 12\u00a0d');
+    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north\u00a0· 12\u00a0d');
+    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east\u00a0· 12\u00a0d');
   });
   it('words the raid under way by the bands still on the map, and the report by both directions', () => {
     const w = city();

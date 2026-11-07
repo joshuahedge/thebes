@@ -191,7 +191,7 @@ export function campModel(world, b, crews = siteCrews(world, b)) {
 export function rushRows(world, b) {
   if (!isSite(b)) return [];
   const q = rushQuote(world, b.id), W = V84_G_TEXT;
-  if (b.site.rush) return [{ key: 'rush', text: b.site.rushShort ? W.rushedShort(b.site.rushShort) : q.daysRushed > 0 ? W.rushed(q) : W.rushedNoCrew, cancel: true }];   // ruling 1539: no crew, no days to count
+  if (b.site.rush) return [{ key: 'rush', text: b.site.rushShort ? W.rushedShort(b.site.rushShort) : q.rate > 0 ? W.rushed(q) : W.rushedNoCrew, cancel: true }];   // ruling 1539: no crew (pace 0), no days to count; keyed on the pace, not on days (a laid course has 0 days with a crew)
   if (q.ok) return [{ key: 'rush', text: W.rushButton(q), rush: q }, { key: 'rush-how', text: `${W.rushHow}. ${W.rushQuoteNote(q)}` }];
   const why = W.rushWhy[q.reason];
   if (!why) return [];

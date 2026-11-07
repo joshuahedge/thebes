@@ -89,7 +89,7 @@ describe('v84 balance spending (B2, B3)', () => {
     // The retune (rulings 1540, 1548; B3 STILL NOT MET): every raid beaten again, 16,160 gold at year 15, 1.55 years of profit. The spending player never reaches its
     // lines in years 7-15 (the court's due takes about a third of the treasury each New Year, so it peaks near 4.5 months of taxes, under Rush's 6 and Low's 12), so the
     // ratio is set by the due and the run's other outflows, and swings from year to year (years 13-15: 1.62, 1.42, 1.55); a raid beaten no longer pays its theft.
-    expect(Math.round(ratio * 100) / 100).toBe(1.55);                                   // 8.4-BALANCE-OPEN (ruling 1548): was at most 1.5
+    expect(Math.round(ratio * 100) / 100).toBe(1.55);                                   // 8.4 (ruling 1551): measured 1.55 years of profit; was at most 1.5
     expect(ratio).toBeGreaterThan(0);
     const years = late.quotas.filter((q) => q.year <= 15);
     expect(years.map((q) => q.result)).toEqual(years.map(() => 'met'));

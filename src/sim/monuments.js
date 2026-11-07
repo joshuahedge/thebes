@@ -388,13 +388,13 @@ export function setCamp(world, id) {
 
 // What Rush this course would do now, at today's crews (the crew plan's working crews, each at its own staffing and walk) and full supply:
 // { ok, reason, units (left in the course under way), days (to lay them at the crews' pace), daysRushed (rushed), saved (days - daysRushed),
-//   extra (the premium for those units, whole gold), perDay (extra a day saved, rounded), dayGold (one rushed day's gold, rounded up) }.
+//   extra (the premium for those units, whole gold), perDay (extra a day saved, rounded), dayGold (one rushed day's gold, rounded up), rate (the units the working crews lay a day, before the rush: 0 with no crew) }.
 // reason, the first that applies: 'not_site', 'finished', 'has_rush' (already rushed: the numbers are still the quote's), 'no_crew' (no crew works it today),
 // 'waiting_offering' (the great work's stage waits for its offering), 'waiting_gilding' / 'waiting_capstone' (the last course waits for gold it cannot
 // pay), 'no_gold' (the treasury holds less than one rushed day).
 export function rushQuote(world, id) {
   const b = world.buildings[id];
-  const none = { ok: false, units: 0, days: 0, daysRushed: 0, saved: 0, extra: 0, perDay: 0, dayGold: 0 };
+  const none = { ok: false, units: 0, days: 0, daysRushed: 0, saved: 0, extra: 0, perDay: 0, dayGold: 0, rate: 0 };
   if (!isMonument(b) || !b.site) return { ...none, reason: 'not_site' };
   if (b.site.done !== null) return { ...none, reason: 'finished' };
   const c = courseOf(b);
@@ -404,7 +404,7 @@ export function rushQuote(world, id) {
   const days = rate > EPS ? Math.ceil(units / rate - EPS) : 0;
   const daysRushed = rate > EPS ? Math.ceil(units / (rate * MONUMENT.rushPace) - EPS) : 0;
   const saved = days - daysRushed, extra = Math.round(units * (rush - work));
-  const q = { units: snap(units), days, daysRushed, saved, extra, perDay: saved > 0 ? Math.round(extra / saved) : extra, dayGold: Math.ceil(rate * MONUMENT.rushPace * rush - EPS) };
+  const q = { rate, units: snap(units), days, daysRushed, saved, extra, perDay: saved > 0 ? Math.round(extra / saved) : extra, dayGold: Math.ceil(rate * MONUMENT.rushPace * rush - EPS) };
   let reason = null;
   if (b.site.rush) reason = 'has_rush';
   else if (!(rate > EPS)) reason = 'no_crew';

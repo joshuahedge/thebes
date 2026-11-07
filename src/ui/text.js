@@ -862,7 +862,7 @@ Object.assign(DANGER_UI_TEXT, {
   moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
-  chip: (dir, days) => `Raid from ${duiFrom(dir)} · ${duiCountdown(days)}`,
+  chip: (dir, days) => `Raid from ${duiFrom(dir)}\u00a0· ${duiCountdown(days)}`,   // ruling 1539 and 8.4 docs: a non-breaking space before the "·", so "· 2 m 10 d" never starts a line
   // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
   chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.

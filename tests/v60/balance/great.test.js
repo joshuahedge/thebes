@@ -50,8 +50,8 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
     expect(r.ranks.seat).toBe(3720);
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
-    expect(r.won.day).toBe(6927);                                                // 8.4-BALANCE-OPEN (ruling 1547): was won by day 6,800
-    expect(Math.round(r.lowestGold)).toBe(7732);                                 // 8.4-BALANCE-OPEN (ruling 1547): was at least 20,000 from year 10
+    expect(r.won.day).toBe(6927);                                                // 8.4 (ruling 1551): measured won on day 6,927; was won by day 6,800
+    expect(Math.round(r.lowestGold)).toBe(7732);                                 // 8.4 (ruling 1551): measured 7,732 the lowest; was at least 20,000 from year 10
     expect([raids, raidsLost]).toEqual([13, 0]);
     expect(r.insane).toEqual([]);
   });
@@ -66,8 +66,8 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 8.3 pin is not.
   it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (the 8.3 pin not met)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);        // 8.4-BALANCE-OPEN (ruling 1547): was won by day 6,200
-    expect(Math.round(r.lowestGold)).toBe(-36172);                                                 // 8.4-BALANCE-OPEN (ruling 1547): was at least 4,000 from year 10
+    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);        // 8.4 (ruling 1551): measured not won, Great Capital on day 3,660; was won by day 6,200
+    expect(Math.round(r.lowestGold)).toBe(-36172);                                                 // 8.4 (ruling 1551): measured -36,172 the lowest; was at least 4,000 from year 10
     expect([raids, raidsLost]).toEqual([11, 0]);
   });
 });

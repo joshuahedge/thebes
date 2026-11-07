@@ -43,7 +43,7 @@ describe('v84 e words: "War elephants!" leads the warning', () => {
     const w = warned(ELE);
     w.day = 900;
     const m = bannerModel(w, [alert]);
-    expect([m.title.startsWith('War elephants! 10 raiders from the east'), m.chip]).toEqual([true, `Raid from the east · ${D.countdown(100)}`]);
+    expect([m.title.startsWith('War elephants! 10 raiders from the east'), m.chip]).toEqual([true, `Raid from the east\u00a0· ${D.countdown(100)}`]);
   });
 });
 

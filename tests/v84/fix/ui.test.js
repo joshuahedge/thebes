@@ -47,7 +47,7 @@ describe('v84 fix the countdown never splits', () => {
   it('joins "2 m 10 d" and "7 d" with non-breaking spaces, in the countdown and in the chip', () => {
     expect(D.countdown(70)).toBe('2 m 10 d');
     expect(D.countdown(7)).toBe('7 d');
-    expect(D.chip('east', 70)).toBe('Raid from the east · 2 m 10 d');
+    expect(D.chip('east', 70)).toBe('Raid from the east\u00a0· 2 m 10 d');
     expect(D.countdown(60)).toBe('2 months');
     expect(/ [md]\b/.test(D.countdown(70))).toBe(false);          // no plain space beside an m or a d
   });

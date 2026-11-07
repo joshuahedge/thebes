@@ -9,7 +9,24 @@
 
 export const RELEASES = [
   {
-    version: '8.3', date: '2026-10-27', title: 'Lines', build: 'live',
+    version: '8.4', date: '2026-11-07', title: 'Gold and war', build: 'live',
+    new: [
+      'The palace sets the tax rate: Low (a quarter less gold, mood +8), Normal, or High (a quarter more gold, mood -8). Each choice says its effect before you tap, and City advice points at it when gold piles up.',
+      'Rush this course: a monument\'s crews lay twice the work a day for three times the work gold, until the course under way is laid. The button says the days it saves and the gold it costs before you tap.',
+      'Villas and Estates now need an imported luxury: cedar, ivory or incense. Buy cedar and ivory on the Trade sheet; a home that lacks one stays where it is, and its sheet says so, with Show me.',
+      'Scouts stand at the edge for 30 days before a raid\'s warning, where the raiders will come in. Raids now come sooner and more often: the first warning comes 300 days after the city reaches 250 people.',
+      'Raids grow stronger with the years the raid clock has run, not with how many have come, so they come more often without each one being harder.',
+      'A raid you beat leaves captured weapons: soldiers\' pay is a quarter less for a year. You also get a fanfare and a Victory in the mood.',
+      'War elephants join the raids about twelve years after the raid clock starts. They trample, break walls and come in from upriver. Towers can frighten them back, and a fallen elephant leaves ivory.',
+    ],
+    fixed: [
+      'A rushed monument site with no crew at work now says "Rushed: no crew today".',
+      'The raid countdown chip never starts a line with its dot, and the elephant warning banner wraps clear of the panel on a tablet.',
+      'A raid that comes as two bands now has scouts at both edges, and the alert names both sides.',
+    ],
+  },
+  {
+    version: '8.3', date: '2026-10-27', title: 'Lines', build: '26dfa6d',
     new: [
       'The road now crosses water by itself: drag it straight across and it lays a bridge over up to 4 tiles of water, or a ferry over 5 to 12. When it can\'t, the bar says why, with Show me.',
       'The Ferry card is now the Crossing card: it shows the best bridges and ferries near your roads, each with its water and price.',
