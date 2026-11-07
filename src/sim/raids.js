@@ -307,8 +307,7 @@ function raiseWarning(world, events) {
   const single = raidSize(world);
   // Version 8.4 (ruling 1531): two bands and boats wait for the raid's stage (raidStage), not its index; the draws stay the index's.
   const stage = raidStage(world, index);
-  const second = !first && stage >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
-    ? secondBand(world, index, entry, single + 1) : null;
+  const second = comesTwoSided(world, index, stage) ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
   const landing = !first && !second && enemyMayCome('boat', stage) ? boatLanding(world, index) : null;
@@ -339,9 +338,12 @@ function chiefBands(world, w) {
   return warningBands(w).map((band, k) => (band.size >= CHIEFTAIN.fromSize && !band.boat ? k : -1)).filter((k) => k >= 0);
 }
 
+// Whether the raid at this index comes as two bands (ruling 317), at its stage; the scouts (src/sim/scouts.js) ask it too, so they stand on both sides (ruling 1538).
+export const comesTwoSided = (world, index, stage = raidStage(world, index)) => index > 0 && stage >= RAIDS.twoSidedFrom && world.raiderEntries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world);
+
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
 // from an edge the first does not use when the map has one; the total is split, the first band taking the larger half.
-function secondBand(world, index, entry, total) {
+export function secondBand(world, index, entry, total) {
   const others = world.raiderEntries.filter((e) => e.x !== entry.x || e.y !== entry.y);
   const dir = entryDir(world, entry);
   const otherEdge = others.filter((e) => entryDir(world, e) !== dir);
@@ -372,7 +374,7 @@ export function raidDay(world, events = null) {
   // Version 8.4 (ruling 1487): the day the scouts appear (SCOUTS.days before the warning) says so once; scoutsAt (src/sim/scouts.js) is the state they are drawn from.
   else if (events && day === r.nextWarnDay - SCOUTS.days && scoutsAt(world)) {
     const s = scoutsAt(world);
-    events.push({ type: 'raid_scouts', index: r.index, entry: { ...s.entry }, dir: s.dir, days: s.days });
+    events.push({ type: 'raid_scouts', index: r.index, entry: { ...s.entry }, dir: s.dir, days: s.days, ...(s.bands.length > 1 ? { dirs: s.dirs.slice() } : {}) });
   }
 }
 
@@ -435,7 +437,7 @@ export function raidAlerts(world) {
   }
   // Version 8.4 (ruling 1487): the scouts at the coming raid's entry, an info alert (never critical): { code: 'raid_scouts', x, y, dir, days } (days: to the warning).
   const scouts = scoutsAt(world);
-  if (scouts) out.push({ code: 'raid_scouts', x: scouts.entry.x, y: scouts.entry.y, dir: scouts.dir, days: scouts.days });
+  if (scouts) out.push({ code: 'raid_scouts', x: scouts.entry.x, y: scouts.entry.y, dir: scouts.dir, days: scouts.days, ...(scouts.bands.length > 1 ? { dirs: scouts.dirs.slice() } : {}) });
   return out;
 }
 

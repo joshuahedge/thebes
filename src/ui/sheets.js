@@ -350,9 +350,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (f.active) {
       body.append(el('h3', { text: f.net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk, dataset: { section: 'forecast' } }), el('p', { class: 'muted small', text: S45_TEXT.forecastNote }),
         row(V84_G_TEXT.forecastTaxes(taxRateOf(world)), `+${f.taxes}`), row(T.wages, `−${f.wages}`), row(T.upkeep, `−${f.upkeep}`));   // Version 8.4: names the rate when not Normal
-      if (f.soldiers > 0) body.append(row(T.soldiersPay, `−${f.soldiers}`));
-      const weapons = spoilsSaving(world);
-      if (weapons) body.append(el('p', { class: 'muted small', text: V84R_TEXT.weaponsNote(weapons) }));   // Version 8.4 (ruling 1488): the discount and its days left
+      // Version 8.4 (rulings 1488, 1539): the captured weapons' discount and its days left are part of the soldiers' row's label.
+      if (f.soldiers > 0) body.append(row(V84R_TEXT.soldiersRow(T.soldiersPay, spoilsSaving(world)), `−${f.soldiers}`));
       body.append(row(S45_TEXT.monthlyBalance, S45_TEXT.signed(f.net)));
       if (f.gold < 0 && f.net < 0) body.append(el('p', { class: 'coral', text: `${S45_TEXT.belowZero}.` }));
       else if (f.monthsLeft !== null) body.append(el('p', { class: f.runsOut ? 'amber' : 'muted', text: `${S45_TEXT.runsOutIn(f.monthsLeft)}.` }));

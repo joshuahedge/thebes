@@ -5,9 +5,9 @@
 import { SCOUTS, RAID_SALT } from '../data/raids.js';
 import { hash2 } from './rng.js';
 import { raidsOn } from './costs.js';
-import { nextRaidEntry, entryDir } from './raids.js';
+import { nextRaidEntry, entryDir, comesTwoSided, secondBand } from './raids.js';
 
-// { entry, dir, days } while the scouts stand, else null: entry is the entry the next warning will use (nextRaidEntry at the raid's index), dir the edge it is on
+// { entry, dir, days, bands, dirs } while the scouts stand, else null: entry is the entry the next warning will use (nextRaidEntry at the raid's index), dir the edge it is on
 // ('north' | 'east' | 'south' | 'west') and days how many days are left before the warning. The window is nextWarnDay - SCOUTS.days <= day < nextWarnDay with no warning
 // up and no raid under way.
 export function scoutsAt(world) {
@@ -16,7 +16,10 @@ export function scoutsAt(world) {
   if (!world.raiderEntries || !world.raiderEntries.length) return null;
   if (day < r.nextWarnDay - SCOUTS.days || day >= r.nextWarnDay) return null;
   const entry = nextRaidEntry(world, r.index);
-  return { entry, dir: entryDir(world, entry), days: r.nextWarnDay - day };
+  // Ruling 1538: a raid that will come as two bands has scouts at both entries; bands lists them (the first is entry), dirs their sides.
+  const bands = [{ entry, dir: entryDir(world, entry) }];
+  if (comesTwoSided(world, r.index)) { const s = secondBand(world, r.index, entry, 0); bands.push({ entry: s.entry, dir: s.dir }); }
+  return { entry, dir: bands[0].dir, days: r.nextWarnDay - day, bands, dirs: bands.map((b) => b.dir) };
 }
 
 // How many scouts stand there, SCOUTS.min to SCOUTS.max, drawn by hash2(seed, the raid's index, RAID_SALT.scouts).

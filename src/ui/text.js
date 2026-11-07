@@ -848,8 +848,9 @@ function duiDuration(days) {
 }
 const duiCountdown = (days) => {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
-  if (!m) return `${d} d`;
-  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
+  // Non-breaking spaces (ruling 1539): "2 m 10 d" never splits across lines where the banner wraps anywhere.
+  if (!m) return `${d} d`;
+  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
 };
 // D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
 // for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
@@ -4154,6 +4155,8 @@ const g84Good = (good) => goodName(good).toLowerCase();
 const g84Days = (n) => plural(n, 'day', 'days');
 const g84Months = (n) => plural(n, 'month', 'months');
 const g84Milestone = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+import { costOf as g84CostOf, routeCostOf as g84RouteCost } from '../sim/costs.js';
+import { PARTNERS as g84Partners, QUAY_TYPE as g84Quay } from '../data/trade.js';
 const g84Landing = (partner) => (v7Partners[partner] && v7Partners[partner].by === 'river' ? 'Quay' : 'trading post');
 Object.assign(MOOD_NAMES, { taxes: 'Taxes' });
 Object.assign(NEED_NAMES, { luxury: 'Luxury' });
@@ -4182,6 +4185,7 @@ export const V84_G_TEXT = {
   rushSet: (type) => `Rushing the course at the ${ui4Lower(type)}`,
   rushed: (q) => `Rushed: about ${g84Days(q.daysRushed)} to go on this course`,
   rushedShort: (good) => `Rushed: waiting for ${g84Good(good)}`,
+  rushedNoCrew: 'Rushed: no crew today',   // the rush is on but no crew works the site, so there is no pace to count days by
   rushCancel: 'Cancel the rush',
   rushCancelled: (type) => `The rush at the ${ui4Lower(type)} is cancelled: nothing more is paid`,
   // Why Rush cannot be had now (rushQuote's reasons), shown in place of the button.
@@ -4197,8 +4201,9 @@ export const V84_G_TEXT = {
   luxuryMark: 'Luxury: Villas and Estates need one',
   luxuryTradeAria: (fix) => `${T.showMe}: the Trade sheet, ${fix.open ? `open a route to ${partnerName(fix.partner)}` : fix.keep ? `keep at least ${fix.keep} ${g84Good(fix.good)}` : `buy ${g84Good(fix.good)}`}`,
   cause: {
-    no_luxury_route: (c) => (c.good
-      ? { cause: 'No luxury is bought: none reaches its bazaar', fix: `${c.block === 'no_post' || c.block === 'no_quay' ? `Build a ${g84Landing(c.partner)}, then open` : 'Open'} a route to ${partnerName(c.partner)} and buy ${g84Good(c.good)} (${ui4Gold(c.price)} gold each)` }
+    // Ruling 1539: the fix gives the price of the landing it suggests and of the route (the sim's costOf and routeCostOf).
+    no_luxury_route: (c, world) => (c.good
+      ? { cause: 'No luxury is bought: none reaches its bazaar', fix: `${c.block === 'no_post' || c.block === 'no_quay' ? `Build a ${g84Landing(c.partner)} (${ui4Gold(g84CostOf(world, g84Partners[c.partner].by === 'river' ? g84Quay : 'trading_post'))} gold), then open` : 'Open'} a route to ${partnerName(c.partner)} (${ui4Gold(g84RouteCost(world, c.partner))} gold) and buy ${g84Good(c.good)} (${ui4Gold(c.price)} gold each)` }
       : { cause: `Luxuries come by trade: ${partnerName(c.partner)} trades from ${g84Milestone(c.milestone)}`, fix: '' }),
     luxury_not_bought: (c) => ({ cause: `${partnerName(c.partner)} sells ${g84Good(c.good)}, but trade does not buy it`, fix: c.off ? `Switch ${g84Good(c.good)} on for ${partnerName(c.partner)} and set it to Buy on the Trade sheet` : `Set ${g84Good(c.good)} to Buy on the Trade sheet, with a level to keep` }),
     luxury_short: (c) => ({ cause: `Trade keeps only ${c.keep} ${g84Good(c.good)} near the ${g84Landing(c.partner)}; the homes use ${c.use} a month`, fix: `Raise ${g84Good(c.good)}'s Keep at least to ${c.want} on the Trade sheet` }),
@@ -4214,18 +4219,19 @@ export const V84_G_TEXT = {
   stepBlocked: (c) => `${g84Good(c.good)} is on order from ${partnerName(c.partner)}, but none will come: see the ${g84Landing(c.partner)}`,
   // City advice: the trade fix's cost line, and gold piling up (ruling 1477).
   routeCost: (partner, gold) => `Route to ${partnerName(partner)}: ${ui4Gold(gold)} gold`,
-  goldSpare: (a) => ({
+  // Ruling 1539: "rush a monument" only when a site stands (one that is not finished) to rush.
+  goldSpare: (a, world) => ({
     what: `Gold is piling up: ${ui4Gold(a.data.gold)} gold, ${g84Months(a.data.months)} of taxes`,
     why: '',
-    fix: 'Lower taxes at the palace for mood, or rush a monument',
+    fix: world && Object.values(world.buildings).some((b) => b && b.site && b.site.done === null) ? 'Lower taxes at the palace for mood, or rush a monument' : 'Lower taxes at the palace for mood',
   }),
 };
 // The luxury causes in the house sheet's words, as every cause is worded (causeText); every other cause as before.
 {
   const base = causeText;
-  causeText = (cause, world, need = null) => (cause && V84_G_TEXT.cause[cause.code] ? V84_G_TEXT.cause[cause.code](cause) : base(cause, world, need));
+  causeText = (cause, world, need = null) => (cause && V84_G_TEXT.cause[cause.code] ? V84_G_TEXT.cause[cause.code](cause, world) : base(cause, world, need));
 }
-V70_ADVICE_WORDS.gold_spare = (a) => V84_G_TEXT.goldSpare(a);
+V70_ADVICE_WORDS.gold_spare = (a, world) => V84_G_TEXT.goldSpare(a, world);
 // Incense is a luxury too now; cedar's and ivory's lines are wave 0's, above.
 {
   const line = goodLine;
@@ -4248,16 +4254,19 @@ export const V84R_TEXT = {
   // A span of game days in a few words: a month, a year, else months and days as the alerts say them.
   span: (days) => (days === raidsTime.DAYS_PER_MONTH ? 'a month' : days === raidsTime.DAYS_PER_MONTH * raidsTime.MONTHS_PER_YEAR ? 'a year' : DANGER_UI_TEXT.duration(days)),
   // The alert (raid_scouts) and the one caption a raid: the scouts, which side, and that a raid may come soon.
-  scoutsTitle: (dir) => `Scouts on the ${V84R_TEXT.sides[dir]} horizon`,
+  // dir is one side, or both sides of a two-sided raid (ruling 1538): "Scouts on the eastern and southern horizon".
+  scoutsTitle: (dir) => `Scouts on the ${[].concat(dir).map((d) => V84R_TEXT.sides[d]).join(' and ')} horizon`,
   scoutsFix: (days) => `A raid warning may follow within ${V84R_TEXT.span(days)}`,
   scoutsCaption: (dir) => `${V84R_TEXT.scoutsTitle(dir)}: raiders may come within ${V84R_TEXT.span(raidsData.SCOUTS.days)}`,
   // The beaten-raid moment's line (the alert row) and the forecast's note under the soldiers' pay.
   weaponsLine: () => `Captured weapons: soldiers' pay ${Math.round(raidsData.SPOILS.share * 100)}% less for ${V84R_TEXT.span(raidsData.SPOILS.days)}.`,
   weaponsNote: (s) => `Captured weapons: ${s.less} less, ${plural(s.daysLeft, 'day', 'days')} left`,
+  // Ruling 1539: the discount is part of the soldiers' row's label, not a line of its own: "Army pay (captured weapons: 6 less, 140 days left)".
+  soldiersRow: (label, s) => (s ? `${label} (${V84R_TEXT.weaponsNote(s).replace(/^Captured/, 'captured')})` : label),
 };
 Object.assign(MOOD_NAMES, { victory: 'Victory' });
 Object.assign(ALERT_TEXT, {
-  raid_scouts: (alert) => ({ title: V84R_TEXT.scoutsTitle(alert.dir), fix: V84R_TEXT.scoutsFix(alert.days) }),
+  raid_scouts: (alert) => ({ title: V84R_TEXT.scoutsTitle(alert.dirs || alert.dir), fix: V84R_TEXT.scoutsFix(alert.days) }),
 });
 // ── end v84 r ──
 

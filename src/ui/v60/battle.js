@@ -26,9 +26,10 @@ import { el, button, icon, iconButton } from '../components.js';
 // towersLost) or food stolen (foodStolen, a granary's food in the grace years, when `taken` does not list it; after them `taken` does, so it is not said twice) the same
 // lines with them in what was lost, in the order the raid report (DANGER_UI_TEXT.raidReport) lists them. Written here because that section of text.js is another batch's file.
 // Version 8.4 (ruling 1489): a beaten raid whose report carries spoils (src/sim/spoils.js raidSpoils) also says what its captured weapons are worth.
-export function momentWords(r) {
+// Ruling 1539: on a phone's one-line alert row (phone: true) the weapons line is left out: the caption row says it whole.
+export function momentWords(r, phone = false) {
   const t = momentBase(r);
-  return r.won && r.spoils ? { ...t, detail: `${t.detail} ${V84R_TEXT.weaponsLine()}` } : t;
+  return r.won && r.spoils && !phone ? { ...t, detail: `${t.detail} ${V84R_TEXT.weaponsLine()}` } : t;
 }
 function momentBase(r) {
   const food = r.foodStolen && !r.taken ? r.foodStolen : 0;
@@ -66,7 +67,7 @@ export function createBattleUi(ctx) {
   const criticalShowing = () => Boolean(banner) && [...banner.querySelectorAll('.critical:not(.moment)')].some((n) => !POLITE.has(n.dataset.code));
 
   function build(report) {
-    const won = Boolean(report.won), t = momentWords(report);
+    const won = Boolean(report.won), t = momentWords(report, phone());
     const node = el('div', { class: 'critical moment', dataset: { code: won ? 'raid_beaten' : 'raid_lost' } }, [
       icon(won ? '✔' : '⚠'),
       el('span', { class: 'text' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'small', text: t.detail })]),
@@ -121,7 +122,7 @@ export function createBattleUi(ctx) {
           if (world.raid.active && world.raid.active.chiefs && typeof ctx.fireTip === 'function') ctx.fireTip('chiefBanner');
         } else if (e.type === 'raid_warning') clearMoment();
         else if (e.type === 'raid_scouts') {
-          if (ctx.celebrations && typeof ctx.celebrations.show === 'function') ctx.celebrations.show({ tier: 'info', text: V84R_TEXT.scoutsCaption(e.dir) });   // once a raid, in the caption row
+          if (ctx.celebrations && typeof ctx.celebrations.show === 'function') ctx.celebrations.show({ tier: 'info', text: V84R_TEXT.scoutsCaption(e.dirs || e.dir) });   // once a raid, in the caption row
         } else if (e.type === 'raid_end' && e.report) {
           if (moment) moment.node.remove();
           moment = { report: e.report, day: world.day, node: build(e.report) };

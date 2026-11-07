@@ -191,7 +191,7 @@ export function campModel(world, b, crews = siteCrews(world, b)) {
 export function rushRows(world, b) {
   if (!isSite(b)) return [];
   const q = rushQuote(world, b.id), W = V84_G_TEXT;
-  if (b.site.rush) return [{ key: 'rush', text: b.site.rushShort ? W.rushedShort(b.site.rushShort) : W.rushed(q), cancel: true }];
+  if (b.site.rush) return [{ key: 'rush', text: b.site.rushShort ? W.rushedShort(b.site.rushShort) : q.daysRushed > 0 ? W.rushed(q) : W.rushedNoCrew, cancel: true }];   // ruling 1539: no crew, no days to count
   if (q.ok) return [{ key: 'rush', text: W.rushButton(q), rush: q }, { key: 'rush-how', text: `${W.rushHow}. ${W.rushQuoteNote(q)}` }];
   const why = W.rushWhy[q.reason];
   if (!why) return [];
@@ -221,7 +221,6 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     // The camp's offer sits right under the crews it speeds up (ruling 1436): a button while it can be paid, else its words (the price, and why not).
     const camp = campModel(world, b, crews);
     if (camp.show) rows.push({ key: 'camp', text: camp.text, camp: camp.ok ? camp : null });
-    rows.push(...rushRows(world, b));   // Version 8.4 (Track G): Rush this course, with its price and the days it saves, or how the rush is going
   }
   const keep = keepRows(world, b, s);
   const cause = causeText(world, b, s.reason, s);
@@ -229,6 +228,8 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   const stalledGood = s.reason === 'no_stone' || s.reason === 'no_bricks' ? s.reason.slice(3) : null;
   const merged = stalledGood !== null && keep.some((k) => k.goods.includes(stalledGood));
   if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: merged ? null : causeFix(world, b, s.reason, s) });
+  // Version 8.4 (Track G; ruling 1539: below the cause, so "Waiting for bricks" is read before the offer to hurry): Rush this course, with its price and the days it saves, or how the rush is going
+  if (!s.finished) rows.push(...rushRows(world, b));
   for (const g of MATERIALS) {
     const m = s.materials[g];
     if (!m) continue;

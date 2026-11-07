@@ -402,9 +402,9 @@ describe('s45 raid words', () => {
   it('says a band-less alert of the old shape as before (a direction only)', () => {
     const w = warned(false);
     expect(alertText({ code: 'raid_warning', dir: 'east' }, w).title).toBe('Raiders from the east are after your storehouses');
-    expect(D.chip('east', 12)).toBe('Raid from the east · 12 d');
-    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north · 12 d');
-    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east · 12 d');
+    expect(D.chip('east', 12)).toBe('Raid from the east · 12\u00a0d');
+    expect(D.chip(['east', 'north'], 12)).toBe('Raid from the east and north · 12\u00a0d');
+    expect(D.chip(['east', 'east'], 12)).toBe('Raid from the east · 12\u00a0d');
   });
   it('words the raid under way by the bands still on the map, and the report by both directions', () => {
     const w = city();

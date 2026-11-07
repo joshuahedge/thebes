@@ -5,4 +5,5 @@ import './g/all.js';         // Track G: the tax rate, Rush a course, luxury imp
 import './r/all.js';         // Track R: the raid clock, the scouts, the low-Nile lean, captured weapons, the celebration
 import './e/all.js';         // Track E: war elephants and ivory
 import './balance/all.js';   // Wave 2: the balance check against the design's targets
+import './fix/all.js';       // The fix wave after the final review
 import './docs/all.js';      // The docs step: What's new for 8.4
