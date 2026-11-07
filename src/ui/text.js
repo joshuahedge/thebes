@@ -4458,6 +4458,29 @@ const dateLabelD90 = (day) => `year ${Math.floor(day / (SCORE_DAYS_PER_MONTH * S
   W.rateAria = (rate, normal, now, at = null) => `Taxes ${W.rateNames[rate]}: ${W.rateLine(rate, normal, at)}${now ? ' (now)' : ''}`;
   W.rateSet = (rate, normal, at = null) => `Taxes ${W.rateNames[rate].toLowerCase()}: ${W.rateLine(rate, normal, at)}`;
 }
+// The flood's words say what this city's floodplain farms will grow (ruling 1583): `factor` is the sim's (src/sim/flood.js levelHarvest, nextFlood's harvest,
+// floodLook's factor and levelFactor), with the Bountiful's deeper loss; without it the words are 8.4's (the data's level, prepared or not), and for any other
+// city the sim's factor is that same number.
+{
+  const R = S46_RIVER_TEXT;
+  const pct = (id, prepared, factor) => (Number.isFinite(factor) ? `${Math.round(factor * 100)}%` : rvPct(id, prepared));
+  R.forecastCaption = (id, prepared = false, factor = null) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${pct(id, prepared, factor)}${rvPrepNote(id, prepared)}`;
+  R.riseCaption = (id, prepared = false, factor = null) => `The Nile is rising: a ${rvName(id)} flood. Farms on the floodplain grow ${pct(id, prepared, factor)}${rvPrepNote(id, prepared)}`;
+  R.farmRowNext = (id, prepared = false, factor = null) => `${rvName(id)} flood coming: ${pct(id, prepared, factor)} from month ${rvFirstMonth}`;
+  R.nilometerKnown = (id, factor = null) => `${rvName(id)}: floodplain farms ${pct(id, true, factor)}`;   // shown only while it is staffed, so prepared
+  R.nilometerNext = (n) => `${R.nilometerKnown(n.level.id, n.harvest)}${n.monthsTo > 0 ? `, in ${rvMonths(n.monthsTo)}` : ''}`;
+  const nilometerRow = R.nilometerRow;
+  R.nilometerRow = (look, working, nextFlood = null) => {
+    if (working && look.on && (look.phase === 'rising' || look.phase === 'high') && look.applied) return { label: R.nilometerLabelNow, value: R.nilometerKnown(look.applied.id, look.factor) };
+    if (working && look.on && look.phase === 'draining' && look.applied) return { label: R.nilometerLabelLast, value: R.nilometerKnown(look.applied.id, look.factor) };
+    if (working && look.on && !(nextFlood && nextFlood.level) && look.phase === 'forecast' && look.level) return { label: R.nilometerLabel, value: R.nilometerKnown(look.level.id, look.levelFactor) };
+    return nilometerRow(look, working, nextFlood);
+  };
+  const floodLine = R.floodLine;
+  R.floodLine = (look) => (look.phase === 'forecast' && look.level
+    ? `Next flood: ${rvName(look.level.id)}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${pct(look.level.id, look.levelPrepared, look.levelFactor)}${rvPrepNote(look.level.id, look.levelPrepared)}`
+    : floodLine(look));
+}
 // The heir_trait tip (src/data/tips.js), and How to play's Dynasty entry.
 TIP_TEXT.heir_trait = "This city has its heir's trait: a strength and a weakness from the last ruler's title. The summary names it.";   // at most 20 words (tests/ui/tips.test.js)
 V70_HELP.p.push({ head: 'Dynasty', text: (() => {

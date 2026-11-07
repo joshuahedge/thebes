@@ -5,6 +5,8 @@ import { TITLES } from '../../../src/data/dynasty.js';
 import { titleOf, titleMeasures, countDynastyMonth } from '../../../src/sim/dynasty.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
+import { setTaxRate } from '../../../src/sim/palace.js';
+import { monthlyEconomy } from '../../../src/sim/economy.js';
 
 // A city at `milestone` with the tallies given (every other count 0).
 function city({ milestone = 'city', difficulty = 'normal', ...tally } = {}) {
@@ -61,15 +63,32 @@ describe('v90 d titles: each rule at its bar and either side', () => {
     expect(titleOf(city({ fedMonths: 26, townMonths: 30 })).id).toBe('steady');   // 0.867
   });
   it('the Generous: Low at 0.50 of month ends from Town, from the 24th, with High at most a tenth', () => {
-    expect(titleOf(city({ taxLowMonths: 12, townMonths: 24 })).id).toBe('generous');
-    expect(titleOf(city({ taxLowMonths: 11, townMonths: 24 })).id).toBe('steady');
-    expect(titleOf(city({ taxLowMonths: 20, townMonths: 20 })).id).toBe('steady');                 // too few counted
-    expect(titleOf(city({ taxLowMonths: 15, taxHighMonths: 3, townMonths: 30 })).id).toBe('generous');   // 3 of 30: a tenth
-    expect(titleOf(city({ taxLowMonths: 15, taxHighMonths: 4, townMonths: 30 })).id).toBe('steady');
+    expect(titleOf(city({ lowMonths: 12, townMonths: 24 })).id).toBe('generous');
+    expect(titleOf(city({ lowMonths: 11, townMonths: 24 })).id).toBe('steady');
+    expect(titleOf(city({ lowMonths: 20, townMonths: 20 })).id).toBe('steady');                 // too few counted
+    expect(titleOf(city({ lowMonths: 15, highMonths: 3, townMonths: 30 })).id).toBe('generous');   // 3 of 30: a tenth
+    expect(titleOf(city({ lowMonths: 15, highMonths: 4, townMonths: 30 })).id).toBe('steady');
   });
-  it('caps an 8.4 city\'s Low and High month ends at the month ends counted from Town (ruling 1574)', () => {
+  it('reads only the Low month ends counted from Town, never 8.4\'s count from the first month (ruling 1584)', () => {
     const row = titleMeasures(city({ taxLowMonths: 80, townMonths: 24 })).find((r) => r.id === 'generous');
-    expect([row.low, row.measure, row.fit]).toEqual([24, 1, 2]);
+    expect([row.low, row.measure, row.fit]).toEqual([0, 0, 0]);
+    // A city at Low before Town (the palace's rate set early), then Normal from Town: Low counted for 8.4's tally only.
+    const w = makeTestWorld({ size: 32, gold: 50000 });
+    setRoad(w, 0, 10, 31, 10);
+    addRaw(w, 'house', 10, 11, { tier: 3, residents: 10 });
+    const p = addRaw(w, 'palace', 14, 11, { style: 0, works: null });
+    setTaxRate(w, p.id, 'low');
+    w.milestone = 'village';
+    for (let k = 0; k < 6; k++) { monthlyEconomy(w); countDynastyMonth(w); }
+    setTaxRate(w, p.id, 'normal');
+    w.milestone = 'town';
+    for (let k = 0; k < 24; k++) { monthlyEconomy(w); countDynastyMonth(w); }
+    expect([w.tally.taxLowMonths, w.tally.lowMonths, w.tally.highMonths, w.tally.townMonths, titleOf(w).id]).toEqual([6, 0, 0, 24, 'steady']);
+    setTaxRate(w, p.id, 'high');
+    monthlyEconomy(w); countDynastyMonth(w);
+    setTaxRate(w, p.id, 'low');
+    for (let k = 0; k < 25; k++) { monthlyEconomy(w); countDynastyMonth(w); }
+    expect([w.tally.lowMonths, w.tally.highMonths, w.tally.townMonths, titleOf(w).id]).toEqual([25, 1, 50, 'generous']);   // 25 of 50 at Low, 1 at High
   });
 });
 
@@ -81,7 +100,7 @@ describe('v90 d titles: the highest fit, ties and the runner-up', () => {
   it('breaks a tie by the table\'s order', () => {
     expect(titleOf(city({ raidsBeaten: 3, stoneLaid: 2000 })).id).toBe('unconquered');
     expect(titleOf(city({ stoneLaid: 2000, tradeGold: 400, billsPaid: 1000 })).id).toBe('builder');
-    expect(titleOf(city({ tradeGold: 450, billsPaid: 1000, fedMonths: 24, townMonths: 24, taxLowMonths: 12 })).id).toBe('merchant');   // 1.125 beats 1.111 and 1
+    expect(titleOf(city({ tradeGold: 450, billsPaid: 1000, fedMonths: 24, townMonths: 24, lowMonths: 12 })).id).toBe('merchant');   // 1.125 beats 1.111 and 1
   });
   it('names the closest title as the runner-up even when none is met, and leaves out one that may not be earned', () => {
     const t = titleOf(city({ stoneLaid: 1500, tradeGold: 100, billsPaid: 1000 }));

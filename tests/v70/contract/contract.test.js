@@ -112,7 +112,7 @@ describe('v70 contract world v10', () => {
     expect([loaded.day, loaded.cityEvents]).toEqual([day + YEAR, { nextDay: day + YEAR, cooldowns: {}, waiting: null }]);   // no event drew in the year
     expect(w.cityEvents).toEqual(newEventState(day + YEAR));
     // 8.4: the load's luxury grace. 9.0 (Track D, ruling 1560): the four month-end counts start at the load, so they are left out too (was: compared).
-    const strip = (world) => { const o = JSON.parse(serialize(world)); delete o.cityEvents; delete o.luxuryFrom; for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid']) delete o.tally[k]; return o; };
+    const strip = (world) => { const o = JSON.parse(serialize(world)); delete o.cityEvents; delete o.luxuryFrom; for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid', 'lowMonths', 'highMonths']) delete o.tally[k]; return o; };
     expect(strip(loaded)).toEqual(strip(w));
     expect(validateWorld(JSON.parse(serialize(loaded)))).toBe(true);
   });

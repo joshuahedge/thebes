@@ -33,7 +33,7 @@ describe('v90 w0 save: world version 12', () => {
     expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([12, 12, 12]);
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     expect([REQUIRED.includes('heir'), w.heir, HEIR_DEFAULT]).toEqual([true, 'steady', 'steady']);
-    expect(V90_TALLY).toEqual(['townMonths', 'fedMonths', 'tradeGold', 'billsPaid']);
+    expect(V90_TALLY).toEqual(['townMonths', 'fedMonths', 'tradeGold', 'billsPaid', 'lowMonths', 'highMonths']);   // Track D's fix round (ruling 1584): was the first four
     expect(STAGE90_TALLY).toEqual(V90_TALLY);
     for (const k of V90_TALLY) { expect([k, w.tally[k]]).toEqual([k, 0]); expect(TALLY_KEYS).toContain(k); }
     expect(new Set(TALLY_KEYS).size).toBe(TALLY_KEYS.length);

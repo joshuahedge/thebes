@@ -98,22 +98,32 @@ export function createPassSheets(ctx) {
     queueMicrotask(() => { if (card.element.isConnected) card.focus(); });
   }
 
-  // Start: everything at once, in this order, so the ruler row reads the dynasty's name and the heir's city reads the new heir.
+  // Start: everything at once, in this order, so the ruler row reads the dynasty's name and the heir's city reads the new heir (ruling 1569).
+  // A second tap finds no title and does nothing. The dynasty's name is set only once the seal is made. A ruler row the records did not keep (a throw,
+  // or storage that refused it: records swallow a failed write, so the row is read back) undoes the seal and keeps the city, saying so (ruling 1583).
   function pass() {
-    const id = title.id, ruler = nameNow(), r = records(), at = clock();
-    try { if (r) r.setDynasty({ name: ruler }); } catch (e) { /* records never stop a Pass */ }
+    if (!title) return;
+    const t = title, id = t.id, ruler = nameNow(), r = records(), at = clock();
+    title = null;
     const n = regnalOf(ruler);
     const res = passThrone(world, { title: id });
-    if (!res.ok) { if (ctx.toasts) ctx.toasts.show(W.passFailed); return; }
+    if (!res.ok) { title = t; if (ctx.toasts) ctx.toasts.show(W.passFailed); return; }
     try {
       if (r) {
+        r.setDynasty({ name: ruler });
         r.noteCity(world, at);
         r.addSeal(world, res.seal, at);
-        r.addRuler(world, res.seal, res.title, at);
+        const row = r.addRuler(world, res.seal, res.title, at);
+        if (!row || !r.rulers().some((x) => x.id === row.id)) throw new Error('ruler_not_kept');
         r.setDynasty({ heir: res.title });
       }
-    } catch (e) { /* records never stop a Pass */ }
-    title = null; name = null;
+    } catch (e) {
+      if (world.seals[world.seals.length - 1] === res.seal) world.seals.pop();
+      title = t;
+      if (ctx.toasts) ctx.toasts.show(W.passFailed);
+      return;
+    }
+    name = null;
     if (ctx.hooks && typeof ctx.hooks.startHeir === 'function') ctx.hooks.startHeir({ notice: W.passedToast(ruler, n, res.title) });
   }
 

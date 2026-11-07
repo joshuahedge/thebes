@@ -14,7 +14,9 @@ import { boot } from '../../../src/boot.js';
 import { V90_D_TEXT, T } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
-import { fire } from '../../helpers/dom.js';
+import { fire, mount } from '../../helpers/dom.js';
+import { createPassSheets } from '../../../src/ui/v90/passSheet.js';
+import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 
 // The seed-11 sample Capital, the Builder by its laid units.
 function capital() {
@@ -178,6 +180,58 @@ describe('v90 d pass: the interface', () => {
       r.api.startGame(capital());
       r.api.hooks.passThrone(); await frame();
       expect(sheet().querySelector('.pass-title').textContent).toBe('Ramesses II will be remembered as the Builder.');
+    } finally { r.cleanup(); }
+  });
+});
+
+// Track D's fix round (ruling 1583): Start sets the dynasty's name only once the seal is made; a ruler row the records do not keep undoes the seal and keeps the city;
+// a second tap on Start does nothing.
+describe('v90 d pass: Start when the records fail, and a double tap', () => {
+  // The two sheets on their own, over a store, with records whose writes can fail.
+  function rig({ keep = true, throwOn = null } = {}) {
+    const { root, cleanup } = mount('<div id="a"></div><div id="b"></div>');
+    const log = [], rows = [], toasts = [], started = [];
+    const records = {
+      dynasty: () => ({ name: '', heir: 'steady' }),
+      rulers: () => rows.slice(),
+      setDynasty: (p) => { if (throwOn === 'setDynasty') throw new Error('x'); log.push(['setDynasty', p]); return p; },
+      noteCity: () => log.push(['noteCity']),
+      addSeal: () => log.push(['addSeal']),
+      addRuler: (world, seal, title) => { if (throwOn === 'addRuler') throw new Error('x'); const row = { id: `c:${seal.day}`, name: 'Ramesses', title }; if (keep) rows.push(row); log.push(['addRuler']); return row; },
+    };
+    const store = createStore(INITIAL_UI_STATE);
+    const world = capital();
+    const sheets = createPassSheets({ world, store, toasts: { show: (t) => toasts.push(t) }, hooks: { records, startHeir: (o) => started.push(o) }, clock: () => 5 });
+    sheets.passThrone(root.querySelector('#a'), {});
+    sheets.passHeir(root.querySelector('#b'), {});
+    const start = () => fire(root.querySelector('#b .start-city'), 'click');
+    return { world, log, toasts, started, start, cleanup };
+  }
+  it('passes once on Start, and a second tap neither seals again nor starts a second city', () => {
+    const r = rig();
+    try {
+      const seals = r.world.seals.length;
+      r.start(); r.start();
+      expect([r.world.seals.length - seals, r.started.length, r.toasts]).toEqual([1, 1, []]);
+      expect(r.log.map((x) => x[0])).toEqual(['setDynasty', 'noteCity', 'addSeal', 'addRuler', 'setDynasty']);
+    } finally { r.cleanup(); }
+  });
+  it('undoes the seal, says so and starts no city when the ruler row is not kept or a write throws', () => {
+    for (const opts of [{ keep: false }, { throwOn: 'addRuler' }, { throwOn: 'setDynasty' }]) {
+      const r = rig(opts);
+      try {
+        const seals = r.world.seals.length;
+        r.start();
+        expect([JSON.stringify(opts), r.world.seals.length - seals, r.started.length, r.toasts]).toEqual([JSON.stringify(opts), 0, 0, [V90_D_TEXT.passFailed]]);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('sets no name when the seal is refused', () => {
+    const r = rig();
+    try {
+      r.world.lesson = true;   // passThrone refuses it now
+      r.start();
+      expect([r.log, r.started.length, r.toasts]).toEqual([[], 0, [V90_D_TEXT.passFailed]]);
     } finally { r.cleanup(); }
   });
 });

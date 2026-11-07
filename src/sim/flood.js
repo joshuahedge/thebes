@@ -206,7 +206,8 @@ export function floodLook(world) {
   if (monthsTo === null && phase === 'quiet') monthsTo = month < FLOOD.months[0] ? FLOOD.months[0] - month : MONTHS_PER_YEAR - month + FLOOD.months[0];
   const level = record && f.forecast ? floodLevelRow(f.forecast) : null;
   // Version 8.1 (ruling 1221): factor is what the floodplain farms grow now, prepared; prepared says the Nilometer cut the applied level's loss.
-  return { on: true, phase, level, known: Boolean(level), applied, factor: levelHarvest(world, applied), prepared: preparedFor(world, applied), levelPrepared: preparedFor(world, level), monthsTo };
+  // Version 9.0 (Track D, ruling 1583): levelFactor is what they would grow at the known level (levelHarvest: prepared, and the Bountiful's deeper loss), for the words.
+  return { on: true, phase, level, known: Boolean(level), applied, factor: levelHarvest(world, applied), prepared: preparedFor(world, applied), levelPrepared: preparedFor(world, level), levelFactor: level ? levelHarvest(world, level) : null, monthsTo };
 }
 
 // Version 8.1 (Track B, ruling 1222): the next flood as the top bar's flood icon shows it, all year. With a working Nilometer the level of the next rise

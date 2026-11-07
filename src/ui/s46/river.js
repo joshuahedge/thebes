@@ -10,7 +10,7 @@
 // (S46_RIVER_TEXT). Nothing floats over the map: new things arrive through the caption row and the sheets (UX rule 1).
 import { seamBase } from './seam.js';
 import { BUILDINGS } from '../../data/buildings.js';
-import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason, nextFlood, preparedFor } from '../../sim/flood.js';
+import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason, nextFlood, preparedFor, levelHarvest } from '../../sim/flood.js';
 import { floodLevelRow } from '../../data/river.js';
 import { huntingOutlook, huntRest, crocsNear, scareable, scareOf } from '../../sim/wildlife.js';
 import { isWorking } from '../../sim/labour.js';
@@ -28,7 +28,7 @@ export function riverRows(world, b) {
   if (isFloodFarm(b.type)) {
     if (look.on && onFloodplain(world, b)) {
       out.push(row(R.floodRowLabel, look.applied ? `${Math.round(look.factor * 100)}%` : '100%'), line(R.farmRow(look)));   // Version 8.1: as the farm grows it (prepared, ruling 1221)
-      if (look.known && look.level && (look.phase === 'forecast')) out.push(line(R.farmRowNext(look.level.id, look.levelPrepared)));
+      if (look.known && look.level && (look.phase === 'forecast')) out.push(line(R.farmRowNext(look.level.id, look.levelPrepared, look.levelFactor)));   // Version 9.0: the sim's factor (ruling 1583)
     } else if (look.on) out.push(line(R.farmOff));
   }
   if (b.type === 'nilometer') {
@@ -84,9 +84,10 @@ export function createRiverUi(ctx) {
     sheetParts: { ...base.sheetParts, building: (b) => (b && world.buildings[b.id] === b ? riverRows(world, b) : []), summary: () => riverSummary(world) },
     onEvents(events) {
       for (const e of events || []) {
-        if (e.type === 'flood_forecast') tell(R.forecastCaption(e.level, preparedFor(world, floodLevelRow(e.level))), e.level);   // Version 8.1: prepared (ruling 1221)
+        // Version 8.1: prepared (ruling 1221). Version 9.0 (ruling 1583): the percentage is the sim's (levelHarvest: the Bountiful's deeper loss).
+        if (e.type === 'flood_forecast') tell(R.forecastCaption(e.level, preparedFor(world, floodLevelRow(e.level)), levelHarvest(world, floodLevelRow(e.level))), e.level);
         else if (e.type === 'flood_rise') {
-          tell(R.riseCaption(e.level, preparedFor(world, floodLevelRow(e.level))), e.level);
+          tell(R.riseCaption(e.level, preparedFor(world, floodLevelRow(e.level)), levelHarvest(world, floodLevelRow(e.level))), e.level);
           tip('floodRose');
         } else if (e.type === 'croc_scare') caption(R.scareCaption(nameOf(e.id), e.days));
         else if (e.type === 'herd_arrived') caption(R.herdCaption(e.kind, e.size));
@@ -94,7 +95,7 @@ export function createRiverUi(ctx) {
     },
     refresh() {
       const f = world.flood;
-      if (f.forecast && !f.risen && (told.year !== f.year || told.level !== f.forecast)) tell(R.forecastCaption(f.forecast), f.forecast);   // the priests' forecast (the Court's card)
+      if (f.forecast && !f.risen && (told.year !== f.year || told.level !== f.forecast)) tell(R.forecastCaption(f.forecast, false, levelHarvest(world, floodLevelRow(f.forecast))), f.forecast);   // the priests' forecast (the Court's card)
     },
     onCommand(e) {
       const built = e && e.kind === 'building' && e.result && world.buildings[e.result.id];

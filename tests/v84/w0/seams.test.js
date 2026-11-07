@@ -108,7 +108,7 @@ describe('v84 w0 save: world version 11', () => {
     for (const k of V84_TALLY) expect([k, loaded.tally[k]]).toEqual([k, 0]);
     expect(loaded.raid.nextWarnDay).toEqual(w.raid.nextWarnDay);
     w.luxuryFrom = loaded.luxuryFrom;
-    for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid']) w.tally[k] = loaded.tally[k];   // 9.0 (Track D, ruling 1560): the month-end counts start at the load
+    for (const k of ['townMonths', 'fedMonths', 'tradeGold', 'billsPaid', 'lowMonths', 'highMonths']) w.tally[k] = loaded.tally[k];   // 9.0 (Track D, ruling 1560): the month-end counts start at the load
     expect(loaded).toEqual(w);
     advanceDays(w, 360);
     advanceDays(loaded, 360);

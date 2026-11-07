@@ -13,6 +13,11 @@ import { crewDayUnits, rushQuote } from '../../../src/sim/monuments.js';
 import { monthFigures, monthForecast, taxesAt } from '../../../src/sim/economy.js';
 import { setTaxRate, taxFactorOf } from '../../../src/sim/palace.js';
 import { soldiersPayOf } from '../../../src/sim/costs.js';
+import { spoilsSaving, spoilsMonth } from '../../../src/sim/spoils.js';
+import { riverRows } from '../../../src/ui/s46/river.js';
+import { S46_RIVER_TEXT, plural } from '../../../src/ui/text.js';
+import { nextFlood } from '../../../src/sim/flood.js';
+import { mount } from '../../helpers/dom.js';
 import { raidDay } from '../../../src/sim/raids.js';
 import { produceDay, heirRate, harvestFactor } from '../../../src/sim/production.js';
 import { levelHarvest, floodHarvestFactor, floodOutlook, floodLook } from '../../../src/sim/flood.js';
@@ -30,6 +35,7 @@ import { rushCity } from '../../v84/g/fixtures.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 const as = (w, heir) => { w.heir = heir; return w; };
+const text = (nodes) => { const { root, cleanup } = mount('<div id="x"></div>'); try { root.querySelector('#x').append(...nodes); return root.querySelector('#x').textContent; } finally { cleanup(); } };
 const near = (a, b) => Math.abs(a - b) < 1e-9 * Math.max(1, Math.abs(b));
 const others = (heir) => HEIRS.filter((h) => h !== heir);
 
@@ -112,6 +118,18 @@ describe('v90 d traits: the Unconquered', () => {
     expect(soldiersPayOf(u)).toBe(Math.round(full * 0.8 * (1 - SPOILS.share)));
     expect([monthFigures(u).soldiers, monthForecast(u).soldiers]).toEqual([soldiersPayOf(u), soldiersPayOf(u)]);
   });
+  it('says and books what the weapons save off the heir\'s own pay (spoilsSaving, spoilsMonth)', () => {
+    const full = 7 * UNIT_TYPES.soldier.pay;
+    for (const [heir, before] of [['steady', full], ['unconquered', Math.round(full * 0.8)]]) {
+      const w = army(heir);
+      w.raid.spoils = { until: w.day + 100 };
+      const less = before - soldiersPayOf(w);
+      expect([heir, spoilsSaving(w)]).toEqual([heir, { less, daysLeft: 100 }]);
+      const gold = w.tally.spoilsGold || 0;
+      spoilsMonth(w);
+      expect([heir, w.tally.spoilsGold - gold]).toEqual([heir, less]);
+    }
+  });
   it('is warned first 100 days sooner after the clock starts (200, not 300)', () => {
     for (const heir of HEIRS) {
       const w = as(createWorld({ seed: 8 }), heir);
@@ -153,6 +171,25 @@ describe('v90 d traits: the Bountiful', () => {
     const monthly = 30 * 0.6;   // a grain farm's 30 a month at 6 of its 10 workers
     expect(floodOutlook(s.w)).toEqual({ farms: 1, plain: Math.round(monthly), now: Math.round(monthly * low), level: floodLevelRow('low') });
     expect(floodOutlook(b.w)).toEqual({ farms: 1, plain: Math.round(monthly * 1.15), now: Math.round(monthly * 1.15 * (1 - (1 - low) * 1.5)), level: floodLevelRow('low') });
+  });
+  // Track D's fix round (ruling 1583): every word that names a flood's percentage says the sim's, the Steady's 60% and the Bountiful's 40% for a Low flood.
+  it('says the deeper loss in every word about a coming or rising Low flood, and the data\'s for the Steady', () => {
+    const R = S46_RIVER_TEXT;
+    for (const [heir, pct] of [['steady', '60%'], ['bountiful', '40%']]) {
+      const { w, farm } = farmCity(heir);
+      Object.assign(w.flood, { year: 1, risen: false, forecast: 'low' });   // this year's flood known ahead (the priests or a Nilometer), not risen yet
+      const look = floodLook(w), lowRow = floodLevelRow('low');
+      expect([heir, look.phase, look.levelFactor]).toEqual([heir, 'forecast', levelHarvest(w, lowRow)]);
+      expect([heir, R.floodLine(look)]).toEqual([heir, `Next flood: Low, month 7, in ${plural(look.monthsTo, 'month', 'months')}. Floodplain farms will grow ${pct}`]);
+      expect([heir, text(riverRows(w, farm)).includes(`Low flood coming: ${pct} from month 7`)]).toEqual([heir, true]);
+      expect([heir, R.forecastCaption('low', false, levelHarvest(w, lowRow))]).toEqual([heir, `The flood will be Low: farms on the floodplain grow ${pct}`]);
+      expect([heir, R.riseCaption('low', false, levelHarvest(w, lowRow))]).toEqual([heir, `The Nile is rising: a Low flood. Farms on the floodplain grow ${pct}`]);
+      expect([heir, R.nilometerNext(nextFlood(w))]).toEqual([heir, `Low: floodplain farms ${pct}, in ${plural(nextFlood(w).monthsTo, 'month', 'months')}`]);
+      expect([heir, R.nilometerRow(look, true, null).value]).toEqual([heir, `Low: floodplain farms ${pct}`]);
+      w.flood.applied = 'low'; w.flood.risen = true; w.flood.from = 0; w.flood.to = 89;   // the water is up
+      expect([heir, R.nilometerRow(floodLook(w), true, null).value]).toEqual([heir, `Low: floodplain farms ${pct}`]);
+    }
+    expect([S46_RIVER_TEXT.forecastCaption('low'), S46_RIVER_TEXT.nilometerKnown('low')]).toEqual(['The flood will be Low: farms on the floodplain grow 60%', 'Low: floodplain farms 73%']);   // 8.4's, with no city quoted
   });
 });
 

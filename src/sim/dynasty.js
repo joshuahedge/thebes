@@ -8,6 +8,7 @@ import { atLeast } from './progression.js';
 import { population } from './world.js';
 import { fedNow } from './feats.js';
 import { raidsOn } from './costs.js';
+import { taxRateOf } from './palace.js';
 import { scoreOf, sealReign } from './score.js';
 
 // ── The trait ──
@@ -59,8 +60,8 @@ export function titleMeasures(world) {
         break;
       }
       case 'generous': {
-        // An 8.4 city counted its Low and High month ends before it counted these (ruling 1574): neither may exceed the month ends counted from Town.
-        const low = Math.min(t.taxLowMonths || 0, months), high = Math.min(t.taxHighMonths || 0, months);
+        // The Low and High month ends counted from Town (ruling 1584), never 8.4's taxLowMonths and taxHighMonths, which count from the first month.
+        const low = Math.min(t.lowMonths || 0, months), high = Math.min(t.highMonths || 0, months);
         row = { measure: months > 0 ? low / months : 0, ok: months >= def.months && high <= def.highMax * months, low, high, months };
         break;
       }
@@ -94,6 +95,9 @@ export function countDynastyMonth(world) {
   if (atLeast(world, 'town')) {
     t.townMonths += 1;
     if (fedNow(world, 0)) t.fedMonths += 1;
+    const rate = taxRateOf(world);                       // the Generous's counts (ruling 1584): the month ends from Town at Low and at High
+    if (rate === 'low') t.lowMonths += 1;
+    if (rate === 'high') t.highMonths += 1;
   }
   const m = world.stats.lastMonth;
   if (m && atLeast(world, 'market_town')) {
