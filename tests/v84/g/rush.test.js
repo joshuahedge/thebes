@@ -179,7 +179,7 @@ describe('v84 g Rush: the quote', () => {
     const full = rushQuote(w, site.id);
     guilds[1].staff = 0;
     const q = rushQuote(w, site.id);
-    expect(q.days).toBe(Math.ceil(MONUMENTS.colossus.courses[0].stone / (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) - 1e-6));
+    expect(q.days).toBe(Math.ceil(MONUMENTS.great_sphinx.courses[0].stone / (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) - 1e-6));
     expect(q.days > full.days).toBe(true);
     expect(siteCrews(w, site).length).toBe(2);
   });

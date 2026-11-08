@@ -101,7 +101,7 @@ describe('s45 personal bests are kept per layout', () => {
   });
   it('treats a record from before Stage 4.5 (no layout) as classic', () => {
     const storage = memory();
-    storage.data[RECORDS_KEY] = JSON.stringify({ version: 1, cities: [{ id: 'old', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 250, bestDay: 900, medal: null, splits: { town: 100 }, updated: 1 }], chronicle: [] });
+    storage.data[RECORDS_KEY] = JSON.stringify({ version: 1, cities: [{ id: 'old', seed: 11, difficulty: 'normal', scoreVersion: 3, best: 250, bestDay: 900, medal: null, splits: { town: 100 }, updated: 1 }], chronicle: [] });
     const r = createRecords({ storage });
     expect(r.bestFor(11, 'normal').score).toBe(250);
     expect(r.bestFor(11, 'normal', { variant: 'east' })).toBe(null);

@@ -77,8 +77,8 @@ describe('v84 g Rush on the site\'s sheet', () => {
     const q = rushQuote(w, site.id);
     const rows = rushRows(w, site);
     expect(rows.map((x) => x.key)).toEqual(['rush', 'rush-how']);
-    expect([q.saved, q.extra]).toEqual([60, 2080]);
-    expect(rows[0].text).toBe(`Rush this course: about 60 days sooner, about 2,080 gold more`);   // 160 stone, two crews: 120 days or 60; 160 x 13 gold
+    expect([q.saved, q.extra]).toEqual([45, 1560]);
+    expect(rows[0].text).toBe(`Rush this course: about 45 days sooner, about 1,560 gold more`);   // 120 stone, two crews: 90 days or 45; 120 x 13 gold (9.2: the sphinx, was the colossus's 160)
     expect(rows[1].text.startsWith('Crews work twice as fast on this course; each unit costs 3x the work gold. Stone and bricks must keep up.')).toBe(true);
     const poor = rushCity({ gold: 10 });
     const pq = rushQuote(poor.w, poor.site.id);
@@ -86,7 +86,7 @@ describe('v84 g Rush on the site\'s sheet', () => {
     const lone = addRaw(w, 'obelisk_small', 55, 9);
     expect(rushRows(w, lone)).toEqual([]);                                       // no crew: nothing to hurry (the crews row and the cause say so)
     setRush(w, site.id, true);
-    expect(rushRows(w, site)).toEqual([{ key: 'rush', text: 'Rushed: about 60 days to go on this course', cancel: true }]);
+    expect(rushRows(w, site)).toEqual([{ key: 'rush', text: 'Rushed: about 45 days to go on this course', cancel: true }]);
     site.site.rushShort = 'stone';
     expect(rushRows(w, site)[0].text).toBe('Rushed: waiting for stone');
   });
@@ -97,11 +97,11 @@ describe('v84 g Rush on the site\'s sheet', () => {
     try {
       r.store.set(openSheet(r.store.get(), 'info', site.id));
       const btn = sheetOf(r).querySelector('.row-rush .rush');
-      expect(btn.textContent).toBe('Rush this course: about 60 days sooner, about 2,080 gold more');
+      expect(btn.textContent).toBe('Rush this course: about 45 days sooner, about 1,560 gold more');
       expect(btn.getBoundingClientRect().height >= 44).toBe(true);
       fire(btn, 'click');
       const d = r.store.get().confirmDialog;
-      expect(d.text).toBe('Rush the course under way at the colossus? About 60 days sooner for about 2,080 gold more, paid day by day as the units are laid (3x the work gold). It ends with the course; cancel it at any time and nothing more is paid.');
+      expect(d.text).toBe('Rush the course under way at the great sphinx? About 45 days sooner for about 1,560 gold more, paid day by day as the units are laid (3x the work gold). It ends with the course; cancel it at any time and nothing more is paid.');
       expect(site.site.rush).toBe(undefined);
       d.onConfirm();
       expect(site.site.rush).toBe(true);

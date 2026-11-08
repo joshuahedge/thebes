@@ -45,7 +45,7 @@ describe('v90 l share link: the name and the heir', () => {
     expect(rest).toEqual(a);
     expect([name, heir]).toEqual(['Ana', 'generous']);
     const text = shareLink({ ...base, name: 'Ana', heir: 'generous' });
-    expect(text.slice(text.indexOf('#') + 1).split('&')[0].split('.')[5]).toBe(shareCheck('t2.4242.n.72-65-58-40-36.4-11-30-x-x-x-x'));
+    expect(text.slice(text.indexOf('#') + 1).split('&')[0].split('.')[5]).toBe(shareCheck('t3.4242.n.72-65-58-40-36.4-11-30-x-x-x-x'));
   });
   it('is read by an 8.4 game as the same score, the extras ignored', () => {
     const old = parse84(hashOf(shareLink({ ...base, variant: 'east', size: 48 })));

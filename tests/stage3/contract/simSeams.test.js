@@ -430,22 +430,22 @@ describe('s3 contract score seams', () => {
   it('scores with the version, factor, medals and next medal per level (Track E fills in the parts: tests/stage3/score)', () => {
     const w = street();
     const s = scoreOf(w);
-    expect([s.version, s.factor, s.raw, s.total]).toEqual([2, 1, Object.values(s.parts).reduce((a, b) => a + b, 0), Math.round(s.raw * s.factor)]);
+    expect([s.version, s.factor, s.raw, s.total]).toEqual([3, 1, Object.values(s.parts).reduce((a, b) => a + b, 0), Math.round(s.raw * s.factor)]);
     expect([s.medal, s.next]).toEqual([medalFor(s.raw), nextMedal(w, s.raw)]);
     expect([Object.keys(s.parts), Object.keys(s.reasons)]).toEqual([['people', 'prosperity', 'culture', 'safety', 'monuments'], ['people', 'prosperity', 'culture', 'safety', 'monuments']]);
     expect(Object.keys(scorePreview(w, 'well', 3, 9))).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
-    expect([199, 200, 299, 300, 400, 500].map(medalFor)).toEqual([null, 'bronze', 'bronze', 'silver', 'gold', 'gold']);
+    expect([239, 240, 319, 320, 400, 500].map((raw) => medalFor(raw))).toEqual([null, 'bronze', 'bronze', 'silver', 'gold', 'gold']);
     w.difficulty = 'relaxed';
-    expect([scoreFactor(w), nextMedal(w, 200)]).toEqual([0.8, { medal: 'silver', points: 240 - 160 }]);
+    expect([scoreFactor(w), nextMedal(w, 200)]).toEqual([0.8, { medal: 'bronze', points: 192 - 160 }]);   // 9.2 (Track S): v3's bronze at 240
     w.difficulty = 'hard';
-    expect([nextMedal(w, 0), nextMedal(w, 400)]).toEqual([{ medal: 'bronze', points: 250 }, null]);
+    expect([nextMedal(w, 0), nextMedal(w, 400)]).toEqual([{ medal: 'bronze', points: 300 }, null]);
   });
   it('seals a reign in the world, as often as asked', () => {
     const w = street();
     w.day = 400;
     const s = scoreOf(w);
     const r = sealReign(w);
-    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 2 } });
+    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 3 } });
     sealReign(w);
     expect(w.seals.length).toBe(2);
   });

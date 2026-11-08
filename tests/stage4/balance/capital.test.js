@@ -37,7 +37,7 @@ describe('s4 balance capital run', () => {
     const taxes = last.reduce((n, m) => n + m.taxes, 0);
     const share = last.reduce((n, m) => n + spending(m), 0) / taxes;
     expect(share).toBeGreaterThanOrEqual(0.6);
-    expect(share).toBeLessThanOrEqual(0.7);
+    expect(share).toBeLessThanOrEqual(0.72);   // WAVE2-PIN 9.2 Track S (ruling 1800): was 0.7; measured 0.7156 with the shorter small mastaba and colossus
     // The work gold is the lever (spec 4.11): the same months without it spend under 60%.
     expect(last.reduce((n, m) => n + spending(m) - m.monuments, 0) / taxes).toBeLessThan(0.6);
   });

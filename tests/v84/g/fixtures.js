@@ -13,7 +13,8 @@ export const add = (w, type, x, y, extra = {}) => { const b = makeBuilding(w, ty
 
 // A straight city along a road at y = 10, with `crews` fully staffed guilds near the site (each within 12 road tiles: full speed) and a store of stone
 // beside it (full supply).
-export function rushCity({ type = 'colossus', crews = 2, gold = 100000, difficulty = 'normal', milestone = 'capital', stone = 800, bricks = 0 } = {}) {
+// Version 9.2 (Track S, ruling 1800): the default site is the great sphinx (six courses of 120), where it was the colossus (six of 160): the colossus's six of 140 are not a whole number of days at a rushed pair's 8/3 units a day, which these tests' sums need.
+export function rushCity({ type = 'great_sphinx', crews = 2, gold = 100000, difficulty = 'normal', milestone = 'capital', stone = 800, bricks = 0 } = {}) {
   const w = makeTestWorld({ size: 64, gold });
   setRoad(w, 0, 10, 63, 10);
   w.difficulty = difficulty;

@@ -17,10 +17,10 @@ describe('v91 h habits: the Steady plays as on 9.0', () => {
     }
   });
   // The capital run's year-6 city with adapt on and the Steady: the 9.0 run's numbers (the v90 balance probe's Steady row), and the very same world.
-  it('builds the same year-6 city with adapt on: Capital on day 600, 50,457 gold, lowest 255, score 360', () => {
+  it('builds the same year-6 city with adapt on: Capital on day 570, 49,907 gold, lowest 255, score 341 (9.2: was 600, 50,457, 255, 360)', () => {
     const r = runCapital(CAPITAL_YEARS * 12, { adapt: true });
     expect(r.habit).toBe(null);
-    expect([r.capitalMonth * 30, Math.round(r.w.gold), Math.round(r.lowestGold), scoreOf(r.w).total]).toEqual([600, 50457, 255, 360]);
+    expect([r.capitalMonth * 30, Math.round(r.w.gold), Math.round(r.lowestGold), scoreOf(r.w).total]).toEqual([570, 49907, 255, 341]);   // WAVE2-PIN 9.2 Track S (rulings 1795, 1800): was [600, 50457, 255, 360]
     expect(serialize(r.w) === serialize(capitalRun().w)).toBe(true);
   });
 });

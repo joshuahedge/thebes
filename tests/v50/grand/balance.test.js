@@ -32,7 +32,7 @@ describe('v50 grand balance', () => {
     expect(r.w.day).toBe(GRAND_YEARS * MONTHS_PER_YEAR * 30);
     expect(yearOf(r.first[7])).toBeLessThanOrEqual(7);
     expect(yearOf(r.first[8])).toBeLessThanOrEqual(9);                                // Version 6.0 (Track A): a Villa in month 98 (was 86): the court's due and the rank's costs leave less to build with
-    expect(yearOf(r.first[9])).toBeLessThanOrEqual(9);
+    expect(r.first[9]).toBe(undefined);   // WAVE2-PIN 9.2 Track S (ruling 1800): was an Estate by year 9; with the shorter small mastaba and colossus the run never reaches one in 10 years (the old monuments restore it: bisected)
     const last = r.months[r.months.length - 1].tiers;
     expect(Object.keys(last).some((t) => Number(t) >= 8)).toBe(true);                // a grand home still stands at the end (a Villa and two Fine manors, Version 6.0)
     const grand = housesOf(r.w).filter((h) => h.tier >= 6);

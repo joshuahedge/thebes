@@ -1,5 +1,5 @@
 // Disease (Stage 4.5, ruling 318), all tunable. Each home with people in it builds health risk points towards THRESHOLD every
-// day: BASE, plus a rate for each thing wrong (no well reaches it; it is crowded; the ground around it is poor), times the
+// day: BASE, plus a rate for each thing wrong (no well reaches it; the ground around it is poor), times the
 // difficulty's risk multiplier (riskOf in src/sim/costs.js), times the physician's cut (1 - CUT x coverage). At the threshold a
 // seeded draw (ILLNESS_CHANCE a day) makes it fall ill. Every draw is stateless: hash2(home id, day, seed + a SALT).
 export const HEALTH = {
@@ -7,9 +7,11 @@ export const HEALTH = {
   threshold: 100,            // risk at which a home can fall ill
   base: 0.15,                // a day, for every home with people in it
   noWell: 0.5,               // a day more: no working well reaches it
-  crowded: 0.3,              // a day more: more than CROWDED_PER_TILE residents on each tile of its footprint
+  // Version 9.2 (Track S, ruling 1808): the daily "crowded" term (+0.3 for more than crowdedPerTile residents a tile) is dropped. Measured on the scripted runs it was true
+  // for every Townhouse and up (34 of 34, 30 of 30 and 4 of 4 homes at the capital run's end; 38 of 38 at the great-work run's), so it was a flat rate on the grand homes,
+  // and a rescale to the tier's capacity would make it true of every full home of every tier: the term told the player nothing. plagueRisk and the plague's room rule keep it.
   poorGround: 0.3,           // a day more: nearby desirability below 0
-  crowdedPerTile: 20,        // Townhouses and every 2x2 home fill up past this
+  crowdedPerTile: 20,        // the plague's own rule (src/sim/plague.js: where it starts, and a home with room): Townhouses and every 2x2 home fill up past this
   illnessChance: 0.02,       // a day, once at the threshold
   cut: 0.8,                  // a fully staffed physician cuts build-up by 80% (scaled by coverage)
   staffedAt: 0.5,            // coverage that counts as covered: spreads no further and a cure twice as fast

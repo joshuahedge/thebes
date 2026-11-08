@@ -119,7 +119,7 @@ describe('data tiers 5-9', () => {
     expect(MAX_TIER).toBe(9);
     const rows = TIERS.slice(5).map((t) => [t.tier, t.name, t.size, t.capacity, t.tax]);
     expect(rows).toEqual([
-      [5, 'Townhouse', 1, 22, 3], [6, 'Manor', 2, 100, 4], [7, 'Fine manor', 2, 125, 5], [8, 'Villa', 2, 150, 6], [9, 'Estate', 2, 180, 8],
+      [5, 'Townhouse', 1, 22, 3], [6, 'Manor', 2, 100, 4], [7, 'Fine manor', 2, 125, 5], [8, 'Villa', 2, 150, 7], [9, 'Estate', 2, 180, 8],
     ]);
     for (let t = 1; t <= MAX_TIER; t++) expect(TIERS[t].tier).toBe(t);
   });

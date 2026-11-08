@@ -22,7 +22,7 @@ export const TIERS = [
     needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods'], desirability: { rise: 35, keep: 29 },
   },
   {
-    tier: 8, name: 'Villa', size: 2, capacity: 150, tax: 6,
+    tier: 8, name: 'Villa', size: 2, capacity: 150, tax: 7,   // Version 9.2 (Track S, ruling 1798): was 6, so a Villa pays more than a Fine manor once the luxury is paid for
     needs: ['water', 'food', 'religion', 'pottery', 'entertainment', 'beer', 'twoFoods', 'linen', 'threeFoods', 'luxury'], desirability: { rise: 50, keep: 43 }, use: 1.5,
   },
   {

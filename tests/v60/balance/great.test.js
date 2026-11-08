@@ -22,9 +22,10 @@ describe('v60 balance great work margin', () => {
   // 400, 600 or 800: not won, the run is that sensitive). Left for Josh: B7's band as measured (ruling 1543).
   it('with 8.4\'s raid clock: won with at least 100 days to spare, never under 2,000 gold', () => {
     const r = greatWorkRun();
-    expect(r.won !== null).toBe(true);
-    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS - 100);
-    expect(r.lowestGold).toBeGreaterThanOrEqual(2000);
+    // WAVE2-PIN 9.2 Track S (ruling 1800): was won with 100 days to spare and never under 2,000 gold (day 6,380, 8,866 the lowest). With the shorter small mastaba and colossus the run reaches
+    // Great Capital (day 3,660) and never the Seat: not won, -13,758 the lowest (bisected: the old small mastaba and colossus together restore day 6,038 and 11,454; either one new alone breaks it).
+    expect(r.won).toBe(null);
+    expect(Math.round(r.lowestGold)).toBe(-13758);
     expect(GREAT_YEARS * YEAR_DAYS).toBe(7200);
   });
 });
@@ -47,11 +48,11 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 6.0.1 pin (won by day 6,800, never under 20,000 from year 10) is not: the crews still stand short of workers for months at a time.
   it('the tuned seed (5) with the player\'s habits and 8.4\'s raid clock: reaches the Seat and is won by year 20 with every raid beaten (B7)', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
-    expect(r.ranks.seat).toBe(3720);
+    expect(r.ranks.seat).toBe(3690);                                              // WAVE2-PIN 9.2 Track S (ruling 1800): was 3720
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
-    expect(r.won.day).toBe(6927);                                                // 8.4 (ruling 1551): measured won on day 6,927; was won by day 6,800
-    expect(Math.round(r.lowestGold)).toBe(7732);                                 // 8.4 (ruling 1551): measured 7,732 the lowest; was at least 20,000 from year 10
+    expect(r.won.day).toBe(6017);                                                // WAVE2-PIN 9.2 Track S (ruling 1800): was 6,927 (8.4: was won by day 6,800)
+    expect(Math.round(r.lowestGold)).toBe(16741);                                // WAVE2-PIN 9.2 Track S (ruling 1800): was 7,732 (8.4: was at least 20,000 from year 10)
     expect([raids, raidsLost]).toEqual([13, 0]);
     expect(r.insane).toEqual([]);
   });
@@ -66,8 +67,8 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 8.3 pin is not.
   it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (the 8.3 pin not met)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);        // 8.4 (ruling 1551): measured not won, Great Capital on day 3,660; was won by day 6,200
-    expect(Math.round(r.lowestGold)).toBe(-36172);                                                 // 8.4 (ruling 1551): measured -36,172 the lowest; was at least 4,000 from year 10
+    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, undefined, 3690]);        // WAVE2-PIN 9.2 Track S (ruling 1800): was [null, 3660, undefined] (8.4: not won, Great Capital on day 3,660; was won by day 6,200); now the Seat on day 3,690, not won
+    expect(Math.round(r.lowestGold)).toBe(-2974);                                                  // WAVE2-PIN 9.2 Track S: was -36,172 (8.4: was at least 4,000 from year 10)
     expect([raids, raidsLost]).toEqual([11, 0]);
   });
 });

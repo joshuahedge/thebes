@@ -71,9 +71,9 @@ describe('v90 balance T4 each strength and each weakness shows, on the capital r
     const s = year6('steady'), u = year6('unconquered');
     expect(soldiersPayOf(s)).toBeGreaterThan(0);
     expect(Math.abs(soldiersPayOf(u) - soldiersPayOf(s) * 0.8)).toBeLessThanOrEqual(1);
-    expect([firstWarnAfterOf(s), firstWarnAfterOf(u)]).toEqual([300, 200]);
+    expect([firstWarnAfterOf(s), firstWarnAfterOf(u)]).toEqual([300, 270]);   // WAVE2-PIN 9.2 Track S (ruling 1802): was [300, 200], the first warning 100 days sooner; now 30 days, and every later warning too
     const steady = capitalOf('steady'), heir = capitalOf('unconquered');
-    expect([steady.warns[0] - steady.r.w.raid.clockDay, heir.warns[0] - heir.r.w.raid.clockDay]).toEqual([300, 200]);
+    expect([steady.warns[0] - steady.r.w.raid.clockDay, heir.warns[0] - heir.r.w.raid.clockDay]).toEqual([300, 270]);   // WAVE2-PIN 9.2 Track S (ruling 1802): was [300, 200]
     expect([heir.r.w.tally.raidsLost, heir.r.w.tally.raidsBeaten >= steady.r.w.tally.raidsBeaten]).toEqual([0, true]);
   });
   it('the Bountiful: the farms make 15% more in a good flood, and a low flood\'s loss is half again as deep', () => {
@@ -109,14 +109,14 @@ describe('v90 balance T4 each strength and each weakness shows, on the capital r
     expect(Math.abs(monthlyArrivals(g) - monthlyArrivals(s) * 1.2)).toBeLessThanOrEqual(1.2);
     expect([taxFactorOf(s, 'high'), taxFactorOf(g, 'high')]).toEqual([1.25, 1.15]);
     const normal = monthFigures(s).taxesNormal;
-    expect(Math.abs(taxesAt(g, 'high', normal) - taxesAt(s, 'high', normal) * (1.15 / 1.25))).toBeLessThanOrEqual(1);
+    expect(Math.abs(taxesAt(g, 'high', normal) - taxesAt(s, 'high', normal) * (1.15 * 0.95 / 1.25))).toBeLessThanOrEqual(1);   // 9.2 (Track S): the Generous's taxes x0.95
   });
 });
 
 describe('v90 balance T5 the score at year 6 of the capital run', () => {
   it('scores every heir\'s own run within 8% of the Steady\'s, never below 0 gold', () => {
     const steady = scoreOf(capitalOf('steady').r.w).total;
-    expect(steady).toBe(360);
+    expect(steady).toBe(341);   // WAVE2-PIN 9.2 Track S (rulings 1795, 1800): was 360 (score v2; v3 counts the terms that have started, and the capital run's shorter mastaba and colossus change the city)
     for (const heir of HEIRS) {
       const { r } = capitalOf(heir);
       const total = scoreOf(r.w).total;

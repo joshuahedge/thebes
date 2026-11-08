@@ -11,7 +11,7 @@ function memory(start = null) {
 // Month-end rows: a v1 row has four parts and no version (MIGRATIONS[4] marks them 1; a missing one reads as 1); a v2 row
 // five parts and version 2. Each part is the score's share, so the medal follows the score on its own scale.
 const v1 = (day, score) => ({ day, people: 0, gold: 0, mood: 60, score, parts: { people: score / 4, prosperity: score / 4, culture: score / 4, safety: score / 4 } });
-const v2 = (day, score) => ({ day, people: 0, gold: 0, mood: 60, score, parts: { people: score / 5, prosperity: score / 5, culture: score / 5, safety: score / 5, monuments: score / 5 }, version: 2 });
+const v2 = (day, score) => ({ day, people: 0, gold: 0, mood: 60, score, parts: { people: score / 5, prosperity: score / 5, culture: score / 5, safety: score / 5, monuments: score / 5 }, version: 3 });
 function city(history, { id = 'a', seed = 11 } = {}) {
   const w = createWorld({ seed, difficulty: 'normal', cityId: id });
   w.history = history;
@@ -25,13 +25,13 @@ describe('s4 score records', () => {
     r.noteCity(city([v1(30, 300), v1(60, 250)]), 1);                  // a Stage 3 city, before any v2 month end
     expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 1, best: 300, bestDay: 30, medal: 'silver', splits: {}, updated: 1 });   // 300 of 400: v1's silver
     r.noteCity(city([v1(60, 250), v2(90, 250)]), 2);                  // its first v2 month: 250 is bronze under v2
-    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 2, best: 250, bestDay: 90, medal: 'bronze', splits: {}, updated: 2,
+    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 3, best: 250, bestDay: 90, medal: 'bronze', splits: {}, updated: 2,
       older: { best: 300, bestDay: 30, medal: 'silver', scoreVersion: 1 } });
     r.noteCity(city([v2(120, 280)]), 3);                              // the v1 rows have left the 12 rows: the older best stays
     expect([r.load().cities[0].best, r.load().cities[0].older]).toEqual([280, { best: 300, bestDay: 30, medal: 'silver', scoreVersion: 1 }]);
     expect(r.bests()).toEqual([
       { seed: 11, difficulty: 'normal', score: 300, medal: 'silver', version: 1, older: true },
-      { seed: 11, difficulty: 'normal', score: 280, medal: 'bronze', version: 2, older: false },
+      { seed: 11, difficulty: 'normal', score: 280, medal: 'bronze', version: 3, older: false },
     ]);
     expect([r.bestFor(11, 'normal').score, r.bestFor(11, 'normal', { version: 1 }).score, r.bestFor(11, 'normal', { except: 'a' })]).toEqual([280, 300, null]);
   });

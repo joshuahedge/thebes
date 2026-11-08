@@ -30,19 +30,19 @@ export const MONUMENTS = {
     name: 'Large obelisk', w: 1, d: 1, rotates: false, crews: 2, crewMonths: 18, courses: even(4, 90),
     founding: 400, extra: { kind: 'gilding', gold: 1000 }, prestige: { courses: 15, done: 15 }, desirability: [10, 8, 6, 4, 2, 1], unlock: { milestone: 'city' },
   },
-  // Stage 4.6 (ruling 390): between the large obelisk and the colossus: stone only, 720 of it (the large obelisk's 360, the colossus's 960),
-  // 18 months with its two crews (9 and 24); a desirability profile like the colossus's; it comes with the colossus, at Great city.
+  // Stage 4.6 (ruling 390): between the large obelisk and the colossus: stone only, 720 of it (the large obelisk's 360, the colossus's 840 since 9.2),
+  // 18 months with its two crews (9 and 21); a desirability profile like the colossus's; it comes with the colossus, at Great city.
   great_sphinx: {
     name: 'Great sphinx', w: 3, d: 2, rotates: false, crews: 2, crewMonths: 36, courses: even(6, 120),
     founding: 500, extra: null, prestige: { courses: 20, done: 20 }, desirability: [12, 10, 8, 6, 4, 2], unlock: { milestone: 'great_city' },
   },
   colossus: {
-    name: 'Colossus', w: 2, d: 2, rotates: false, crews: 2, crewMonths: 48, courses: even(6, 160),
+    name: 'Colossus', w: 2, d: 2, rotates: false, crews: 2, crewMonths: 42, courses: even(6, 140),   // Version 9.2 (Track S, ruling 1800): was 48 crew-months, six courses of 160. The design's ~36 would tie the great sphinx's 36 and break its place between the obelisk and the colossus: 42 keeps it
     founding: 600, extra: null, prestige: { courses: 25, done: 25 }, desirability: [12, 10, 8, 6, 4, 2], unlock: { milestone: 'great_city' },
   },
-  // Bricks for the core courses, stone for the top (facing) course: 1,620 bricks and 540 stone.
+  // Bricks for the core courses, stone for the top (facing) course: 1,080 bricks and 360 stone since 9.2 (1,620 and 540 before).
   mastaba_small: {
-    name: 'Small mastaba', w: 3, d: 2, rotates: true, crews: 3, crewMonths: 108, courses: [...even(3, 0, 540), ...even(1, 540)],
+    name: 'Small mastaba', w: 3, d: 2, rotates: true, crews: 3, crewMonths: 72, courses: [...even(3, 0, 360), ...even(1, 360)],   // Version 9.2 (Track S, ruling 1800): was 108 crew-months, courses of 540
     founding: 1000, extra: null, prestige: { courses: 35, done: 35 }, desirability: [10, 8, 6, 4, 2, 1], unlock: { milestone: 'great_city' },
   },
   // 3,840 bricks and 960 stone, in five equal courses (contract note 4: the spec's "about 3,600 and 1,200").
@@ -109,8 +109,9 @@ export const MONUMENT = {
 export const SITE_DESIRABILITY = [-3, -2, -1];
 
 // Prestige (spec 4.16, 4.9, 4.19): +1 mood for every moodPer, at most moodMax; the Monuments score part is
-// 100 x sqrt(prestige / scoreFull), at most 100. One of each kind is 700.
-export const PRESTIGE = { moodPer: 70, moodMax: 10, scoreFull: 700 };
+// 100 x sqrt(prestige / scoreFull), at most 100. Version 9.2 (Track S, ruling 1795): scoreFull is the sum of every kind's prestige (one of each
+// kind, all eleven, 1,280 with these numbers), computed from MONUMENTS; it was typed as 700 when seven kinds existed.
+export const PRESTIGE = { moodPer: 70, moodMax: 10, scoreFull: MONUMENT_KINDS.reduce((s, k) => s + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0) };
 
 // The monument kinds that unlock by prestige (with their milestone), in order: their days are recorded once reached
 // (world.prestigeUnlocks) and stay, as milestones do (ruling 243).

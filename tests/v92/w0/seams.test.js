@@ -74,16 +74,16 @@ describe('v92 w0 seams: the letters\' gate', () => {
 });
 
 describe('v92 w0 seams: score v3\'s slot', () => {
-  it('has a medals entry for version 3 equal to v2\'s, SCORE_VERSION stays 2, and a t3 link reads as a t2 one', () => {
-    expect(MEDALS_BY_VERSION[3]).toEqual(MEDALS_BY_VERSION[2]);
-    expect(SCORE_VERSION).toBe(2);
-    expect(SHARE.format).toBe('t2');
+  it('has v3\'s own medals (wave 0 gave v2\'s numbers; 9.2 Track S: 240, 320, 400), SCORE_VERSION 3, and a t3 link reads as a t2 one but for its version', () => {
+    expect(MEDALS_BY_VERSION[3].map((m) => m.at)).toEqual([240, 320, 400]);
+    expect(SCORE_VERSION).toBe(3);
+    expect(SHARE.format).toBe('t3');
     const mk = (t) => { const body = `${t}.7.n.50-60-70-80-90.1-2-3-4-5-6-x`; return `#${body}.${shareCheck(body)}`; };
     const t2 = parseShareLink(mk('t2')), t3 = parseShareLink(mk('t3'));
     expect(t2.ok).toBe(true);
     expect(t3.ok).toBe(true);
-    expect({ ...t3, version: 2 }).toEqual(t2);
-    expect(t3.older).toBe(false);
+    expect({ ...t3, version: 2, older: true }).toEqual(t2);
+    expect([t3.older, t2.older]).toEqual([false, true]);
   });
 });
 

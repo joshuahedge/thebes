@@ -148,8 +148,8 @@ describe('s46 map sizes: share links, personal bests and stamps carry the size',
   it('reads a record with no size (every record from before) as Normal, and an unknown size as Normal', () => {
     const storage = memory();
     storage.setItem(RECORDS_KEY, JSON.stringify({ version: 1, cities: [
-      { id: 'old', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 250, bestDay: 900, medal: null, splits: { town: 100 }, updated: 1 },
-      { id: 'odd', seed: 12, difficulty: 'normal', mapSize: 99, scoreVersion: 2, best: 100, bestDay: 900, medal: null, splits: {}, updated: 1 },
+      { id: 'old', seed: 11, difficulty: 'normal', scoreVersion: 3, best: 250, bestDay: 900, medal: null, splits: { town: 100 }, updated: 1 },
+      { id: 'odd', seed: 12, difficulty: 'normal', mapSize: 99, scoreVersion: 3, best: 100, bestDay: 900, medal: null, splits: {}, updated: 1 },
     ], chronicle: [{ id: 'e1', cityId: 'old', seed: 11, difficulty: 'normal', score: 10, mapSize: 80 }] }));
     const r = createRecords({ storage });
     expect(r.bestFor(11, 'normal').score).toBe(250);

@@ -55,27 +55,27 @@ describe('s4 score Monuments part', () => {
     const second = monument(w, 'colossus', 18, 11, 5);                // a second colossus further along holds the kind now
     expect([reason(w).id, reason(w).more]).toEqual([second.id, 50 - Math.floor((25 * 5) / 6)]);
   });
-  it('has no reason once the part is 100, and scores the curve of spec 4.19', () => {
+  it('scores the curve of spec 4.19 on all eleven kinds, 1,280 prestige (9.2, Track S: the seven of Stage 4 reach 74), and its reason is the next step while a kind is missing', () => {
     const w = street('capital');
-    const at = [['obelisk_small', 8, 11, 12], ['obelisk_large', 10, 11, 24], ['colossus', 12, 11, 36], ['mastaba_small', 15, 11, 48],
-      ['mastaba_large', 19, 11, 62], ['pyramid_small', 8, 18, 78], ['pyramid_great', 14, 18, 100]];
+    const at = [['obelisk_small', 8, 11, 9], ['obelisk_large', 10, 11, 18], ['colossus', 12, 11, 27], ['mastaba_small', 15, 11, 35],
+      ['mastaba_large', 19, 11, 46], ['pyramid_small', 8, 18, 58], ['pyramid_great', 14, 18, 74]];
     for (const [k, x, y, part] of at) {
       finished(w, k, x, y);
       expect([k, scoreOf(w).parts.monuments]).toEqual([k, part]);
     }
-    expect(reason(w)).toBe(null);
+    expect(reason(w)).toEqual({ code: 'found', type: 'great_sphinx', first: false, more: 40, milestone: 'great_city' });
   });
   it('previews "+N Monuments when finished" as the part will count it, and nothing for a second of a kind', () => {
     const w = street('city');
-    expect(monumentPreview(w, 'obelisk_small')).toEqual({ gain: 12, second: false });
-    expect([monumentPreview(w, 'well'), score4MonumentLine(monumentPreview(w, 'obelisk_small'))]).toEqual([null, '+12 Monuments when finished']);
-    expect(scoreLineFor(w, 'obelisk_small', 12, 11)).toBe('+12 Monuments when finished');
+    expect(monumentPreview(w, 'obelisk_small')).toEqual({ gain: 9, second: false });
+    expect([monumentPreview(w, 'well'), score4MonumentLine(monumentPreview(w, 'obelisk_small'))]).toEqual([null, '+9 Monuments when finished']);
+    expect(scoreLineFor(w, 'obelisk_small', 12, 11)).toBe('+9 Monuments when finished');
     const site = monument(w, 'obelisk_small', 10, 11, 0);
     expect([monumentPreview(w, 'obelisk_small'), scoreLineFor(w, 'obelisk_small', 12, 11)]).toEqual([{ gain: 0, second: true }, '']);
     Object.assign(site.site, { course: 3, done: 60 });
     const before = scoreOf(w).parts.monuments;
     const gain = monumentPreview(w, 'obelisk_large').gain;
-    expect([before, gain, score4MonumentLine({ gain: 0, second: false })]).toEqual([12, 12, '']);
+    expect([before, gain, score4MonumentLine({ gain: 0, second: false })]).toEqual([9, 9, '']);
     monument(w, 'obelisk_large', 12, 11, 4, 90);
     expect(scoreOf(w).parts.monuments - before).toBe(gain);           // the preview came true
   });

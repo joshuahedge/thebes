@@ -47,7 +47,7 @@ describe('v90 d ui: the heir\'s first-screen line', () => {
     const w = createWorld({ seed: 3, heir: 'generous' });
     const d = dynastyFor(w);
     d.ui.opening();
-    expect(d.shown).toEqual([{ tier: 'info', text: 'Heir of the Generous', why: '20% more newcomers; High taxes take 1.15x, not 1.25x. The city summary says it again.' }]);
+    expect(d.shown).toEqual([{ tier: 'info', text: 'Heir of the Generous', why: '20% more newcomers; taxes 5% lower at every rate, and High taxes take 1.15x, not 1.25x. The city summary says it again.' }]);
     w.day = HEIR_LINE_DAYS;
     const later = dynastyFor(w); later.ui.opening();
     const plain = dynastyFor(createWorld({ seed: 3 })); plain.ui.opening();
@@ -66,16 +66,16 @@ describe('v90 d ui: the heir\'s first-screen line', () => {
 describe('v90 d ui: the score section', () => {
   it('heads a heir\'s city with its trait, and the Steady with nothing', () => {
     const w = createWorld({ seed: 3, heir: 'unconquered' });
-    expect(text(dynastyFor(w).ui.summary())).toBe("Heir of the Unconquered soldiers' pay 20% lower; the first raid warning comes 100 days sooner");
+    expect(text(dynastyFor(w).ui.summary())).toBe("Heir of the Unconquered soldiers' pay 20% lower; every raid warning comes 30 days sooner");
     expect(dynastyFor(createWorld({ seed: 3 })).ui.summary()).toEqual([]);
   });
   it('says from City what the reign would be remembered as, why, and the next title with how far it is', () => {
     const w = createWorld({ seed: 11 });
     buildSampleCity(w);
-    w.tally.stoneLaid = 5000; w.tally.tradeGold = 100; w.tally.billsPaid = 1000;   // 9.0 wave 2 (ruling 1622, the Builder's bar 2,000 -> 4,600): was 2,500 units
+    w.tally.stoneLaid = 9000; w.tally.tradeGold = 100; w.tally.billsPaid = 1000;   // 9.0 wave 2 (ruling 1622, the Builder's bar 2,000 -> 4,600): was 2,500 units
     const t = titleOf(w);
     const said = text(dynastyFor(w).ui.summary());
-    expect(said).toBe(`Remembered as: the Builder${V90_D_TEXT.whyLine('builder', t.rows)}Close behind: the Merchant (trade paid 10% of the bills; 40% earns it)${V90_D_TEXT.rememberedNote}`);
+    expect(said).toBe(`Remembered as: the Builder${V90_D_TEXT.whyLine('builder', t.rows)}Close behind: the Merchant (trade paid 10% of the bills; 25% earns it)${V90_D_TEXT.rememberedNote}`);
     w.milestone = 'great_city';
     expect(text(dynastyFor(w).ui.summary()).startsWith('Remembered as')).toBe(true);
     w.milestone = 'market_town';
@@ -85,7 +85,7 @@ describe('v90 d ui: the score section', () => {
     const w = createWorld({ seed: 4 });
     w.milestone = 'city';
     w.tally.stoneLaid = 500;
-    expect(text(dynastyFor(w).ui.summary())).toBe(`Remembered as: the Steady${V90_D_TEXT.whyLine('steady', titleOf(w).rows)}Close behind: the Builder (500 of 4,600 units laid)${V90_D_TEXT.rememberedNote}`);
+    expect(text(dynastyFor(w).ui.summary())).toBe(`Remembered as: the Steady${V90_D_TEXT.whyLine('steady', titleOf(w).rows)}Close behind: the Builder (500 of 8,000 units laid)${V90_D_TEXT.rememberedNote}`);
   });
   it('shows in the city summary sheet', async () => {
     const r = await bootWith({ name: 'Ana', heir: 'bountiful' });
@@ -125,8 +125,8 @@ describe('v90 d ui: the City caption, the tip and How to play', () => {
   it('has How to play\'s Dynasty entry, worded from the data', () => {
     const p = V70_HELP.p.find((x) => x.head === 'Dynasty');
     expect(p.text).toContain('From City (400 people), Pass the throne in the game menu ends the reign.');
-    expect(p.text).toContain('the Builder (4,600 units of monuments laid)');   // 9.0 wave 2 (ruling 1622): was 2,000
-    expect(p.text).toContain('Heir of the Generous: 20% more newcomers; High taxes take 1.15x, not 1.25x');
+    expect(p.text).toContain('the Builder (8,000 units of monuments laid)');   // 9.0 wave 2 (ruling 1622): was 2,000; 9.2 (Track S): was 4,600
+    expect(p.text).toContain('Heir of the Generous: 20% more newcomers; taxes 5% lower at every rate, and High taxes take 1.15x, not 1.25x');
     expect(p.text).toContain('The score never counts a trait.');
   });
 });
