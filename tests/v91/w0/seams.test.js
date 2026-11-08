@@ -98,12 +98,15 @@ describe('v91 w0 seams: the loop\'s onError', () => {
 });
 
 describe('v91 w0 seams: the rescue, autosave\'s blocked() and the caches', () => {
-  it('installRescue installs nothing (no listener, no element)', () => {
-    const added = [];
-    const win = { addEventListener: (...a) => added.push(a), removeEventListener() {} };
-    const doc = { addEventListener: (...a) => added.push(a), createElement: () => { throw new Error('no element'); } };
-    expect(installRescue({ win, doc, root: null, game: () => null })).toBe(undefined);
-    expect(added.length).toBe(0);
+  it('installRescue (Track R fills it) gives boot the pieces it wires, listens for errors and rejections, and destroy lets them go', () => {
+    const added = [], removed = [];
+    const win = { addEventListener: (...a) => added.push(a[0]), removeEventListener: (...a) => removed.push(a[0]) };
+    const doc = { addEventListener: (...a) => added.push(a[0]), removeEventListener: (...a) => removed.push(a[0]) };
+    const r = installRescue({ win, doc, root: null, game: () => null });
+    expect(Object.keys(r).sort()).toEqual(['attach', 'cardOpen', 'destroy', 'details', 'frameOk', 'isTainted', 'loadingDone', 'loopError']);
+    expect(added.sort()).toEqual(['error', 'keydown', 'unhandledrejection']);
+    r.destroy();
+    expect(removed.sort()).toEqual(['error', 'keydown', 'unhandledrejection']);
   });
   it('boot.js calls installRescue once, before the title or a development flag\'s game opens', async () => {
     const b = await source('/src/boot.js');
@@ -193,12 +196,12 @@ describe('v91 w0 seams: isUnlocked reads world.lessonCards', () => {
 
 describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections', () => {
   const MARKS = ['<!-- v91 loading -->', '<!-- end v91 loading -->', '<!-- v91 early-error -->', '<!-- end v91 early-error -->', '<!-- v91 preload -->', '<!-- end v91 preload -->'];
-  it('has the three marked blocks, each once and empty: loading and the early error before the first stylesheet, the preload after the last', async () => {
+  it('has the three marked blocks, each once (the preload empty until Track P): loading and the early error before the first stylesheet, the preload after the last', async () => {
     const html = await source('/index.html');
     const at = (s) => html.indexOf(s);
     for (const m of MARKS) expect([m, html.split(m).length]).toEqual([m, 2]);
     for (let i = 1; i < MARKS.length; i++) expect([MARKS[i], at(MARKS[i - 1]) < at(MARKS[i])]).toEqual([MARKS[i], true]);
-    for (let i = 0; i < MARKS.length; i += 2) expect([MARKS[i], html.slice(at(MARKS[i]) + MARKS[i].length, at(MARKS[i + 1])).trim()]).toEqual([MARKS[i], '']);
+    for (let i = 4; i < MARKS.length; i += 2) expect([MARKS[i], html.slice(at(MARKS[i]) + MARKS[i].length, at(MARKS[i + 1])).trim()]).toEqual([MARKS[i], '']);   // Track R fills loading and early-error (tests/v91/r); Track P fills the preload
     const firstSheet = at('<link rel="stylesheet"'), lastSheet = html.lastIndexOf('<link rel="stylesheet"');
     expect(at('<!-- end v91 early-error -->') < firstSheet).toBe(true);
     expect(at('<!-- v91 preload -->') > lastSheet && at('<!-- end v91 preload -->') < at('</head>')).toBe(true);
@@ -220,6 +223,7 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     for (let i = 1; i < marks.length; i++) expect([marks[i], at(marks[i - 1]) < at(marks[i])]).toEqual([marks[i], true]);
     const filled = { '// Version 9.1, Track F (': 'V91F_TEXT' };
     for (let i = 0; i < marks.length; i += 2) {
+      if (marks[i].includes('Track R')) continue;   // Track R's section holds the error card's and Back to gold's words (tests/v91/r)
       const header = text.indexOf('\n', at(marks[i]));
       const body = text.slice(header, at(marks[i + 1])).trim();
       expect([marks[i], filled[marks[i]] ? body.includes(`export const ${filled[marks[i]]} = {`) : body]).toEqual([marks[i], filled[marks[i]] ? true : '']);

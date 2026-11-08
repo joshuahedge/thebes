@@ -41,7 +41,7 @@ describe('ui welcome back', () => {
     // On a phone the card is a sheet: only the alert row stays above it; the goals strip waits (ruling 168).
     expect([getComputedStyle(r.root.querySelector('#goals')).display, getComputedStyle(r.root.querySelector('#banner')).display === 'none']).toEqual(['none', false]);
     fire(sheet.querySelector('.alert-list .view'), 'click');
-    expect(r.store.get().sheet.kind).toBe('summary');
+    expect(r.store.get().sheet.kind).toBe('backToGold');   // Version 9.1 (Track R, ruling 1681): the debt alert's View opens Back to gold
     r.store.set({ sheet: { kind: 'welcome', id: null } });
     fire(r.root.querySelector('#sheet .carry-on'), 'click');
     expect(r.world.speed).toBe(2);

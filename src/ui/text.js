@@ -382,7 +382,7 @@ export function alertText(alert, world) {
     case 'bazaar_sold_out': return { title: 'Bazaar sells out before its homes are fed', fix: `Its homes eat ${alert.need} food a month and it stocks ${alert.stock}: build a second bazaar near them` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
-    case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
+    case 'debt': return { title: 'The treasury is in debt', fix: V91_R_TEXT.debtFix };   // Version 9.1 (Track R, ruling 1681): View opens Back to gold
     case 'save_failed': return { title: 'Progress is not being saved', fix: 'Free up storage, or export the city from the menu' };
     default: return { title: 'Something needs attention', fix: 'Have a look' };
   }
@@ -4581,6 +4581,66 @@ export const V91F_TEXT = {
 // ── end v91 f ──
 
 // Version 9.1, Track R (never stuck: the error card, the loading screen, the debt sheet; rulings 1675-1684). Track R writes only between this header and its end line.
+// The error card (src/ui/v91/rescue.js, design 5b, rulings 1675-1680) and Back to gold (src/ui/v91/debtSheet.js, design 3c, rulings 1681-1684).
+export const V91_R_TEXT = {
+  // The debt alert's fix line (alertText 'debt' reads it): the sheet View opens.
+  debtFix: 'Pause what costs most; View shows which, and the ways out',
+  // The error card.
+  errorTitle: 'Something went wrong',
+  paused: 'The game has paused.',
+  taintedSaved: 'Your city was saved at the start of this month.',
+  taintedNone: 'This city has not been saved, so there is nothing to go back to.',
+  taintedLesson: "The lesson's city is never saved.",
+  stopped: 'The game has stopped drawing.',
+  safeSaved: 'Your city is safe and was just saved.',
+  safeNotSaved: 'Your city could not be saved just now: export it first.',
+  safeLesson: "The lesson's city is never saved.",
+  idle: 'The page hit a problem before the game began.',
+  checking: 'Checking your save…',
+  reloadSave: 'Reload from the save', reloadSaveWhy: 'Goes back to the start of this month: up to one game month of play is lost.',
+  reloadNone: 'Reload', reloadNoneWhy: 'Reloads the page and goes back to the title.',
+  reloadSafe: 'Reload', reloadSafeWhy: 'Reloads the page. Your city is saved as it is now: nothing is lost.',
+  reloadLesson: 'Reload', reloadLessonWhy: 'Reloads the page and goes back to the title.',
+  exportCity: 'Export this city', exportWhy: 'Saves this city as a file for a bug report. It does not replace your save.',
+  exportFailed: 'This city could not be exported.',
+  copyDetails: 'Copy the details', copyWhy: 'Copies the version and the first lines of the error. Nothing personal.',
+  copied: 'Copied.', copyBy: 'Could not copy by itself: select the text below and copy it.',
+  detailsHead: (n) => (n === 1 ? 'Details' : `Details (${n} errors)`),
+  where: { tick: "the day's tick", render: 'the drawing', ui: 'a button or a timer', promise: 'a task that was waiting', idle: 'the page', storm: 'errors that kept coming' },
+  uiFailed: "That didn't work; your city is safe",
+  // The details Copy the details puts on the clipboard.
+  detailLines: ({ version, build, where, device, errors }) => [`Thebes ${version}${build ? ` (build ${build})` : ''}`, `Where: ${where}`, `Device: ${device}`, ...errors],
+  crash: (kind) => `Test crash (the dev flag crash=${kind})`,
+  // Back to gold.
+  debtTitle: 'Back to gold',
+  notInDebt: (gold) => `The treasury is out of debt (${gold} gold).`,
+  inDebt: (gold) => `The treasury is ${-gold} gold in debt.`,
+  figuresHead: 'This month',
+  income: (n) => `Taxes bring in ${n}`, wages: (n) => `Wages cost ${n}`, upkeep: (n) => `Upkeep costs ${n}`, soldiers: (n) => `Soldiers cost ${n}`,
+  net: (n) => (n < 0 ? `The city loses ${-n} gold a month` : n === 0 ? 'The city breaks even' : `The city gains ${n} gold a month`),
+  costsHead: 'What costs most',
+  costsNone: 'No building costs anything right now.',
+  pause: 'Pause',
+  pauseLabel: (name) => `Pause ${name}`,
+  costRow: (name, cost) => `${name}: ${cost} a month`,
+  pauseSaves: (cost) => `Pausing saves ${cost} a month and stops its work. Resume it on its sheet.`,
+  pauseSavesUpTo: (cost) => `Pausing saves up to ${cost} a month and stops its work: its workers may take other jobs. Resume it on its sheet.`,
+  pausedNote: (name, cost) => `${name} paused: ${cost} a month less`,
+  rateHead: 'At this rate',
+  climbs: (months) => `The treasury is out of debt in ${months === 1 ? '1 month' : `${months} months`}.`,
+  breaksEven: 'The treasury stays where it is: nothing pays the debt back.',
+  keepsFalling: (n) => `The treasury keeps falling by ${n} a month: it will not recover.`,
+  limitHead: 'The limit',
+  limitAhead: (room) => `Below ${-ECONOMY.debtFloor} gold in debt nothing new can be bought: ${room} gold of room is left.`,
+  limitAt: `The treasury is past ${-ECONOMY.debtFloor} gold in debt: nothing new can be bought until it climbs back above it.`,
+  limitIn: (months) => `At this rate that is ${months === 0 ? 'before the month ends' : `in ${months === 1 ? '1 month' : `${months} months`}`}.`,
+  leversHead: 'Other ways to bring gold in',
+  leversNone: 'No other way is open to this city yet. Pausing is the way.',
+  taxLever: (rate, gain, mood) => `Raise taxes at the palace to ${V84_G_TEXT.rateNames[rate]}: ${gain} more gold a month, mood ${mood < 0 ? '−' : '+'}${Math.abs(mood)}.`,
+  taxLeverLabel: (rate) => `Show me the palace, to raise taxes to ${V84_G_TEXT.rateNames[rate]}`,
+  sellLever: (good, partner, gold, months, boat, keep) => `Set ${good} to Sell with Keep at least ${keep}: ${partner} pays about ${gold} gold when the next ${boat ? 'boat' : 'caravan'} comes, in ${months === 1 ? '1 month' : `${months} months`}.`,
+  sellLeverLabel: (good) => `Show me the trade sheet, to sell ${good}`,
+};
 // ── end v91 r ──
 
 // Version 9.1, Track A (clear and trusted: About; rulings 1700-1709). Track A writes only between this header and its end line.

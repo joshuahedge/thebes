@@ -277,8 +277,9 @@ describe('ui createUI', () => {
     expect(r.root.querySelector('#map-summary').textContent).toContain('alert');
     expect(r.root.querySelector('#live').textContent).toContain('alert');
     fire(r.root.querySelector('#banner .view'), 'pointerdown');               // a pointer opens it (a key would put focus on the sheet's title, and focus inside keeps the sheet from rebuilding)
-    fire(r.root.querySelector('#banner .view'), 'click', { detail: 1 });      // View: the summary sheet for city-wide alerts
-    expect(r.store.get().sheet.kind).toBe('summary');
+    fire(r.root.querySelector('#banner .view'), 'click', { detail: 1 });      // View: Back to gold for the debt alert (Version 9.1, Track R, ruling 1681); the summary sheet for the other city-wide alerts
+    expect(r.store.get().sheet.kind).toBe('backToGold');
+    r.store.set(openSheet(r.store.get(), 'summary'));                          // the rest of the test keeps the summary open, as it always did
     // An open sheet keeps up with the game: the next day's frame rebuilds it (nothing inside has focus).
     const granary = Object.values(r.world.buildings).find((b) => b.type === 'granary');
     const before = r.root.querySelector('#sheet').textContent;
