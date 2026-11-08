@@ -348,7 +348,7 @@ function bazaarEmptyWords(alert, world) {
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   if (alert.members && alert.members.length > 1) { const rolled = rolledWords(alert, world); if (rolled) return rolled; }   // Version 9.2 (Track Q, ruling 1775): a rolled-up row says its cause once
-  const b =alert.id ? world.buildings[alert.id] : null;
+  const b = alert.id ? world.buildings[alert.id] : null;
   const name = b ? buildingName(b.type) : 'A building';
   if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
   switch (alert.code) {
