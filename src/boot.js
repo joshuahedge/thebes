@@ -14,7 +14,7 @@ import { createSettings } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
 import { createCameraControl } from './ui/cameraControl.js';
 import { createMenuSheets } from './ui/menu.js';
-import { createTitleCard, createBackdrop } from './ui/titleCard.js';
+import { createTitleCard, createBackdrop, firstCityLayout } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
@@ -37,8 +37,8 @@ import { drawMonument } from './render/monuments.js';
 import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
 import { TIPS } from './data/tips.js';
 import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/lesson.js';
-import { lessonWorld, replayTo, LESSON_LENGTH } from './sim/lesson.js';
-import { seenKey } from './ui/cardMoments.js';
+import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesson.js';
+import { seenKey, dueCards } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
 import { installRescue } from './ui/v91/rescue.js';   // Version 9.1 (Track R): the error handler and its card
 
@@ -152,11 +152,14 @@ export async function boot(doc, win, {
   let newCitySize = isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
   // Version 8.0 (Track U, ruling 1151): the layout the new-city card's More choices last chose, 'auto' (Surprise me: the seed picks) until the player picks one; like the
   // size it is for New city only (a shared link names its own, and ?variant= still works while nothing is picked).
-  let newCityLayout = 'auto';
+  // Version 9.1 (Track F, ruling 1660): null until the player picks one, and the card then starts on firstCityLayout (the classic river while the device's records hold
+  // no city, Surprise me after); a ?variant= flag keeps Surprise me's place, so the flag still names the map.
+  let newCityLayout = null;
+  const layoutNow = () => newCityLayout || (variantParam ? 'auto' : firstCityLayout(records));
   // Version 8.2 (Track G, ruling 1310): the seed the new-city card's map preview shows (null until the card draws one), kept through Back and size or layout
   // changes until Another draws a new one or a city starts with it; the city that starts is that seed's map, at that size and layout.
   let newCitySeed = null;
-  const newCityPick = () => ({ seed: newCitySeed, size: newCitySize, variant: newCityLayout === 'auto' ? null : newCityLayout });
+  const newCityPick = () => ({ seed: newCitySeed, size: newCitySize, variant: layoutNow() === 'auto' ? null : layoutNow() });
   // Version 9.0 (fix wave, ruling 1635): Play this map applies its row's level, size, layout and seed to the card at once, so Back must give them back: what was
   // there before is kept here until a city starts (startGame clears it) or the card is backed out of (restorePlayMap).
   let playUndo = null;
@@ -166,7 +169,7 @@ export async function boot(doc, win, {
     if (!u) return;
     settings.set({ difficulty: u.difficulty });
     newCitySize = u.size; newCityLayout = u.layout; newCitySeed = u.seed;
-    if (title) title.card.setChoices({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed });
+    if (title) title.card.setChoices({ mapSize: sizeIdOf(newCitySize), layout: layoutNow(), seed: newCitySeed });
   }
   // A ?seed= flag (development) keeps its own seed and its classic map, as the flags always did; only then may the preview differ from the city.
   const startPicked = () => { const pick = newCityPick(); newCitySeed = null; return freshWorld(params.has('seed') ? { ...pick, seed: null } : pick); };
@@ -246,7 +249,7 @@ export async function boot(doc, win, {
     // Version 8.2 (Track G, rulings 1308-1310): the game menu's New city card keeps its choices here, as the title's does (size, layout, the preview's seed);
     // the difficulty is the device's setting (settings.difficulty), the same one Options > Saves shows.
     newCityChoices: {
-      get: () => ({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed }),
+      get: () => ({ mapSize: sizeIdOf(newCitySize), layout: layoutNow(), seed: newCitySeed }),
       setSize: (id) => { newCitySize = MAP_SIZES[id] || newCitySize; },
       setLayout: (id) => { newCityLayout = id; },
       setSeed: (s) => { newCitySeed = s; },
@@ -375,12 +378,19 @@ export async function boot(doc, win, {
   // Version 8.1 (Track T, ruling 1208): the lesson's end is no stop: its city becomes the player's own. It is no longer the lesson's (world.lesson goes, so it saves and the court
   // writes to it), the guide follows Help as a new city's does, the device counts the lesson done, and the game goes on in a normal interface with Ipi's hand-over. Only on a
   // device with no saved city (ruling 1209: the one slot is never written over by the lesson).
+  // Version 9.1 (Track F, ruling 1655): what the lesson staged for its raid goes back first (src/sim/lesson.js handOverWorld): the rank the people earned, no staged splits,
+  // the raid clock stopped until a real city's 250 people, the lesson's cards kept in world.lessonCards.
   function adoptLesson() {
     if (!current || !current.lesson || hasSavedCity()) return;
     const { world } = current;
+    handOverWorld(world);
     delete world.lesson;
     setGuide(world, settings.get().help === 'full');
     markLessonDone();
+    // Version 9.1 (Track F, ruling 1663): the picture cards whose moment the lesson itself taught (the Large plot, the raid) are seen, so none opens over the hand-over.
+    const seen = Array.isArray(settings.get().seenTips) ? settings.get().seenTips : [];
+    const taught = dueCards(world, seen).map((c) => seenKey(c.id));
+    if (taught.length) settings.set({ seenTips: [...seen, ...taught] });
     startGame(world, { lastSpeed: world.speed || 1 });
     sayHandOver();
   }
@@ -446,14 +456,16 @@ export async function boot(doc, win, {
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker (under More choices from Version 8.0)
       seed: newCitySeed, onSeed: (s) => { newCitySeed = s; },   // Version 8.2 (ruling 1310): the preview's seed
       onNewCityBack: restorePlayMap,
-      layout: newCityLayout, onLayout: (id) => { newCityLayout = id; },   // Version 8.0 (ruling 1151): the layout picker, Surprise me ('auto') until one is picked
+      layout: layoutNow(), onLayout: (id) => { newCityLayout = id; },   // Version 8.0 (ruling 1151): the layout picker; Version 9.1 (ruling 1660): firstCityLayout until one is picked
       // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
       // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).
       // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due); a slot
       // holding something unreadable or from a newer version is not "no saved city" (the card keeps New city and its message).
       onLesson: typeof hooks.lesson === 'function' ? () => hooks.lesson() : null,
       lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }),
-        onSkip: () => { markLessonDone(); leaveTitle(); showTitle(loaded, { note: V711_TEXT.skippedNote }); } },   // ruling 1111: the title again, now with New city and its choices
+        // Version 9.1 (Track F, ruling 1669, over ruling 1111's title again): I've played before starts a city at once, on the new-city card's choices (the classic
+        // river at Normal for a device's first city, ruling 1660), so it is one tap, not three; New city in the menu offers the rest.
+        onSkip: () => { markLessonDone(); withCards(() => startGame(startPicked())); } },
       onHowToPlay: () => hooks.pictureCards(),
       // The game's Options rows with no city behind them; Saves > Export city exports the city in the slot (none: no button).
       renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks: { ...hooks, exportCity: loaded.state === 'ok' ? () => exportLoaded(loaded) : undefined } }).settings(body),

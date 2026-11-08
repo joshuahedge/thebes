@@ -39,7 +39,10 @@ function walk() {
 
 // 8.3's walk-through, measured on the 8.3 code: each step's first and last day. The clock starts on day 63 (the tower step begins), the warning comes that day, its raiders on day 153
 // and the raid ends beaten on day 198.
-const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>199'];
+// Version 9.1 (Track F, ruling 1657): the lesson sets the staged warning's arrival LESSON_RAID_LEAD (30) days on once it is up, so its raiders come on day 93 and the raid
+// ends on day 138; the warning event still says what the sim raised (63 + RAIDS.warningDays), and every step before the raid keeps its day.
+const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // WAVE2-PIN 9.1 Track F (ruling 1657): was 'raid:65>199'
+const RAID_END = 138;   // WAVE2-PIN 9.1 Track F (ruling 1657): was 198
 
 describe('v84 r the lesson: the staged raid does not move', () => {
   for (const [name, numbers] of [['today\'s numbers', {}], ['8.4\'s numbers', NUMBERS_84]]) {
@@ -49,7 +52,7 @@ describe('v84 r the lesson: the staged raid does not move', () => {
         expect(r.steps).toEqual(DAYS_83);
         const warn = r.of('raid_warning'), start = r.of('raid_start'), end = r.of('raid_end');
         expect([warn.length, warn[0].index, warn[0].first, warn[0].arrives, warn[0].size]).toEqual([1, 0, true, 63 + RAIDS.warningDays, 3]);
-        expect([r.world.raid.clockDay, start.length, start[0].size, end.length, end[0].won, end[0].report.day]).toEqual([63, 1, 3, 1, true, 198]);
+        expect([r.world.raid.clockDay, start.length, start[0].size, end.length, end[0].won, end[0].report.day]).toEqual([63, 1, 3, 1, true, RAID_END]);
         expect(stepDone(r.world, stepNamed('raid'))).toBe(true);
       }, numbers);
     });
@@ -62,7 +65,7 @@ describe('v84 r the lesson: the staged raid does not move', () => {
   });
   it('is not changed by the captured weapons, the Victory row or the fanfare: they come after the raid step is done', () => {
     const r = walk();
-    expect(r.world.raid.spoils).toEqual({ until: 198 + 360 });
+    expect(r.world.raid.spoils).toEqual({ until: RAID_END + 360 });
     expect(stepDone(r.world, stepNamed('raid'))).toBe(true);                    // the step reads raid.last alone
     expect(r.world.raid.last.won).toBe(true);
   });

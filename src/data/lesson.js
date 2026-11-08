@@ -23,9 +23,18 @@ export const LESSON_PLACES = {
   granary: [14, 40],
   bazaar: [21, 43],
   largePlot: [17, 37],                       // a 2x2 on the road's north side
-  firehouse: [21, 45],
+  // Version 9.1 (Track F, rulings 1656, 1670): at the corner where the new road leaves the start road, so its reach (FIRE.reach road tiles) covers the granary, the
+  // bazaar, the well and every home, and the farm all but one tile (no free 1x1 spot but the well's reaches both the farm and the southmost home). Measured: no fire in
+  // 18 idle months at the lesson's staged rank. At (21, 45) it was 11 road tiles from the granary, which burned in the first year after the hand-over; the design's
+  // first candidate (17, 40) left three homes out and caught 7 fires.
+  firehouse: [20, 38],
   tower: [21, 39],
 };
+
+// Version 9.1 (Track F, ruling 1657): the staged raid's warning comes this many days before its raiders (a real city's RAIDS.warningDays is 90), set by the lesson
+// alone once the warning is up (src/sim/lesson.js leadRaid), and the raid step plays at LESSON_RAID_SPEED, which its words say.
+export const LESSON_RAID_LEAD = 30;
+export const LESSON_RAID_SPEED = 2;
 
 // The steps, in order. Each is { id, check, at?, dom?, show?, stage? }:
 //   check  what the sim must show for the step to be done (src/sim/lesson.js stepDone): roadTiles { n } (road laid beyond the start road), homesOnRoad { n },
@@ -58,12 +67,15 @@ export const LESSON_STEPS = [
   { id: 'granary', check: { kind: 'building', type: 'granary' }, at: { x: 14, y: 40, w: 2, d: 2 }, show: { category: 'food', item: 'granary' } },
   { id: 'bazaar', check: { kind: 'served', type: 'bazaar', homes: 3 }, at: { x: 21, y: 43, w: 2, d: 2 }, show: { category: 'services', item: 'bazaar' } },
   { id: 'workers', check: { kind: 'working', types: ['farm_grain', 'granary', 'bazaar'] }, at: { x: 21, y: 40, w: 1, d: 3 }, show: { category: 'homes', item: 'house' }, play: 'act', act: { kind: 'plots' } },
-  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .stat.gold', play: 'card', lock: ['stat-gold'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
-  { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 21, y: 45, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
+  // Version 9.1 (Track F, ruling 1665): and the mood chip, lit and live beside the gold, since Ipi's line says it is where mood's why is (its explainer lists the reasons).
+  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .stat.gold, #topbar .stat.mood', play: 'card', lock: ['stat-gold', 'stat-mood'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
+  { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 20, y: 38, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },
-  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card' },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
+  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card', speed: LESSON_RAID_SPEED },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
 ];
+// Version 9.1 (Track F, ruling 1657): `speed` is the speed a waiting step plays at (1 when it has none). The raid step plays at LESSON_RAID_SPEED from the moment it
+// begins until the raid is over (src/ui/v60/lesson.js), and its words say so.
 
 // Version 8.2 (integration, ruling 1331): the build category a step opens on the wide panel and the phone's tray as it begins: its own card's (show.category), else that of
 // the step before it in its chapter that has one (the raid: the tower's Defence; the months: the homes the workers wanted; the fire: the firehouse's Services). Never Roads

@@ -78,10 +78,20 @@ export function createTips({ container, settings, now = () => performance.now(),
     return cut;
   }
 
+  // Version 9.1 (Track F, ruling 1663): in the first game month after the lesson's hand-over (the lesson seam marks it with the class handover-month) no tip shows while
+  // an alert has the banner and a goal shows, so no more than two rows stand under the top bar (a third over a desktop map was a third of it). The tip waits in the
+  // slot, as a tool holds it.
+  function crowded() {
+    const box = container.closest ? container.closest('.handover-month') : null;
+    if (!box || !box.classList.contains('has-banner')) return false;
+    const goals = box.querySelector('#goals');
+    return Boolean(goals) && !goals.hidden && goals.getClientRects().length > 0;
+  }
+
   function consider(tip, busy) {
     if (!enabled() || seen().includes(tip.id)) return false;
     const t = now();
-    if (busy && !tip.priority) {
+    if ((busy || crowded()) && !tip.priority) {
       if (tip.waits === false) return false;            // its words would be false by the time the slot is flushed; unseen, it may fire again
       // One slot: the first tip held keeps it, unless it has gone stale; the same tip triggering again is still news.
       if (!waiting || waiting.tip === tip || t - waiting.at > TIP_HELD_MAX_MS) waiting = { tip, at: t };

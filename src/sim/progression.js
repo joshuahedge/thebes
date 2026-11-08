@@ -26,8 +26,10 @@ export function updateMilestone(world) {
   let i = from;
   while (i + 1 < MILESTONES.length && pop >= MILESTONES[i + 1].population && milestoneNeedsMet(world, MILESTONES[i + 1])) i++;
   const changed = MILESTONES[i].id !== world.milestone;
+  // Version 9.1 (Track F, ruling 1661): a card the lesson already put in the player's hands (world.lessonCards) is not new when its rank arrives.
+  const had = Array.isArray(world.lessonCards) ? world.lessonCards : [];
   for (let k = from + 1; k <= i; k++) {
-    for (const type of MILESTONES[k].unlocks) if (!world.newItems.includes(type)) world.newItems.push(type);
+    for (const type of MILESTONES[k].unlocks) if (!world.newItems.includes(type) && !had.includes(type)) world.newItems.push(type);
     if (!Number.isInteger(world.splits[MILESTONES[k].id])) world.splits[MILESTONES[k].id] = world.day;   // spec 4.19: the day it first became one
   }
   world.milestone = MILESTONES[i].id;

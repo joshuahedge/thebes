@@ -173,6 +173,11 @@ describe('v80 u new-city card: what it starts', () => {
     const s = await bootAt();
     try {
       openNewCity(s.root);
+      // Version 9.1 (Track F, ruling 1660): a device with no city in its records starts on the classic river, so Surprise me is picked here
+      fire(s.root.querySelector('#title .more-choices-toggle'), 'click');
+      const select = s.root.querySelector('#title .layout-select');
+      expect(select.value).toBe('classic');
+      select.value = 'auto'; fire(select, 'change');
       fire(s.root.querySelector('#title .start-city'), 'click');
       const w = s.api.game().world;
       expect([MAP_VARIANTS.includes(w.mapVariant), w.mapVariant === createWorld({ seed: w.seed, mapVariant: 'auto' }).mapVariant]).toEqual([true, true]);   // the seed's own pick
