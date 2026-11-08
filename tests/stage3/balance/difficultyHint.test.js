@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../../harness.js';
 import { difficultyHint } from '../../../src/ui/text.js';
-import { DIFFICULTY_ORDER } from '../../../src/data/difficulty.js';
+import { DIFFICULTY_ORDER, DIFFICULTIES } from '../../../src/data/difficulty.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { raidsOn } from '../../../src/sim/costs.js';
 import { dailyRiskOf } from '../../../src/sim/fire.js';
@@ -24,8 +24,8 @@ function cityAt(level) {
 describe('s3 balance difficulty hint', () => {
   it('names each level\'s danger first, then its prices (spec 4.18)', () => {
     expect(DIFFICULTY_ORDER.map(difficultyHint)).toEqual([
-      'No raids, sickness or thefts. Fire risk builds 50% slower.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.',
-      'Later raids about 50% smaller. Fire, sickness and theft risk build 50% slower.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.',
+      'No raids, sickness or thefts. Low Niles, locusts and fires still come, rarer.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.',
+      'Later raids about 50% smaller. Fire, sickness and theft risk build 50% slower. Low Niles and locusts come 50% as often.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.',
       'Raids, fire, sickness and theft risk as usual.\nBuildings and trade routes at their usual cost.\nRoads: 2 gold a tile.',
       'Later raids about 50% bigger. Fire, sickness and theft risk build 50% faster.\nBuildings and trade routes cost about 25% more.\nRoads: 3 gold a tile.',
     ]);
@@ -42,7 +42,8 @@ describe('s3 balance difficulty hint', () => {
       expect([level, hint.startsWith('No raids')]).toEqual([level, !raidsOn(createWorld({ seed: 1, difficulty: level }))]);
       const { w, potter, home } = cityAt(level);
       const firePct = /Fire(?:, sickness and theft)? risk builds? (\d+)% (slower|faster)\./.exec(hint);
-      const fireFactor = firePct ? 1 + (Number(firePct[1]) / 100) * (firePct[2] === 'slower' ? -1 : 1) : 1;
+      // Version 9.2 (Track S): Peaceful's line says "rarer" and names no number, so its factor is read from the data the word stands for.
+      const fireFactor = firePct ? 1 + (Number(firePct[1]) / 100) * (firePct[2] === 'slower' ? -1 : 1) : /fires still come, rarer/.test(hint) ? DIFFICULTIES[level].risk : 1;
       expect([level, dailyRiskOf(w, potter)]).toEqual([level, base.risk * fireFactor]);
       // Sickness and thefts: named with the fire when the level scales them by the same factor, and named as gone where the level has none.
       const names = /sickness and theft/.test(hint);

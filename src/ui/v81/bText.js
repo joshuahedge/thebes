@@ -67,7 +67,13 @@ export const V81_B_TEXT = {
   },
   score: {
     what: 'The city as it stands, from five parts of 100 each. It never changes what you can build.',
-    of: (n) => `${n} of 100`,
+    of: (n, cap = 100) => `${n} of ${cap}`,   // Version 9.2 (Track S, ruling 1795): a part's ceiling leaves out the terms that have not started
+    // What counts next, one line for each term that has not started (score.js waitingOf: from is a milestone id, { people } or null).
+    waiting: (w) => {
+      if (w.term === 'fire') return `Fire safety counts from ${milestoneName(w.from)}`;
+      if (w.from === null) return 'Defence does not count on this level: no raids come';
+      return `Defence counts once the city has ${w.from.people} people and raids can begin`;
+    },
     weakest: (name, reason) => `Weakest: ${name}${reason ? `. ${reason}` : ''}`,
   },
   // The one action: the city's own advice when it has some for this stat, else the City page at its section.

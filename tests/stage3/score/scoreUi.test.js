@@ -61,7 +61,7 @@ describe('s3 score summary and chip', () => {
         const part = li.dataset.part;
         expect([part, li.querySelector('.part-number').textContent]).toEqual([part, String(s.parts[part])]);
         const bar = li.querySelector('[role="progressbar"]');
-        expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-label')]).toEqual([String(s.parts[part]), partBarLabel(part, s.parts[part])]);
+        expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-label')]).toEqual([String(s.parts[part]), partBarLabel(part, s.parts[part], s.ceilings[part])]);
         const reason = li.querySelector('.reason');
         expect([part, reason ? reason.textContent : '']).toEqual([part, score4ReasonText(s.reasons[part])]);   // Stage 4: Monuments' next step too
       }
@@ -171,7 +171,7 @@ describe('s3 score welcome back', () => {
       const now = scoreOf(r.world).total;
       r.world.history = [
         { day: 30, people: 4, gold: 0, mood: 60 },                                       // from a version 3 save: no score
-        { day: 60, people: 4, gold: 0, mood: 60, score: now - 20, parts: { people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 }, version: 2 },   // Stage 4: a score v2 row
+        { day: 60, people: 4, gold: 0, mood: 60, score: now - 20, parts: { people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 }, version: 3 },   // Stage 4: a score v2 row (9.2: v3 now)
       ];
       r.ui.refresh();
       const rows = [...r.root.querySelectorAll('#sheet .trends li')];

@@ -83,7 +83,7 @@ describe('s46 wonders data', () => {
       expect([k, BUILDINGS[k].monument, BUILDINGS[k].needsRoad, BUILDINGS[k].cost, BUILDINGS[k].rotates, BUILDABLE.includes(k), ART[k].live, typeof ART[k].draw]).toEqual([k, true, true, MONUMENTS[k].founding, false, true, true, 'function']);
       expect(dimsOf(k, 1)).toEqual({ w: MONUMENTS[k].w, d: MONUMENTS[k].d, rot: 0 });
     }
-    expect(MONUMENT_KINDS.filter((k) => k !== 'great_temple').reduce((s, k) => s + prestige(k), 0)).toBe(PRESTIGE.scoreFull + NEW_MONUMENT_KINDS.reduce((s, k) => s + prestige(k), 0));   // Version 6.0 (Track A): the great temple's share apart   // the seven still make the score's 700
+    expect(MONUMENT_KINDS.reduce((s, k) => s + prestige(k), 0)).toBe(PRESTIGE.scoreFull);   // Version 9.2 (Track S, ruling 1795): scoreFull is every kind's prestige, computed from the data (was the seven of Stage 4: 700; the ten without the great temple were 700 plus the new three)
   });
 
   it('brings each with one first, one tip and a How to play line, every number from the data (and says "seven of ten" for Seven wonders, ruling 396)', () => {

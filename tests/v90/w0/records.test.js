@@ -143,7 +143,7 @@ describe('v90 w0 records: the rivals', () => {
     const row = r.addRival(l, 100);
     expect(row).toEqual({
       id: 'Ana@11|hard|east|80', name: 'Ana', heir: 'merchant', seed: 11, difficulty: 'hard', mapVariant: 'east', mapSize: 80,
-      score: sharedTotal(l), parts: l.parts, splits: { town: 300, city: 900 }, version: 2, added: 100,
+      score: sharedTotal(l), parts: l.parts, splits: { town: 300, city: 900 }, version: 3, added: 100,
     });
     expect(r.rivalsFor(11, 'hard', 'east', 80)).toEqual([row]);
     expect([r.rivalsFor(11, 'hard'), r.rivalsFor(11, 'normal', 'east', 80)]).toEqual([[], []]);

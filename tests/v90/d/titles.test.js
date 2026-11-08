@@ -21,8 +21,8 @@ describe('v90 d titles: the data', () => {
   it('has the design\'s five titles in their order, with the bars wave 2 set (rulings 1566, 1621-1623)', () => {
     expect(TITLES).toEqual([
       { id: 'unconquered', bar: 5 },     // 9.0 wave 2 (ruling 1621): was 3
-      { id: 'builder', bar: 4600 },      // 9.0 wave 2 (ruling 1622): was 2,000
-      { id: 'merchant', bar: 0.40 },
+      { id: 'builder', bar: 8000 },      // 9.0 wave 2 (ruling 1622): was 2,000; 9.2 (Track S, ruling 1804): was 4,600
+      { id: 'merchant', bar: 0.25 },      // 9.2 (Track S, ruling 1805): was 0.40
       { id: 'bountiful', bar: 0.90, months: 24 },
       { id: 'generous', bar: 0.50, months: 24, highMax: 0.1 },
     ]);
@@ -47,14 +47,14 @@ describe('v90 d titles: each rule at its bar and either side', () => {
     const row = titleMeasures(w).find((r) => r.id === 'unconquered');
     expect([titleOf(w).id, row.ok, row.raids, row.fit]).toEqual(['steady', false, false, 0]);
   });
-  it('the Builder: 4,600 monument units, stone and bricks together', () => {
-    expect(titleOf(city({ stoneLaid: 2300, bricksLaid: 2299 })).id).toBe('steady');
-    expect(titleOf(city({ stoneLaid: 2300, bricksLaid: 2300 })).id).toBe('builder');
-    expect(titleOf(city({ stoneLaid: 6000 })).measure).toBe(6000);
+  it('the Builder: 8,000 monument units, stone and bricks together', () => {
+    expect(titleOf(city({ stoneLaid: 4000, bricksLaid: 3999 })).id).toBe('steady');
+    expect(titleOf(city({ stoneLaid: 4000, bricksLaid: 4000 })).id).toBe('builder');
+    expect(titleOf(city({ stoneLaid: 9000 })).measure).toBe(9000);
   });
-  it('the Merchant: trade income over the bills, 0.40', () => {
-    expect(titleOf(city({ tradeGold: 399, billsPaid: 1000 })).id).toBe('steady');
-    expect(titleOf(city({ tradeGold: 400, billsPaid: 1000 })).id).toBe('merchant');
+  it('the Merchant: trade income over the bills, 0.25', () => {
+    expect(titleOf(city({ tradeGold: 249, billsPaid: 1000 })).id).toBe('steady');
+    expect(titleOf(city({ tradeGold: 250, billsPaid: 1000 })).id).toBe('merchant');
     expect(titleOf(city({ tradeGold: 500, billsPaid: 0 })).id).toBe('steady');   // no bills counted: nothing to measure against
   });
   it('the Bountiful: fed at 0.90 of month ends from Town, from the 24th of them', () => {
@@ -94,17 +94,17 @@ describe('v90 d titles: each rule at its bar and either side', () => {
 
 describe('v90 d titles: the highest fit, ties and the runner-up', () => {
   it('takes the highest fit among the titles met', () => {
-    const t = titleOf(city({ raidsBeaten: 5, stoneLaid: 6900 }));   // 1 and 1.5
+    const t = titleOf(city({ raidsBeaten: 5, stoneLaid: 12000 }));   // 1 and 1.5
     expect([t.id, t.fit, t.runnerUp]).toEqual(['builder', 1.5, 'unconquered']);
   });
   it('breaks a tie by the table\'s order', () => {
-    expect(titleOf(city({ raidsBeaten: 5, stoneLaid: 4600 })).id).toBe('unconquered');
-    expect(titleOf(city({ stoneLaid: 4600, tradeGold: 400, billsPaid: 1000 })).id).toBe('builder');
-    expect(titleOf(city({ tradeGold: 450, billsPaid: 1000, fedMonths: 24, townMonths: 24, lowMonths: 12 })).id).toBe('merchant');   // 1.125 beats 1.111 and 1
+    expect(titleOf(city({ raidsBeaten: 5, stoneLaid: 8000 })).id).toBe('unconquered');
+    expect(titleOf(city({ stoneLaid: 8000, tradeGold: 250, billsPaid: 1000 })).id).toBe('builder');
+    expect(titleOf(city({ tradeGold: 450, billsPaid: 1000, fedMonths: 24, townMonths: 24, lowMonths: 12 })).id).toBe('merchant');   // 1.8 beats 1.111 and 1
   });
   it('names the closest title as the runner-up even when none is met, and leaves out one that may not be earned', () => {
-    const t = titleOf(city({ stoneLaid: 3450, tradeGold: 100, billsPaid: 1000 }));
-    expect([t.id, t.runnerUp]).toEqual(['steady', 'builder']);   // 0.75 beats 0.25
+    const t = titleOf(city({ stoneLaid: 6000, tradeGold: 100, billsPaid: 1000 }));
+    expect([t.id, t.runnerUp]).toEqual(['steady', 'builder']);   // 0.75 beats 0.4
     expect(titleOf(city({ raidsBeaten: 2, raidsLost: 1 })).runnerUp).toBe(null);
   });
 });

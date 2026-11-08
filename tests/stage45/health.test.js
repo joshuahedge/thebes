@@ -64,7 +64,7 @@ describe('s45 health data', () => {
 });
 
 describe('s45 health risk', () => {
-  it('builds base risk a day, more with no well, more when crowded, more on poor ground, as pure functions of the state', () => {
+  it('builds base risk a day, more with no well, more on poor ground, and nothing more when crowded (the term was dropped in 9.2, Track S, ruling 1808), as pure functions of the state', () => {
     const { w, ids } = town({ homes: [[2, 14], [10, 14]], well: true });
     const [a, b] = ids.map((id) => w.buildings[id]);
     const wellNear = (h) => healthFactors(w, h).well === false;
@@ -72,23 +72,23 @@ describe('s45 health risk', () => {
     expect(near(dailyHealthRiskOf(w, a), HEALTH.base)).toBe(true);                      // watered, not crowded, fine ground
     expect(near(dailyHealthRiskOf(w, b), HEALTH.base + HEALTH.noWell)).toBe(true);        // no well reaches it
     b.tier = 5; b.residents = 22;                                                        // a Townhouse over 20 a tile
-    expect(healthFactors(w, b).crowded).toBe(true);
-    expect(near(dailyHealthRiskOf(w, b), HEALTH.base + HEALTH.noWell + HEALTH.crowded)).toBe(true);
-    b.residents = 20;                                                                    // exactly 20 a tile is not crowded
-    expect(healthFactors(w, b).crowded).toBe(false);
+    expect(healthFactors(w, b).crowded).toBe(undefined);                                 // 9.2: no crowded factor any more
+    expect('crowded' in HEALTH).toBe(false);
+    expect(near(dailyHealthRiskOf(w, b), HEALTH.base + HEALTH.noWell)).toBe(true);       // a full Townhouse builds risk as any other home
+    b.residents = 20;
     addRaw(w, 'granary', 12, 14);                                                        // a granary beside it: desirability below 0
     expect(healthFactors(w, b).poor).toBe(true);
     expect(near(dailyHealthRiskOf(w, b), HEALTH.base + HEALTH.noWell + HEALTH.poorGround)).toBe(true);
     expect(healthFactors(w, a).poor).toBe(false);
   });
-  it('counts a 2x2 home as crowded by residents per tile', () => {
+  it('counts a 2x2 home no differently when it is full (9.2: the crowded term is gone; the plague keeps its own room rule)', () => {
     const w = makeTestWorld({ gold: 5000 });
     w.milestone = 'town';
     setRoad(w, 0, 13, 31, 13);
     const m = addRaw(w, 'house', 4, 14, { tier: 6, residents: 80, w: 2, d: 2 });
-    expect(healthFactors(w, m).crowded).toBe(false);                                     // 80 / 4 = 20
-    m.residents = 84;
-    expect(healthFactors(w, m).crowded).toBe(true);
+    const low = dailyHealthRiskOf(w, m);
+    m.residents = 100;
+    expect(dailyHealthRiskOf(w, m)).toBe(low);
   });
   it('multiplies by the difficulty risk and cuts it by the physician times coverage', () => {
     const { w, ids } = town({ homes: [[6, 14]] });

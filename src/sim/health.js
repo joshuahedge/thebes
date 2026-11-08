@@ -71,13 +71,12 @@ export function wateredHomes(world) {
   return out;
 }
 
-// The reasons a home's risk builds faster: { well: true when no working well reaches it, crowded, poor }. The daily rate adds
-// HEALTH.noWell, .crowded and .poorGround for each that is true. `watered` and `field` are the day's own, taken once by a
+// The reasons a home's risk builds faster: { well: true when no working well reaches it, poor }. The daily rate adds
+// HEALTH.noWell and .poorGround for each that is true (Version 9.2: the crowded term is gone, src/data/health.js). `watered` and `field` are the day's own, taken once by a
 // caller judging many homes.
 export function healthFactors(world, b, watered = wateredHomes(world), field = desirabilityField(world)) {
   return {
     well: !watered.has(b.id),
-    crowded: b.residents / (b.w * b.d) > HEALTH.crowdedPerTile,
     poor: houseDesirability(world, b, field) < 0,
   };
 }
@@ -90,7 +89,7 @@ export function dailyHealthRiskOf(world, b) {
 }
 function riskToday(world, b, cover, watered, field) {
   const f = healthFactors(world, b, watered, field);
-  const rate = HEALTH.base + (f.well ? HEALTH.noWell : 0) + (f.crowded ? HEALTH.crowded : 0) + (f.poor ? HEALTH.poorGround : 0);
+  const rate = HEALTH.base + (f.well ? HEALTH.noWell : 0) + (f.poor ? HEALTH.poorGround : 0);
   return rate * riskOf(world) * (1 - HEALTH.cut * (cover.get(b.id) || 0));
 }
 

@@ -19,9 +19,9 @@ const homes = (w, n, tier, residents, y = 9) => { for (let i = 0; i < n; i++) ad
 describe('s3 score parts', () => {
   it('scores an empty city by the formulas: only full jobs, a sound treasury and a safe record count', () => {
     const s = scoreOf(street());
-    expect(s.parts).toEqual({ people: 0, prosperity: 50, culture: 0, safety: 100, monuments: 0 });
-    expect([s.raw, s.total, s.factor, s.version, s.medal]).toEqual([150, 150, 1, 2, null]);
-    expect(s.next).toEqual({ medal: 'bronze', points: 50 });   // score v2: bronze at 200
+    expect(s.parts).toEqual({ people: 0, prosperity: 50, culture: 0, safety: 20, monuments: 0 });   // 9.2 (Track S, score v3): fire and defence have not started and count nothing; the record's 20 does
+    expect([s.raw, s.total, s.factor, s.version, s.medal]).toEqual([70, 70, 1, 3, null]);
+    expect(s.next).toEqual({ medal: 'bronze', points: 170 });   // score v3: bronze at 240
     expect(s.reasons).toEqual({
       people: { code: 'growth', milestone: 'town', people: 0, of: 150 },
       prosperity: { code: 'taxes', perPerson: 0 },
@@ -36,9 +36,9 @@ describe('s3 score parts', () => {
     homes(w, 10, 5, 20);                                                  // 200 people, every one in a Townhouse
     const s = scoreOf(w);
     expect(population(w)).toBe(200);
-    expect(s.parts.people).toBe(Math.round(60 * ((1 + 0.5) / 5) + 40 * ((5 - 1) / 8)));   // halfway from Town to Market town
+    expect(s.parts.people).toBe(Math.round(60 * ((1 + 0.5) / 7) + 40 * ((5 - 1) / 8)));   // 9.2: seven steps to the Seat   // halfway from Town to Market town
     expect(s.reasons.people).toEqual({ code: 'growth', milestone: 'market_town', people: 200, of: 250 });
-    w.milestone = 'capital';
+    w.milestone = 'seat';                                                 // 9.2 (Track S): growth is full at the Seat, no longer at Capital
     for (const h of housesOf(w)) h.tier = 9;
     expect([scoreOf(w).parts.people, scoreOf(w).reasons.people]).toEqual([100, null]);
     w.milestone = 'great_city';
@@ -51,8 +51,8 @@ describe('s3 score parts', () => {
     addRaw(w, 'house', 20, 9, { tier: 9, residents: 9 });                 // (3 x 1 + 9 x 9) / 12 = 7
     addRaw(w, 'house', 21, 9, { tier: 0, residents: 0 });                 // an empty plot counts for nothing
     const s = scoreOf(w);
-    expect(s.parts.people).toBe(Math.round(60 * (12 / 150 / 5) + 40 * ((7 - 1) / 8)));
-    w.milestone = 'capital';
+    expect(s.parts.people).toBe(Math.round(60 * (12 / 150 / 7) + 40 * ((7 - 1) / 8)));
+    w.milestone = 'seat';
     expect(scoreOf(w).reasons.people).toEqual({ code: 'homes', tier: 1 });
   });
   it('counts Prosperity from taxes per person, jobs, the treasury and open routes', () => {
@@ -95,18 +95,18 @@ describe('s3 score parts', () => {
     addRaw(w, 'potter', 28, 11);                                          // 26 road tiles away: out of reach
     addRaw(w, 'garden', 6, 11);                                           // never burns: not counted
     staffAll(w);
-    expect(scoreOf(w).parts.safety).toBe(100);                            // a village: 1 before Town
+    expect(scoreOf(w).parts.safety).toBe(20);                             // a village: fire counts nothing before Town (9.2, score v3)
     w.milestone = 'town';
     const s = scoreOf(w);
-    expect(s.parts.safety).toBe(Math.round(40 * (2 / 3) + 40 + 20));
+    expect(s.parts.safety).toBe(Math.round(40 * (2 / 3) + 20));
     expect(s.reasons.safety).toEqual({ code: 'fire_cover', n: 1, dir: 'east' });
     w.buildings[1].staff = 1;                                             // a quarter staffed: it works, but does not count as staffed
-    expect(scoreOf(w).parts.safety).toBe(60);
+    expect(scoreOf(w).parts.safety).toBe(20);
   });
-  it('counts defence against a raid sized now once the raid clock runs, and full on Peaceful', () => {
+  it('counts defence against a raid sized now once the raid clock runs, and never on Peaceful', () => {
     const w = street();
     w.milestone = 'market_town';
-    expect(scoreOf(w).parts.safety).toBe(100);                            // no raid clock yet
+    expect(scoreOf(w).parts.safety).toBe(60);                             // no raid clock yet: defence counts nothing (9.2)
     w.raid.clockDay = 0;
     expect([scoreOf(w).parts.safety, scoreOf(w).reasons.safety]).toEqual([60, { code: 'towers', need: 1, towers: 0, soldiers: 0 }]);
     w.soldiers = [{ id: 1 }, { id: 2 }];
@@ -116,29 +116,29 @@ describe('s3 score parts', () => {
     expect(scoreOf(w).parts.safety).toBe(100);                            // capped at 1
     w.difficulty = 'peaceful';
     w.soldiers = []; w.buildings[1].paused = true;
-    expect(scoreOf(w).parts.safety).toBe(100);
+    expect(scoreOf(w).parts.safety).toBe(60);                             // Peaceful's defence never starts (9.2)
   });
   it('counts the record: 0.2 a building burned and 0.5 a raid lost in the last 360 days', () => {
     const w = street();
     w.day = 1000;
     w.danger.burnDays = [600, 700, 990];                                  // 600 is more than 360 days ago
-    expect([scoreOf(w).parts.safety, scoreOf(w).reasons.safety]).toEqual([92, { code: 'burned', n: 2 }]);
+    expect([scoreOf(w).parts.safety, scoreOf(w).reasons.safety]).toEqual([12, { code: 'burned', n: 2 }]);   // 9.2: a village's safety is the record alone, 20 x 0.6
     w.raid.last = { index: 1, dir: 'east', size: 4, won: false, byTowers: 0, bySoldiers: 0, towers: 0, burned: 2, stolen: 30, day: 900 };
-    expect([scoreOf(w).parts.safety, scoreOf(w).reasons.safety]).toEqual([82, { code: 'raid_lost' }]);
+    expect([scoreOf(w).parts.safety, scoreOf(w).reasons.safety]).toEqual([2, { code: 'raid_lost' }]);
     w.raid.last.won = true;
-    expect(scoreOf(w).parts.safety).toBe(92);
+    expect(scoreOf(w).parts.safety).toBe(12);
     w.danger.burnDays = [700, 701, 702, 703, 704, 705, 990];              // never below 0
     w.day = 1001;
-    expect(scoreOf(w).parts.safety).toBe(80);
+    expect(scoreOf(w).parts.safety).toBe(0);
   });
   it('multiplies the parts by the level\'s factor and gives the medal on the parts\' total', () => {
     const w = street();
     w.difficulty = 'hard';
     const s = scoreOf(w);
-    expect([s.raw, s.total, s.factor]).toEqual([150, Math.round(150 * 1.25), 1.25]);
-    expect([s.medal, s.next]).toEqual([medalFor(150), nextMedal(w, 150)]);
+    expect([s.raw, s.total, s.factor]).toEqual([70, Math.round(70 * 1.25), 1.25]);
+    expect([s.medal, s.next]).toEqual([medalFor(70), nextMedal(w, 70)]);
     w.difficulty = 'peaceful';
-    expect(scoreOf(w).total).toBe(105);
+    expect(scoreOf(w).total).toBe(49);
   });
   it('is the same every time for the same city, and runMonth stores it in the month-end row', () => {
     const w = street();
@@ -183,6 +183,6 @@ describe('s3 score previews', () => {
     expect(scorePreview(w, 'potter', 28, 11).safety).toBe(0);            // still nothing covered: 0 of 2 as 0 of 1
     addRaw(w, 'firehouse', 2, 11);
     staffAll(w);
-    expect(scorePreview(w, 'potter', 28, 11).safety).toBe(Math.round(40 * (2 / 3) + 60) - 100);
+    expect(scorePreview(w, 'potter', 28, 11).safety).toBe(Math.round(40 * (2 / 3) + 20) - 60);
   });
 });

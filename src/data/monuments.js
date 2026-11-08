@@ -109,8 +109,9 @@ export const MONUMENT = {
 export const SITE_DESIRABILITY = [-3, -2, -1];
 
 // Prestige (spec 4.16, 4.9, 4.19): +1 mood for every moodPer, at most moodMax; the Monuments score part is
-// 100 x sqrt(prestige / scoreFull), at most 100. One of each kind is 700.
-export const PRESTIGE = { moodPer: 70, moodMax: 10, scoreFull: 700 };
+// 100 x sqrt(prestige / scoreFull), at most 100. Version 9.2 (Track S, ruling 1795): scoreFull is the sum of every kind's prestige (one of each
+// kind, all eleven, 1,280 with these numbers), computed from MONUMENTS; it was typed as 700 when seven kinds existed.
+export const PRESTIGE = { moodPer: 70, moodMax: 10, scoreFull: MONUMENT_KINDS.reduce((s, k) => s + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0) };
 
 // The monument kinds that unlock by prestige (with their milestone), in order: their days are recorded once reached
 // (world.prestigeUnlocks) and stay, as milestones do (ruling 243).

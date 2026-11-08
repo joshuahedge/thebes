@@ -129,10 +129,10 @@ describe('s4 contract prestige, its unlocks, mood and the Monuments part', () =>
     expect([prestigeOf(w), prestigeByKind(w).mastaba_small]).toEqual([70, { prestige: 70, id: b.id }]);
     monument(w, 'obelisk_small', 25, 9, { course: 3, done: 30 });
     expect(prestigeOf(w)).toBe(80);
-    expect([monumentMood(w), monumentsPart(0), monumentsPart(10), monumentsPart(700), monumentsPart(900)]).toEqual([1, 0, 12, 100, 100]);
+    expect([monumentMood(w), monumentsPart(0), monumentsPart(10), monumentsPart(700), monumentsPart(1280)]).toEqual([1, 0, 9, 74, 100]);   // 9.2 (Track S, score v3): scoreFull 1,280, every kind
     expect(scoreOf(w).parts.monuments).toBe(monumentsPart(80));
     const ladder = [10, 90, 160, 270, 430, 700].map(monumentsPart);
-    expect(ladder).toEqual([12, 36, 48, 62, 78, 100]);                            // spec 4.19's curve
+    expect(ladder).toEqual([9, 27, 35, 46, 58, 74]);                              // spec 4.19's curve on v3's 1,280
     w.buildings[b.id].site.done = null; w.buildings[b.id].site.course = 2;
     expect(prestigeOf(w)).toBe(27);                                               // 17 for two courses, and the obelisk's 10
   });

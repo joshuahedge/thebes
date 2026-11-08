@@ -13,7 +13,7 @@ function memory(start = null) {
   const data = start ? { [RECORDS_KEY]: JSON.stringify(start) } : {};
   return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
 }
-const row = (id, seed, difficulty, best, medal, updated = 1) => ({ id, seed, difficulty, scoreVersion: 2, best, bestDay: 900, medal, splits: {}, updated });
+const row = (id, seed, difficulty, best, medal, updated = 1) => ({ id, seed, difficulty, scoreVersion: 3, best, bestDay: 900, medal, splits: {}, updated });
 const entry = (n, seed, score, medal) => ({ id: `c:${n}:1`, cityId: 'c', seed, difficulty: 'normal', day: 1, score, parts: { people: 0, prosperity: 0, culture: 0, safety: 0 }, splits: {}, medal, feats: [], version: 1, date: n });
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };   // Stage 4: a t2 link's five parts
 
@@ -90,7 +90,7 @@ describe('s3 score title card', () => {
   });
   it('says a bad or newer link cannot be read and opens the card as usual; any other hash does nothing', () => {
     const hash = new URL(shareLink({ seed: 4, difficulty: 'normal', parts: PARTS, splits: {} })).hash;
-    for (const [shared, words] of [[hash.replace('72-65', '71-65'), TITLE_SCORE_TEXT.badLink], [hash.replace('#t2', '#t9'), TITLE_SCORE_TEXT.newerLink], ['#t1.junk', TITLE_SCORE_TEXT.badLink]]) {
+    for (const [shared, words] of [[hash.replace('72-65', '71-65'), TITLE_SCORE_TEXT.badLink], [hash.replace('#t3', '#t9'), TITLE_SCORE_TEXT.newerLink], ['#t1.junk', TITLE_SCORE_TEXT.badLink]]) {
       const c = card({ shared });
       try {
         expect([c.container.querySelector('.shared-bad').textContent, c.container.querySelector('.shared-score')]).toEqual([words, null]);
