@@ -15,9 +15,9 @@ function city() {
 describe('s4 sim the stockpile\'s limit', () => {
   it('shares the limit between the materials as the next work takes them, so the course under way is never starved by the other', () => {
     const w = city();
-    const m = addRaw(w, 'mastaba_small', 12, 8);                                  // 3 brick courses of 360, then 360 stone (540 before 9.2)
+    const m = addRaw(w, 'mastaba_small', 12, 8);                                  // 3 brick courses of 540, then 540 stone
     expect(stockRoom(m)).toEqual({ stone: 0, bricks: 120 });                      // the next 120 units are all bricks
-    Object.assign(m.site, { course: 2, laid: { stone: 0, bricks: 300 } });
+    Object.assign(m.site, { course: 2, laid: { stone: 0, bricks: 480 } });
     expect(stockRoom(m)).toEqual({ stone: 60, bricks: 60 });                      // 60 bricks end the course, then stone
     m.site.stock = { stone: 70, bricks: 10 };                                     // more stone than its share: none comes
     expect(stockRoom(m)).toEqual({ stone: 0, bricks: 50 });

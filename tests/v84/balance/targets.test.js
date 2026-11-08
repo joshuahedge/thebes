@@ -89,7 +89,7 @@ describe('v84 balance spending (B2, B3)', () => {
     // The retune (rulings 1540, 1548; B3 STILL NOT MET): every raid beaten again, 16,160 gold at year 15, 1.55 years of profit. The spending player never reaches its
     // lines in years 7-15 (the court's due takes about a third of the treasury each New Year, so it peaks near 4.5 months of taxes, under Rush's 6 and Low's 12), so the
     // ratio is set by the due and the run's other outflows, and swings from year to year (years 13-15: 1.62, 1.42, 1.55); a raid beaten no longer pays its theft.
-    expect(Math.round(ratio * 100) / 100).toBe(1.45);                                   // 8.4 (ruling 1551): measured 1.55 years of profit; was at most 1.5. WAVE2-PIN 9.2 Track S (ruling 1800): 1.45 now, under the 1.5 the target asks (B3 met)
+    expect(Math.round(ratio * 100) / 100).toBe(1.53);                                   // 8.4 (ruling 1551): measured 1.55 years of profit; was at most 1.5. WAVE2-PIN 9.2 Track S (ruling 1808): 1.53 now (B3 still not met)
     expect(ratio).toBeGreaterThan(0);
     const years = late.quotas.filter((q) => q.year <= 15);
     expect(years.map((q) => q.result)).toEqual(years.map(() => 'met'));
@@ -146,11 +146,11 @@ describe('v84 balance the far site (B9)', () => {
 describe('v84 balance the grand run\'s luxuries (B10)', () => {
   it('reaches a Villa and an Estate by year 9 with the luxury need on, buying what the advice names, and an Estate stands at year 10 with its luxury met', () => {
     const r = grandRun();
-    // WAVE2-PIN 9.2 Track S (ruling 1800): was a Villa and an Estate by year 9 and an Estate at year 10 with its luxury met; with the shorter small mastaba and colossus the run reaches a Villa but no Estate in 10 years (the old monuments restore it: bisected).
-    expect([r.first[8] <= 9 * MONTHS_PER_YEAR, r.first[9] <= 9 * MONTHS_PER_YEAR]).toEqual([true, false]);
+    expect([r.first[8] <= 9 * MONTHS_PER_YEAR, r.first[9] <= 9 * MONTHS_PER_YEAR]).toEqual([true, true]);
     expect(r.w.tally.luxuryBought).toBeGreaterThan(0);
     const estates = housesOf(r.w).filter((h) => h.tier === 9);
-    expect(estates.length).toBe(0);
+    expect(estates.length).toBeGreaterThanOrEqual(1);
+    expect(estates.some((h) => h.met && h.met.luxury === true)).toBe(true);
   });
 });
 

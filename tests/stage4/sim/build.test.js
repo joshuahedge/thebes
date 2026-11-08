@@ -28,7 +28,7 @@ describe('s4 sim each kind\'s time', () => {
   it('builds each kind in its crew-months over its most crews (spec 4.16), within a day', () => {
     const got = MONUMENT_KINDS.map((k) => buildDays(k, MONUMENTS[k].crews));
     const want = MONUMENT_KINDS.map((k) => (MONUMENTS[k].crewMonths / MONUMENTS[k].crews) * DAYS_PER_MONTH);
-    expect(want).toEqual([90, 270, 540, 630, 720, 1800, 2250, 2880, 4050, 5400, 2250]);   // 3 and 9 months; 2, 3, 5, 8 and 15 years (and Stage 4.6's 18 months, 75 and 135)
+    expect(want).toEqual([90, 270, 540, 720, 1080, 1800, 2250, 2880, 4050, 5400, 2250]);   // 3 and 9 months; 2, 3, 5, 8 and 15 years (and Stage 4.6's 18 months, 75 and 135)
     got.forEach((d, i) => {
       expect(d).toBeGreaterThanOrEqual(want[i]);
       expect(d).toBeLessThanOrEqual(want[i] + 1);

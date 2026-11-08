@@ -16,8 +16,9 @@ import { ADVICE_KINDS } from '../../../src/data/advice.js';
 const TOP = {
   village: { 3: 'home_need', 6: 'home_need', 10: 'home_need' },
   capital: { 6: 'raid_towers' },
-  // WAVE2-PIN 9.2 Track S (rulings 1800, 1808): the late run's top items were illness at 8 and 10, home_need at 12, illness at 15 (careless 15 illness, grand 7 stranded 8 home_need 9 crime 10 home_need, great 12 home_need 14 crime 16 home_need 18 stranded 20 home_need); the values below are measured now.
-  late: { 8: 'crime', 10: 'crime', 12: 'crime', 15: 'illness' },
+  // WAVE2-PIN 9.2 Track S (rulings 1795, 1808): the crowded term dropped from the daily sickness risk moves the late, careless, grand and great tops; the values below are measured now
+  // (were: late illness 8, 10, 12 home_need, 15 illness; careless 15 illness; grand 7 stranded, 8 home_need, 9 crime, 10 home_need; great 12 home_need, 14 crime, 16 home_need, 18 stranded, 20 home_need).
+  late: { 8: 'home_need', 10: 'home_need', 12: 'home_need', 15: 'illness' },
   // Version 8.4 wave 2 (rulings 1521, 1528; settles Tracks R's and G's moved pins): with 8.4's raid clock the careless city meets twice the raids, so crime leads at year 8
   // and pottery's homes (a storehouse) at 12 and 15 (8.3: raid_towers at 8 and 12, home_need at 15; Track R had raid_towers at 15).
   // Escalation by years (ruling 1534): raid_towers at 8 again (8.3's top), illness at 15 (was crime at 8, home_need at 15).
@@ -26,12 +27,12 @@ const TOP = {
   // Wave 2 (rulings 1521, 1528): with 8.4's raid clock, home_need at 8 and 10 and 22 unfilled jobs at 9 (Track G measured 7 stranded, 8 illness, 9 raid_towers, 10 illness;
   // 8.3 had 7 illness).
   // Escalation by years (ruling 1534): crime at 9 (was workers_short).
-  grand: { 7: 'home_need', 8: 'stranded', 9: 'home_need', 10: 'home_need' },
+  grand: { 7: 'stranded', 8: 'home_need', 9: 'home_need', 10: 'workers_short' },
   // Wave 2 (rulings 1521, 1525, 1528): the great-work run with 8.4's raid clock is not won (B7, tests/v60/a/balance.test.js); crime leads at 14 and a far good at 16
   // (Track G measured 14 stranded, 16 home_need; 8.3 had 14 home_need).
   // Escalation by years (ruling 1534): a far good at 14 and a home's need at 20 (was crime at 14, stranded at 20).
   // The retune (rulings 1540, 1542; the run is won on day 6,380): crime at 14 and a home's need at 16 (was a far good at both).
-  great: { 12: 'stranded', 14: 'stranded', 16: 'home_need', 18: 'home_need', 20: 'stranded' },
+  great: { 12: 'home_need', 14: 'stranded', 16: 'stranded', 18: 'home_need', 20: 'home_need' },
 };
 
 function sensible(label, rows) {
@@ -70,9 +71,9 @@ describe('v60 balance advice the top items on each run', () => {
     // Exactly where each of the run's eleven warnings ranked (a fixed run): 8 first, and the three that sit second or third are behind another danger already under way (a plague, a swarm).
     expect(rec.warnings.map((wn) => [wn.type, wn.rank])).toEqual([
       ['locusts_warning', 0], ['plague_warning', 0], ['drought_warning', 0], ['locusts_warning', 1], ['plague_warning', 0], ['locusts_warning', 0],
-      ['drought_warning', 0], ['locusts_warning', 1], ['plague_warning', 1], ['locusts_warning', 0], ['plague_warning', 0],   // WAVE2-PIN 9.2 Track S: was ... ['plague_warning', 1], ['locusts_warning', 2] ...
-    ]);
-    expect(first.length).toBe(8);
+      ['drought_warning', 0], ['locusts_warning', 1], ['plague_warning', 1], ['locusts_warning', 0],
+    ]);   // WAVE2-PIN 9.2 Track S (ruling 1808): ten warnings now, not eleven (the late run's sickness changed with the crowded term dropped); was ... ['drought_warning', 0], ['plague_warning', 1], ['locusts_warning', 2], ['locusts_warning', 0], ['plague_warning', 0]
+    expect(first.length).toBe(7);   // WAVE2-PIN 9.2 Track S (ruling 1808): was 8
     expect(new Set(first)).toEqual(new Set(['locusts', 'plague', 'drought']));
   });
 });

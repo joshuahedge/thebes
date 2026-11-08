@@ -61,7 +61,7 @@ describe('s3 score summary and chip', () => {
         const part = li.dataset.part;
         expect([part, li.querySelector('.part-number').textContent]).toEqual([part, String(s.parts[part])]);
         const bar = li.querySelector('[role="progressbar"]');
-        expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-label')]).toEqual([String(s.parts[part]), partBarLabel(part, s.parts[part])]);
+        expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-label')]).toEqual([String(s.parts[part]), partBarLabel(part, s.parts[part], s.ceilings[part])]);
         const reason = li.querySelector('.reason');
         expect([part, reason ? reason.textContent : '']).toEqual([part, score4ReasonText(s.reasons[part])]);   // Stage 4: Monuments' next step too
       }

@@ -24,18 +24,18 @@ describe('s4 contract monument data', () => {
     expect(MONUMENT_KINDS).toEqual(['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great', 'great_temple']);   // Version 6.0 (Track A): the great temple last
     const rows = MONUMENT_KINDS.map((k) => { const m = MONUMENTS[k]; return [k, m.w, m.d, m.rotates, m.courses.length, m.crews, m.crewMonths]; });
     expect(rows).toEqual([
-      ['obelisk_small', 1, 1, false, 3, 1, 3], ['obelisk_large', 1, 1, false, 4, 2, 18], ['great_sphinx', 3, 2, false, 6, 2, 36], ['colossus', 2, 2, false, 6, 2, 42],
-      ['mastaba_small', 3, 2, true, 4, 3, 72], ['mastaba_large', 4, 3, true, 5, 4, 240], ['sun_temple', 3, 3, false, 6, 4, 300], ['pyramid_small', 4, 4, false, 8, 4, 384],
+      ['obelisk_small', 1, 1, false, 3, 1, 3], ['obelisk_large', 1, 1, false, 4, 2, 18], ['great_sphinx', 3, 2, false, 6, 2, 36], ['colossus', 2, 2, false, 6, 2, 48],
+      ['mastaba_small', 3, 2, true, 4, 3, 108], ['mastaba_large', 4, 3, true, 5, 4, 240], ['sun_temple', 3, 3, false, 6, 4, 300], ['pyramid_small', 4, 4, false, 8, 4, 384],
       ['step_pyramid', 4, 4, false, 10, 4, 540], ['pyramid_great', 7, 7, false, 12, 4, 720],
       ['great_temple', 5, 5, false, 10, 4, 300],                                      // Version 6.0 (Track A): the great temple
     ]);
     // Months with the kind's most crews and full supply: 3 months, 9 months, 2, 3, 5, 8 and 15 years (ruling 179).
-    expect(MONUMENT_KINDS.map((k) => MONUMENTS[k].crewMonths / MONUMENTS[k].crews)).toEqual([3, 9, 18, 21, 24, 60, 75, 96, 135, 180, 75]);
+    expect(MONUMENT_KINDS.map((k) => MONUMENTS[k].crewMonths / MONUMENTS[k].crews)).toEqual([3, 9, 18, 24, 36, 60, 75, 96, 135, 180, 75]);
     for (const k of MONUMENT_KINDS) expect([k, units(MONUMENTS[k])]).toEqual([k, MONUMENTS[k].crewMonths * MONUMENT.unitsPerCrewMonth]);
   });
   it('gives each course a recipe of stone and bricks: stone for obelisks and the colossus, brick cores for mastabas, ramp bricks for pyramids', () => {
     const mat = (k) => [total(MONUMENTS[k], 'stone'), total(MONUMENTS[k], 'bricks')];
-    expect(MONUMENT_KINDS.map(mat)).toEqual([[60, 0], [360, 0], [720, 0], [840, 0], [360, 1080], [960, 3840], [3000, 3000], [6528, 1152], [9180, 1620], [12240, 2160], [5400, 600]]);
+    expect(MONUMENT_KINDS.map(mat)).toEqual([[60, 0], [360, 0], [720, 0], [960, 0], [540, 1620], [960, 3840], [3000, 3000], [6528, 1152], [9180, 1620], [12240, 2160], [5400, 600]]);
     expect(MONUMENTS.mastaba_small.courses.map((c) => (c.stone ? 'stone' : 'bricks'))).toEqual(['bricks', 'bricks', 'bricks', 'stone']);
     for (const c of MONUMENTS.pyramid_great.courses) expect(c.bricks / (c.stone + c.bricks)).toBe(0.15);
     expect(MATERIALS).toEqual(MATERIAL_GOODS);

@@ -19,6 +19,8 @@ import { createMonumentUi } from '../../../src/ui/monumentSheet.js';
 import { difficultyHint, V90_D_TEXT, S92_S_TEXT } from '../../../src/ui/text.js';
 import { runCapital } from '../../stage4/balance/capitalRun.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
+import { rigUI } from '../../helpers/uiWorld.js';
+import { openSheet } from '../../../src/ui/modes.js';
 
 const PARTS = { people: 40, prosperity: 60, culture: 50, safety: 60, monuments: 20 };
 const SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null, pyramids: null, great_pyramid: null };
@@ -100,6 +102,40 @@ describe('v92 s score v3: terms that have not started count nothing', () => {
     expect(started).toBeGreaterThanOrEqual(none);                          // the raid clock: the same
     expect(scoreOf(w).raw).toBeLessThan(MEDALS[0].at);
   });
+  it('does not let the scripted run\'s score fall on the month the raid clock starts (design T8; ruling 1812)', () => {
+    // The clock starts at 250 people, in the month the run becomes a Market town. At each month end the score with the clock as it stands is never under the
+    // score with the clock held back, nor the safety part under its value with fire held back (a Village): a newly started term only adds. The month-to-month
+    // dips beside it (Town 186, Market town 151) are the culture part: the temple and bazaar are unstaffed at that month's end as the city grows, read as they are.
+    const seen = [];
+    runCapital(8, { onMonth: (w) => {
+      const s = scoreOf(w);
+      const keep = { clock: w.raid.clockDay, milestone: w.milestone };
+      w.raid.clockDay = null;
+      const noClock = scoreOf(w);
+      w.raid.clockDay = keep.clock; w.milestone = 'village';
+      const noFire = scoreOf(w);
+      w.milestone = keep.milestone;
+      expect(s.raw).toBeGreaterThanOrEqual(noClock.raw);
+      expect(s.parts.safety).toBeGreaterThanOrEqual(noFire.parts.safety);
+      seen.push(keep.clock !== null);
+    } });
+    expect(seen.includes(false) && seen.includes(true)).toBe(true);        // the run crosses the day the clock starts
+  });
+  it('draws the City summary\'s part bars against each part\'s own ceiling under v3 (ruling 1813), 100 where there are no ceilings', async () => {
+    const r = await rigUI();
+    try {
+      r.world.milestone = 'village';
+      r.world.raid.clockDay = null;
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      const row = (part) => r.root.querySelector(`#sheet .score-part[data-part="${part}"]`);
+      const s = scoreOf(r.world);
+      expect(s.ceilings.safety).toBe(20);
+      const bar = row('safety').querySelector('[role="progressbar"]');
+      expect([bar.getAttribute('aria-valuemax'), bar.getAttribute('aria-label')]).toEqual(['20', `Safety: ${s.parts.safety} of 20`]);
+      expect(row('safety').querySelector('.fill').style.width).toBe(`${Math.min(100, (s.parts.safety / 20) * 100)}%`);
+      expect(row('people').querySelector('[role="progressbar"]').getAttribute('aria-valuemax')).toBe('100');
+    } finally { r.cleanup(); }
+  });
   it('says in the chip\'s explainer what counts next, and each part\'s ceiling', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
@@ -160,8 +196,8 @@ describe('v92 s the Villa and the luxury goal', () => {
 });
 
 describe('v92 s the middle monuments', () => {
-  it('shortens the small mastaba to 72 crew-months and the colossus to 42 (36 would tie the great sphinx), the courses equal to the crew-months', () => {
-    expect([MONUMENTS.mastaba_small.crewMonths, MONUMENTS.colossus.crewMonths]).toEqual([72, 42]);
+  it('leaves the small mastaba at 108 crew-months and the colossus at 48 as 9.1 had them (ruling 1810), the courses equal to the crew-months', () => {
+    expect([MONUMENTS.mastaba_small.crewMonths, MONUMENTS.colossus.crewMonths]).toEqual([108, 48]);
     for (const k of ['mastaba_small', 'colossus']) {
       const units = MONUMENTS[k].courses.reduce((s, c) => s + c.stone + c.bricks, 0);
       expect(units).toBe(MONUMENTS[k].crewMonths * MONUMENT.unitsPerCrewMonth);
@@ -192,7 +228,7 @@ describe('v92 s the middle monuments', () => {
     store.set({ selectedId: null });
     month();
     expect(shown.length).toBe(2);
-    site.site.laid.bricks = 180;                                            // 180 of 1,440 units: 12% of the course's share
+    site.site.laid.bricks = 180;                                            // a few units laid
     store.set({ selectedId: site.id }); store.set({ selectedId: null });
     month();
     expect(shown.length).toBe(3);

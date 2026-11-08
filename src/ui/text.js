@@ -1016,7 +1016,7 @@ export function scoreReasonText(r) {
 export const scoreChipText = (total) => `${SCORE_TEXT.score} ${total}`;
 export const medalText = (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : SCORE_TEXT.noMedal);
 export const nextMedalText = (next) => (next ? `${plural(next.points, 'point', 'points')} to ${SCORE_TEXT.medals[next.medal]}` : SCORE_TEXT.topMedal);
-export const partBarLabel = (part, n) => `${SCORE_TEXT.parts[part]}: ${progressText(n, 100)}`;
+export const partBarLabel = (part, n, cap = 100) => `${SCORE_TEXT.parts[part]}: ${progressText(n, cap)}`;   // Version 9.2 (Track S, ruling 1813): the part's own ceiling under score v3
 export const factorText = (raw, factor, level) => `Parts ${raw} × ${factor} on ${DIFFICULTY_NAMES[level] || level}`;
 // The confirm bar's score line: the parts that would change by a whole point or more ("+3 Culture, −1 Safety"); '' for none.
 export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p) => Math.abs(delta[p] || 0) >= 1)

@@ -42,10 +42,13 @@ export function createScoreUi(ctx) {
   // One part: its name and number, a bar (the number again, for sight; never alone) and its reason line.
   function partRow(part, s) {
     const n = s.parts[part];
+    // Version 9.2 (Track S, ruling 1813): under score v3 a part is drawn against its own ceiling (the terms that have started), so a Village's Safety is 20 of 20,
+    // not 20 of 100; a score with no ceilings (a v2 best's) is drawn against 100 as it was.
+    const cap = s.ceilings && s.ceilings[part] > 0 ? s.ceilings[part] : 100;
     return el('li', { class: 'score-part', dataset: { part } }, [
       el('div', { class: 'row' }, [el('span', { text: SCORE_TEXT.parts[part] }), el('strong', { class: 'part-number', text: String(n) })]),
-      el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n) }, [
-        el('span', { class: 'fill', style: { width: `${n}%` } }),
+      el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(cap), 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n, cap) }, [
+        el('span', { class: 'fill', style: { width: `${Math.min(100, (n / cap) * 100)}%` } }),
       ]),
       s.reasons[part] ? el('p', { class: 'reason small muted', text: score4ReasonText(s.reasons[part]) }) : null,   // Stage 4: the Monuments part's next step too
     ]);

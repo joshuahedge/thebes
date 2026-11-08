@@ -72,7 +72,7 @@ describe('v60 balance dangers late run', () => {
     expect(population(r.w)).toBeGreaterThanOrEqual(1000);
     expect(r.w.milestone).toBe('capital');
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([10, 0]);
-    expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.3 * off.yearly[15].gold);   // WAVE2-PIN 9.2 Track S (rulings 1800, 1808): was 0.5 of the dangers-off city's gold; 5,400 against 17,481 now (0.31)
+    expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.5 * off.yearly[15].gold);
     expect(population(r.w)).toBeGreaterThanOrEqual(0.9 * population(off.w));
     // the player's answers were made, each through the sim's own commands
     expect(rec.did.harvest).toBeGreaterThan(0);
