@@ -76,6 +76,15 @@ function layoutRow(initial, onChoose) {
   ]);
 }
 
+// Version 9.1 (Track F, ruling 1660): the layout the new-city card starts on before the player picks one: the classic river while the device's records hold no city
+// (its first own city, after the lesson or without it, should teach the game, not the map), Surprise me ('auto') from then on. records: src/save/records.js's store.
+// Fix wave (ruling 1735): the city the lesson's hand-over adopted (adoptedId, the setting lessonCityId) is not one the player started.
+export function firstCityLayout(records, adoptedId = '') {
+  let cities = 0;
+  try { const r = records && typeof records.load === 'function' ? records.load() : null; cities = r && Array.isArray(r.cities) ? r.cities.filter((c) => !adoptedId || !c || c.id !== adoptedId).length : 0; } catch (e) { cities = 0; }
+  return cities > 0 ? 'auto' : 'classic';
+}
+
 // Version 8.2 (Track G, rulings 1308-1311): the new-city card on its own, so the title and the game's menu show the same one. The difficulty tiles, the map
 // preview (the map the city will get, drawn from the seed, the size and the layout, with Another to draw a new seed), More choices (map size and layout, closed
 // at first, with a line saying what is chosen), a note when a saved city would be replaced, then Start and Back. Each choice is told at once (onDifficulty,
@@ -284,8 +293,13 @@ export function showcaseBox(world) {
 // showcase's middle goes to.
 const FRAME_ZOOMS = [1, 0.75, 0.5];
 const FRAME_MARGIN = 10;
+// Version 9.1 (Track F, ruling 1673): a big screen (BIG_TITLE and up) may draw the showcase larger, at 1.5, so at 1920x1080 the sample city fills its band round the card
+// instead of standing small in a corner of empty desert. The game itself zooms to 2, so the sprites have the scale.
+const BIG_TITLE = { width: 1600, height: 900 };
+const BIG_FRAME_ZOOMS = [1.5, ...FRAME_ZOOMS];
 export function showcaseFrame(box, view, card) {
   const W = (box[2] - box[0]) * ART_SCALE, H = (box[3] - box[1]) * ART_SCALE, m = FRAME_MARGIN;
+  const zooms = view.width >= BIG_TITLE.width && view.height >= BIG_TITLE.height ? BIG_FRAME_ZOOMS : FRAME_ZOOMS;
   const c = card || { left: view.width / 2, right: view.width / 2, top: view.height / 2, bottom: view.height / 2 };
   const bands = [
     { x: 0, y: c.bottom, w: view.width, h: view.height - c.bottom },
@@ -296,9 +310,9 @@ export function showcaseFrame(box, view, card) {
   let best = null;
   for (const band of bands) {
     const fit = Math.min((band.w - 2 * m) / W, (band.h - 2 * m) / H);
-    const zoom = FRAME_ZOOMS.find((z) => z <= fit + 1e-9) || 0;
+    const zoom = zooms.find((z) => z <= fit + 1e-9) || 0;
     const score = zoom || fit / 10;                    // none holds it even at 0.5: the band that comes nearest
-    if (!best || score > best.score + 1e-9) best = { score, zoom: zoom || FRAME_ZOOMS[FRAME_ZOOMS.length - 1], band };
+    if (!best || score > best.score + 1e-9) best = { score, zoom: zoom || zooms[zooms.length - 1], band };
   }
   const { band, zoom } = best;
   return { x: band.x + band.w / 2, y: band.y + band.h / 2, zoom };

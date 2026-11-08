@@ -26,8 +26,10 @@ export function updateMilestone(world) {
   let i = from;
   while (i + 1 < MILESTONES.length && pop >= MILESTONES[i + 1].population && milestoneNeedsMet(world, MILESTONES[i + 1])) i++;
   const changed = MILESTONES[i].id !== world.milestone;
+  // Version 9.1 (Track F, ruling 1661): a card the lesson already put in the player's hands (world.lessonCards) is not new when its rank arrives.
+  const had = Array.isArray(world.lessonCards) ? world.lessonCards : [];
   for (let k = from + 1; k <= i; k++) {
-    for (const type of MILESTONES[k].unlocks) if (!world.newItems.includes(type)) world.newItems.push(type);
+    for (const type of MILESTONES[k].unlocks) if (!world.newItems.includes(type) && !had.includes(type)) world.newItems.push(type);
     if (!Number.isInteger(world.splits[MILESTONES[k].id])) world.splits[MILESTONES[k].id] = world.day;   // spec 4.19: the day it first became one
   }
   world.milestone = MILESTONES[i].id;
@@ -43,6 +45,9 @@ export function isUnlocked(world, type) {
   // Version 6.0 (ruling 652): one great temple a city. Once one stands (a site or finished) its card is locked, so the Seat's tray stops
   // showing it (src/ui/cards.js cardShown: nothing comes after the last rank) and the placing rule refuses a second.
   if (type === GREAT_WORK.type && allBuildings(world).some((b) => b.type === type)) return false;
+  // Version 9.1 (wave 0 seam, rulings 1651, 1652): the cards the lesson showed stay unlocked after the hand-over, whatever the rank
+  // (world.lessonCards, a list of building types, optional: absent on every other city, which unlocks by rank alone as before).
+  if (Array.isArray(world.lessonCards) && world.lessonCards.includes(type)) return true;
   if (PRESTIGE_UNLOCKS.includes(type)) return Number.isInteger(world.prestigeUnlocks[type]);
   const cur = milestoneIndex(world.milestone);
   for (let i = 0; i <= cur; i++) if (MILESTONES[i].unlocks.includes(type)) return true;

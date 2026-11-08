@@ -7,7 +7,10 @@ export const MAX_FRAME_SECONDS = 0.25; // a hidden tab or a hitch never becomes 
 export const MAX_DAYS_PER_FRAME = 12;
 
 // allowFrame (Stage 3): asked each frame, after the sim's days, whether to draw it (the idle frame-rate cap, spec 5.6).
-export function createGameLoop({ world, render, onEvents = null, allowFrame = null, raf = (fn) => requestAnimationFrame(fn), caf = (id) => cancelAnimationFrame(id) }) {
+// onError (Version 9.1, wave 0 seam, ruling 1651; Track R fills the caller in boot.js): when given, a throw in a day's tick calls
+// onError({ where: 'tick', error }) and ends the frame there (no more days, no events, no draw: the city may be half-changed); a throw in the
+// render calls onError({ where: 'render', error }). Without it a throw leaves the frame as it always has.
+export function createGameLoop({ world, render, onEvents = null, allowFrame = null, onError = null, raf = (fn) => requestAnimationFrame(fn), caf = (id) => cancelAnimationFrame(id) }) {
   let last = null, acc = 0, handle = null, running = false;
   const events = [];
 
@@ -18,7 +21,10 @@ export function createGameLoop({ world, render, onEvents = null, allowFrame = nu
     acc += daysForSeconds(world.speed, dt);
     let steps = 0;
     while (acc >= 1 && steps < MAX_DAYS_PER_FRAME) {
-      tickDay(world, events);
+      if (!onError) tickDay(world, events);
+      else {
+        try { tickDay(world, events); } catch (error) { acc = 0; events.length = 0; onError({ where: 'tick', error }); return; }
+      }
       acc -= 1;
       steps++;
       if (world.speed === 0) { acc = 0; break; }   // the sim paused the game (a first fire or raid warning): no more days this frame
@@ -30,7 +36,8 @@ export function createGameLoop({ world, render, onEvents = null, allowFrame = nu
     }
     if (allowFrame && !allowFrame(t)) return;
     noteFrameTime(world, world.day + acc);   // Version 9.0 (Track V): the frame's game time, for the effects that run on game days
-    render({ timeDays: world.day + acc, dt, steps, now: t });
+    if (!onError) { render({ timeDays: world.day + acc, dt, steps, now: t }); return; }
+    try { render({ timeDays: world.day + acc, dt, steps, now: t }); } catch (error) { onError({ where: 'render', error }); }
   }
 
   return {

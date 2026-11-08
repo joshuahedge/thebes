@@ -93,6 +93,7 @@ import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 import { SPLITS } from '../data/scoring.js';
+import { createDebtSheets } from './v91/debtSheet.js';   // Version 9.1 (Track R): Back to gold, the debt alert's sheet
 import { onSplit } from './v90/rivalToast.js';   // Version 9.0 (wave 0 seam): the rival toast at a new split (Track L)
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -149,7 +150,8 @@ export function createUI({
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   // Version 8.0 (Track N, ruling 1160): every toast and caption is also kept in the message tray behind the scroll button at the top right (src/ui/tray.js); trayModel (below) is what its sheet shows.
-  const tray = createTray();
+  // Version 9.1 (Track F, ruling 1666): what comes in while the lesson runs is kept read (its captions are hidden behind Ipi's row, and nothing in it is news to count).
+  const tray = createTray({ readWhen: () => Boolean(world.lesson) });
   const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE), held: () => root.classList.contains('lesson-card-up'), record: (text, o) => tray.add(text, o), forget: (id) => tray.drop(id) });   // Version 7.1.1 (ruling 1100): none over a lesson card
   // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
   const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
@@ -330,6 +332,7 @@ export function createUI({
     advice: advice.sheet,
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
     ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
+    ...createDebtSheets(seamCtx),                        // Version 9.1 (Track R): Back to gold
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -575,6 +578,7 @@ export function createUI({
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
+    if (alert.code === 'debt') { store.set(openSheet(store.get(), 'backToGold')); return; }   // Version 9.1 (Track R, ruling 1681): the way back, from the treasury's own figures
     if (alert.code === 'plots_no_road') { const b = nearestPlot(alert); if (b && selectBuilding(b.id)) return; }
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
@@ -650,9 +654,10 @@ export function createUI({
     // Version 8.0 (ruling 1165): Undo takes back the last action only, so the Undo of an earlier action's toast goes as the next action comes (a wide screen shows two toasts, and the older one's button would take the newer one back).
     if (e.undoable) {
       if (undoToast) { toasts.hide(undoToast); undoToast = null; }
-      undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish'), at: e.at });   // ruling 986: Delete names itself only after a placement
+      // Version 9.1 (Track F, ruling 1659): the toast that echoes the player's own action (placed, laid, demolished, undone) shows but is not kept in Messages (tray: false).
+      undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish'), at: e.at, tray: false });   // ruling 986: Delete names itself only after a placement
     }
-    else if (e.kind === 'undo') toasts.show(T.undone);
+    else if (e.kind === 'undo') toasts.show(T.undone, { tray: false });
     refresh();
   }
   // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.
@@ -701,8 +706,13 @@ export function createUI({
     corners.render();
     goalsStrip.render();                               // the threshold bar steps aside for the banner on a phone
   }
+  // Version 9.1 (wave 0 seam, ruling 1651): autosave is blocked for a tainted city (the sim threw mid-tick, so it may be half-changed), so the
+  // slot keeps its last good save. Track R sets it through ui.setAutosaveBlocked(true); nothing sets it yet, so blocked() is false.
+  let autosaveBlocked = false;
+  function blocked() { return autosaveBlocked; }
+  function setAutosaveBlocked(flag) { autosaveBlocked = Boolean(flag); }
   async function autosave(reason) {
-    if (destroyed || typeof hooks.save !== 'function') return;
+    if (destroyed || blocked() || typeof hooks.save !== 'function') return;
     let ok = false;
     try { ok = await hooks.save(reason); } catch (e) { ok = false; }
     setSaveFailed(!ok);                 // a no-op if the UI was destroyed while the save was in flight
@@ -1255,7 +1265,7 @@ export function createUI({
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   const unwatchWords = watchMapWords(world, root);   // Version 8.2 (integration, ruling 1335): a city with no river says the great lake in every word it draws
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed, setAutosaveBlocked,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
     monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),

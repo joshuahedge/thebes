@@ -32,7 +32,9 @@ describe('v711 skip: the title card', () => {
     }
   });
 
-  it('marks the lesson done as a finished one does and shows the usual New city card with its level and size choices; Lesson still plays it', async () => {
+  // Version 9.1 (Track F, ruling 1669, over 1111's title again): it marks the lesson done and starts a city at once, in one tap, on the new-city card's choices (the classic
+  // river at Normal for a device's first city, ruling 1660); the title then offers New city with its level and size choices, and Lesson still plays it.
+  it('marks the lesson done as a finished one does and starts a city at once; back on the title, New city has its level and size choices and Lesson still plays it', async () => {
     const s = await pageAt(null, { settings: { cardsSeen: false } });
     try {
       const title = s.root.querySelector('#title');
@@ -40,16 +42,14 @@ describe('v711 skip: the title card', () => {
       fire(title.querySelector('.lesson-skip'), 'click');
       await flush();
       expect(saved(s)).toEqual({ ...saved(s), lessonDone: true, lessonStep: LESSON_LENGTH, cardsSeen: true });
-      expect(s.api.phase()).toBe('title');
+      expect([s.api.phase(), s.g().lesson, s.g().world.mapVariant]).toEqual(['game', false, 'classic']);   // the picture cards are marked seen: no cards first
+      expect(await s.api.hooks.home()).toBe(true);
+      await flush();
       const now = s.root.querySelector('#title');
-      expect([Boolean(now.querySelector('.new-city')), now.querySelector('.new-city').textContent]).toEqual([true, 'Play']);   // Version 8.0: Play opens the new-city card with its level tiles and, under More choices, its sizes
+      expect([Boolean(now.querySelector('.new-city')), now.querySelector('.lesson-skip'), Boolean(now.querySelector('.lesson'))]).toEqual([true, null, true]);
       fire(now.querySelector('.new-city'), 'click');
       expect([now.querySelectorAll('.title-difficulty .choice.difficulty').length, now.querySelectorAll('.title-size .choice.mapsize').length]).toEqual([DIFFICULTY_ORDER.length, 4]);
-      fire(now.querySelector('.guide-back'), 'click');
-      expect([now.querySelector('.lesson-skip'), Boolean(now.querySelector('.lesson')), now.querySelector('.lesson-note').textContent]).toEqual([null, true, V711_TEXT.skippedNote]);
       expect(s.root.querySelector('#title .goal-line').textContent).toBe(V711_TEXT.goal());
-      startNewCity(now);
-      expect([s.api.phase(), s.g().lesson]).toEqual(['game', false]);                     // New city starts at once: the picture cards are marked seen
     } finally { s.cleanup(); }
   });
 

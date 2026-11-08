@@ -134,9 +134,10 @@ describe('v81 i lesson: the month step lights the top bar\'s gold', () => {
       await frame();
       const gold = s.root.querySelector('#topbar .stat.gold');
       expect([gold.classList.contains('lesson-lit'), gold.hasAttribute('data-locked'), getComputedStyle(gold).outlineStyle]).toEqual([true, false, 'solid']);
-      expect(['people', 'mood', 'date', 'score'].map((k) => s.root.querySelector(`#topbar .stat.${k}`).hasAttribute('data-locked'))).toEqual([true, true, true, true]);
+      // Version 9.1 (Track F, ruling 1665): the mood chip is lit and live beside the gold (Ipi's line says mood's why is there); the other stats stay dimmed.
+      expect(['people', 'mood', 'date', 'score'].map((k) => s.root.querySelector(`#topbar .stat.${k}`).hasAttribute('data-locked'))).toEqual([true, false, true, true]);
       expect([s.root.querySelector('.lesson-ring').hidden, g.cam.x, g.cam.y, g.cam.zoom]).toEqual([true, was.x, was.y, was.zoom]);
-      expect(s.root.querySelectorAll('.lesson-lit').length).toBe(1);
+      expect([...s.root.querySelectorAll('.lesson-lit')].map((n) => n.classList.contains('gold') ? 'gold' : n.classList.contains('mood') ? 'mood' : 'other')).toEqual(['gold', 'mood']);
     } finally { s.cleanup(); }
   });
 });

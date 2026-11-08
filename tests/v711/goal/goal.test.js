@@ -51,12 +51,13 @@ describe('v711 goal: where it is shown', () => {
     }
   });
 
-  it('the first lesson card opens with it, and the later cards do not', async () => {
+  // Version 9.1 (Track F, ruling 1667): the story is told once, on the title card the lesson starts from; the first card says its chapter's why like every other.
+  it('no lesson card repeats it, the first included (the title card has it)', async () => {
     const s = await pageAt('road');
     try {
       const words = cardOf(s).querySelector('.lc-words').textContent;
-      expect(words.startsWith(`${V711_TEXT.goal()} `)).toBe(true);
-      expect(words.endsWith(V81T_TEXT.steps.road().do)).toBe(true);                       // Version 8.1: Ipi's do line
+      expect(words.includes(V711_TEXT.goal())).toBe(false);
+      expect(words.startsWith(V81T_TEXT.chapters.roads.why)).toBe(true);
       s.root.querySelector('.lesson-card .lc-go').click();
     } finally { s.cleanup(); }
     const t = await pageAt('homes');

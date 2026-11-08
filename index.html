@@ -20,6 +20,82 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <title>Thebes</title>
+<!-- v91 loading -->
+<style>
+html{background:#F3E7CB}
+#v91-loading{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:#F3E7CB;color:#2B1F0E;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#v91-loading p{margin:6px 0;max-width:30em}
+#v91-loading .v91-name{font:700 36px/1.2 "Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;letter-spacing:.06em}
+#v91-loading .v91-line{color:#5A4832}
+#v91-loading button{margin-top:12px;min-width:44px;min-height:44px;padding:0 20px;font:inherit;color:#F5D98A;background:#1C3768;border:1px solid #1C3768;border-radius:12px;cursor:pointer}
+#v91-loading [hidden]{display:none}
+</style>
+<script>
+/* The loading screen (Version 9.1, Track R, design 5a): painted from the page's own head, so a slow connection sees the name and a quiet line at once; boot.js removes it when the
+   title shows (window.__v91Loading.done). After 15 s it says so and offers Reload; a failed file (the early-error block, below) says so too. Plain old script: it must run anywhere. */
+(function () {
+  var w = window, d = document, node = null, finished = false, timer = null, state = { slow: false, fail: '', old: false };
+  function paint() {
+    if (!node) build();
+    if (!node) return;
+    var p = node.getElementsByTagName('p'), button = node.getElementsByTagName('button')[0], bad = Boolean(state.fail), line = p[1], slow = p[2], fail = p[3], old = p[4];
+    line.hidden = bad || state.old;
+    slow.hidden = !state.slow || bad || state.old;
+    fail.hidden = !bad;
+    fail.textContent = bad ? 'Thebes could not start (' + state.fail.slice(0, 160) + '). Check your connection, then Reload.' : '';
+    old.hidden = !state.old;
+    button.hidden = state.old || !(state.slow || bad);
+  }
+  function build() {
+    if (node || finished || !d.body) return;
+    node = d.createElement('div');
+    node.id = 'v91-loading';
+    node.setAttribute('role', 'status');
+    node.innerHTML = '<p class="v91-name">Thebes</p><p class="v91-line">Loading</p><p class="v91-slow" hidden>Still loading. Slow connection?</p><p class="v91-fail" hidden></p><p class="v91-old" hidden>This browser is too old to run Thebes. Try a current Safari, Chrome, Edge or Firefox.</p><button type="button" hidden>Reload</button>';
+    node.getElementsByTagName('button')[0].onclick = function () { w.location.reload(); };
+    d.body.appendChild(node);
+    paint();
+  }
+  w.__v91Loading = {
+    active: function () { return !finished; },
+    slow: function () { state.slow = true; paint(); },
+    fail: function (msg) { state.fail = String(msg || 'an error'); paint(); },
+    old: function () { state.old = true; paint(); },
+    done: function () { finished = true; if (timer !== null) clearTimeout(timer); if (node && node.parentNode) node.parentNode.removeChild(node); node = null; }
+  };
+  timer = setTimeout(function () { timer = null; w.__v91Loading.slow(); }, 15000);
+  if (d.body) build();
+  else if (w.MutationObserver) { var mo = new w.MutationObserver(function () { if (d.body) { mo.disconnect(); build(); } }); mo.observe(d.documentElement, { childList: true }); }
+  else d.addEventListener('DOMContentLoaded', build);
+})();
+</script>
+<script nomodule>window.__v91Loading && window.__v91Loading.old();</script>
+<!-- end v91 loading -->
+<!-- v91 early-error -->
+<script>
+/* The early error line (Version 9.1, Track R, design 5a): a module that fails to load (a missing file, a lost connection, a syntax error) or a start that throws before the title
+   shows is said on the loading screen with Reload, instead of a blank page. Capture phase: a failed script element's error does not bubble. After the title shows it does nothing. */
+(function () {
+  var w = window;
+  /* Not failures of the start (the same list as src/ui/v91/rescue.js ignorable; keep the two alike): the browser's ResizeObserver notice, the cross-origin "Script error.", a
+     cancelled share or a blocked sound (AbortError, NotAllowedError), a rejection with no reason. */
+  function ignore(err, message) {
+    var text = (message || '') + ' ' + (err && err.message ? err.message : '');
+    if (/ResizeObserver loop|^\s*Script error\.?\s*$/.test(text)) return true;
+    if (err === undefined || err === null) return !message;
+    return err.name === 'AbortError' || err.name === 'NotAllowedError';
+  }
+  function say(msg) { var L = w.__v91Loading; if (L && L.active()) L.fail(msg); }
+  w.addEventListener('error', function (e) {
+    var t = e && e.target;
+    if (t && t !== w && t.tagName) { if (t.tagName === 'SCRIPT') say('a file did not load'); return; }
+    if (ignore(e && e.error, e && e.message)) return;
+    say((e && e.message) || 'an error');
+  }, true);
+  w.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; if (ignore(r, '')) return; say((r && r.message) || 'an error'); });
+})();
+</script>
+<!-- end v91 early-error -->
 <link rel="stylesheet" href="./css/ui.css">
 <link rel="stylesheet" href="./css/v80-u.css">
 <link rel="stylesheet" href="./css/v81-t.css">
@@ -28,6 +104,387 @@
 <link rel="stylesheet" href="./css/v82-g.css">
 <link rel="stylesheet" href="./css/v83-k.css">
 <link rel="stylesheet" href="./css/v90.css">
+<link rel="stylesheet" href="./css/v91.css">
+<!-- v91 preload -->
+<link rel="modulepreload" href="./src/main.js">
+<link rel="modulepreload" href="./src/boot.js">
+<link rel="modulepreload" href="./src/sim/world.js">
+<link rel="modulepreload" href="./src/data/economy.js">
+<link rel="modulepreload" href="./src/data/buildings.js">
+<link rel="modulepreload" href="./src/data/goods.js">
+<link rel="modulepreload" href="./src/data/s46.js">
+<link rel="modulepreload" href="./src/data/map.js">
+<link rel="modulepreload" href="./src/data/river.js">
+<link rel="modulepreload" href="./src/data/court.js">
+<link rel="modulepreload" href="./src/data/armies.js">
+<link rel="modulepreload" href="./src/data/raids.js">
+<link rel="modulepreload" href="./src/data/wonders.js">
+<link rel="modulepreload" href="./src/data/v70.js">
+<link rel="modulepreload" href="./src/data/trade.js">
+<link rel="modulepreload" href="./src/data/cityEvents.js">
+<link rel="modulepreload" href="./src/data/seasons.js">
+<link rel="modulepreload" href="./src/data/adviceFixes.js">
+<link rel="modulepreload" href="./src/data/monuments.js">
+<link rel="modulepreload" href="./src/data/v60.js">
+<link rel="modulepreload" href="./src/data/reign.js">
+<link rel="modulepreload" href="./src/data/hazards.js">
+<link rel="modulepreload" href="./src/data/largePlots.js">
+<link rel="modulepreload" href="./src/data/ferries.js">
+<link rel="modulepreload" href="./src/data/difficulty.js">
+<link rel="modulepreload" href="./src/data/s47.js">
+<link rel="modulepreload" href="./src/data/v84.js">
+<link rel="modulepreload" href="./src/data/v90.js">
+<link rel="modulepreload" href="./src/sim/mapgen.js">
+<link rel="modulepreload" href="./src/sim/rng.js">
+<link rel="modulepreload" href="./src/sim/grid.js">
+<link rel="modulepreload" href="./src/sim/terrain.js">
+<link rel="modulepreload" href="./src/sim/resources.js">
+<link rel="modulepreload" href="./src/sim/fit.js">
+<link rel="modulepreload" href="./src/sim/oases.js">
+<link rel="modulepreload" href="./src/sim/bridges.js">
+<link rel="modulepreload" href="./src/sim/hills.js">
+<link rel="modulepreload" href="./src/sim/belts.js">
+<link rel="modulepreload" href="./src/sim/moisture.js">
+<link rel="modulepreload" href="./src/sim/courses.js">
+<link rel="modulepreload" href="./src/sim/greatOasis.js">
+<link rel="modulepreload" href="./src/sim/flood.js">
+<link rel="modulepreload" href="./src/sim/time.js">
+<link rel="modulepreload" href="./src/data/progression.js">
+<link rel="modulepreload" href="./src/data/labour.js">
+<link rel="modulepreload" href="./src/data/dynasty.js">
+<link rel="modulepreload" href="./src/sim/commands.js">
+<link rel="modulepreload" href="./src/sim/layerVersion.js">
+<link rel="modulepreload" href="./src/sim/reach.js">
+<link rel="modulepreload" href="./src/sim/ferries.js">
+<link rel="modulepreload" href="./src/sim/costs.js">
+<link rel="modulepreload" href="./src/data/fire.js">
+<link rel="modulepreload" href="./src/data/palace.js">
+<link rel="modulepreload" href="./src/sim/spoils.js">
+<link rel="modulepreload" href="./src/sim/dynasty.js">
+<link rel="modulepreload" href="./src/sim/progression.js">
+<link rel="modulepreload" href="./src/sim/feats.js">
+<link rel="modulepreload" href="./src/data/feats.js">
+<link rel="modulepreload" href="./src/sim/palace.js">
+<link rel="modulepreload" href="./src/sim/money.js">
+<link rel="modulepreload" href="./src/sim/score.js">
+<link rel="modulepreload" href="./src/data/scoring.js">
+<link rel="modulepreload" href="./src/sim/prestige.js">
+<link rel="modulepreload" href="./src/sim/monuments.js">
+<link rel="modulepreload" href="./src/sim/labour.js">
+<link rel="modulepreload" href="./src/sim/production.js">
+<link rel="modulepreload" href="./src/sim/wildlife.js">
+<link rel="modulepreload" href="./src/sim/crops.js">
+<link rel="modulepreload" href="./src/sim/draws.js">
+<link rel="modulepreload" href="./src/sim/plague.js">
+<link rel="modulepreload" href="./src/data/health.js">
+<link rel="modulepreload" href="./src/data/crime.js">
+<link rel="modulepreload" href="./src/sim/housing.js">
+<link rel="modulepreload" href="./src/data/housing.js">
+<link rel="modulepreload" href="./src/sim/desirability.js">
+<link rel="modulepreload" href="./src/data/desirability.js">
+<link rel="modulepreload" href="./src/sim/merge.js">
+<link rel="modulepreload" href="./src/sim/largePlots.js">
+<link rel="modulepreload" href="./src/sim/coverage.js">
+<link rel="modulepreload" href="./src/sim/distribution.js">
+<link rel="modulepreload" href="./src/sim/luxury.js">
+<link rel="modulepreload" href="./src/sim/trade.js">
+<link rel="modulepreload" href="./src/sim/tradeRules.js">
+<link rel="modulepreload" href="./src/sim/bazaarFood.js">
+<link rel="modulepreload" href="./src/sim/adviceFixes.js">
+<link rel="modulepreload" href="./src/data/advice.js">
+<link rel="modulepreload" href="./src/sim/route.js">
+<link rel="modulepreload" href="./src/sim/pathfinding.js">
+<link rel="modulepreload" href="./src/sim/carts.js">
+<link rel="modulepreload" href="./src/sim/economy.js">
+<link rel="modulepreload" href="./src/sim/health.js">
+<link rel="modulepreload" href="./src/sim/serviceCover.js">
+<link rel="modulepreload" href="./src/sim/fire.js">
+<link rel="modulepreload" href="./src/data/mood.js">
+<link rel="modulepreload" href="./src/sim/raids.js">
+<link rel="modulepreload" href="./src/data/tips.js">
+<link rel="modulepreload" href="./src/sim/strikes.js">
+<link rel="modulepreload" href="./src/sim/defence.js">
+<link rel="modulepreload" href="./src/sim/undo.js">
+<link rel="modulepreload" href="./src/sim/combat.js">
+<link rel="modulepreload" href="./src/sim/elephants.js">
+<link rel="modulepreload" href="./src/sim/walk.js">
+<link rel="modulepreload" href="./src/sim/court.js">
+<link rel="modulepreload" href="./src/sim/immigration.js">
+<link rel="modulepreload" href="./src/sim/armies.js">
+<link rel="modulepreload" href="./src/sim/scouts.js">
+<link rel="modulepreload" href="./src/sim/ferryFind.js">
+<link rel="modulepreload" href="./src/sim/ferryLay.js">
+<link rel="modulepreload" href="./src/sim/spots.js">
+<link rel="modulepreload" href="./src/sim/goals.js">
+<link rel="modulepreload" href="./src/data/goals.js">
+<link rel="modulepreload" href="./src/sim/alerts.js">
+<link rel="modulepreload" href="./src/sim/crime.js">
+<link rel="modulepreload" href="./src/sim/s46.js">
+<link rel="modulepreload" href="./src/sim/v60.js">
+<link rel="modulepreload" href="./src/sim/demands.js">
+<link rel="modulepreload" href="./src/sim/pressure.js">
+<link rel="modulepreload" href="./src/sim/hazards.js">
+<link rel="modulepreload" href="./src/sim/v70.js">
+<link rel="modulepreload" href="./src/sim/cityEvents.js">
+<link rel="modulepreload" href="./src/sim/advice.js">
+<link rel="modulepreload" href="./src/render/camera.js">
+<link rel="modulepreload" href="./src/render/iso.js">
+<link rel="modulepreload" href="./src/render/renderer.js">
+<link rel="modulepreload" href="./src/render/art/registry.js">
+<link rel="modulepreload" href="./src/render/art/housing.js">
+<link rel="modulepreload" href="./src/render/art/primitives.js">
+<link rel="modulepreload" href="./src/render/art/palette.js">
+<link rel="modulepreload" href="./src/render/art/nature.js">
+<link rel="modulepreload" href="./src/data/ambient.js">
+<link rel="modulepreload" href="./src/render/art/services.js">
+<link rel="modulepreload" href="./src/render/art/figures.js">
+<link rel="modulepreload" href="./src/render/art/industry.js">
+<link rel="modulepreload" href="./src/render/art/defence.js">
+<link rel="modulepreload" href="./src/data/battle.js">
+<link rel="modulepreload" href="./src/render/art/monuments.js">
+<link rel="modulepreload" href="./src/render/art/supply.js">
+<link rel="modulepreload" href="./src/data/ui.js">
+<link rel="modulepreload" href="./src/render/art/plaza.js">
+<link rel="modulepreload" href="./src/render/art/palace.js">
+<link rel="modulepreload" href="./src/render/art/stages.js">
+<link rel="modulepreload" href="./src/render/art/s46.js">
+<link rel="modulepreload" href="./src/render/art/river.js">
+<link rel="modulepreload" href="./src/render/art/armies.js">
+<link rel="modulepreload" href="./src/render/art/s47.js">
+<link rel="modulepreload" href="./src/render/art/carts.js">
+<link rel="modulepreload" href="./src/render/art/v70.js">
+<link rel="modulepreload" href="./src/render/art/trade.js">
+<link rel="modulepreload" href="./src/render/art/seasons.js">
+<link rel="modulepreload" href="./src/sim/seasons.js">
+<link rel="modulepreload" href="./src/render/art/ferry.js">
+<link rel="modulepreload" href="./src/render/art/ctx.js">
+<link rel="modulepreload" href="./src/render/spriteCache.js">
+<link rel="modulepreload" href="./src/render/terrainBaker.js">
+<link rel="modulepreload" href="./src/render/grass.js">
+<link rel="modulepreload" href="./src/render/rockBelts.js">
+<link rel="modulepreload" href="./src/render/terrainWater.js">
+<link rel="modulepreload" href="./src/render/terrainRoads.js">
+<link rel="modulepreload" href="./src/render/terrainBridges.js">
+<link rel="modulepreload" href="./src/render/terrainWalls.js">
+<link rel="modulepreload" href="./src/render/hills.js">
+<link rel="modulepreload" href="./src/render/chunkIndex.js">
+<link rel="modulepreload" href="./src/render/v90/effects.js">
+<link rel="modulepreload" href="./src/render/v90/raidMoment.js">
+<link rel="modulepreload" href="./src/render/units.js">
+<link rel="modulepreload" href="./src/render/fire.js">
+<link rel="modulepreload" href="./src/ui/text.js">
+<link rel="modulepreload" href="./src/data/achievements.js">
+<link rel="modulepreload" href="./src/data/firsts.js">
+<link rel="modulepreload" href="./src/data/layers.js">
+<link rel="modulepreload" href="./src/data/daily.js">
+<link rel="modulepreload" href="./src/data/lesson.js">
+<link rel="modulepreload" href="./src/ui/v71/mapsText.js">
+<link rel="modulepreload" href="./src/ui/v82/oasisText.js">
+<link rel="modulepreload" href="./src/ui/tray.js">
+<link rel="modulepreload" href="./src/render/ambient.js">
+<link rel="modulepreload" href="./src/render/v90/dropper.js">
+<link rel="modulepreload" href="./src/render/v90/wakes.js">
+<link rel="modulepreload" href="./src/render/scouts.js">
+<link rel="modulepreload" href="./src/render/v90/moment.js">
+<link rel="modulepreload" href="./src/render/v90/clock.js">
+<link rel="modulepreload" href="./src/render/v90/layers.js">
+<link rel="modulepreload" href="./src/render/walkers.js">
+<link rel="modulepreload" href="./src/render/procession.js">
+<link rel="modulepreload" href="./src/render/ferryPace.js">
+<link rel="modulepreload" href="./src/render/light.js">
+<link rel="modulepreload" href="./src/render/v90/scaffold.js">
+<link rel="modulepreload" href="./src/render/loop.js">
+<link rel="modulepreload" href="./src/sim/clock.js">
+<link rel="modulepreload" href="./src/sim/mood.js">
+<link rel="modulepreload" href="./src/sim/festival.js">
+<link rel="modulepreload" href="./src/sim/firsts.js">
+<link rel="modulepreload" href="./src/sim/achievements.js">
+<link rel="modulepreload" href="./src/sim/daily.js">
+<link rel="modulepreload" href="./src/sim/goodsMonth.js">
+<link rel="modulepreload" href="./src/dev/sampleCity.js">
+<link rel="modulepreload" href="./src/ui/createUI.js">
+<link rel="modulepreload" href="./src/sim/settle.js">
+<link rel="modulepreload" href="./src/render/carts.js">
+<link rel="modulepreload" href="./src/render/newcomers.js">
+<link rel="modulepreload" href="./src/render/overlays.js">
+<link rel="modulepreload" href="./src/render/monuments.js">
+<link rel="modulepreload" href="./src/render/layers.js">
+<link rel="modulepreload" href="./src/sim/layers.js">
+<link rel="modulepreload" href="./src/render/plague.js">
+<link rel="modulepreload" href="./src/ui/threatFix.js">
+<link rel="modulepreload" href="./src/render/effects.js">
+<link rel="modulepreload" href="./src/ui/store.js">
+<link rel="modulepreload" href="./src/ui/modes.js">
+<link rel="modulepreload" href="./src/ui/s47/sourcePick.js">
+<link rel="modulepreload" href="./src/ui/components.js">
+<link rel="modulepreload" href="./src/ui/s47/carts.js">
+<link rel="modulepreload" href="./src/ui/s46/seam.js">
+<link rel="modulepreload" href="./src/render/spots.js">
+<link rel="modulepreload" href="./src/ui/layout.js">
+<link rel="modulepreload" href="./src/ui/backstack.js">
+<link rel="modulepreload" href="./src/ui/settings.js">
+<link rel="modulepreload" href="./src/audio/sfx.js">
+<link rel="modulepreload" href="./src/ui/cameraControl.js">
+<link rel="modulepreload" href="./src/ui/input.js">
+<link rel="modulepreload" href="./src/ui/gestures.js">
+<link rel="modulepreload" href="./src/ui/keyboard.js">
+<link rel="modulepreload" href="./src/ui/pick.js">
+<link rel="modulepreload" href="./src/ui/placement.js">
+<link rel="modulepreload" href="./src/sim/areas.js">
+<link rel="modulepreload" href="./src/data/areas.js">
+<link rel="modulepreload" href="./src/ui/routeText.js">
+<link rel="modulepreload" href="./src/sim/another.js">
+<link rel="modulepreload" href="./src/ui/areaText.js">
+<link rel="modulepreload" href="./src/ui/cards.js">
+<link rel="modulepreload" href="./src/ui/thumbs.js">
+<link rel="modulepreload" href="./src/ui/v71/ferryText.js">
+<link rel="modulepreload" href="./src/ui/v81/trayText.js">
+<link rel="modulepreload" href="./src/ui/nextStepText.js">
+<link rel="modulepreload" href="./src/ui/goalsList.js">
+<link rel="modulepreload" href="./src/ui/expand.js">
+<link rel="modulepreload" href="./src/ui/scoreUi.js">
+<link rel="modulepreload" href="./src/ui/celebrate.js">
+<link rel="modulepreload" href="./src/save/exportImport.js">
+<link rel="modulepreload" href="./src/save/records.js">
+<link rel="modulepreload" href="./src/save/serialize.js">
+<link rel="modulepreload" href="./src/save/migrate.js">
+<link rel="modulepreload" href="./src/ui/share.js">
+<link rel="modulepreload" href="./src/ui/v90/dynastyUi.js">
+<link rel="modulepreload" href="./src/ui/v90/passSheet.js">
+<link rel="modulepreload" href="./src/ui/v90/sideBySide.js">
+<link rel="modulepreload" href="./src/ui/titleCard.js">
+<link rel="modulepreload" href="./src/ui/v82/mapPreview.js">
+<link rel="modulepreload" href="./src/ui/minimap.js">
+<link rel="modulepreload" href="./src/ui/s46/whatsNew.js">
+<link rel="modulepreload" href="./src/data/releases.js">
+<link rel="modulepreload" href="./src/ui/s46/wonders.js">
+<link rel="modulepreload" href="./src/ui/placementWhy.js">
+<link rel="modulepreload" href="./src/ui/hud.js">
+<link rel="modulepreload" href="./src/ui/v81/bText.js">
+<link rel="modulepreload" href="./src/ui/v81/stats.js">
+<link rel="modulepreload" href="./src/ui/adviceText.js">
+<link rel="modulepreload" href="./src/ui/v81/statIcons.js">
+<link rel="modulepreload" href="./src/ui/speed.js">
+<link rel="modulepreload" href="./src/ui/dock.js">
+<link rel="modulepreload" href="./src/ui/confirmBar.js">
+<link rel="modulepreload" href="./src/ui/sidePanel.js">
+<link rel="modulepreload" href="./src/ui/rail.js">
+<link rel="modulepreload" href="./src/ui/corners.js">
+<link rel="modulepreload" href="./src/ui/sheets.js">
+<link rel="modulepreload" href="./src/ui/alerts.js">
+<link rel="modulepreload" href="./src/ui/monumentSheet.js">
+<link rel="modulepreload" href="./src/ui/another.js">
+<link rel="modulepreload" href="./src/ui/overlayUi.js">
+<link rel="modulepreload" href="./src/ui/s47/spots.js">
+<link rel="modulepreload" href="./src/ui/layersLegend.js">
+<link rel="modulepreload" href="./src/ui/layersPicker.js">
+<link rel="modulepreload" href="./src/ui/toasts.js">
+<link rel="modulepreload" href="./src/ui/tips.js">
+<link rel="modulepreload" href="./src/ui/v81/scribe.js">
+<link rel="modulepreload" href="./src/ui/nudge.js">
+<link rel="modulepreload" href="./src/ui/menu.js">
+<link rel="modulepreload" href="./src/ui/v90/rulerOptions.js">
+<link rel="modulepreload" href="./src/ui/v82/mapWords.js">
+<link rel="modulepreload" href="./src/ui/adviceUi.js">
+<link rel="modulepreload" href="./src/ui/adviceSheet.js">
+<link rel="modulepreload" href="./src/ui/v81/trayLayers.js">
+<link rel="modulepreload" href="./src/ui/v81/ipiSays.js">
+<link rel="modulepreload" href="./src/ui/welcomeBack.js">
+<link rel="modulepreload" href="./src/ui/tradeSheet.js">
+<link rel="modulepreload" href="./src/ui/guide.js">
+<link rel="modulepreload" href="./src/ui/v81/cardDrag.js">
+<link rel="modulepreload" href="./src/ui/v81/noZoom.js">
+<link rel="modulepreload" href="./src/ui/danger.js">
+<link rel="modulepreload" href="./src/ui/dangerSheets.js">
+<link rel="modulepreload" href="./src/ui/s46/armies.js">
+<link rel="modulepreload" href="./src/ui/s46/index.js">
+<link rel="modulepreload" href="./src/ui/s46/map.js">
+<link rel="modulepreload" href="./src/ui/s46/river.js">
+<link rel="modulepreload" href="./src/ui/s46/court.js">
+<link rel="modulepreload" href="./src/ui/s47/pressure.js">
+<link rel="modulepreload" href="./src/ui/s46/ux.js">
+<link rel="modulepreload" href="./src/ui/s47/index.js">
+<link rel="modulepreload" href="./src/ui/v60/index.js">
+<link rel="modulepreload" href="./src/ui/v60/reign.js">
+<link rel="modulepreload" href="./src/ui/v60/hazards.js">
+<link rel="modulepreload" href="./src/ui/v60/largePlot.js">
+<link rel="modulepreload" href="./src/ui/v60/battle.js">
+<link rel="modulepreload" href="./src/ui/v60/lesson.js">
+<link rel="modulepreload" href="./src/sim/lesson.js">
+<link rel="modulepreload" href="./src/ui/lesson.js">
+<link rel="modulepreload" href="./src/ui/v81/lessonText.js">
+<link rel="modulepreload" href="./src/ui/cardMoments.js">
+<link rel="modulepreload" href="./src/data/tutorial.js">
+<link rel="modulepreload" href="./src/ui/lessonCard.js">
+<link rel="modulepreload" href="./src/ui/v81/lessonLock.js">
+<link rel="modulepreload" href="./src/ui/v70/index.js">
+<link rel="modulepreload" href="./src/ui/v70/trade.js">
+<link rel="modulepreload" href="./src/ui/v70/cityEvents.js">
+<link rel="modulepreload" href="./src/ui/v70/seasons.js">
+<link rel="modulepreload" href="./src/ui/v70/adviceFixes.js">
+<link rel="modulepreload" href="./src/ui/v71/ferries.js">
+<link rel="modulepreload" href="./src/render/s46.js">
+<link rel="modulepreload" href="./src/render/flood.js">
+<link rel="modulepreload" href="./src/render/wildlife.js">
+<link rel="modulepreload" href="./src/render/v70.js">
+<link rel="modulepreload" href="./src/render/seasons.js">
+<link rel="modulepreload" href="./src/render/rapids.js">
+<link rel="modulepreload" href="./src/render/trade.js">
+<link rel="modulepreload" href="./src/render/ferries.js">
+<link rel="modulepreload" href="./src/render/markers.js">
+<link rel="modulepreload" href="./src/render/unbuilt.js">
+<link rel="modulepreload" href="./src/render/illness.js">
+<link rel="modulepreload" href="./src/ui/v91/debtSheet.js">
+<link rel="modulepreload" href="./src/ui/v90/rivalToast.js">
+<link rel="modulepreload" href="./src/save/store.js">
+<link rel="modulepreload" href="./src/save/installFlow.js">
+<link rel="modulepreload" href="./src/ui/v90/rulers.js">
+<link rel="modulepreload" href="./src/ui/installUi.js">
+<link rel="modulepreload" href="./src/pwa.js">
+<link rel="modulepreload" href="./src/dev/scenes.js">
+<link rel="modulepreload" href="./src/dev/tutorialScenes.js">
+<link rel="modulepreload" href="./src/dev/v60/largePlot.js">
+<link rel="modulepreload" href="./src/dev/v60/base.js">
+<link rel="modulepreload" href="./src/dev/s46/base.js">
+<link rel="modulepreload" href="./src/dev/v60/reign.js">
+<link rel="modulepreload" href="./src/dev/v60/hazards.js">
+<link rel="modulepreload" href="./src/dev/v70/cityEvents.js">
+<link rel="modulepreload" href="./src/dev/v70/base.js">
+<link rel="modulepreload" href="./src/dev/v84/elephants.js">
+<link rel="modulepreload" href="./src/dev/s46/index.js">
+<link rel="modulepreload" href="./src/dev/s46/map.js">
+<link rel="modulepreload" href="./src/dev/s46/river.js">
+<link rel="modulepreload" href="./src/dev/s46/court.js">
+<link rel="modulepreload" href="./src/dev/s46/armies.js">
+<link rel="modulepreload" href="./src/dev/s46/wonders.js">
+<link rel="modulepreload" href="./src/dev/s46/ux.js">
+<link rel="modulepreload" href="./src/dev/s47/index.js">
+<link rel="modulepreload" href="./src/dev/s47/land.js">
+<link rel="modulepreload" href="./src/dev/s47/spots.js">
+<link rel="modulepreload" href="./src/dev/s47/carts.js">
+<link rel="modulepreload" href="./src/dev/s47/pressure.js">
+<link rel="modulepreload" href="./src/dev/v50/index.js">
+<link rel="modulepreload" href="./src/dev/v50/advice.js">
+<link rel="modulepreload" href="./src/dev/v50/houseStep.js">
+<link rel="modulepreload" href="./src/dev/v50/layers.js">
+<link rel="modulepreload" href="./src/dev/v50/areas.js">
+<link rel="modulepreload" href="./src/dev/v50/roads.js">
+<link rel="modulepreload" href="./src/dev/v50/grand.js">
+<link rel="modulepreload" href="./src/dev/v60/index.js">
+<link rel="modulepreload" href="./src/dev/v60/battle.js">
+<link rel="modulepreload" href="./src/dev/v60/title.js">
+<link rel="modulepreload" href="./src/dev/v60/lesson.js">
+<link rel="modulepreload" href="./src/dev/v70/index.js">
+<link rel="modulepreload" href="./src/dev/v70/trade.js">
+<link rel="modulepreload" href="./src/dev/v70/seasons.js">
+<link rel="modulepreload" href="./src/dev/v70/adviceFixes.js">
+<link rel="modulepreload" href="./src/dev/v71/index.js">
+<link rel="modulepreload" href="./src/dev/v71/ferries.js">
+<link rel="modulepreload" href="./src/audio/music.js">
+<link rel="modulepreload" href="./src/data/pieces.js">
+<link rel="modulepreload" href="./src/ui/tutorial.js">
+<link rel="modulepreload" href="./src/ui/v91/rescue.js">
+<!-- end v91 preload -->
 </head>
 <body data-layout="portrait" data-input="touch" data-hand="right" data-text-size="100">
 <canvas id="map" role="img" aria-label="City map" aria-describedby="map-summary" tabindex="-1"></canvas>

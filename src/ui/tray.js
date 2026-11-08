@@ -9,9 +9,12 @@ export const TRAY_MAX = 30;
 // and the city event that waits for an answer. Pinned until the alert is gone, which is the player dealing with it.
 export const PINNED_CODES = new Set(['raid', 'fire', 'raid_warning', 'court_letter', 'debt', 'save_failed', 'city_event']);
 
-// createTray({ max }) -> { add(text, { at, why, kind }), drop(id), list(), unread(), markRead(), subscribe(fn), clear() }.
+// createTray({ max, readWhen }) -> { add(text, { at, why, kind }), drop(id), list(), unread(), markRead(), subscribe(fn), clear() }.
 // subscribe's fn gets 'add', 'drop', 'read' or 'clear'.
-export function createTray({ max = TRAY_MAX } = {}) {
+// Version 9.1 (Track F, rulings 1659, 1666): what is news. A toast that only echoes the player's own action is not added at all (its caller passes tray: false), and while
+// readWhen() is true (the lesson runs: createUI) a message is kept already read, so the count at the top stays at nothing. Arrivals, ranks, events, warnings and the
+// pinned alerts are counted as before.
+export function createTray({ max = TRAY_MAX, readWhen = () => false } = {}) {
   let items = [];       // newest first: { id, text, why, at: { x, y } | null, kind, read }
   let seq = 0;
   const listeners = new Set();
@@ -23,7 +26,7 @@ export function createTray({ max = TRAY_MAX } = {}) {
       const words = String(text || '').trim();
       if (!words) return null;
       const place = at && Number.isFinite(at.x) && Number.isFinite(at.y) ? { x: at.x, y: at.y } : null;
-      const item = { id: ++seq, text: words, why: String(why || ''), at: place, kind, read: false };
+      const item = { id: ++seq, text: words, why: String(why || ''), at: place, kind, read: Boolean(readWhen()) };
       items.unshift(item);
       if (items.length > max) items.length = max;
       tell('add');

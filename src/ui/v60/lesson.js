@@ -26,21 +26,22 @@
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES, stepCategory } from '../../data/lesson.js';
 import { MILESTONES } from '../../data/progression.js';
-import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
+import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, leadRaid, stepSpeed, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
 import { population } from '../../sim/world.js';
 import { monthIndex } from '../../sim/clock.js';
 import { workingTowers } from '../../sim/raids.js';
 import { setSpeed } from '../../sim/commands.js';
-import { lessonFacts } from '../lesson.js';
+import { lessonFacts, stepWords, handOverMonth } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
-import { D2_TEXT, P_TEXT, V711_TEXT, T } from '../text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, T } from '../text.js';
 import { V81T_TEXT } from '../v81/lessonText.js';
 import { mountScribe, unmountScribe, say, hush, portrait } from '../v81/scribe.js';
 import { lockTo, unlock } from '../v81/lessonLock.js';
 import { el, button, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
+import { UI, TEAL_DARK } from '../../render/art/palette.js';
 import { openSheet, isToolMode } from '../modes.js';
 import { TOPBAR_PX, freeTop } from '../layout.js';
 
@@ -54,6 +55,11 @@ const ringHalf = (spot, k) => { const span = spot.w + spot.d; return { rx: Math.
 // The steps whose alert the row itself carries (the fire, the raid warning and the raid: who, how many, how long, what to build), so the alert's banner does not
 // stand over the row saying it twice (css/ui.css body.lesson-names-alert).
 const NAMES_ALERT = new Set(['fire', 'tower', 'raid']);
+
+// Version 9.1 (Track F, ruling 1658): the alerts a step's banner may carry (src/ui/alerts.js reads root's data-lesson-alerts): the fire step its fire, the defence chapter
+// its raid; every other step none, so a real problem in the lesson's city (a worker short, debt) waits in the list and the Map badge for the hand-over.
+export const OWN_ALERTS = { fire: ['fire'], tower: ['raid_warning', 'raid'], raid: ['raid_warning', 'raid'] };
+export const ownAlerts = (step) => (step && OWN_ALERTS[step.id]) || [];
 
 // Version 8.1 (ruling 1206): how long Ipi's reaction to a step stays in the docked bubble before the step that follows takes its place (design: "fades by itself after
 // 2 to 3 seconds").
@@ -98,7 +104,12 @@ export function createLessonUi(ctx) {
       if (m) say(V81T_TEXT.rankUp(m.name), { ms: 6000 });
     }
   };
-  if (!run) return { ...base, onEvents(events) { moments.onEvents(events); rankUps(events); }, destroy() { moments.destroy(); unmountScribe(); } };
+  if (!run) {
+    // Version 9.1 (Track F, ruling 1663): the first month after the hand-over is marked on the root (src/ui/tips.js holds a tip while an alert and a goal are both up).
+    const markMonth = () => { if (ctx.root) ctx.root.classList.toggle('handover-month', handOverMonth(ctx.world)); };
+    markMonth();
+    return { ...base, onEvents(events) { moments.onEvents(events); rankUps(events); markMonth(); }, refresh() { markMonth(); }, destroy() { moments.destroy(); unmountScribe(); if (ctx.root) ctx.root.classList.remove('handover-month'); } };
+  }
 
   const { world, store, root, settings } = ctx;
   const doc = root.ownerDocument || document, win = doc.defaultView || window;
@@ -130,6 +141,22 @@ export function createLessonUi(ctx) {
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(ring, ui.firstChild);
   ui.insertBefore(scrim, ui.firstChild);
+
+  // ── Version 9.1 (Track F, ruling 1664): where the road begins ──
+  // At the road step the start road's end (LESSON_PLACES.road.from) wears the real game's teal diamond (src/render/overlays.js drawGuideMarker's shape: teal on a white
+  // halo; ROAD_DIAMOND_R tile each way from the tile's middle, ruling 1674), and the tiles to lay a dashed ghost, both above the dimming (after the scrim in the page), so the step's words
+  // ("from the end of the road (the diamond)") point at something the player can see. Still, never pulsing: it is a mark, not an effect.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const svgEl = (tag, attrs) => { const n = doc.createElementNS(SVG_NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v)); return n; };
+  const ghostHalo = svgEl('polygon', { fill: 'none', stroke: UI.halo, 'stroke-opacity': 0.85, 'stroke-width': 4, 'stroke-dasharray': '7 5', 'stroke-linejoin': 'round' });
+  const ghostLine = svgEl('polygon', { fill: TEAL_DARK, 'fill-opacity': 0.1, stroke: TEAL_DARK, 'stroke-width': 2, 'stroke-dasharray': '7 5', 'stroke-linejoin': 'round' });
+  const diamondHalo = svgEl('polygon', { fill: TEAL_DARK, 'fill-opacity': 0.12, stroke: UI.halo, 'stroke-opacity': 0.85, 'stroke-width': 5, 'stroke-linejoin': 'round' });
+  const diamond = svgEl('polygon', { fill: 'none', stroke: TEAL_DARK, 'stroke-width': 3, 'stroke-linejoin': 'round' });
+  const roadMark = svgEl('svg', { class: 'lesson-road-mark', 'aria-hidden': 'true', focusable: 'false' });
+  roadMark.append(ghostHalo, ghostLine, diamondHalo, diamond);
+  Object.assign(roadMark.style, { position: 'fixed', left: '0', top: '0', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible', display: 'none' });
+  ring.after(roadMark);
+  let roadKey = '';
 
   let at = lessonAt(world, run.step || 0);
   let facts = null, step = null, open = false, finished = false, needPause = false, announceNext = true, endShown = false, destroyed = false, key = '', litSel = null, shownAt = -1;
@@ -184,7 +211,9 @@ export function createLessonUi(ctx) {
   function doShowMe() {
     const t = targetOf();
     if (!t || !t.spot) return;
-    ctx.showMeAt({ category: t.category, item: t.item, x: t.spot.x + t.spot.w / 2, y: t.spot.y + t.spot.d / 2 });
+    // Version 9.1 (ruling 1674): the road step is shown a little east of its spot's middle, so the start road's end and its diamond are in sight with the ring.
+    const c = step && step.id === 'road' && !(facts && facts.missing) ? roadCentre(t.spot, ctx.cameraControl ? viewOf() : null, null) : null;
+    ctx.showMeAt({ category: t.category, item: t.item, x: c ? c.x : t.spot.x + t.spot.w / 2, y: c ? c.y : t.spot.y + t.spot.d / 2 });
   }
 
   // Version 7.1.1 (ruling 1112): the first card's "Skip, I've played before" asks its own question (like Leave the lesson) and then marks the lesson done and goes on to a city of
@@ -207,8 +236,42 @@ export function createLessonUi(ctx) {
   // Plays again at the speed the player had before the lesson paused it, normal speed if none; only from a pause (a player who pressed Play already is left alone).
   function resumePlay() {
     if (world.speed !== 0 || destroyed) return;
-    const to = held || store.get().lastSpeed || 1;
+    const to = stepSpeed(world, step) || held || store.get().lastSpeed || 1;   // Version 9.1 (rulings 1657, 1671): a step with a speed of its own plays at it
     if (ctx.speedControl) ctx.speedControl.set(to); else setSpeed(world, to);
+  }
+  // Version 9.1 (Track F, rulings 1657, 1671): the raid step plays at its own speeds (src/sim/lesson.js stepSpeed: 3x until the raiders arrive, then 2x), set as
+  // the step first plays and again at the change of phase. ourPace is the speed the lesson set: a player who picks another speed keeps theirs (the change of phase and
+  // the step's end leave it alone), and only the lesson's own speed is taken back to 1x when the step is over or the lesson's interface goes (destroy), so it never
+  // outlives the step.
+  // lastSeen is the speed at the last look: the sim drops any speed over 1x to 1x as raiders arrive (src/sim/raids.js arrive), so a 1x that was the lesson's 3x a
+  // moment before is still the lesson's, while a 1x the player picked during the wait is theirs.
+  let pacedKey = '', ourPace = null, lastSeen = null;
+  const setPace = (n) => { if (ctx.speedControl) ctx.speedControl.set(n); else setSpeed(world, n); };
+  function pace() {
+    paceNow();
+    lastSeen = world.speed;
+  }
+  function paceNow() {
+    const want = finished ? null : stepSpeed(world, step);
+    const ours = ourPace !== null && (world.speed === ourPace || (world.speed === 1 && lastSeen === ourPace));
+    if (want) {
+      const key = `${at}:${want}`;
+      if (world.speed === 0 || pacedKey === key) return;
+      const first = !pacedKey.startsWith(`${at}:`);
+      pacedKey = key;
+      if (first || ours) { ourPace = want; if (world.speed !== want) setPace(want); } else ourPace = null;
+      return;
+    }
+    if (ourPace === null) return;
+    ourPace = null;
+    if (ours) setPace(1);
+  }
+  // Version 9.1 (ruling 1658): the codes the banner may carry at this step, on the root for src/ui/alerts.js; the banner is asked again when they change.
+  function markAlerts() {
+    const codes = ownAlerts(finished ? null : step).join(' ');
+    if (root.dataset.lessonAlerts === codes) return;
+    root.dataset.lessonAlerts = codes;
+    if (ctx.alerts && typeof ctx.alerts.refresh === 'function') ctx.alerts.refresh();
   }
 
   // Ruling 1115: a placing, road or demolish tool still on from the step just done (it stays on after a placement) is put away as Cancel does, so the bar never shows a
@@ -231,12 +294,14 @@ export function createLessonUi(ctx) {
     try { holdForCard(building); } finally { showing = false; }
     const t = targetOf();
     const ch = chapterAt(at), chapter = V81T_TEXT.chapters[ch.id];
-    const words = V81T_TEXT.steps[step.id](lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play
+    const words = stepWords(step, lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play
     putAwayTool();
     if (ctx.toasts && typeof ctx.toasts.dropLoose === 'function') ctx.toasts.dropLoose();   // ruling 1100: no timed toast stays up under a card
     hush(); endBeat(false);
-    const first = at === 0;   // ruling 1110: the first card opens with the game's goal, and offers Skip, I've played before
-    const said = (first ? [V711_TEXT.goal(), words.do] : [chapter.why, words.do]).join(' ');   // the first card: the story's goal is its why
+    const first = at === 0;   // ruling 1110: the first card offers Skip, I've played before
+    // Version 9.1 (Track F, ruling 1667): the story is told once, on the title card the lesson starts from; the first card says its chapter's why like every other.
+    // Fix wave (ruling 1736): a step that sets a speed of its own (the raid's) says it on the card, before Play, as the docked row does.
+    const said = [chapter.why, step.waitSpeed ? V91F_TEXT.raidFast : '', words.do].filter(Boolean).join(' ');
     const beat = leadBeat;
     leadBeat = '';
     card.show({ label: V81T_TEXT.chapterLabel(ch.index + 1, LESSON_CHAPTER_COUNT, chapter.name), text: said, beat, skipOffered: first && typeof run.skip === 'function', goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
@@ -365,7 +430,7 @@ export function createLessonUi(ctx) {
       showMe.hidden = true; paintEnd();
       row.dataset.step = 'end';
     } else {
-      const words = V81T_TEXT.steps[step.id](facts);
+      const words = stepWords(step, facts);
       const ch = chapterAt(at);
       const p = stepProgress(world, step);
       setText(label, V81T_TEXT.stepLabel(V81T_TEXT.chapters[ch.id].name, ch.k, ch.of));
@@ -412,6 +477,7 @@ export function createLessonUi(ctx) {
   // Where the sim says the lesson is: moves on through every step it shows done, stages what the next one stages, reacts with a line and a chime, and ends.
   function sync(building = false) {
     if (destroyed) return;
+    if (leadRaid(world) && ctx.alerts) ctx.alerts.refresh();   // Version 9.1 (ruling 1657): the staged warning's arrival, before the banner and the row read it again
     const next = lessonAt(world, at);
     if (next !== at) {
       const done = LESSON_STEPS[next - 1];
@@ -431,6 +497,7 @@ export function createLessonUi(ctx) {
     }
     if (needPause && !building && ctx.speedControl) { needPause = false; ctx.speedControl.set(0); }   // a command: not while the interface is still being built
     paint();
+    markAlerts();
     applyLock();
     openCategory();
     cardWaits = false;
@@ -444,6 +511,7 @@ export function createLessonUi(ctx) {
     } else if (finished && card.isUp()) card.hide();
     // The player's own part of a step that has one is done: the game plays again by itself (ruling 1002).
     if (!card.isUp() && !showing && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
+    if (!building && !card.isUp() && !showing) pace();
     if (announceNext) { announceNext = false; announce(); }
     if (finished && !building && canAdopt()) handOver();
     // The end sheet (a replay on a device with a saved city) opens once nothing else is open, and never while the interface is still being built (its sheets are made after
@@ -472,12 +540,47 @@ export function createLessonUi(ctx) {
     // Version 8.2 (Track L, ruling 1321): a step with a frame of its own (the raid: the target, the towers and the side the raiders come from) centres that box, and the target's own point is what
     // is kept in view, so the ring stays on the screen whatever the box.
     const fr = stepFrame(world, step) || spot;
-    const v = viewOf(), tx = spot.x + spot.w / 2, ty = spot.y + spot.d / 2, cx = fr.x + fr.w / 2, cy = fr.y + fr.d / 2, i = freeInsets(v);
-    const go = () => ctx.cameraControl.frameKeeping(cx, cy, tx, ty, i, fr === spot ? undefined : RING_ROOM_PX);   // a framed box keeps the whole ring in view, not just its middle
+    const v = viewOf(), tx = spot.x + spot.w / 2, ty = spot.y + spot.d / 2, i = freeInsets(v);
+    const road = step.id === 'road' ? roadCentre(spot, v, i) : null;   // Version 9.1 (ruling 1674): nudged east for the diamond, the ring kept whole
+    const cx = road ? road.x : fr.x + fr.w / 2, cy = road ? road.y : fr.y + fr.d / 2;
+    const go = () => (road ? ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i) : ctx.cameraControl.frameKeeping(cx, cy, tx, ty, i, fr === spot ? undefined : RING_ROOM_PX));   // a framed box keeps the whole ring in view, not just its middle
     if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
   }
 
   const viewOf = () => { const c = ctx.cameraControl.centre(); return { width: c.x * 2, height: c.y * 2 }; };
+
+  // Version 9.1 (Track F, ruling 1674): where the road step centres the view, in tiles. Centred on its spot (9.0) a narrow phone cut the diamond at the start road's end
+  // (5 tiles east of the spot's middle) at the screen's edge, so the view moves east by what the diamond needs to be whole, but never so far that the long ring is cut
+  // (ruling 821's rule: it stays inside the screen). A screen-horizontal move of s px is (s, -s) / (64 x zoom) tiles. v: the view, i: the free insets (null: none).
+  const ROAD_DIAMOND_R = 0.6;
+  function roadCentre(spot, v, i) {
+    const cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2;
+    if (!v || !run.cam) return { x: cx, y: cy };
+    const k = run.cam.zoom, ins = i || { left: 0, right: 0 };
+    const half = (v.width - ins.left - ins.right) / 2, { rx } = ringHalf(spot, k);
+    const [fx, fy] = LESSON_PLACES.road.from;
+    const reach = ((fx + 0.5 - cx) - (fy + 0.5 - cy)) * 32 * k + ROAD_DIAMOND_R * 64 * k;   // the diamond's east corner, from the spot's middle, in px
+    const s = Math.max(0, Math.min(reach - (half - 6), half - rx - 2));
+    return { x: cx + s / (64 * k), y: cy - s / (64 * k) };
+  }
+
+  // Version 9.1 (ruling 1664): the road step's diamond and ghost follow the camera, redrawn only when the view moves; hidden under a card and at every other step.
+  function paintRoadMark() {
+    const on = Boolean(step) && step.id === 'road' && !finished && !card.isUp() && Boolean(run.cam) && Boolean(ctx.cameraControl);
+    roadMark.style.display = on ? '' : 'none';
+    if (!on) { roadKey = ''; return; }
+    const v = viewOf();
+    const pt = (x, y) => tileToScreen(run.cam, v, x, y).map((n) => Math.round(n * 10) / 10).join(',');
+    const [fx, fy] = LESSON_PLACES.road.from, [tx] = LESSON_PLACES.road.to;
+    const k = `${pt(fx, fy)}|${pt(tx, fy)}|${run.cam.zoom}`;
+    if (k === roadKey) return;
+    roadKey = k;
+    const ghost = [pt(Math.min(tx, fx), fy), pt(Math.max(tx, fx), fy), pt(Math.max(tx, fx), fy + 1), pt(Math.min(tx, fx), fy + 1)].join(' ');
+    ghostHalo.setAttribute('points', ghost); ghostLine.setAttribute('points', ghost);
+    const cx = fx + 0.5, cy = fy + 0.5, r = ROAD_DIAMOND_R;
+    const mark = [pt(cx - r, cy - r), pt(cx + r, cy - r), pt(cx + r, cy + r), pt(cx - r, cy + r)].join(' ');
+    diamondHalo.setAttribute('points', mark); diamond.setAttribute('points', mark);
+  }
 
   // Once a frame: the ring and the dimming follow the camera, and the control's ring follows its element (the top bar draws its controls afresh). While Ipi reacts the
   // ring glows gold on what was just done (ruling 1206), then moves to the next step's place.
@@ -499,6 +602,7 @@ export function createLessonUi(ctx) {
         Object.assign(ring.style, { left: `${sx - rx}px`, top: `${sy - ry}px`, width: `${2 * rx}px`, height: `${2 * ry}px` });
       }
     }
+    paintRoadMark();
     const sel = step && step.dom && !finished ? step.dom : null;
     if (sel !== litSel) { for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit'); litSel = sel; }
     if (sel) for (const n of root.querySelectorAll(sel)) if (!n.classList.contains('lesson-lit')) n.classList.add('lesson-lit');
@@ -535,14 +639,17 @@ export function createLessonUi(ctx) {
     refresh() { sync(); },
     destroy() {
       destroyed = true;
+      if (ourPace !== null && world.speed === ourPace) setSpeed(world, 1);   // Version 9.1 (ruling 1671): the lesson's own speed never outlives it (left, skipped, home, reloaded)
+      ourPace = null;
       stop();
       clearTimeout(beatTimer); clearTimeout(handing);
       unlock();
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
       doc.removeEventListener('pointerdown', onDown, true); doc.removeEventListener('pointerup', onUp, true); doc.removeEventListener('pointercancel', onUp, true);
-      row.remove(); scrim.remove(); ring.remove(); card.destroy();
+      row.remove(); scrim.remove(); ring.remove(); roadMark.remove(); card.destroy();
       for (const n of root.querySelectorAll('.lesson-lit, .lesson-pulse')) n.classList.remove('lesson-lit', 'lesson-pulse');
       root.classList.remove('lesson-on', 'lesson-names-alert');
+      delete root.dataset.lessonAlerts;
       unmountScribe();
     },
   };

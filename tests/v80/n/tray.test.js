@@ -81,19 +81,22 @@ describe('v80 n tray: behind the scroll button', () => {
     } finally { r.cleanup(); }
   });
 
-  it('a placement shows a toast, the scroll button counts it and says so in its name, and opening it lists the message with a Show that goes to the place and rings it', async () => {
+  // Version 9.1 (Track F, ruling 1659): the plot's own toast shows but is not kept (it only echoes the player's tap); the captions the first plot brings and a message with a
+  // place (a caravan at the trading post) are.
+  it('a placement shows a toast, the scroll button counts the news and says so in its name, and opening it lists a message with a Show that goes to the place and rings it', async () => {
     const r = await rigUI();
     try {
       expect([scroll(r).querySelector('.advice-count').hidden, scroll(r).getAttribute('aria-label')]).toEqual([true, 'City advice']);
       lay(r, 20, 9);
+      r.ui.toasts.show('Caravan arrived', { at: { x: 20.5, y: 9.5 } });
       const n = scroll(r).querySelector('.advice-count'), count = Number(n.textContent), dot = !scroll(r).querySelector('.advice-dot').hidden;
-      // the plot's own toast, and the captions the first plot brings (a first, a goal): each is a message
+      // the captions the first plot brings (a first, a goal) and the caravan: each is a message; the plot's own toast is not
       expect([n.hidden, count >= 1, count === r.ui.tray.unread(), scroll(r).getAttribute('aria-label')]).toEqual([false, true, true, TRAY_TEXT.buttonName(count, dot)]);
-      expect(r.root.querySelectorAll('#toasts .toast').length).toBe(1);
+      expect([r.root.querySelectorAll('#toasts .toast').length >= 1, r.ui.tray.list().some((m) => m.text.toLowerCase().includes('plot placed') || m.text.toLowerCase().includes('plots placed'))]).toEqual([true, false]);
       fire(scroll(r), 'click');
       expect([r.store.get().sheet.kind, r.root.querySelector('#sheet h2').textContent]).toEqual(['advice', TRAY_TEXT.sheetTitle]);
-      const first = sheetItems(r).find((row) => row.querySelector('.tray-go') && row.querySelector('.text').textContent.toLowerCase().includes('plot'));
-      expect(first.querySelector('.text').textContent.toLowerCase().includes('plot')).toBe(true);
+      const first = sheetItems(r).find((row) => row.querySelector('.tray-go') && row.querySelector('.text').textContent === 'Caravan arrived');
+      expect(Boolean(first)).toBe(true);
       expect([scroll(r).querySelector('.advice-count').hidden, scroll(r).getAttribute('aria-label')]).toEqual([true, 'City advice']);   // opened: read
       const go = first.querySelector('.tray-go');
       const box = go.getBoundingClientRect();
@@ -110,12 +113,13 @@ describe('v80 n tray: behind the scroll button', () => {
     const r = await rigUI();
     try {
       for (let i = 0; i < 6; i++) lay(r, 16 + i, 9);
+      for (let i = 0; i < 5; i++) r.ui.toasts.show(`A message at ${16 + i}`, { at: { x: 16 + i, y: 9 } });   // Version 9.1 (ruling 1659): the plots' own toasts are not kept, so news fills it
       r.ui.toasts.show('A message with no place');
       fire(scroll(r), 'click');
       const rows = sheetItems(r);
-      expect(rows.length >= 7).toBe(true);
+      expect(rows.length >= 6).toBe(true);
       expect([rows[0].querySelector('.text').textContent, rows[0].querySelector('.tray-go')]).toEqual(['A message with no place', null]);
-      expect(rows[1].querySelector('.text').textContent.toLowerCase().includes('plot') && Boolean(rows[1].querySelector('.tray-go'))).toBe(true);   // newest first: the last plot's message is next
+      expect([rows[1].querySelector('.text').textContent, Boolean(rows[1].querySelector('.tray-go'))]).toEqual(['A message at 20', true]);   // newest first: the last placed message is next
       for (let i = 0; i < 40; i++) r.ui.toasts.show(`Note ${i}`);
       fire(scroll(r), 'click');                                                              // closed
       fire(scroll(r), 'click');
@@ -218,7 +222,7 @@ describe('v80 n tray: behind the scroll button', () => {
       expect([Boolean(t.querySelector('.close')), t.querySelector('.action').textContent]).toEqual([true, 'Undo']);
       fire(s.root.querySelector('#topbar .advice'), 'click');
       const texts = [...s.root.querySelectorAll('#sheet .tray-item .text')].map((n) => n.textContent);
-      expect(texts.includes('Well placed') && texts.includes('Plots placed')).toBe(true);
+      expect([texts.includes('Well placed'), texts.includes('Plots placed')]).toEqual([true, false]);   // Version 9.1 (ruling 1659): a placement's own Undo toast is not kept
     } finally { s.cleanup(); }
   });
 

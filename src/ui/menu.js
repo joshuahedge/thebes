@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { rulerNameRow, bringRulersRow } from './v90/rulerOptions.js';   // Version 9.0 (Track L): Options > Saves' ruler name and Bring rulers
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
@@ -139,6 +139,10 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row music-volume effects-volume' }, [el('span', { text: S.effectsVolume }), stepper]);
   }
 
+  // Version 9.1 (Track A, rulings 1701-1703): who made the game, its licence, where its art and sound come from and what it does with data, as four short
+  // lines; the About sheet shows them, and Options folds them under an About heading above the version and build (a closed section, so the sheet stays short).
+  const aboutLines = () => [V91_A_TEXT.madeBy, V91_A_TEXT.licenceLine(V91_A_TEXT.aboutLicence), V91_A_TEXT.art, V91_A_TEXT.privacy].map((text, i) => el('p', { class: `about-line about-${['made', 'licence', 'art', 'privacy'][i]}`, text }));
+
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT, G = V80_U_TEXT.groups;
     // Version 8.0 (Track U, ruling 1149): the rows sit under four small headings, Sound, Display, Controls and Saves (each a labelled group), so the sheet reads as
@@ -180,6 +184,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
         el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
         choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]])),
       group('saves', G.saves, ...saves),
+      el('details', { class: 'help-section options-about' }, [el('summary', {}, [el('h3', { text: V91_A_TEXT.about })]), ...aboutLines()]),   // Version 9.1 (Track A): shares the closed sections' 44 px summary
       el('div', { class: 'options-version' }, [versionLine({ version })]),   // the version and build, small and muted, at the foot (it left the title card in 8.0)
     );
   }
@@ -221,7 +226,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   }
 
   function about(body) {
-    body.append(el('h3', { text: 'Thebes' }), el('p', { text: `${T.version} ${version}` }), el('p', { text: T.aboutText }));
+    body.append(el('h3', { text: 'Thebes' }), versionLine({ version }), el('p', { text: T.aboutText }), ...aboutLines());   // Version 9.1 (Track A): the version and its build, as Options' foot says them
   }
 
   // Version 8.2 (Track G, rulings 1308-1310): the new-city card, the title's own (difficulty, the map preview, More choices), over the paused game. Its choices are

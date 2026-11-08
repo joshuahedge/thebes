@@ -382,7 +382,7 @@ export function alertText(alert, world) {
     case 'bazaar_sold_out': return { title: 'Bazaar sells out before its homes are fed', fix: `Its homes eat ${alert.need} food a month and it stocks ${alert.stock}: build a second bazaar near them` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
-    case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
+    case 'debt': return { title: 'The treasury is in debt', fix: V91_R_TEXT.debtFix };   // Version 9.1 (Track R, ruling 1681): View opens Back to gold
     case 'save_failed': return { title: 'Progress is not being saved', fix: 'Free up storage, or export the city from the menu' };
     default: return { title: 'Something needs attention', fix: 'Have a look' };
   }
@@ -4561,3 +4561,115 @@ export const V90_L_TEXT = {
 
 // Version 9.0, Track V (animations and visual effects; rulings 1600-1619). Track V writes only between this header and its end line.
 // ── end v90 v ──
+
+// Version 9.1, Track F (first hours: the lesson, the hand-over, the first own city; rulings 1655-1674). Track F writes only between this header and its end line.
+// The lesson's lines 9.1 changes, each one short sentence like the rest of Ipi's (src/ui/lesson.js stepWords lays them over src/ui/v81/lessonText.js V81T_TEXT.steps):
+// the road step points at the start road's end, marked with the diamond (ruling 1664); the firehouse goes where its reach covers the lesson's buildings (ruling 1656);
+// the months say why mood moves (ruling 1665); the raid step says its speeds, triple until the raiders arrive, then double (rulings 1657, 1671).
+const v91fAim = (kind) => (kind && kind !== 'building' ? buildingName(kind).toLowerCase() : 'city');
+export const V91F_TEXT = {
+  roadDo: 'Drag west from the end of the road (the diamond).',
+  firehouseDo: "Build a firehouse at the road's corner.",
+  monthWhy: 'Mood falls when homes lack food or work: the mood chip says why.',
+  monthDo: (paused, n) => `${paused ? 'Press Play and let' : 'Let'} ${n} months pass, and watch your gold and mood.`,
+  // The raid step before its raiders come: the speed first (said before Play is pressed), then what they strike and when (the warning's own arrives).
+  raidFast: 'The game runs at triple speed until the raiders arrive, then double.',   // ruling 1671
+  raidDo: (paused, target, days) => `${paused ? 'Press Play: they strike' : 'They strike'} your ${v91fAim(target)} first, in ${DANGER_UI_TEXT.duration(Math.max(0, days))}.`,
+  // Ruling 1668: one tap lays a plot, so the Housing plot bar's first line says so (with a mouse; a finger's line was already Drag or tap).
+  plotsIdle: 'Tap a spot, or drag for a row',
+};
+// ── end v91 f ──
+
+// Version 9.1, Track R (never stuck: the error card, the loading screen, the debt sheet; rulings 1675-1684). Track R writes only between this header and its end line.
+// The error card (src/ui/v91/rescue.js, design 5b, rulings 1675-1680) and Back to gold (src/ui/v91/debtSheet.js, design 3c, rulings 1681-1684).
+export const V91_R_TEXT = {
+  // The debt alert's fix line (alertText 'debt' reads it): the sheet View opens.
+  debtFix: 'Pause what costs most; View shows which, and the ways out',
+  // The error card.
+  errorTitle: 'Something went wrong',
+  paused: 'The game has paused.',
+  taintedSaved: 'Your city was last saved this month.',   // fix wave (ruling 1738): a save also happens when the tab is hidden, so it is not said to be "at the start"
+  taintedNone: 'This city has not been saved, so there is nothing to go back to.',
+  taintedLesson: "The lesson's city is never saved.",
+  stopped: 'The game has stopped drawing.',
+  safeSaved: 'Your city is safe and was just saved.',
+  safeNotSaved: 'Your city could not be saved just now: export it first.',
+  safeLesson: "The lesson's city is never saved.",
+  idle: 'The page hit a problem before the game began.',
+  checking: 'Checking your save…',
+  reloadSave: 'Reload from the save', reloadSaveWhy: 'Goes back to the last save: up to one game month of play is lost.',
+  reloadNone: 'Reload', reloadNoneWhy: 'Reloads the page and goes back to the title.',
+  reloadSafe: 'Reload', reloadSafeWhy: 'Reloads the page. Your city is saved as it is now: nothing is lost.',
+  reloadLesson: 'Reload', reloadLessonWhy: 'Reloads the page and goes back to the title.',
+  exportCity: 'Export this city', exportWhy: 'Saves this city as a file for a bug report. It does not replace your save.',
+  exportFailed: 'This city could not be exported.',
+  copyDetails: 'Copy the details', copyWhy: 'Copies the version and the first lines of the error. Nothing personal.',
+  copied: 'Copied.', copyBy: 'Could not copy by itself: select the text below and copy it.',
+  detailsHead: (n) => (n === 1 ? 'Details' : `Details (${n} errors)`),
+  where: { tick: "the day's tick", render: 'the drawing', ui: 'a button or a timer', promise: 'a task that was waiting', idle: 'the page' },
+  uiFailed: "That didn't work; your city is safe",
+  // The details Copy the details puts on the clipboard.
+  detailLines: ({ version, build, where, device, errors }) => [`Thebes ${version}${build ? ` (build ${build})` : ''}`, `Where: ${where}`, `Device: ${device}`, ...errors],
+  crash: (kind) => `Test crash (the dev flag crash=${kind})`,
+  // Back to gold.
+  debtTitle: 'Back to gold',
+  notInDebt: (gold) => `The treasury is out of debt (${gold} gold).`,
+  inDebt: (gold) => `The treasury is ${-gold} gold in debt.`,
+  figuresHead: 'This month',
+  income: (n) => `Taxes bring in ${n}`, wages: (n) => `Wages cost ${n}`, upkeep: (n) => `Upkeep costs ${n}`, soldiers: (n) => `Soldiers cost ${n}`,
+  net: (n) => (n < 0 ? `The city loses ${-n} gold a month` : n === 0 ? 'The city breaks even' : `The city gains ${n} gold a month`),
+  costsHead: 'What costs most',
+  costsNone: 'No building costs anything right now.',
+  pause: 'Pause',
+  pauseLabel: (name) => `Pause ${name}`,
+  // Fix wave (ruling 1739): a row's name, the kind alone for one building and "2 Builders' guilds" for more.
+  kindName: (type, count = 1) => (count > 1 ? `${count} ${capitalised(pluralName(type))}` : buildingName(type)),
+  costRow: (name, cost) => `${name}: ${cost} a month`,
+  // count: how many buildings the row stands for (fix wave re-review): a row of several says Pause stops all of them.
+  pauseSaves: (cost, count = 1) => (count > 1
+    ? `Pausing all ${count} saves ${cost} a month and stops their work. Resume each on its sheet.`
+    : `Pausing saves ${cost} a month and stops its work. Resume it on its sheet.`),
+  pauseSavesUpTo: (cost, count = 1) => (count > 1
+    ? `Pausing all ${count} saves up to ${cost} a month and stops their work: their workers may take other jobs. Resume each on its sheet.`
+    : `Pausing saves up to ${cost} a month and stops its work: its workers may take other jobs. Resume it on its sheet.`),
+  pausedNote: (name, cost) => `${name} paused: ${cost} a month less`,
+  rateHead: 'At this rate',
+  climbs: (months) => `The treasury is out of debt in ${months === 1 ? '1 month' : `${months} months`}.`,
+  breaksEven: 'The treasury stays where it is: nothing pays the debt back.',
+  keepsFalling: (n) => `The treasury keeps falling by ${n} a month: it will not recover.`,
+  limitAhead: (room) => `Below ${-ECONOMY.debtFloor} gold in debt nothing new can be bought: ${room} gold of room is left.`,
+  limitAt: `The treasury is past ${-ECONOMY.debtFloor} gold in debt: nothing new can be bought until it climbs back above it.`,
+  limitIn: (months) => `At this rate that is ${months === 0 ? 'before the month ends' : `in ${months === 1 ? '1 month' : `${months} months`}`}.`,
+  leversHead: 'Other ways to bring gold in',
+  leversNone: 'No other way is open to this city yet. Pausing is the way.',
+  taxLever: (rate, gain, mood) => `Raise taxes at the palace to ${V84_G_TEXT.rateNames[rate]}: ${gain} more gold a month, mood ${mood < 0 ? '−' : '+'}${Math.abs(mood)}.`,
+  taxLeverLabel: (rate) => `Show me the palace, to raise taxes to ${V84_G_TEXT.rateNames[rate]}`,
+  sellLever: (good, partner, gold, months, boat, keep) => `Set ${good} to Sell with Keep at least ${keep}: ${partner} pays about ${gold} gold when the next ${boat ? 'boat' : 'caravan'} comes, in ${months === 1 ? '1 month' : `${months} months`}.`,
+  sellLeverLabel: (good) => `Show me the trade sheet, to sell ${good}`,
+};
+// ── end v91 r ──
+
+// Version 9.1, Track A (clear and trusted: About; rulings 1700-1709). Track A writes only between this header and its end line.
+export const V91_A_TEXT = {
+  about: 'About',
+  madeBy: 'Made by Josh',
+  aboutLicence: 'All rights reserved',   // ruling 1701: the licence Josh chose, in one string
+  art: 'Art, music and sounds are made by the game itself.',
+  privacy: 'Thebes keeps your cities on this device. It sends nothing anywhere; a share link carries only what it shows.',
+  licenceLine: (licence) => `Licence: ${licence}`,
+};
+// ── end v91 a ──
+
+// Version 9.1, Track P (runs well: the profile, the caches, the preload; rulings 1685-1699). Track P writes only between this header and its end line.
+// ── end v91 p ──
+
+// Version 9.1, Track H (the heirs; rulings 1710-1724). Track H writes only between this header and its end line.
+// Ruling 1712: the Nilometer's rule in one clause, with this city's own numbers. The Steady's is the River track's static rvPrepRule ("60% becomes 73%");
+// the Bountiful's low flood loses half again as much (src/sim/dynasty.js heirLoss, the sim's rule), so its farms go from 40% to 60%. The static lines stay
+// for How to play, which states the game's rule, not a city's.
+import { heirLoss as h91HeirLoss } from '../sim/dynasty.js';
+const h91LowPct = (world, prepared) => `${Math.round(h91HeirLoss(world, rvPrepared(rvLevelRow('low').harvest, prepared)) * 100)}%`;
+const h91PrepRule = (world) => `a Low flood's loss is cut by ${rvCut} (${h91LowPct(world, false)} becomes ${h91LowPct(world, true)})`;
+S46_RIVER_TEXT.nilometerNoteFor = (world) => `While staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}`;
+FIRST_TEXT.first_nilometer.whyFor = (world) => `Staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}.`;
+// ── end v91 h ──

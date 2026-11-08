@@ -9,7 +9,23 @@
 
 export const RELEASES = [
   {
-    version: '9.0', date: '2026-11-07', title: 'Dynasty', build: 'live',
+    version: '9.1', date: '2026-11-08', title: 'First hours', build: 'live',
+    new: [
+      'The lesson now hands you a Village city with no surprise raid. A marker shows where to lay the first road, and the waits are shorter: the raid step runs at triple speed, then double, and its card says so.',
+      'Toasts that only repeat what you just did no longer pile up in Messages, and a quiet first goal greets your own city.',
+      'Your first own city starts on the classic river, and Surprise me comes from the second. I\'ve played before skips the lesson and starts a city at once.',
+      'A loading screen shows while the game starts and says so when the connection is slow. If something breaks, a card keeps your city safe and offers Reload, Export this city and Copy the details. Nothing is sent anywhere.',
+      'When gold runs out, the debt sheet\'s Back to gold lists what the month costs, the three dearest buildings with a Pause for each, and how many months the fix gives you.',
+      'About, in Options, says who made the game ("Made by Josh"), that all rights are reserved, and that nothing is sent anywhere.',
+      'Big maps use less memory, so the tab is less likely to reload on a phone. Heirs are tuned against cities that play to their traits.',
+    ],
+    fixed: [
+      'The lesson\'s firehouse now reaches the buildings the lesson asks for.',
+      'The error card is the one panel on screen, and says only what is true of your save.',
+    ],
+  },
+  {
+    version: '9.0', date: '2026-11-07', title: 'Dynasty', build: '1d937a4',
     new: [
       'Pass the throne: from the City milestone the game menu seals your best score as a ruler, gives it a title, and starts a new city for your heir. The sheet says what you keep and what ends before you tap, and Not yet changes nothing.',
       'A ruler is remembered as Unconquered, Builder, Merchant, Bountiful or Generous by how the reign went, or as the Steady when no title is met. The score sheet says why, and how close the next title is.',

@@ -48,7 +48,8 @@ describe('v60 contract dev scenes', () => {
       expect(said['v60-huge']).toBe('v60-huge: 112x112, seed 11');
       expect(sizes['v60-huge']).toBe(112);
       // Version 6.0 (Track D2): the lesson scene starts the guided first city (its own 48 map), at the device's step, the first on a fresh device.
-      expect([said['v60-lesson'].startsWith('v60-lesson: step 0, at road, row "Lay 9 tiles of road'), sizes['v60-lesson'], r.api.game().lesson]).toEqual([true, 48, true]);
+      // Version 9.1 (Track F, ruling 1664): the road step's words point at the start road's end and its diamond.
+      expect([said['v60-lesson'].startsWith('v60-lesson: step 0, at road, row "Drag west from the end of the road'), sizes['v60-lesson'], r.api.game().lesson]).toEqual([true, 48, true]);
     } finally { r.cleanup(); }
   });
 

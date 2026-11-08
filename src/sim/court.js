@@ -33,7 +33,7 @@ import { isWorking } from './labour.js';
 import { atLeast } from './progression.js';
 import { festivalCostOf, threatsOn } from './costs.js';
 import { monthFigures } from './economy.js';
-import { storeAccepts, storeTotal } from './production.js';
+import { storeAccepts, storeTotal, heirRate } from './production.js';
 import { partnerUnlocked } from './trade.js';
 import { vacancies } from './immigration.js';
 import { illHomes } from './health.js';
@@ -119,13 +119,15 @@ export function putGoods(world, good, n) {
 // route's yearly quota / 12; 0 when it neither makes it nor can trade for it. A hunting lodge counts what its herds can give this month
 // (huntingOutlook's month, not its HUNTING.maxMonth ceiling), and a fishing wharf its flood-month catch while the water is up (fishFactor),
 // as production.js makes them (ruling 448).
+// Version 9.1 (Track H, ruling 1712): times the heir's rate (production.js heirRate: the Bountiful's farms, the Merchant's workshops; 1 for any other
+// city, so the Steady's asks are 9.0's). The flood is left out: reading it would change every city's asks, the Steady's too (ruling 1713).
 export function outputPerMonth(world, good) {
   let n = 0;
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
     if (!def.produces || def.produces.good !== good || !isWorking(world, b)) continue;
     const month = def.hunts ? huntingOutlook(world, b).month : def.produces.perMonth * (def.fishes ? fishFactor(world) : 1);
-    n += month * (b.staff / def.workers);
+    n += month * (b.staff / def.workers) * heirRate(world, b);
   }
   if (n > 0) return n;
   for (const [id, p] of Object.entries(PARTNERS)) {
