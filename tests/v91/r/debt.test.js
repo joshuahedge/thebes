@@ -189,7 +189,7 @@ describe('v91 r debt: the sheet', () => {
         expect(row.querySelector('strong').textContent).toBe(W.costRow(name, m.top[i].cost));
         expect(row.querySelector('button').getAttribute('aria-label')).toBe(W.pauseLabel(name));
         expect(row.querySelector('button').textContent).toBe(W.pause);
-        expect(row.querySelector('p').textContent).toBe(W.pauseSaves(m.top[i].cost));
+        expect(row.querySelector('p').textContent).toBe(W.pauseSaves(m.top[i].cost, m.top[i].count));   // fix wave re-review: was W.pauseSaves(cost), a row of several now says "all N"
       });
       expect(s.querySelector('.debt-rate').textContent).toBe(W.climbs(m.monthsToClear));
       expect(s.querySelector('.debt-limit').textContent).toBe(`${W.limitAhead(m.room)}`);

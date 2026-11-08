@@ -112,8 +112,12 @@ export function createDebtSheets(ctx) {
 
   function pause(row) {
     let r = null;
-    for (const id of row.ids) { r = setPaused(world, id, true); if (!r.ok) break; }   // every building of the row's kind
-    if (!r.ok) { assignLabour(world); if (ctx.toasts) ctx.toasts.show(reasonText(r.reason)); return; }
+    const done = [];
+    for (const id of row.ids) { r = setPaused(world, id, true); if (!r.ok) break; done.push(id); }   // every building of the row's kind
+    if (!r.ok) {
+      for (const id of done) setPaused(world, id, false);   // all or none (fix wave re-review): a refusal part-way leaves the row as it was, so the toast's reason is the whole story
+      assignLabour(world); if (ctx.toasts) ctx.toasts.show(reasonText(r.reason)); return;
+    }
     assignLabour(world);
     note = W.pausedNote(W.kindName(row.type, row.count), row.cost);
     ctx.afterCommand({ kind: 'pause', result: r, text: T.paused, undoable: false });
@@ -127,7 +131,7 @@ export function createDebtSheets(ctx) {
     return el('li', { class: 'debt-cost', dataset: { id: String(row.id) } }, [
       el('div', { class: 'debt-cost-words' }, [
         el('strong', { text: W.costRow(name, row.cost) }),
-        el('p', { class: 'small muted', text: (row.exact ? W.pauseSaves : W.pauseSavesUpTo)(row.cost) }),
+        el('p', { class: 'small muted', text: (row.exact ? W.pauseSaves : W.pauseSavesUpTo)(row.cost, row.count) }),
       ]),
       button(W.pause, { class: 'debt-pause', 'aria-label': W.pauseLabel(name), onClick: () => pause(row) }),
     ]);

@@ -40,11 +40,27 @@ describe('v91 fix debt: one row to a kind (ruling 1739)', () => {
       const row = topCosts(w, 3).find((x) => x.type === 'farm_grain');
       const lines = [...r.root.querySelectorAll('#sheet .debt-cost strong')].map((n) => n.textContent);
       expect([lines.filter((t) => t === W.costRow('2 Grain farms', row.cost)).length, new Set(lines).size === lines.length]).toEqual([1, true]);
+      // The row says before the tap that Pause stops both (fix wave re-review).
+      const farmLi = [...r.root.querySelectorAll('#sheet .debt-cost')].find((li) => li.dataset.id === String(row.id));
+      expect(farmLi.querySelector('p').textContent).toBe((row.exact ? W.pauseSaves : W.pauseSavesUpTo)(row.cost, 2));
+      expect(farmLi.querySelector('p').textContent.includes('all 2')).toBe(true);
       const before = monthFigures(w).net;
       [...r.root.querySelectorAll('#sheet .debt-cost')].find((li) => li.dataset.id === String(row.id)).querySelector('.debt-pause').click();
       expect(row.ids.map((id) => w.buildings[id].paused)).toEqual([true, true]);
       expect(monthFigures(w).net - before).toBe(row.cost);
       expect(r.root.querySelector('#sheet .debt-note').textContent).toBe(W.pausedNote('2 Grain farms', row.cost));
+    } finally { r.cleanup(); }
+  });
+
+  it('a refusal part-way through a row pauses none of it (all or none)', async () => {
+    const w = twoFarms();
+    const r = await rigUI({ world: w });
+    try {
+      r.ui.store.set(openSheet(r.ui.store.get(), 'backToGold'));
+      const row = topCosts(w, 3).find((x) => x.type === 'farm_grain');
+      delete w.buildings[row.ids[1]];   // the second farm is gone when Pause runs, so setPaused refuses it ('nothing_here')
+      [...r.root.querySelectorAll('#sheet .debt-cost')].find((li) => li.dataset.id === String(row.id)).querySelector('.debt-pause').click();
+      expect(w.buildings[row.ids[0]].paused).toBe(false);
     } finally { r.cleanup(); }
   });
 });
