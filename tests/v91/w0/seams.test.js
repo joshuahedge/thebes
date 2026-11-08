@@ -226,6 +226,7 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     for (const m of marks) expect([m, text.split(m).length, at(m) > at('// ── end v90 v ──')]).toEqual([m, 2, true]);
     for (let i = 1; i < marks.length; i++) expect([marks[i], at(marks[i - 1]) < at(marks[i])]).toEqual([marks[i], true]);
     // Version 9.1 (Track A, kept at the merge): the sections were empty in wave 0; each track now writes between its own header and end line, so only the order is pinned.
-    expect(text.trimEnd().endsWith('// ── end v91 h ──')).toBe(true);
+    // 9.2 wave 0: the seven empty 9.2 headers follow it now.
+    expect(text.slice(at('// ── end v91 h ──')).replace(/^\/\/.*$/gm, '').trim()).toBe('');
   });
 });

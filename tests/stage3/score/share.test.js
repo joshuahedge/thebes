@@ -27,7 +27,7 @@ describe('s3 score sharing', () => {
     const hash = new URL(link).hash;
     expect([parseShareLink(''), parseShareLink('#x'), parseShareLink('#welcome'), parseShareLink(null)]).toEqual([null, null, null, null]);
     expect(parseShareLink(hash.replace('72-65', '73-65'))).toEqual({ ok: false, reason: 'bad_check' });
-    expect(parseShareLink(hash.replace('#t2', '#t3'))).toEqual({ ok: false, reason: 'newer_format' });
+    expect(parseShareLink(hash.replace('#t2', '#t4'))).toEqual({ ok: false, reason: 'newer_format' });
     expect(parseShareLink('#t2.202641.n.72-65-58-40.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });   // four parts in a t2 link
     expect(parseShareLink('#t1.202641.n.72-65-58-40-36.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });  // five parts in a t1 link
     expect(parseShareLink('#t2.202641.e.72-65-58-40-36.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });

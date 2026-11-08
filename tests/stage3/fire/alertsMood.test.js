@@ -40,7 +40,7 @@ describe('s3 fire alerts', () => {
       { code: 'blaze', id: coveredBlaze.id }, { code: 'blaze', id: coveredFire.id }, { code: 'fire_risk', id: thin.id }, { code: 'fire', id: thinBlaze.id },
     ];
     expect(fireAlerts(w)).toEqual(expected);
-    expect(alertsFor(w).filter((a) => ['fire', 'blaze', 'fire_risk'].includes(a.code))).toEqual(expected);
+    expect(alertsFor(w).filter((a) => ['fire', 'blaze', 'fire_risk'].includes(a.code)).map(({ ids, count, ...a }) => a)).toEqual(expected);
     expect([rising.fire, garden.fire, coveredRisk.fire]).toEqual([null, null, null]);
   });
 

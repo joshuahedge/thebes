@@ -22,6 +22,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { hash2 } from './rng.js';
+import { letterMayCome, noteLetter } from './letters.js';
 import { allBuildings, isFinished } from './world.js';
 import { atLeast, isUnlocked } from './progression.js';
 import { costScale, costOf } from './costs.js';
@@ -223,10 +224,12 @@ export function demandMonth(world, events = null) {
   const s = world.demands;
   if (s.nextDay === null) { s.nextDay = world.day + DEMANDS.firstMonths * DAYS_PER_MONTH; return; }
   if (world.day < s.nextDay || s.open.length) return;
+  if (!letterMayCome(world, 'demand')) return;
   const d = drawDemand(world, s.nextId);
   if (!d) { s.nextDay = world.day + DAYS_PER_MONTH; return; }   // nothing to ask yet: a month on
   s.nextId += 1;
   s.open.push(d);
+  noteLetter(world, 'demand');
   s.nextDay = world.day + pick(DEMANDS.gapMonths, draw(world, d.id, world.day, 'demandGap')) * DAYS_PER_MONTH;   // the next one's clock starts at this offer (ruling 794), not when it is settled
   if (events) events.push({ type: 'demand_offered', demand: copy(d) });
 }

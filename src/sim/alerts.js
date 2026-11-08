@@ -16,6 +16,10 @@ import { s46Alerts } from './s46.js';
 import { v60Alerts } from './v60.js';
 import { v70Alerts } from './v70.js';
 
+// Version 9.2 wave 0 (ruling 1750): the roll-up's shape. Every alert carries ids (its one id, where it has one) and count (1); plots_no_road and crime_risk
+// already do. Track Q fills this to roll alerts up by cause; for now it returns the list as it is.
+export function rollUpAlerts(list) { return list; }
+
 export function alertsFor(world) {
   const alerts = [];
   let byHouse = null;
@@ -50,7 +54,11 @@ export function alertsFor(world) {
     alerts.push({ code: 'unemployment' });
   }
   if (world.gold < 0) alerts.push({ code: 'debt' });
-  return alerts;
+  for (const a of alerts) {
+    if (!a.ids && a.id !== undefined) a.ids = [a.id];
+    if (a.count === undefined) a.count = 1;
+  }
+  return rollUpAlerts(alerts);
 }
 
 export function computeAlerts(world) {

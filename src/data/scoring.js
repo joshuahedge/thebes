@@ -54,8 +54,9 @@ export const MEDALS = [
 export const MEDALS_BY_VERSION = {
   1: [{ id: 'bronze', at: 160 }, { id: 'silver', at: 240 }, { id: 'gold', at: 320 }],
   2: MEDALS,
+  3: MEDALS,   // Version 9.2 wave 0 (ruling 1752): score v3's slot, v2's numbers until Track S fills it and flips SCORE_VERSION
 };
-export const PARTS_BY_VERSION = { 1: SCORE_PARTS_V1, 2: SCORE_PARTS };
+export const PARTS_BY_VERSION = { 1: SCORE_PARTS_V1, 2: SCORE_PARTS, 3: SCORE_PARTS };
 
 // A sealed reign's stamp (spec 4.19) gains a small glyph for each finished monument of these kinds, at most
 // STAMP_GLYPHS_MAX on one stamp (in this order: mastabas, then pyramids). Cosmetic.
@@ -83,6 +84,7 @@ export const SHARE = {
   formats: {
     t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES },
     t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS },
+    t3: { version: 3, parts: SCORE_PARTS, splits: SPLITS },   // Version 9.2 wave 0: read as t2 until Track S fills it
   },
   difficulty: { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' },
   checkLength: 4,

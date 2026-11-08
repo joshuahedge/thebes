@@ -26,6 +26,7 @@
 // 'default', effects }.
 import { hash2 } from './rng.js';
 import { DAYS_PER_MONTH } from './time.js';
+import { letterMayCome, noteLetter } from './letters.js';
 import { CITY_EVENTS, EVENT_DEFS, EVENT_NUMBERS, EVENT_SALT } from '../data/cityEvents.js';
 import { INCENSE_GOOD } from '../data/trade.js';
 import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
@@ -438,6 +439,7 @@ export function drawEvent(world) {
   const first = firstEventDay(world);
   if (first === null ? s.nextDay === 0 : world.day < first) return null;     // a city whose Town day is not on record waits for its record's own day
   if (dangerStriking(world) || courtSoon(world)) return null;
+  if (!letterMayCome(world, 'event')) return null;
   const id = world.tally.eventsOffered;
   const pool = eligible(world, id);
   const turn = pool.filter((p) => p.def.welcome === (id % 2 === 0));          // welcome and troublesome take turns, the other side when its own has none
@@ -467,6 +469,7 @@ export function eventDay(world, events = null) {
   if (!ev) return;
   const def = defOf(ev.kind);
   s.waiting = ev;
+  noteLetter(world, 'event');
   s.cooldowns[ev.kind] = world.day + def.cooldown * DAYS_PER_MONTH;
   s.nextDay = world.day + between(CITY_EVENTS.gapMonths, draw(world, ev.id, world.day, 'gap')) * DAYS_PER_MONTH;
   world.tally.eventsOffered += 1;

@@ -32,7 +32,7 @@ describe('s4 sim stalls', () => {
     expect([s.site.idle, s.site.reason, monumentAlerts(w), stalled(events)]).toEqual([2, 'no_crew', [], []]);
     run(w, 1, events);
     expect([s.site.idle, stalled(events), siteStatus(w, s).stalled]).toEqual([3, [{ type: 'site_stalled', id: s.id, kind: 'obelisk_small', reason: 'no_crew' }], true]);
-    expect(alertsFor(w).filter((a) => a.code === 'site_stalled')).toEqual([{ code: 'site_stalled', id: s.id, reason: 'no_crew' }]);
+    expect(alertsFor(w).filter((a) => a.code === 'site_stalled').map(({ ids, count, ...a }) => a)).toEqual([{ code: 'site_stalled', id: s.id, reason: 'no_crew' }]);
     run(w, 5, events);
     expect([s.site.idle, stalled(events).length]).toEqual([8, 1]);              // one event a stall
     guild(w, 16);

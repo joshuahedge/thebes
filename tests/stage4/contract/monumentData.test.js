@@ -118,7 +118,7 @@ describe('s4 contract score v2 data and costs', () => {
     expect(MEDALS.map((m) => m.at)).toEqual([200, 300, 400]);
     expect(SPLITS).toEqual([...SPLIT_MILESTONES, 'pyramids', 'great_pyramid']);
     expect(SHARE.format).toBe('t2');
-    expect(SHARE.formats).toEqual({ t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES }, t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS } });
+    expect(SHARE.formats).toEqual({ t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES }, t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS }, t3: { version: 3, parts: SCORE_PARTS, splits: SPLITS } });   // 9.2 wave 0: t3's slot
   });
   it('scales founding, work gold, gilding, the capstone and the palace by the difficulty\'s cost, never below 0', () => {
     expect(byLevel((w) => costOf(w, 'pyramid_great'))).toEqual([4800, 4800, 6000, 7500]);

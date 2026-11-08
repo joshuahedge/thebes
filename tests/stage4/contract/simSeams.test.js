@@ -195,7 +195,7 @@ describe('s4 contract site facts and the monthly roll', () => {
     const st = siteStatus(w, s);
     expect([st.finished, st.road, st.paused, st.stalled, st.reason, Object.keys(st.materials)]).toEqual([false, true, false, true, 'no_bricks', ['stone', 'bricks']]);
     expect(st.prestige).toEqual({ now: 8, more: 62, holds: true });
-    expect(alertsFor(w).filter((a) => a.code === 'site_stalled')).toEqual([{ code: 'site_stalled', id: s.id, reason: 'no_bricks' }]);
+    expect(alertsFor(w).filter((a) => a.code === 'site_stalled').map(({ ids, count, ...a }) => a)).toEqual([{ code: 'site_stalled', id: s.id, reason: 'no_bricks' }]);
     s.paused = true;
     expect([siteStatus(w, s).reason, monumentAlerts(w)]).toEqual(['paused', []]);
     const far = monument(w, 'obelisk_small', 20, 3);

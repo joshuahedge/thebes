@@ -4673,3 +4673,17 @@ const h91PrepRule = (world) => `a Low flood's loss is cut by ${rvCut} (${h91LowP
 S46_RIVER_TEXT.nilometerNoteFor = (world) => `While staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}`;
 FIRST_TEXT.first_nilometer.whyFor = (world) => `Staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}.`;
 // ── end v91 h ──
+
+// Version 9.2, Track L
+
+// Version 9.2, Track Q
+
+// Version 9.2, Track S
+
+// Version 9.2, Track D
+
+// Version 9.2, Track A
+
+// Version 9.2, Track W
+
+// Version 9.2, Track V

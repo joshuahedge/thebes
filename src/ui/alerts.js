@@ -83,6 +83,19 @@ export function bannerModel(world, critical) {
   return m;
 }
 
+// Version 9.2 wave 0 (ruling 1750): the View that steps through a row's ids, shared by every row. `row` is the alerts a row stands for (the fire row's group,
+// or one alert); `n` counts the presses so far. Returns the alert whose id is the n-th of the row's ids (round and round), so a rolled-up row (Track Q) steps
+// through every id it holds; an alert with no id is its own stop.
+export function stepRow(row, n) {
+  const list = Array.isArray(row) ? row : [row];
+  const stops = [];
+  for (const a of list) {
+    if (a.ids && a.ids.length > 1) for (const id of a.ids) stops.push({ ...a, id, ids: [id], count: 1 });
+    else stops.push(a);
+  }
+  return stops[n % stops.length];
+}
+
 // onAction (Stage 3): a button on an alert other than View, as onAction(alert, kind): 'tribute' (Pay tribute), 'more' (+N
 // more: the alert list), 'warning' (a phone chip's words: the raid sheet) and 'view' for an alert at a map point (the
 // danger interface moves the camera there). phone() says whether the layout is a phone's (portrait or compact).
@@ -107,7 +120,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
   }
 
   function view(m) {
-    const a = m.group[step % m.group.length];
+    const a = stepRow(m.group, step);
     step += 1;
     if (isPointAlert(a)) onAction(a, 'view');
     else { noteView(world, a.id); onView(a); }                                    // Stage 4: View outlines what it frames (ruling 281)
