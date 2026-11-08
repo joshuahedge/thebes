@@ -78,8 +78,8 @@ describe('v91 f lesson: the walk-through and its waits (P5)', () => {
     const { steps } = walkLesson();
     const r1 = (n) => Math.round(n * 10) / 10;
     const total = steps.reduce((n, x) => n + x.secs, 0), raid = steps.find((s) => s.id === 'raid');
-    expect(steps.filter((x) => x.secs > 0).map((x) => `${x.id}:${r1(x.secs)}`)).toEqual(['families:20', 'workers:31', 'month:39', 'firehouse:1', 'fire:1', 'tower:2', 'raid:32.2']);   // 9.1 balance (ruling 1729): was raid 134 s at 1x; WAVE2-PIN 9.2 Track L (ruling 1756): was 'month:9' and 'fire:2' (the month step waits two months from its entry)
-    expect([r1(raid.waitSecs), r1(raid.secs - raid.waitSecs), r1(total), raid.end - raid.begin]).toEqual([9.7, 22.5, 126.2, 74]);   // WAVE2-PIN 9.2 Track L (ruling 1756): was 97.2 in total
+    expect(steps.filter((x) => x.secs > 0).map((x) => `${x.id}:${r1(x.secs)}`)).toEqual(['families:20', 'workers:31', 'month:19.5', 'firehouse:1', 'fire:1', 'tower:2', 'raid:32.2']);   // 9.1 balance (ruling 1729): was raid 134 s at 1x; WAVE2-PIN 9.2 Track L (ruling 1756): was 'month:9' and 'fire:2' (the month step waits two months from its entry)
+    expect([r1(raid.waitSecs), r1(raid.secs - raid.waitSecs), r1(total), raid.end - raid.begin]).toEqual([9.7, 22.5, 106.7, 74]);   // WAVE2-PIN 9.2 Track L (rulings 1756, 1772): was 97.2 in total (month 39 s at 1x, 19.5 s at its 2x)
     expect([raid.waitSecs <= 30, raid.secs - raid.waitSecs <= 30, total <= 150]).toEqual([true, true, true]);   // the wait and the fight each inside 30 s; all waits together inside 150 s
   });
 });

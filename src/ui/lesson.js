@@ -12,7 +12,7 @@ import { LARGE_PLOT } from '../data/largePlots.js';
 import { LESSON_TAUGHT_TIPS, HANDOVER_HOLD_DAYS, HANDOVER_HOLD_MAX_DAYS } from '../data/tips.js';
 import { say } from './v81/scribe.js';
 import { V81T_TEXT } from './v81/lessonText.js';
-import { V91F_TEXT } from './text.js';
+import { V91F_TEXT, V92L_TEXT } from './text.js';
 import { DAYS_PER_MONTH } from '../sim/time.js';
 
 // Whether the title should offer only "Start the lesson" (ruling 617): on a device that has not finished the lesson and has no saved city.
@@ -61,7 +61,7 @@ export function stepWords(step, f) {
   switch (step.id) {
     case 'road': return { ...base, do: V91F_TEXT.roadDo };
     case 'firehouse': return f.missing ? base : { ...base, do: V91F_TEXT.firehouseDo };
-    case 'month': return { why: V91F_TEXT.monthWhy, do: V91F_TEXT.monthDo(f.paused, step.check.n) };
+    case 'month': return { why: V91F_TEXT.monthWhy, do: V92L_TEXT.monthDo(f.paused, step.check.n, step.speed) };   // Version 9.2 (ruling 1772): says the speed the step plays at
     case 'raid': return f.raidOn || !f.warning ? base : { why: V91F_TEXT.raidFast, do: V91F_TEXT.raidDo(f.paused, f.target, f.warning.daysLeft) };
     default: return base;
   }

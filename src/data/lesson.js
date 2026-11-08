@@ -70,7 +70,7 @@ export const LESSON_STEPS = [
   { id: 'bazaar', check: { kind: 'served', type: 'bazaar', homes: 3 }, at: { x: 21, y: 43, w: 2, d: 2 }, show: { category: 'services', item: 'bazaar' } },
   { id: 'workers', check: { kind: 'working', types: ['farm_grain', 'granary', 'bazaar'] }, at: { x: 21, y: 40, w: 1, d: 3 }, show: { category: 'homes', item: 'house' }, play: 'act', act: { kind: 'plots' } },
   // Version 9.1 (Track F, ruling 1665): and the mood chip, lit and live beside the gold, since Ipi's line says it is where mood's why is (its explainer lists the reasons).
-  { id: 'month', stage: 'month', check: { kind: 'monthsSince', n: 2 }, dom: '#topbar .stat.gold, #topbar .stat.mood', play: 'card', lock: ['stat-gold', 'stat-mood'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
+  { id: 'month', stage: 'month', check: { kind: 'monthsSince', n: 2 }, speed: 2, dom: '#topbar .stat.gold, #topbar .stat.mood', play: 'card', lock: ['stat-gold', 'stat-mood'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 20, y: 38, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },
