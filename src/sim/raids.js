@@ -328,6 +328,7 @@ function raiseWarning(world, events) {
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
+  // Version 9.1 (Track F, ruling 1657): in the lesson the event's arrives is the sim's own, from before src/sim/lesson.js leadRaid moves warning.arrives on; no interface reads it.
   if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(elephants ? { elephants } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
 }
 

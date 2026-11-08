@@ -4565,7 +4565,7 @@ export const V90_L_TEXT = {
 // Version 9.1, Track F (first hours: the lesson, the hand-over, the first own city; rulings 1655-1674). Track F writes only between this header and its end line.
 // The lesson's lines 9.1 changes, each one short sentence like the rest of Ipi's (src/ui/lesson.js stepWords lays them over src/ui/v81/lessonText.js V81T_TEXT.steps):
 // the road step points at the start road's end, marked with the diamond (ruling 1664); the firehouse goes where its reach covers the lesson's buildings (ruling 1656);
-// the months say why mood moves (ruling 1665); the raid step says it plays at double speed (ruling 1657).
+// the months say why mood moves (ruling 1665); the raid step says its speeds, triple until the raiders arrive, then double (rulings 1657, 1671).
 const v91fAim = (kind) => (kind && kind !== 'building' ? buildingName(kind).toLowerCase() : 'city');
 export const V91F_TEXT = {
   roadDo: 'Drag west from the end of the road (the diamond).',
@@ -4573,7 +4573,7 @@ export const V91F_TEXT = {
   monthWhy: 'Mood falls when homes lack food or work: the mood chip says why.',
   monthDo: (paused, n) => `${paused ? 'Press Play and let' : 'Let'} ${n} months pass, and watch your gold and mood.`,
   // The raid step before its raiders come: the speed first (said before Play is pressed), then what they strike and when (the warning's own arrives).
-  raidFast: 'The game runs at double speed until the raid is over.',
+  raidFast: 'The game runs at triple speed until the raiders arrive, then double.',   // ruling 1671
   raidDo: (paused, target, days) => `${paused ? 'Press Play: they strike' : 'They strike'} your ${v91fAim(target)} first, in ${DANGER_UI_TEXT.duration(Math.max(0, days))}.`,
   // Ruling 1668: one tap lays a plot, so the Housing plot bar's first line says so (with a mouse; a finger's line was already Drag or tap).
   plotsIdle: 'Tap a spot, or drag for a row',

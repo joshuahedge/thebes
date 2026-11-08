@@ -6,10 +6,9 @@ import { S47_SPOTS_TEXT as W } from '../text.js';
 import { el } from '../components.js';
 
 // The spots show while the house tool is active, once a plot has been laid, and no overlay is on (an overlay is the player's own lens; the spots would fight it).
-// Version 9.1 (Track F, ruling 1672): and not while a lesson card is up (the page's lesson-card-up, src/ui/lessonCard.js): the card is Ipi speaking, and the "Good plots"
-// row would be a second voice beside it. They come back with the card gone.
-const lessonCardUp = () => typeof document !== 'undefined' && Boolean(document.body) && document.body.classList.contains('lesson-card-up');
-export const spotsOn = (state, world) => Boolean(state && state.tool && state.tool.kind === 'houses' && !state.overlay && world && spotsUnlocked(world)) && !lessonCardUp();
+// Version 9.1 (Track F, ruling 1672): and not while a lesson card is up (the store's lessonCardUp, set by src/ui/lessonCard.js): the card is Ipi speaking, and the
+// "Good plots" row would be a second voice beside it. They come back with the card gone (the store's change redraws the row).
+export const spotsOn = (state, world) => Boolean(state && state.tool && state.tool.kind === 'houses' && !state.overlay && !state.lessonCardUp && world && spotsUnlocked(world));
 
 const NS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs = {}, kids = []) => {

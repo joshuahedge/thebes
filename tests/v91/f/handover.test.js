@@ -72,6 +72,13 @@ describe('v91 f hand-over: the rank the people earned (P6)', () => {
     expect([again.milestone, again.lessonCards, again.raid.clockDay, again.handOverDay, isUnlocked(again, 'tower')]).toEqual(['village', ['tower'], null, w.handOverDay, true]);
   });
 
+  it('a 9.0 adopted lesson city (Market town at under 250 people, no lessonCards) round-trips a save untouched (ruling 1654)', () => {
+    const { world } = walkLesson();
+    delete world.lesson;                                                             // 9.0's hand-over: only the lesson mark went
+    const again = deserialize(serialize(world));
+    expect([again.milestone, population(again) < 250, 'lessonCards' in again, 'handOverDay' in again, again.raid.clockDay, again.splits.market_town, serialize(again) === serialize(world)]).toEqual(['market_town', true, false, false, 63, world.splits.market_town, true]);
+  });
+
   it('marks its first game month (handOverMonth), and no other city', () => {
     const w = handed();
     expect(handOverMonth(w)).toBe(true);

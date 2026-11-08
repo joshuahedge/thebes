@@ -252,6 +252,13 @@ export function lessonCardsOf(world) {
   return out;
 }
 
+// Version 9.1 (Track F, ruling 1671): the speed a step plays at now: its waitSpeed while the warned raiders have not arrived (no raid under way, none over yet), else
+// its speed; null for a step with no speed of its own.
+export function stepSpeed(world, step) {
+  if (!step || !step.speed) return null;
+  return step.waitSpeed && !world.raid.active && !world.raid.last ? step.waitSpeed : step.speed;
+}
+
 // Version 9.1 (Track F, rulings 1655, 1661, 1662): the lesson's city as it becomes the player's own (src/boot.js adoptLesson). What the lesson staged for its raid is taken
 // back, so the city stands as a real one with its people would: the rank is what updateMilestone gives for the people alone (from Village: about 94 people is a Village),
 // the splits of the ranks it has not earned are cleared, the raid's state is a fresh city's (the clock stopped until RAIDS.clockPeople, no warning drawn, the next raid its
@@ -322,7 +329,7 @@ export const LESSON_SCRIPT = {
     setSpeed(world, 1); io.did();
     until(world, io, () => stepDone(world, stepById('tower')));
   },
-  raid(world, io) { setSpeed(world, stepById('raid').speed || 1); io.did(); until(world, io, () => stepDone(world, stepById('raid')), 600); },   // Version 9.1: at the step's own speed (was 3x)
+  raid(world, io) { setSpeed(world, stepSpeed(world, stepById('raid')) || 1); io.did(); until(world, io, () => stepDone(world, stepById('raid')), 600); },   // Version 9.1: at the step's own speed
 };
 
 // The lesson's city as it stands once steps 0 .. n - 1 are done (the resume of a lesson left part-way: the player's own streets are not kept,

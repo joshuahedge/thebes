@@ -3,7 +3,8 @@
 // back at 1x for the hand-over; the hand-over's first month holds a tip while an alert and a goal are both up; Messages keep news, not the player's own taps (P7);
 // the first own city starts on the classic river at Normal; I've played before starts a city in one tap; the story is told once.
 import { describe, it, expect } from '../../harness.js';
-import { LESSON_STEPS, LESSON_PLACES, LESSON_RAID_LEAD, LESSON_RAID_SPEED } from '../../../src/data/lesson.js';
+import { LESSON_STEPS, LESSON_PLACES, LESSON_RAID_LEAD, LESSON_RAID_SPEED, LESSON_RAID_WAIT_SPEED } from '../../../src/data/lesson.js';
+import { spotsOn } from '../../../src/ui/s47/spots.js';
 import { LESSON_SCRIPT, LESSON_LENGTH } from '../../../src/sim/lesson.js';
 import { paintHouses } from '../../../src/sim/commands.js';
 import { tickDay } from '../../../src/sim/clock.js';
@@ -117,17 +118,24 @@ describe('v91 f ui: the months and the raid (rulings 1657, 1665)', () => {
     } finally { s.cleanup(); }
   });
 
-  it('the raid step plays at 2x and says so before its raiders come; the raid over, the game is at 1x and the city is handed over at the rank its people earned', async () => {
+  // Ruling 1671: the raid step's wait at 3x until the raiders arrive, the fight at 2x, then 1x for the hand-over; each said before Play.
+  const toRaid = async (s) => {
+    const g = s.g();
+    dockCard(s.root);
+    await frame();
+    g.ui.placement.cancel();
+    LESSON_SCRIPT.tower(g.world, s.io);
+    await frame();
+    return g;
+  };
+  it('the raid step plays its wait at 3x and its fight at 2x and says so before its raiders come; the raid over, the game is at 1x and the city is handed over at the rank its people earned', async () => {
     const s = await pageAt('tower', { width: 390, height: 844 });
     try {
-      const g = s.g();
-      dockCard(s.root);
-      await frame();
-      g.ui.placement.cancel();
-      LESSON_SCRIPT.tower(g.world, s.io);
-      await frame();
+      const g = await toRaid(s);
       const w = g.world.raid.warning;
-      expect([s.root.querySelector('#lesson').dataset.step, g.world.speed, w.arrives - w.day, s.root.querySelector('#lesson .ipi-why').textContent]).toEqual(['raid', LESSON_RAID_SPEED, LESSON_RAID_LEAD, V91F_TEXT.raidFast]);
+      expect([s.root.querySelector('#lesson').dataset.step, g.world.speed, w.arrives - w.day, s.root.querySelector('#lesson .ipi-why').textContent]).toEqual(['raid', LESSON_RAID_WAIT_SPEED, LESSON_RAID_LEAD, V91F_TEXT.raidFast]);
+      for (let d = 0; d < 200 && !g.world.raid.active && !g.world.raid.last; d++) s.io.tick();
+      expect([Boolean(g.world.raid.active), g.world.speed]).toEqual([true, LESSON_RAID_SPEED]);   // the raiders are on the map: 2x
       for (let d = 0; d < 200 && !g.world.raid.last; d++) s.io.tick();
       await frame();
       expect([Boolean(g.world.raid.last), g.world.speed]).toEqual([true, 1]);
@@ -136,6 +144,50 @@ describe('v91 f ui: the months and the raid (rulings 1657, 1665)', () => {
       expect([h.world.milestone, h.world.lessonCards, h.world.raid.clockDay, Number.isInteger(h.world.handOverDay), h.world.speed <= 1]).toEqual(['village', ['tower'], null, true, true]);
       expect([document.body.classList.contains('handover-month'), h.ui.tray.unread(), document.body.dataset.lessonAlerts]).toEqual([true, 0, undefined]);
       expect(dueCards(h.world, JSON.parse(s.storage.data['thebes.settings']).seenTips)).toEqual([]);   // no picture card the lesson taught opens over the hand-over (the Large plot's)
+    } finally { s.cleanup(); }
+  });
+
+  it('a speed the player picks during the raid is theirs: kept through the change of phase and at the step\'s end', async () => {
+    const s = await pageAt('tower', { width: 390, height: 844 });
+    try {
+      const g = await toRaid(s);
+      g.ui.speedControl.set(1);                                                          // the player slows the wait down
+      for (let d = 0; d < 200 && !g.world.raid.active && !g.world.raid.last; d++) s.io.tick();
+      expect(g.world.speed).toBe(1);                                                     // not raised to 2x at the raiders' arrival
+      g.ui.speedControl.set(3);                                                          // then picks 3x for the fight
+      for (let d = 0; d < 200 && !g.world.raid.last; d++) s.io.tick();
+      await frame();
+      expect([Boolean(g.world.raid.last), g.world.speed]).toEqual([true, 3]);            // their own 3x is left at the end; only the lesson's own speed goes back to 1x
+    } finally { s.cleanup(); }
+  });
+
+  it('leaving mid-raid (the interface goes) takes the lesson\'s own speed back to 1x; the player\'s own is left', async () => {
+    for (const [own, after] of [[null, 1], [2, 2]]) {
+      const s = await pageAt('tower', { width: 390, height: 844 });
+      try {
+        const g = await toRaid(s);
+        if (own) g.ui.speedControl.set(own);
+        const world = g.world;
+        expect(world.speed).toBe(own || LESSON_RAID_WAIT_SPEED);
+        s.api.hooks.lesson({ step: 0 });                                                  // the lesson again (as Leave, Skip or a reload): this lesson's interface is destroyed
+        expect(s.api.game().world === world).toBe(false);
+        expect([own, world.speed]).toEqual([own, after]);
+      } finally { s.cleanup(); }
+    }
+  });
+});
+
+describe('v91 f ui: the Good plots row under a lesson card (ruling 1672)', () => {
+  it('the house tool\'s spots are off while a lesson card is up and back once it closes', async () => {
+    const s = await pageAt('workers', { width: 390, height: 844 });
+    try {
+      const g = s.g();
+      g.ui.store.set({ tool: { kind: 'houses' } });
+      expect([Boolean(stepCard(s.root)), g.ui.store.get().lessonCardUp, spotsOn(g.ui.store.get(), g.world)]).toEqual([true, true, false]);
+      dockCard(s.root);
+      await frame();
+      g.ui.store.set({ tool: { kind: 'houses' }, overlay: null });
+      expect([g.ui.store.get().lessonCardUp, spotsOn(g.ui.store.get(), g.world)]).toEqual([false, true]);
     } finally { s.cleanup(); }
   });
 });

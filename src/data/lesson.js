@@ -31,10 +31,12 @@ export const LESSON_PLACES = {
   tower: [21, 39],
 };
 
-// Version 9.1 (Track F, ruling 1657): the staged raid's warning comes this many days before its raiders (a real city's RAIDS.warningDays is 90), set by the lesson
-// alone once the warning is up (src/sim/lesson.js leadRaid), and the raid step plays at LESSON_RAID_SPEED, which its words say.
+// Version 9.1 (Track F, rulings 1657, 1671): the staged raid's warning comes this many days before its raiders (a real city's RAIDS.warningDays is 90), set by the lesson
+// alone once the warning is up (src/sim/lesson.js leadRaid). The raid step plays its wait at LESSON_RAID_WAIT_SPEED until the raiders arrive, then the fight at
+// LESSON_RAID_SPEED so it stays watchable, which its words say before Play.
 export const LESSON_RAID_LEAD = 30;
 export const LESSON_RAID_SPEED = 2;
+export const LESSON_RAID_WAIT_SPEED = 3;
 
 // The steps, in order. Each is { id, check, at?, dom?, show?, stage? }:
 //   check  what the sim must show for the step to be done (src/sim/lesson.js stepDone): roadTiles { n } (road laid beyond the start road), homesOnRoad { n },
@@ -72,10 +74,10 @@ export const LESSON_STEPS = [
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 20, y: 38, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },
-  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card', speed: LESSON_RAID_SPEED },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
+  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card', speed: LESSON_RAID_SPEED, waitSpeed: LESSON_RAID_WAIT_SPEED },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
 ];
-// Version 9.1 (Track F, ruling 1657): `speed` is the speed a waiting step plays at (1 when it has none). The raid step plays at LESSON_RAID_SPEED from the moment it
-// begins until the raid is over (src/ui/v60/lesson.js), and its words say so.
+// Version 9.1 (Track F, rulings 1657, 1671): `speed` is the speed a waiting step plays at (1 when it has none); `waitSpeed`, where given, the speed until the raiders
+// arrive (src/sim/lesson.js stepSpeed). The raid step plays at 3x, then 2x once they are on the map, then 1x when it is over (src/ui/v60/lesson.js); its words say so.
 
 // Version 8.2 (integration, ruling 1331): the build category a step opens on the wide panel and the phone's tray as it begins: its own card's (show.category), else that of
 // the step before it in its chapter that has one (the raid: the tower's Defence; the months: the homes the workers wanted; the fire: the firehouse's Services). Never Roads

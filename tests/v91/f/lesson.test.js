@@ -1,9 +1,9 @@
 // Version 9.1 Track F, the lesson (design 2b, 2c, 2d, 2e; rulings 1656, 1657, 1664, 1665): the firehouse's new place covers every building the lesson asks for, the
-// staged raid's warning comes LESSON_RAID_LEAD days ahead and its step plays at LESSON_RAID_SPEED, every step is still reached, and every line Ipi says at a step is
+// staged raid's warning comes LESSON_RAID_LEAD days ahead and its step plays its wait at 3x and its fight at LESSON_RAID_SPEED, every step is still reached, and every line Ipi says at a step is
 // one short sentence for its why and one for its do. Target P5: the lesson's longest wait, at the speed the step plays at.
 import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS, LESSON_PLACES, LESSON_RAID_LEAD, LESSON_RAID_SPEED } from '../../../src/data/lesson.js';
-import { lessonWorld, lessonAt, stepDone, LESSON_SCRIPT, LESSON_LENGTH, leadRaid, replayTo } from '../../../src/sim/lesson.js';
+import { lessonWorld, lessonAt, stepDone, LESSON_SCRIPT, LESSON_LENGTH, leadRaid, replayTo, stepSpeed } from '../../../src/sim/lesson.js';
 import { tickDay } from '../../../src/sim/clock.js';
 import { allBuildings } from '../../../src/sim/world.js';
 import { setSpeed } from '../../../src/sim/commands.js';
@@ -16,14 +16,18 @@ import { lessonFacts, stepWords } from '../../../src/ui/lesson.js';
 // The lesson played end to end by its own script, counting each step's days: [{ id, begin, end }].
 export function walkLesson() {
   const world = lessonWorld();
-  const io = { tick: () => tickDay(world), did() {} };
+  // Version 9.1 (ruling 1671): each day waited counts the seconds it takes at the speed the step plays at then (stepSpeed: the raid's 3x wait, then its 2x fight; 1x else).
+  let step = null, secs = 0, waitSecs = 0;
+  const io = { tick: () => { const v = stepSpeed(world, step) || 1, wait = Boolean(step && step.waitSpeed && v === step.waitSpeed); tickDay(world); secs += 1 / v / DAYS_PER_SECOND; if (wait) waitSecs += 1 / v / DAYS_PER_SECOND; }, did() {} };
   const steps = [];
   let at = lessonAt(world, 0);
   while (at < LESSON_LENGTH) {
-    const step = LESSON_STEPS[at], begin = world.day;
+    step = LESSON_STEPS[at];
+    const begin = world.day;
+    secs = 0; waitSecs = 0;
     LESSON_SCRIPT[step.id](world, io);
     if (!stepDone(world, step)) throw new Error(`lesson walk: ${step.id} not done`);
-    steps.push({ id: step.id, begin, end: world.day });
+    steps.push({ id: step.id, begin, end: world.day, secs, waitSecs });
     at = lessonAt(world, at + 1);
   }
   return { world, steps };
@@ -50,7 +54,11 @@ describe('v91 f lesson: the walk-through and its waits (P5)', () => {
     expect([leadRaid(world), w.arrives - w.day, leadRaid(world)]).toEqual([true, LESSON_RAID_LEAD, false]);   // the lesson sets it, once
     const f = lessonFacts(world, LESSON_STEPS.find((s) => s.id === 'tower'));
     expect(f.warning.daysLeft).toBe(w.arrives - world.day);
-    expect([LESSON_RAID_LEAD, LESSON_RAID_SPEED, LESSON_STEPS.find((s) => s.id === 'raid').speed]).toEqual([30, 2, 2]);
+    const raid = LESSON_STEPS.find((s) => s.id === 'raid');
+    expect([LESSON_RAID_LEAD, LESSON_RAID_SPEED, raid.speed, raid.waitSpeed, stepSpeed(world, raid)]).toEqual([30, 2, 2, 3, 3]);   // 3x while the raiders are on their way
+    world.raid.active = { raiders: [] };
+    expect(stepSpeed(world, raid)).toBe(2);                                         // 2x once they are on the map (and after)
+    world.raid.active = null;
   });
 
   it('a real city\'s warning is never shortened: leadRaid acts only in the lesson\'s own city', () => {
@@ -62,21 +70,16 @@ describe('v91 f lesson: the walk-through and its waits (P5)', () => {
     expect([leadRaid(world), world.raid.warning.arrives - world.raid.warning.day]).toEqual([false, RAIDS.warningDays]);
   });
 
-  // P5 (design section 9): the days each step waits on the game, at the speed it plays at (src/data/lesson.js `speed`, 1x when it has none), in seconds of play.
-  // The steps the player builds for wait no days. Measured (ruling 1671): the raid step 74 days at 2x, 37 s (9.0: 134 days at 1x, 134 s), over P5's 30 s by 7 s; the
-  // workers step 31 s at 1x (its homes filling, unchanged since 8.3), over by 1 s. All waits together 102 s, inside 150 s. One change meets the raid's: a lead of 15
-  // days (29 s at 2x), or the step at 3x (25 s); the controller rules.
-  it('P5: every wait in seconds at its step\'s speed, the longest and the sum', () => {
+  // P5 (design section 9): the seconds each step waits on the game, at the speed it plays at (src/sim/lesson.js stepSpeed). The steps the player builds for wait no
+  // days. Measured (ruling 1671): the raid's wait for its raiders 29 days at 3x, 9.7 s, then their march and the fight 45 days at 2x, 22.5 s (9.0: 134 days at 1x,
+  // 134 s); the workers step 31 s at 1x (its homes filling, unchanged since 8.3), over the 30 s bar by 1 s. All waits together 97.2 s, inside 150 s.
+  it('P5: every wait in seconds at its step\'s speeds, the raid\'s wait and fight, and the sum', () => {
     const { steps } = walkLesson();
-    const secs = steps.map((s) => {
-      const step = LESSON_STEPS.find((x) => x.id === s.id);
-      return { id: s.id, s: (s.end - s.begin) / (step.speed || 1) / DAYS_PER_SECOND };
-    });
-    const longest = secs.reduce((a, b) => (b.s > a.s ? b : a));
-    const total = secs.reduce((n, x) => n + x.s, 0);
-    expect(secs.filter((x) => x.s > 0).map((x) => `${x.id}:${x.s}`)).toEqual(['families:20', 'workers:31', 'month:9', 'firehouse:1', 'fire:2', 'tower:2', 'raid:37']);   // WAVE2-PIN 9.1 Track F (ruling 1671): was raid 134 s at 1x
-    expect([longest.id, longest.s, total]).toEqual(['raid', 37, 102]);
-    expect(total <= 150).toBe(true);                                                // P5's second bar: all waits together
+    const r1 = (n) => Math.round(n * 10) / 10;
+    const total = steps.reduce((n, x) => n + x.secs, 0), raid = steps.find((s) => s.id === 'raid');
+    expect(steps.filter((x) => x.secs > 0).map((x) => `${x.id}:${r1(x.secs)}`)).toEqual(['families:20', 'workers:31', 'month:9', 'firehouse:1', 'fire:2', 'tower:2', 'raid:32.2']);   // WAVE2-PIN 9.1 Track F (ruling 1671): was raid 134 s at 1x
+    expect([r1(raid.waitSecs), r1(raid.secs - raid.waitSecs), r1(total), raid.end - raid.begin]).toEqual([9.7, 22.5, 97.2, 74]);
+    expect([raid.waitSecs <= 30, raid.secs - raid.waitSecs <= 30, total <= 150]).toEqual([true, true, true]);   // the wait and the fight each inside 30 s; all waits together inside 150 s
   });
 });
 
@@ -130,8 +133,8 @@ describe('v91 f lesson: the words', () => {
     expect(stepWords(month, lessonFacts(w, month)).why.includes('mood chip')).toBe(true);
     const raid = LESSON_STEPS.find((s) => s.id === 'raid');
     replayTo(w, LESSON_STEPS.indexOf(raid));
-    setSpeed(w, 2);
+    setSpeed(w, 3);
     const words = stepWords(raid, lessonFacts(w, raid));
-    expect([words.why, words.do.includes('bazaar'), words.do.includes(`${w.raid.warning.arrives - w.day} days`)]).toEqual(['The game runs at double speed until the raid is over.', true, true]);
+    expect([words.why, words.do.includes('bazaar'), words.do.includes(`${w.raid.warning.arrives - w.day} days`)]).toEqual(['The game runs at triple speed until the raiders arrive, then double.', true, true]);
   });
 });

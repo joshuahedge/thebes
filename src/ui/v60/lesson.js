@@ -26,7 +26,7 @@
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES, stepCategory } from '../../data/lesson.js';
 import { MILESTONES } from '../../data/progression.js';
-import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, leadRaid, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
+import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, leadRaid, stepSpeed, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
 import { population } from '../../sim/world.js';
 import { monthIndex } from '../../sim/clock.js';
 import { workingTowers } from '../../sim/raids.js';
@@ -236,16 +236,35 @@ export function createLessonUi(ctx) {
   // Plays again at the speed the player had before the lesson paused it, normal speed if none; only from a pause (a player who pressed Play already is left alone).
   function resumePlay() {
     if (world.speed !== 0 || destroyed) return;
-    const to = (step && step.speed) || held || store.get().lastSpeed || 1;   // Version 9.1 (ruling 1657): a step with a speed of its own plays at it
+    const to = stepSpeed(world, step) || held || store.get().lastSpeed || 1;   // Version 9.1 (rulings 1657, 1671): a step with a speed of its own plays at it
     if (ctx.speedControl) ctx.speedControl.set(to); else setSpeed(world, to);
   }
-  // Version 9.1 (Track F, ruling 1657): the raid step plays at its own speed (src/data/lesson.js `speed`) from the moment it begins playing, once (a player who then picks
-  // another speed keeps it); when the step that set it is over the game goes back to 1x, so the hand-over's city plays on at normal speed.
-  let pacedAt = -1;
+  // Version 9.1 (Track F, rulings 1657, 1671): the raid step plays at its own speeds (src/sim/lesson.js stepSpeed: 3x until the raiders arrive, then 2x), set as
+  // the step first plays and again at the change of phase. ourPace is the speed the lesson set: a player who picks another speed keeps theirs (the change of phase and
+  // the step's end leave it alone), and only the lesson's own speed is taken back to 1x when the step is over or the lesson's interface goes (destroy), so it never
+  // outlives the step.
+  // lastSeen is the speed at the last look: the sim drops any speed over 1x to 1x as raiders arrive (src/sim/raids.js arrive), so a 1x that was the lesson's 3x a
+  // moment before is still the lesson's, while a 1x the player picked during the wait is theirs.
+  let pacedKey = '', ourPace = null, lastSeen = null;
   const setPace = (n) => { if (ctx.speedControl) ctx.speedControl.set(n); else setSpeed(world, n); };
-  function pace(done) {
-    if (step && step.speed && !finished && world.speed > 0 && pacedAt !== at) { pacedAt = at; if (world.speed !== step.speed) setPace(step.speed); return; }
-    if (done && done.speed && world.speed === done.speed && (finished || !step || !step.speed)) setPace(1);
+  function pace() {
+    paceNow();
+    lastSeen = world.speed;
+  }
+  function paceNow() {
+    const want = finished ? null : stepSpeed(world, step);
+    const ours = ourPace !== null && (world.speed === ourPace || (world.speed === 1 && lastSeen === ourPace));
+    if (want) {
+      const key = `${at}:${want}`;
+      if (world.speed === 0 || pacedKey === key) return;
+      const first = !pacedKey.startsWith(`${at}:`);
+      pacedKey = key;
+      if (first || ours) { ourPace = want; if (world.speed !== want) setPace(want); } else ourPace = null;
+      return;
+    }
+    if (ourPace === null) return;
+    ourPace = null;
+    if (ours) setPace(1);
   }
   // Version 9.1 (ruling 1658): the codes the banner may carry at this step, on the root for src/ui/alerts.js; the banner is asked again when they change.
   function markAlerts() {
@@ -459,10 +478,8 @@ export function createLessonUi(ctx) {
     if (destroyed) return;
     if (leadRaid(world) && ctx.alerts) ctx.alerts.refresh();   // Version 9.1 (ruling 1657): the staged warning's arrival, before the banner and the row read it again
     const next = lessonAt(world, at);
-    let justDone = null;
     if (next !== at) {
       const done = LESSON_STEPS[next - 1];
-      justDone = done;
       at = next;
       persist();
       if (!building) clearForStep();
@@ -493,7 +510,7 @@ export function createLessonUi(ctx) {
     } else if (finished && card.isUp()) card.hide();
     // The player's own part of a step that has one is done: the game plays again by itself (ruling 1002).
     if (!card.isUp() && !showing && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
-    if (!building && !card.isUp() && !showing) pace(justDone);
+    if (!building && !card.isUp() && !showing) pace();
     if (announceNext) { announceNext = false; announce(); }
     if (finished && !building && canAdopt()) handOver();
     // The end sheet (a replay on a device with a saved city) opens once nothing else is open, and never while the interface is still being built (its sheets are made after
@@ -621,6 +638,8 @@ export function createLessonUi(ctx) {
     refresh() { sync(); },
     destroy() {
       destroyed = true;
+      if (ourPace !== null && world.speed === ourPace) setSpeed(world, 1);   // Version 9.1 (ruling 1671): the lesson's own speed never outlives it (left, skipped, home, reloaded)
+      ourPace = null;
       stop();
       clearTimeout(beatTimer); clearTimeout(handing);
       unlock();
