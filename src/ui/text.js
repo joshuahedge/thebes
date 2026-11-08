@@ -4625,8 +4625,13 @@ export const V91_R_TEXT = {
   // Fix wave (ruling 1739): a row's name, the kind alone for one building and "2 Builders' guilds" for more.
   kindName: (type, count = 1) => (count > 1 ? `${count} ${capitalised(pluralName(type))}` : buildingName(type)),
   costRow: (name, cost) => `${name}: ${cost} a month`,
-  pauseSaves: (cost) => `Pausing saves ${cost} a month and stops its work. Resume it on its sheet.`,
-  pauseSavesUpTo: (cost) => `Pausing saves up to ${cost} a month and stops its work: its workers may take other jobs. Resume it on its sheet.`,
+  // count: how many buildings the row stands for (fix wave re-review): a row of several says Pause stops all of them.
+  pauseSaves: (cost, count = 1) => (count > 1
+    ? `Pausing all ${count} saves ${cost} a month and stops their work. Resume each on its sheet.`
+    : `Pausing saves ${cost} a month and stops its work. Resume it on its sheet.`),
+  pauseSavesUpTo: (cost, count = 1) => (count > 1
+    ? `Pausing all ${count} saves up to ${cost} a month and stops their work: their workers may take other jobs. Resume each on its sheet.`
+    : `Pausing saves up to ${cost} a month and stops its work: its workers may take other jobs. Resume it on its sheet.`),
   pausedNote: (name, cost) => `${name} paused: ${cost} a month less`,
   rateHead: 'At this rate',
   climbs: (months) => `The treasury is out of debt in ${months === 1 ? '1 month' : `${months} months`}.`,
