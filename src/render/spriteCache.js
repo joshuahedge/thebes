@@ -28,11 +28,65 @@ function defaultLoadImage(src) {
 
 const imageReady = (img) => Boolean(img.complete && img.naturalWidth > 0);
 
-export function createSpriteCache({ registry = ART, counter = null, createCanvas = defaultCreateCanvas, loadImage = defaultLoadImage } = {}) {
+// Version 9.1 (Track P, rulings 1686, 1689): the sprites are held by bytes. A zoom bucket (at one ratio) left for SPRITE_IDLE_MS is dropped whole,
+// so a long session does not keep every slot at every bucket; the bucket in view is never dropped (it is the one being drawn), and coming back to
+// a dropped one draws its sprites again as the first visit did (checked when the bucket changes and every SWEEP_EVERY gets). Inside the buckets
+// held, past SPRITE_BUDGET_BYTES the sprites least recently drawn go first, never one drawn in this frame (the renderer calls frame() as each
+// begins; with no frames, nothing is evicted): at DPR 2 and zoom 2 a slot draws at 8 device px per art px, and a Large city's every slot there
+// was about 100 MB, where one view needs about 13.
+export const SPRITE_IDLE_MS = 30000;
+export const SPRITE_BUDGET_BYTES = 16 * 1024 * 1024;
+const SWEEP_EVERY = 4096;
+export const canvasBytes = (canvas) => canvas.width * canvas.height * 4;
+
+export function createSpriteCache({ registry = ART, counter = null, createCanvas = defaultCreateCanvas, loadImage = defaultLoadImage, now = () => performance.now(), idleMs = SPRITE_IDLE_MS, maxBytes = SPRITE_BUDGET_BYTES } = {}) {
   const sprites = new Map(); // key -> sprite
   const images = new Map();  // slot -> { img, promise }
+  const buckets = new Map(); // `${bucket}x${dpr}` -> { keys: Set of sprite keys, bytes, left: when it stopped being the bucket in use }
+  const drawnIn = new Map(); // key -> the frame it was last got in
+  let current = null, gets = 0, bytes = 0, drops = 0, frameNo = 0, spentIn = -1;   // spentIn: the frame a trim found nothing left to evict
 
   const count = (k) => { if (counter) counter[k] = (counter[k] || 0) + 1; };
+
+  // Past the budget, the sprites not got in this frame, least recently got first, until the bytes are back under it. Once a trim ends over the
+  // budget, every sprite left was got in this frame and none can become evictable before the next, so the frame's later misses skip the scan.
+  function trim() {
+    if (bytes <= maxBytes || spentIn === frameNo) return;
+    const old = [...drawnIn].filter(([, f]) => f < frameNo).sort((a, b) => a[1] - b[1]);
+    for (const [key] of old) {
+      if (bytes <= maxBytes) break;
+      const s = sprites.get(key), b = buckets.get(key.slice(key.lastIndexOf('@') + 1));
+      const n = canvasBytes(s.canvas);
+      sprites.delete(key); drawnIn.delete(key);
+      if (b) { b.keys.delete(key); b.bytes -= n; }
+      bytes -= n;
+      count('evicted');
+    }
+    if (bytes > maxBytes) spentIn = frameNo;
+  }
+
+  function sweep(t) {
+    for (const [bk, b] of buckets) {
+      if (bk === current || t - b.left < idleMs) continue;
+      for (const k of b.keys) { sprites.delete(k); drawnIn.delete(k); }
+      bytes -= b.bytes;
+      buckets.delete(bk);
+      drops++;
+    }
+  }
+
+  // The bucket this get draws in: leaving another one stamps when it was left, and looks for buckets idle long enough to drop.
+  function use(bk) {
+    if (bk !== current) {
+      const t = now();
+      const was = buckets.get(current);
+      if (was) was.left = t;
+      current = bk;
+      if (!buckets.has(bk)) buckets.set(bk, { keys: new Set(), bytes: 0, left: t });
+      sweep(t);
+    } else if (++gets % SWEEP_EVERY === 0) sweep(now());
+    return buckets.get(bk);
+  }
 
   function imageFor(slot, def) {
     let entry = images.get(slot);
@@ -73,13 +127,18 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
       const def = registry[slot];
       if (!def) return null;
       const bucket = bucketFor(zoom);
+      const held = use(`${bucket}x${dpr}`);
       const key = spriteKey(slot, bucket, dpr);
       const hit = sprites.get(key);
-      if (hit) { count('hits'); return hit; }
+      if (hit) { count('hits'); drawnIn.set(key, frameNo); return hit; }
       if (def.png && !imageReady(imageFor(slot, def).img)) { count('pending'); return null; }
       count('misses');
       const sprite = render(slot, def, bucket, dpr);
       sprites.set(key, sprite);
+      drawnIn.set(key, frameNo);
+      const b = canvasBytes(sprite.canvas);
+      held.keys.add(key); held.bytes += b; bytes += b;
+      if (frameNo) trim();
       return sprite;
     },
     ready(slot) {
@@ -88,7 +147,14 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
       return imageFor(slot, def).promise;
     },
     size() { return sprites.size; },
-    clear() { sprites.clear(); },
+    clear() { sprites.clear(); buckets.clear(); drawnIn.clear(); current = null; bytes = 0; drops++; },
+    // Version 9.1 (Track P): a frame begins (what it gets is never evicted for the budget); the canvas bytes held, the buckets held, and how
+    // many times a bucket has been dropped (the renderer's walk warm-up starts again after one; a single sprite evicted is drawn again when next
+    // needed).
+    frame() { frameNo++; },
+    bytes() { return bytes; },
+    buckets() { return [...buckets.keys()]; },
+    get drops() { return drops; },
   };
 }
 

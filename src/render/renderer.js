@@ -10,7 +10,7 @@ import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
 import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
 import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
-import { createTerrainBaker, drawTileGrid } from './terrainBaker.js';
+import { createTerrainBaker, drawTileGrid, terrainBudgetFor } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -157,9 +157,9 @@ export function createRenderer({
   // Version 9.0 (V1): the first time a figure kind is drawn at a zoom bucket and ratio, all its walk slots are drawn into the cache at once, so a figure
   // that turns or steps later never pays for a new sprite in the middle of play (a frame's cost stays flat once warm).
   const warmed = new Set();
-  let warmedDpr = currentDpr;
+  let warmedDpr = currentDpr, warmedDrops = spriteCache.drops;
   function warmWalk(slot, zoom, dpr) {
-    if (dpr !== warmedDpr) { warmed.clear(); warmedDpr = dpr; }
+    if (dpr !== warmedDpr || spriteCache.drops !== warmedDrops) { warmed.clear(); warmedDpr = dpr; warmedDrops = spriteCache.drops; }   // Version 9.1 (Track P): a dropped bucket is warmed again
     const key = `${slot}@${bucketFor(zoom)}`;
     if (warmed.has(key)) return;
     warmed.add(key);
@@ -190,9 +190,14 @@ export function createRenderer({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // 1. Terrain chunks. Stale or missing chunks bake a few per frame; the rest show next frame.
+    // Version 5.0 (Task 6): a chunk wholly off the canvas is neither baked nor drawn. Version 9.1 (Track P): the baker is told the chunks shown, which
+    // its byte budget never evicts.
+    const shown = visibleChunks(range).filter(({ cx, cy }) => !cullControl.on || chunkShows(cam, view, cx, cy));
+    lastWorld = world;
+    if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0));   // ruling 1687: the terrain gives way to the sprites, to a floor
+    if (spriteCache.frame) spriteCache.frame();   // and the sprites this frame gets are never evicted for the sprite budget
     let bakes = 0, chunks = 0, stale = 0;
-    for (const { cx, cy } of visibleChunks(range)) {
-      if (cullControl.on && !chunkShows(cam, view, cx, cy)) continue;                  // Version 5.0 (Task 6): a chunk wholly off the canvas is neither baked nor drawn
+    for (const { cx, cy } of shown) {
       const peeked = baker.peek(world, cx, cy, zoom, dpr);
       let sprite = peeked.fresh ? peeked.sprite : null;
       if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
@@ -227,8 +232,8 @@ export function createRenderer({
               if (d < best) { best = d; next = { cx, cy }; }
             }
           }
-          if (next && baker.size(world) < baker.capacity) { baker.get(world, next.cx, next.cy, zoom, dpr, true); prebakes++; }
-          else ring.done = true;                                         // whole, or the baker is full
+          if (next && (baker.room ? baker.room(world, zoom, dpr) : baker.size(world) < baker.capacity)) { baker.get(world, next.cx, next.cy, zoom, dpr, true); prebakes++; }
+          else ring.done = true;                                         // whole, or the baker is full (Version 9.1: its count or its byte budget)
         }
       }
     }
@@ -296,6 +301,7 @@ export function createRenderer({
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes()));   // Version 9.1: again for the sprites this frame drew
 
     stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
@@ -303,8 +309,11 @@ export function createRenderer({
   }
 
   // Version 9.1 (wave 0 seam, ruling 1651; Track P fills it): the bytes of canvas the terrain chunks and the sprite buckets hold, for
-  // window.__thebes.caches() and the profile.
-  function cacheBytes() { return { terrainBytes: 0, spriteBytes: 0 }; }
+  // window.__thebes.caches() and the profile. The terrain's are the last drawn world's (the title's and a game's never share chunks).
+  let lastWorld = null;
+  function cacheBytes() {
+    return { terrainBytes: lastWorld && baker.bytes ? baker.bytes(lastWorld) : 0, spriteBytes: spriteCache.bytes ? spriteCache.bytes() : 0 };
+  }
 
   return { renderFrame, stats, spriteCache, baker, cacheBytes, get dpr() { return currentDpr; } };
 }
