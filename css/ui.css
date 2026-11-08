@@ -1429,7 +1429,8 @@ body[data-layout="wide"] #lesson { max-width: 560px; }
 #lesson .why { display: block; margin-top: 2px; }
 #lesson .show-me, #lesson .leave { flex: none; }
 #lesson .lesson-new { flex: none; white-space: nowrap; }
-#lesson .more { position: absolute; right: 2px; bottom: 1px; min-width: 0; min-height: 0; margin: 0; padding: 0 2px 0 22px; border: none; border-radius: 0; box-shadow: none; background: linear-gradient(to right, transparent, var(--row-bg) 20px); color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+/* Version 9.2 (Track L, design 2.5): More is a control of its own at the row's end, beside the words (it was laid over the last line with a gradient and cut a word); the why waits behind it. */
+#lesson .more { position: relative; flex: none; align-self: center; min-width: 0; min-height: 0; margin: 0; padding: 0 4px; border: none; border-radius: 0; box-shadow: none; background: none; color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
 #lesson .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
 #lesson .body:has(.more:not([hidden])) { cursor: pointer; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .body { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
@@ -1451,6 +1452,17 @@ body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).h
 body.lesson-names-alert #banner > .critical:is([data-code="fire"], [data-code="raid_warning"], [data-code="raid"]) { display: none; }
 /* The lit target: the map dimmed round a ring (both ignore taps), a control with a ring of its own; the ring pulses under Full motion only. */
 #ui > .lesson-scrim { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), rgba(28, 22, 12, 0) 0%, rgba(28, 22, 12, 0) 72%, rgba(28, 22, 12, 0.46) 100%); }
+/* Version 9.2 (Track L, design 2.4): the end card's learned lines and its two choices, each button over the words that say what it does. */
+.lesson-end .lesson-learned { margin: 8px 0 12px; padding-left: 18px; }
+.lesson-end-actions { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.lesson-end-actions .lesson-choice { display: flex; flex-direction: column; gap: 4px; }
+.lesson-end-actions .lesson-choice button { min-height: 44px; }
+.lesson-end-actions .lesson-hint { margin: 0; }
+/* Version 9.2 (Track L, design 2.1): the raid step's scrim has two holes (the target and the tower): one flat dimming masked by both holes, kept where it lies outside the two. */
+#ui > .lesson-scrim.two { background: rgba(28, 22, 12, 0.46);
+  -webkit-mask-image: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), transparent 0%, transparent 72%, #000 100%), radial-gradient(ellipse var(--rx2, 120px) var(--ry2, 80px) at var(--cx2, 50%) var(--cy2, 50%), transparent 0%, transparent 72%, #000 100%);
+  mask-image: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), transparent 0%, transparent 72%, #000 100%), radial-gradient(ellipse var(--rx2, 120px) var(--ry2, 80px) at var(--cx2, 50%) var(--cy2, 50%), transparent 0%, transparent 72%, #000 100%);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
 #ui > .lesson-ring { position: fixed; pointer-events: none; box-sizing: border-box; border: 3px solid var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .lesson-lit { outline: 3px solid var(--teal); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.8); }
 body:not(.reduce-motion) #ui > .lesson-ring { animation: lesson-ring 1.6s ease-in-out infinite; }

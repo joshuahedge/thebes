@@ -2,7 +2,7 @@
 // The sim-level half (src/sim/lesson.js); tests/v60/d2/walkthrough.test.js plays the whole lesson through the interface.
 import { describe, it, expect } from '../../harness.js';
 import { LESSON, LESSON_STEPS, LESSON_PLACES } from '../../../src/data/lesson.js';
-import { lessonWorld, replayTo, lessonAt, stepDone, stepProgress, stepSpot, LESSON_SCRIPT, LESSON_LENGTH, firstOf, homesOnRoad, homesReached, fireOver, towersReady } from '../../../src/sim/lesson.js';
+import { lessonWorld, replayTo, lessonAt, stepDone, stepProgress, stepSpot, LESSON_SCRIPT, LESSON_LENGTH, firstOf, homesOnRoad, homesReached, fireOver, towersReady, monthsSinceEntry } from '../../../src/sim/lesson.js';
 import { drawRoad, paintHouses, place, setSpeed, setPaused, canPlace } from '../../../src/sim/commands.js';
 import { largePlotUnlocked, canPlaceLargePlot } from '../../../src/sim/largePlots.js';
 import { tickDay, monthIndex } from '../../../src/sim/clock.js';
@@ -135,14 +135,14 @@ describe('v60 d2 steps: the wrong thing does not advance', () => {
     expect(done(w, 'workers')).toBe(true);
     expect(w.labour.workforce).toBeGreaterThanOrEqual(1);
   });
-  it('month: done the day the second month ends, not before', () => {
+  it('month: done the day the second month ends from the step\'s own entry, not before', () => {   // Version 9.2 (Track L, ruling 1756): was the city's second month; tests/v92/l/raidFrame.test.js enters it at month 4
     const w = at('month');
     setSpeed(w, 1);
-    for (let d = 0; d < 40; d++) {
-      expect([w.day, done(w, 'month')]).toEqual([w.day, monthIndex(w) >= 2]);
+    for (let d = 0; d < 70; d++) {
+      expect([w.day, done(w, 'month')]).toEqual([w.day, monthsSinceEntry(w) >= 2]);
       tickDay(w);
     }
-    expect(monthIndex(w)).toBeGreaterThanOrEqual(2);
+    expect(monthsSinceEntry(w)).toBeGreaterThanOrEqual(2);
   });
   it('largeplot: the card opens when the step begins (a real city opens it with a Townhouse), and the step waits for a lot to be laid', () => {
     const before = at('homes');                                                      // the step before (Version 8.1, ruling 1202: the homes)

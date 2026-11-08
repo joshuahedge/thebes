@@ -132,7 +132,7 @@ describe('v90 balance T5 the score at year 6 of the capital run', () => {
 
 // 8.4's walk-through (tests/v84/r/lesson.test.js DAYS_83, measured on 8.3 and pinned through 8.4): each step's first and last day.
 // Version 9.1 (Track F, ruling 1657): the staged raid's raiders come LESSON_RAID_LEAD days after its warning, so the raid step ends on day 139.
-const DAYS_84 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // 9.1 balance (ruling 1728): was 'raid:65>199'
+const DAYS_84 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>168'];   // 9.1 balance (ruling 1728): was 'raid:65>199'; WAVE2-PIN 9.2 Track L (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'
 
 describe('v90 balance T7 the lesson keeps 8.4\'s days whatever heir the device holds', () => {
   const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
@@ -170,7 +170,7 @@ describe('v90 balance T7 the lesson keeps 8.4\'s days whatever heir the device h
         at = lessonAt(world, at + 1);
       }
       expect([heir, steps]).toEqual([heir, DAYS_84]);
-      expect([heir, world.raid.clockDay, world.raid.last && world.raid.last.won]).toEqual([heir, 63, true]);
+      expect([heir, world.raid.clockDay, world.raid.last && world.raid.last.won]).toEqual([heir, 92, true]);   // WAVE2-PIN 9.2 Track L (ruling 1756): was 63
     }
   });
 });

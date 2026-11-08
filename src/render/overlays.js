@@ -6,6 +6,7 @@ import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { housesOf, allBuildings, isSite, buildingsVersion } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
+import { loneRoads } from '../sim/loneRoad.js';   // Version 9.2 (Track L): a piece of road that joins nothing is marked
 import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
 import { T as TILE, TERRAIN_BY_NAME, buildable } from '../sim/terrain.js';
@@ -936,6 +937,12 @@ export function drawProblemMarkers(g, world, alerts, range) {
   const css = cssScaleOf(g);
   const R = Math.max(BADGE_R, BADGE_CSS_R / css);   // 20 CSS px across at the least, at any zoom
   for (const b of roadlessPlotBadges(world, range)) roadMark(g, badgeDisc(g, b.x, b.y, b.lift, R, css, UI.problem), R);
+  // Version 9.2 (Track L, ruling 1757): a piece of road that joins no road and no building wears the same outline and one road badge (it carries a road mark, not a glyph of colour alone).
+  for (const r of loneRoads(world)) {
+    if (range && !r.tiles.some((i) => { const x = i % world.size, y = Math.floor(i / world.size); return !(x < range.x0 - 1 || x > range.x1 + 1 || y < range.y0 - 1 || y > range.y1 + 1); })) continue;
+    for (const i of r.tiles) dashedAmberTile(g, i % world.size, Math.floor(i / world.size));
+    roadMark(g, badgeDisc(g, r.x + 0.5, r.y + 0.5, BADGE_R + 1, R, css, UI.problem), R);
+  }
   for (const m of problemMarkers(world, alerts, range)) {
     const down = m.kind === 'down';
     const c = badgeDisc(g, m.x, m.y, m.lift, R, css, down ? UI.warn : UI.problem);

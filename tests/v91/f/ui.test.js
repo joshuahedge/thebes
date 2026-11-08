@@ -33,6 +33,12 @@ async function waitFor(fn, ms = 4000) { for (let t = 0; t < ms; t += 50) { if (f
 const shown = (n) => Boolean(n) && n.getClientRects().length > 0 && getComputedStyle(n).display !== 'none' && getComputedStyle(n).visibility !== 'hidden';
 const bannerRows = (root) => [...root.querySelectorAll('#banner > .critical')].filter(shown);
 const step = (id) => LESSON_STEPS.find((s) => s.id === id);
+// Version 9.2 (Track L, ruling 1755): the lesson ends on a card; Keep building this city is what hands the city over (it was a timer).
+async function keepIt(s) {
+  await waitFor(() => Boolean(s.root.querySelector('#sheet .lesson-keep')), 3000);
+  const k = s.root.querySelector('#sheet .lesson-keep');
+  if (k) k.click();
+}
 
 describe('v91 f ui: the banner in the lesson (ruling 1658)', () => {
   it('a city whose root names no lesson alerts shows every critical as before; an empty list shows none, and the alert stays in the list', async () => {
@@ -138,7 +144,8 @@ describe('v91 f ui: the months and the raid (rulings 1657, 1665)', () => {
       expect([Boolean(g.world.raid.active), g.world.speed]).toEqual([true, LESSON_RAID_SPEED]);   // the raiders are on the map: 2x
       for (let d = 0; d < 200 && !g.world.raid.last; d++) s.io.tick();
       await frame();
-      expect([Boolean(g.world.raid.last), g.world.speed]).toEqual([true, 1]);
+      expect([Boolean(g.world.raid.last), g.world.speed <= 1]).toEqual([true, true]);   // Version 9.2 (ruling 1755): the end card holds the game (was: 1x, then the timed hand-over)
+      await keepIt(s);
       expect(await waitFor(() => !s.api.game().lesson, BEAT_MS + 3000)).toBe(true);
       const h = s.api.game();
       expect([h.world.milestone, h.world.lessonCards, h.world.raid.clockDay, Number.isInteger(h.world.handOverDay), h.world.speed <= 1]).toEqual(['village', ['tower'], null, true, true]);
@@ -157,7 +164,8 @@ describe('v91 f ui: the months and the raid (rulings 1657, 1665)', () => {
       g.ui.speedControl.set(3);                                                          // then picks 3x for the fight
       for (let d = 0; d < 200 && !g.world.raid.last; d++) s.io.tick();
       await frame();
-      expect([Boolean(g.world.raid.last), g.world.speed]).toEqual([true, 3]);            // their own 3x is left at the end; only the lesson's own speed goes back to 1x
+      // Version 9.2 (Track L, ruling 1755): was [true, 3] (their own 3x left at the end): the end card now holds the game, so the clock is stopped behind it; the lesson's own speed is not what stopped it
+      expect([Boolean(g.world.raid.last), g.world.speed, g.ui.store.get().sheet && g.ui.store.get().sheet.kind]).toEqual([true, 0, 'lessonEnd']);
     } finally { s.cleanup(); }
   });
 
@@ -197,6 +205,7 @@ describe('v91 f ui: the hand-over\'s first ten minutes (P7, rulings 1659, 1663)'
     const s = await pageAt('raid', { width: 1280, height: 800 });
     try {
       for (let d = 0; d < 300 && s.api.game().lesson; d++) { s.io.tick(); if (s.g().world.raid.last) break; }
+      await keepIt(s);                                                                     // Version 9.2 (ruling 1755): Keep building this city is the hand-over
       expect(await waitFor(() => !s.api.game().lesson, BEAT_MS + 3000)).toBe(true);
       const h = s.api.game(), world = h.world, ui = h.ui;
       ui.speedControl.set(1);

@@ -33,12 +33,14 @@ import { refusingStores } from '../sim/production.js';
 import { previewWall, drawWall, previewWallTiles, drawWallTiles } from '../sim/defence.js';
 import { canBurn } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
+import { laidLone } from '../sim/loneRoad.js';
+import { lessonRoadStart } from '../sim/lesson.js';   // Version 9.2 (Track L): the lesson's road begins at the end of the road
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { T as TILE } from '../sim/terrain.js';
-import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, V91F_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, V91F_TEXT, V92L_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot, crossingRuns } from '../sim/bridges.js';
 import { ferrySpot, ferryCost } from '../sim/ferries.js';   // Version 7.1 (Track F)
 import { drawFerry, buildCrossing } from '../sim/ferryLay.js';
@@ -303,9 +305,31 @@ export function nicerFor(world, type, x, y) {
 const SPOT_REFUSALS = ['occupied', 'water', 'hills', 'out_of_bounds'];   // Stage 4.7: hills too (ruling 464)
 const groundBoundRefusal = (def, reason) => Boolean(def && (def.terrain || def.water) && (SPOT_REFUSALS.includes(reason) || /^needs_/.test(reason)));
 
+// Version 9.2 (Track L, ruling 1757, design 2.3): in the lesson a road drag that begins within two tiles of the end of the road snaps to it (the line or the first tile of a touch plan
+// starts there), and one that begins further away is refused in the bar, so a stray piece is never laid for gold and counted for nothing. Returns { state } (the state to preview and lay:
+// the same object when nothing moves) or { refused: true, tiles }. Outside the lesson, for a gate and for any other tool it changes nothing.
+export function lessonRoadState(world, s) {
+  const t = s && s.tool;
+  if (!world.lesson || !t || t.kind !== 'road' || t.gate) return { state: s };
+  if (s.plan && s.plan.tiles.length) {
+    const [fx, fy] = s.plan.tiles[0], r = lessonRoadStart(world, fx, fy);
+    if (r.refused) return { refused: true, tiles: s.plan.tiles };
+    if (!r.snapped) return { state: s };
+    return { state: { ...s, plan: { ...s.plan, tiles: [...roadPath(r.x, r.y, fx, fy), ...s.plan.tiles.slice(1)] } } };
+  }
+  const l = s.line;
+  if (!l) return { state: s };
+  const r = lessonRoadStart(world, l.x0, l.y0);
+  if (r.refused) return { refused: true, tiles: [[l.x0, l.y0]] };
+  return r.snapped ? { state: { ...s, line: { ...l, x0: r.x, y0: r.y } } } : { state: s };
+}
+
 function basePreview(world, state) {
   const { tool } = state;
   if (!tool) return null;
+  const lesson = lessonRoadState(world, state);
+  if (lesson.refused) return bad('lesson_road_start', 0, 0, lesson.tiles, V92L_TEXT.roadStart);
+  state = lesson.state;
   if (tool.kind === 'building') {
     const def = BUILDINGS[tool.type];
     if (!state.ghost) return idle('');
@@ -1083,9 +1107,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       return d.near ? d.tiles : [];
     },
     confirm() {
-      const s = store.get();
-      const p = toolPreview(world, s);
+      const s0 = store.get();
+      const p = toolPreview(world, s0);
       if (!p || p.state === 'bad' || p.state === 'idle') return { ok: false, reason: p ? p.reason : 'nothing_to_place' };
+      const s = lessonRoadState(world, s0).state;   // Version 9.2: the lesson's road begins where the preview showed it (snapped to the end of the road)
       const t = s.tool;
       let result, text, cx, cy;
       if (s.plan && t.kind !== 'building') {
@@ -1126,6 +1151,8 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : t.kind === 'areas' ? AREA_TEXT.laid(t.type, result.ok ? result.ids.length : 0) : T.demolished;
       }
       if (!result.ok) return result;
+      // Version 9.2 (Track L, ruling 1757): a plain road that joins no road and no building says so (the map marks it).
+      if (t.kind === 'road' && !t.gate && text === T.roadLaid && laidLone(world, p.tiles)) text = V92L_TEXT.roadLone;
       // Plots say how many were laid and, when a road is missing, that (placement review P14): counted after the paint, from the world.
       if (t.kind === 'houses') text = plotsPlacedText(result.ids.length, result.ids.filter((id) => !touchesRoad(world, world.buildings[id])).length);
       assignLabour(world);

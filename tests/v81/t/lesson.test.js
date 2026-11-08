@@ -70,7 +70,7 @@ describe('v81 t lesson: Ipi reacts after each step', () => {
       expect([ring.hidden, ring.classList.contains('beat'), getComputedStyle(ring).borderTopColor]).toEqual([false, true, 'rgb(226, 177, 60)']);
       await wait(BEAT_MS + 300);
       await frame();
-      expect([r.classList.contains('beat-on'), shown(r.querySelector('.ipi-why')), ring.classList.contains('beat')]).toEqual([false, true, false]);
+      expect([r.classList.contains('beat-on'), shown(r.querySelector('.ipi-why')), ring.classList.contains('beat')]).toEqual([false, false, false]);   // Version 9.2 (Track L, design 2.5): was [false, true, false]: Ipi's why is behind More now, so it does not come back in the row
       expect(BEAT_MS >= 2000 && BEAT_MS <= 3000).toBe(true);
     } finally { s.cleanup(); }
   });
@@ -160,7 +160,8 @@ describe('v81 t lesson: each step reads the city, never the taps', () => {
       await frame();
       p.start({ kind: 'road' });
       p.pointAt(24, 35); p.pointAt(27, 35);
-      expect(p.confirm().ok).toBe(true);                                                            // a stray piece, not joined to the gate
+      expect(p.confirm().ok).toBe(false);                                                           // a stray piece, not joined to the gate: Version 9.2 (Track L, ruling 1757) refuses it (was laid and counted nothing)
+      p.cancel(); p.start({ kind: 'road' });
       p.pointAt(20, 39); p.pointAt(15, 39);
       expect(p.confirm().ok).toBe(true);                                                            // a part of the road
       await frame();
@@ -231,6 +232,8 @@ describe('v81 t lesson: each step reads the city, never the taps', () => {
           await frame();
         }
       }
+      expect(await waitFor(() => Boolean(s.root.querySelector('#sheet .lesson-keep')), 3000)).toBe(true);   // Version 9.2 (ruling 1755): the end card, and its Keep building this city is the hand-over
+      s.root.querySelector('#sheet .lesson-keep').click();
       expect(await waitFor(() => !s.api.game().lesson, BEAT_MS + 3000)).toBe(true);                // the hand-over (ruling 1208)
       const h = s.api.game();
       const settings = JSON.parse(s.storage.data['thebes.settings']);
@@ -238,7 +241,8 @@ describe('v81 t lesson: each step reads the city, never the taps', () => {
       expect([bubbleOf().hidden, bubbleOf().textContent]).toEqual([false, V81T_TEXT.handover]);
       expect(Object.values(h.world.buildings).some((b) => b.type === 'bazaar')).toBe(true);       // the lesson's city, kept
       expect(await waitFor(() => s.root.querySelectorAll('[data-locked]').length === 0, 500)).toBe(true);
-      const saved = await store.load();
+      let saved = await store.load();                                                              // (the hand-over's autosave is asynchronous: with the timer it had a poll's time to land, with the tap it needs it given)
+      for (let t = 0; t < 3000 && !(saved && saved.text); t += 50) { await wait(50); saved = await store.load(); }
       expect(Boolean(saved && saved.text)).toBe(true);
       s.cleanup(); cleaned = true;
       const t = await pageAt(null, { store });

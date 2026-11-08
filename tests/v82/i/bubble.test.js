@@ -33,7 +33,8 @@ describe('v82 i bubble: Ipi keeps to two short lines', () => {
           const all = lines.join(' ');
           const sizes = new Set([...row.querySelectorAll('.body > *')].filter(shown).map((n) => getComputedStyle(n).fontSize));
           if (row.querySelector('.why')) wrong.push(`${step.id}: a detail line`);
-          if (lines.length !== 2 || sentences(all).length > 2) wrong.push(`${step.id}: ${lines.length} lines, ${sentences(all).length} sentences: ${all}`);
+          // Version 9.2 (Track L, design 2.5): was two lines (Ipi's why and the do); the row is the one instruction now, the why is behind More (shown when the row is open)
+          if (lines.length !== 1 || sentences(all).length > 1) wrong.push(`${step.id}: ${lines.length} lines, ${sentences(all).length} sentences: ${all}`);
           if (lines.length === 2 && overlap(lines[0], lines[1]) > 0.5) wrong.push(`${step.id}: the lines repeat each other: ${all}`);
           if (sizes.size > 2) wrong.push(`${step.id}: ${[...sizes]}`);
         } finally { s.cleanup(); }

@@ -5,7 +5,7 @@
 import { createWorld } from './sim/world.js';
 import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
-import { settleGoals } from './sim/goals.js';
+import { settleGoals, guideGoal } from './sim/goals.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
@@ -37,7 +37,7 @@ import { drawMonument } from './render/monuments.js';
 // Version 6.0 (Track D2): the guided first city, and the picture cards' first moments.
 import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
 import { TIPS } from './data/tips.js';
-import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/lesson.js';
+import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver, lessonTaughtTips } from './ui/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesson.js';
 import { seenKey, dueCards } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
@@ -337,7 +337,7 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: (force) => adoptLesson(force === true), canAdopt: () => !hasSavedCity(), exportSaved: async () => { exportLoaded(await loadSave(store)); } } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
@@ -386,13 +386,15 @@ export async function boot(doc, win, {
   // device with no saved city (ruling 1209: the one slot is never written over by the lesson).
   // Version 9.1 (Track F, ruling 1655): what the lesson staged for its raid goes back first (src/sim/lesson.js handOverWorld): the rank the people earned, no staged splits,
   // the raid clock stopped until a real city's 250 people, the lesson's cards kept in world.lessonCards.
-  function adoptLesson() {
-    if (!current || !current.lesson || hasSavedCity()) return;
+  // Version 9.2 (Track L, ruling 1755): `force` is the end card's own Replace it, said after its question on a device with a saved city (the card asks first and offers Export).
+  function adoptLesson(force = false) {
+    if (!current || !current.lesson || (hasSavedCity() && !force)) return;
     const { world } = current;
     handOverWorld(world);
     delete world.lesson;
     setGuide(world, settings.get().help === 'full');
     settleGoals(world);                                 // Fix wave (ruling 1737): goals the city already meets complete quietly here, so none shows a toast or counts in Messages
+    { const g = guideGoal(world); if (g) world.handOverGoal = g.id; }   // Version 9.2 (design 2.7): the goal in view at the hand-over, which holds the tips until it is done (src/ui/lesson.js handOverHold)
     markLessonDone();
     // Fix wave (ruling 1735): the adopted city's records id is kept, so the new-city card does not count it as a city the player started (firstCityLayout).
     if (!world.cityId) setCityId(world, newCityId(clock()));
@@ -400,7 +402,11 @@ export async function boot(doc, win, {
     // Version 9.1 (Track F, ruling 1663): the picture cards whose moment the lesson itself taught (the Large plot, the raid) are seen, so none opens over the hand-over.
     const seen = Array.isArray(settings.get().seenTips) ? settings.get().seenTips : [];
     const taught = dueCards(world, seen).map((c) => seenKey(c.id));
+    // Version 9.2 (Track L, design 2.4): and the tips about what the lesson itself had the player place or meet (the Large plot, the firehouse, the raid and its tower) are seen: the
+    // Large plot's tip came up in the first month after the hand-over, about a plot the player had just laid.
+    for (const id of lessonTaughtTips(world)) if (!seen.includes(id) && !taught.includes(id)) taught.push(id);
     if (taught.length) settings.set({ seenTips: [...seen, ...taught] });
+    if (world.speed === 0) setSpeed(world, 1);          // the end card held the game; the city plays on as the player's own
     startGame(world, { lastSpeed: world.speed || 1 });
     sayHandOver();
   }

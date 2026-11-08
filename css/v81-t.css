@@ -25,7 +25,9 @@ body:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"])
 /* ── The lesson's row is Ipi's docked bubble: the portrait, Ipi's why, then the do in bold, the count, Show me. ── */
 #lesson { padding-left: 4px; border-color: var(--lapis); border-radius: 26px; }
 #lesson .lesson-face { flex: none; width: 36px; height: 36px; align-self: center; }
-#lesson .ipi-why { display: inline; color: var(--ink-soft); }
+/* Version 9.2 (Track L, design 2.5): the row is the instruction and its count; Ipi's why is behind More (and on the chapter's card). */
+#lesson .ipi-why { display: none; color: var(--ink-soft); }
+#lesson.open .ipi-why { display: block; margin-top: 2px; }
 #lesson .beat-line { display: none; }
 #lesson.beat-on .beat-line { display: inline; padding: 0 4px; margin-right: 2px; border-radius: 4px; background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--gold); }
 /* Integration (ruling 1261): a top-bar stat a step lights (the month's gold) is ringed inside its own 44 px button: the bar clips anything outside it, and the gold sits at the screen's edge. */
