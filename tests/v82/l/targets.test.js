@@ -7,7 +7,7 @@ import { lessonWorld, replayTo, stepSpot, stepFrame, raidTarget, RAID_FRAME_REAC
 import { setSpeed } from '../../../src/sim/commands.js';
 import { tickDay } from '../../../src/sim/clock.js';
 import { allBuildings } from '../../../src/sim/world.js';
-import { lessonFacts } from '../../../src/ui/lesson.js';
+import { lessonFacts, stepWords } from '../../../src/ui/lesson.js';
 import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
 import { buildingName } from '../../../src/ui/text.js';
 import { tileToScreen } from '../../../src/render/camera.js';
@@ -25,6 +25,7 @@ const sentences = (s) => s.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(Boolean);
 const TARGET_WORDS = {
   road: ['road'], house: ['plot', 'home'], large_plot: ['large plot'], well: ['well'], farm_grain: ['farm'], granary: ['granary'], bazaar: ['bazaar'], firehouse: ['firehouse'], tower: ['tower'],
   '#topbar .speed-bar': ['play', 'time'], '#topbar .stat.gold': ['gold'],
+  '#topbar .stat.gold, #topbar .stat.mood': ['mood'],   // Version 9.1 (Track F, ruling 1665): the months light the gold and the mood, and say mood (the gold is in the do)
 };
 // The thing a step points at: its control (dom), the building its ring is on (at.of; for the raid the building the sim says the raid is after), or the card it opens (show.item, for a footprint).
 function targetOf(world, step) {
@@ -33,7 +34,7 @@ function targetOf(world, step) {
   if (step.at && step.at.of) return step.at.of;
   return step.show ? step.show.item : null;
 }
-const sayOf = (id, f) => { const x = V81T_TEXT.steps[id](f); return `${x.why} ${x.do}`.toLowerCase(); };
+const sayOf = (id, f) => { const x = stepWords(LESSON_STEPS.find((s) => s.id === id), f); return `${x.why} ${x.do}`.toLowerCase(); };   // Version 9.1: the words as the lesson says them
 
 describe('v82 l targets: every step names what it lights', () => {
   it('walks every step: wherever its ring, camera or control points, its why or do says what it is (paused and playing)', () => {

@@ -10,6 +10,8 @@ import { monthForecast } from '../sim/economy.js';
 import { population } from '../sim/world.js';
 import { say } from './v81/scribe.js';
 import { V81T_TEXT } from './v81/lessonText.js';
+import { V91F_TEXT } from './text.js';
+import { DAYS_PER_MONTH } from '../sim/time.js';
 
 // Whether the title should offer only "Start the lesson" (ruling 617): on a device that has not finished the lesson and has no saved city.
 // settings: the settings' value (settings.get()); hasSavedCity: the title's loaded save is a city (boot's loaded.state === 'ok').
@@ -48,6 +50,24 @@ export function lessonFacts(world, step) {
   f.people = population(world);
   return f;
 }
+
+// Version 9.1 (Track F, rulings 1656, 1657, 1664, 1665): a step's why and do as the lesson says them: 8.1's lines (V81T_TEXT.steps) with 9.1's laid over them (V91F_TEXT):
+// the road points at the start road's end (the diamond), the firehouse at its new place, the months at mood, and the raid, before its raiders come, says its speed.
+// Each stays one short sentence (tests/v91/f).
+export function stepWords(step, f) {
+  const base = V81T_TEXT.steps[step.id](f);
+  switch (step.id) {
+    case 'road': return { ...base, do: V91F_TEXT.roadDo };
+    case 'firehouse': return f.missing ? base : { ...base, do: V91F_TEXT.firehouseDo };
+    case 'month': return { why: V91F_TEXT.monthWhy, do: V91F_TEXT.monthDo(f.paused, step.check.n) };
+    case 'raid': return f.raidOn || !f.warning ? base : { why: V91F_TEXT.raidFast, do: V91F_TEXT.raidDo(f.paused, f.target, f.warning.daysLeft) };
+    default: return base;
+  }
+}
+
+// Version 9.1 (Track F, ruling 1663): the first game month after the hand-over (src/sim/lesson.js handOverWorld writes handOverDay), when the rows under the top bar are
+// kept to two: no tip while an alert and a goal are both up (src/ui/tips.js). False for every other city.
+export const handOverMonth = (world) => Boolean(world) && Number.isInteger(world.handOverDay) && world.day < world.handOverDay + DAYS_PER_MONTH;
 
 // The step's check, with a name for tests and the row (which step the city is at is the interface's own count, src/ui/v60/lesson.js).
 export const stepIsDone = (world, id) => stepDone(world, LESSON_STEPS.find((s) => s.id === id));

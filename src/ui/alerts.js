@@ -174,20 +174,31 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
     }
   }
 
+  // Version 9.1 (Track F, ruling 1658): in the lesson the banner carries only the step's own alert (the fire at the fire step, the raid in the defence chapter);
+  // the lesson's row says which (src/ui/v60/lesson.js sets root's data-lesson-alerts to those codes, empty for none). The rest still feed the list and the Map
+  // badge, and the banner shows them after the hand-over. Without the attribute (every other city) the banner holds every critical, as before.
+  function bannerCritical() {
+    const own = root && root.dataset ? root.dataset.lessonAlerts : undefined;
+    if (typeof own !== 'string') return current.critical;
+    const codes = own.split(' ').filter(Boolean);
+    return current.critical.filter((a) => codes.includes(a.code));
+  }
+
   function refresh(force = false) {
     current = triage(world, getAlerts());
-    const criticalKeys = current.critical.map(keyOf).sort().join('|');
+    const onBanner = bannerCritical();
+    const criticalKeys = onBanner.map(keyOf).sort().join('|');
     let fresh = false;
     if (criticalKeys !== lastCriticalKeys) {
       const before = new Set((lastCriticalKeys || '').split('|').filter(Boolean));
-      fresh = current.critical.some((a) => !POLITE.has(a.code) && !before.has(keyOf(a)));
+      fresh = onBanner.some((a) => !POLITE.has(a.code) && !before.has(keyOf(a)));
       if (fresh) onNewCritical();   // a fresh problem, not a cleared one
       lastCriticalKeys = criticalKeys;
       step = 0;
     }
     // The row is rebuilt only when what it says changes (a new top alert, the countdown's day, a collapse), so a
     // daily refresh keeps the same row and its focus.
-    const m = bannerModel(world, current.critical);
+    const m = bannerModel(world, onBanner);
     shown = m ? m.group.length : 0;
     const sig = m ? JSON.stringify([criticalKeys, m.title, m.fix, m.defence, m.tribute, m.chip, m.more, m.chip ? collapsed.has(m.group[0].arrives) : false, phone()]) : '';
     if (force || sig !== lastSig) { lastSig = sig; renderBanner(m); }

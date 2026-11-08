@@ -201,7 +201,9 @@ describe('s45 variants (new cities)', () => {
   });
   it('the interface starts New city with the seed\'s layout, and a ?seed= flag, the sample city and ?variant= stay as asked', async () => {
     const flush = () => new Promise((r) => setTimeout(r, 0));
-    const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
+    // Version 9.1 (Track F, ruling 1660): and the records hold a city, so New city is Surprise me (a device's first city is the classic river)
+    const records = JSON.stringify({ version: 2, cities: [{ id: 'c1', seed: 3, difficulty: 'normal', best: 10 }], chronicle: [], rulers: [], rivals: [] });
+    const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : k === 'thebes.records' ? records : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
     const open = async (params) => {
       const shell = await mountShell(1280, 800);
       const history = fakeHistory();

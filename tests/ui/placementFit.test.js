@@ -7,7 +7,7 @@ import { canPlace } from '../../src/sim/commands.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { NEAREST_FIT_RADIUS } from '../../src/data/ui.js';
 import { screenToTile, tileToScreen } from '../../src/render/camera.js';
-import { effectText, warningText, T } from '../../src/ui/text.js';
+import { effectText, warningText, T, V91F_TEXT } from '../../src/ui/text.js';
 import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
@@ -267,7 +267,7 @@ describe('ui placement fit', () => {
           expect([at, stateOf()]).toEqual([at, 'warn']);                               // no road touches the far plots
           plots.push(read());
           expect(r.ui.placement.confirm().ok).toBe(true);
-          expect(r.ui.placement.preview().text).toBe(T.tapStart);                      // the tool stays, back to its first prompt
+          expect(r.ui.placement.preview().text).toBe(V91F_TEXT.plotsIdle);             // the tool stays, back to its first prompt (Version 9.1, ruling 1668: a tap lays a plot)
           plots.push(read());
           const plotsTallest = Math.max(...plots.map((m) => m.height));
           for (const [i, m] of plots.entries()) if (i >= 2) expect([at, 'plots', i, m.height]).toEqual([at, 'plots', i, plotsTallest]);

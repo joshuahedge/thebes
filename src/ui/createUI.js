@@ -149,7 +149,8 @@ export function createUI({
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   // Version 8.0 (Track N, ruling 1160): every toast and caption is also kept in the message tray behind the scroll button at the top right (src/ui/tray.js); trayModel (below) is what its sheet shows.
-  const tray = createTray();
+  // Version 9.1 (Track F, ruling 1666): what comes in while the lesson runs is kept read (its captions are hidden behind Ipi's row, and nothing in it is news to count).
+  const tray = createTray({ readWhen: () => Boolean(world.lesson) });
   const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE), held: () => root.classList.contains('lesson-card-up'), record: (text, o) => tray.add(text, o), forget: (id) => tray.drop(id) });   // Version 7.1.1 (ruling 1100): none over a lesson card
   // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
   const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
@@ -650,9 +651,10 @@ export function createUI({
     // Version 8.0 (ruling 1165): Undo takes back the last action only, so the Undo of an earlier action's toast goes as the next action comes (a wide screen shows two toasts, and the older one's button would take the newer one back).
     if (e.undoable) {
       if (undoToast) { toasts.hide(undoToast); undoToast = null; }
-      undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish'), at: e.at });   // ruling 986: Delete names itself only after a placement
+      // Version 9.1 (Track F, ruling 1659): the toast that echoes the player's own action (placed, laid, demolished, undone) shows but is not kept in Messages (tray: false).
+      undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish'), at: e.at, tray: false });   // ruling 986: Delete names itself only after a placement
     }
-    else if (e.kind === 'undo') toasts.show(T.undone);
+    else if (e.kind === 'undo') toasts.show(T.undone, { tray: false });
     refresh();
   }
   // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.

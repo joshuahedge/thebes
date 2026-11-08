@@ -57,6 +57,7 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(scrim, root.querySelector('#toasts') || null);   // above the page, under the toasts and the confirm dialog (which sit later in the page)
   let up = false;
+  const tellStore = (flag) => { if (store && typeof store.set === 'function') store.set({ lessonCardUp: flag }); };   // (a test's stand-in store may have no set)
   let returnTo = null;   // wave 3: what had focus when the card came up, so closing it hands focus back (to the docked row's Show me when that is gone)
 
   function paintPicture(picture) {
@@ -87,6 +88,7 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
     if (!up && was && was !== doc.body && !card.contains(was)) returnTo = was;   // a step card that follows another keeps the first's place to return to
     up = true;
     root.classList.add('lesson-card-up');
+    tellStore(true);   // Version 9.1 (Track F, ruling 1672): the store says so too, so what reads the state (the Good plots row) follows the card
     go.focus();
   }
   function hide() {
@@ -94,6 +96,7 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
     up = false;
     scrim.hidden = true;
     root.classList.remove('lesson-card-up');
+    tellStore(false);   // and its change redraws what the card held back
     const back = returnTo;
     returnTo = null;
     if (!card.contains(doc.activeElement)) return;
@@ -139,6 +142,6 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
 
   return {
     show, hide, isUp: () => up, element: scrim, card, go, skip,
-    destroy() { stop(); doc.removeEventListener('keydown', onKey, true); root.classList.remove('lesson-card-up'); scrim.remove(); up = false; },
+    destroy() { stop(); doc.removeEventListener('keydown', onKey, true); root.classList.remove('lesson-card-up'); if (up) tellStore(false); scrim.remove(); up = false; },
   };
 }

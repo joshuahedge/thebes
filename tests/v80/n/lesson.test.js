@@ -24,6 +24,7 @@ describe('v80 n lesson: the view follows each step\'s own target', () => {
         const spot = stepSpot(g.world, step);
         if (!spot) continue;
         if (stepFrame(g.world, step)) continue;   // Version 8.2 (Track L): the raid step frames the target with the towers and the raiders' side instead (tests/v82/l/targets.test.js)
+        if (step.id === 'road') continue;         // Version 9.1 (Track F, ruling 1674): nudged east so the start road's diamond is whole beside the ring (tests/v91/f/ui.test.js)
         const c = centreOf(spot);
         const [sx, sy] = tileToScreen(g.cam, { width: W, height: H }, c.x, c.y);
         if (Math.abs(sx - FREE.x) > 2 || Math.abs(sy - FREE.y) > 2) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)} not ${FREE.x},${Math.round(FREE.y)}`);

@@ -38,7 +38,7 @@ import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { T as TILE } from '../sim/terrain.js';
-import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, V91F_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot, crossingRuns } from '../sim/bridges.js';
 import { ferrySpot, ferryCost } from '../sim/ferries.js';   // Version 7.1 (Track F)
 import { drawFerry, buildCrossing } from '../sim/ferryLay.js';
@@ -376,7 +376,7 @@ function basePreview(world, state) {
     return { state: 'ok', reason: null, warnings: [], text: roadText(world, r, runs), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates: r.gates || [], bridges: r.bridges || [], ferries: r.ferries || [], waterRuns: runs, refund: 0 };
   }
   const a = state.area;
-  if (!a) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
+  if (!a) return idle(touch ? DRAW_TEXT.idle : tool.kind === 'houses' ? V91F_TEXT.plotsIdle : T.tapStart);   // Version 9.1 (ruling 1668): one tap lays a plot
   if (a.x1 === null) return idle(T.tapCorner, [[a.x0, a.y0]]);
   if (tool.kind === 'houses') {
     const r = previewHouses(world, a.x0, a.y0, a.x1, a.y1);

@@ -9,7 +9,7 @@ import { createSaveStore } from '../../../src/save/store.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../../src/data/lesson.js';
 import { lessonWorld, replayTo, playWhen, actionBase, actionDone, firstOf, stepDone, LESSON_SCRIPT, LESSON_LENGTH, chapterAt, LESSON_CHAPTER_COUNT } from '../../../src/sim/lesson.js';
 import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
-import { lessonFacts } from '../../../src/ui/lesson.js';
+import { lessonFacts, stepWords } from '../../../src/ui/lesson.js';
 import { pictureOf } from '../../../src/ui/lessonCard.js';
 import { paintHouses, place, setSpeed } from '../../../src/sim/commands.js';
 import { tickDay } from '../../../src/sim/clock.js';
@@ -100,7 +100,8 @@ describe('v70 p the lesson\'s step card in the page', () => {
       const card = stepCard(s.root), words = card.querySelector('.lc-words');
       const facts = lessonFacts(s.g.world, step('road'));
       expect([Boolean(card), s.g.world.speed, document.body.classList.contains('lesson-card-up')]).toEqual([true, 0, true]);
-      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${V81T_TEXT.steps.road(facts).do}`, V81T_TEXT.chapterLabel(1, LESSON_CHAPTER_COUNT, V81T_TEXT.chapters.roads.name), P_TEXT.card.showMe]);   // Version 8.1: the chapter's card
+      // Version 9.1 (Track F, rulings 1664, 1667): the first card says its chapter's why (the story is the title's), and the road's do points at the diamond
+      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent]).toEqual([`${V81T_TEXT.chapters.roads.why} ${stepWords(step('road'), facts).do}`, V81T_TEXT.chapterLabel(1, LESSON_CHAPTER_COUNT, V81T_TEXT.chapters.roads.name), P_TEXT.card.showMe]);   // Version 8.1: the chapter's card
       const r = card.getBoundingClientRect(), v = s.box;
       expect([Math.abs((r.left + r.right) / 2 - (v.left + v.right) / 2) < 2, Math.abs((r.top + r.bottom) / 2 - (v.top + v.bottom) / 2) < 2]).toEqual([true, true]);
       expect([card.getAttribute('role'), shown(rowOf(s)), s.root.querySelector('.lesson-ring').hidden, document.activeElement === goOf(s)]).toEqual(['dialog', false, true, true]);

@@ -6,11 +6,11 @@
 // The lesson's city is a city like any other (the same sim, the same rules), on a fixed map, and is never saved (src/boot.js). Three
 // steps stage something a city this young would not have, and each says so in its words: the Large plot card (a Townhouse opens it in a real
 // city), a small blaze in the bazaar, and the Market town's tower with the raid clock (a real city meets raiders at 250 people).
-import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS } from '../data/lesson.js';
+import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS, LESSON_RAID_LEAD } from '../data/lesson.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { createWorld, housesOf, population, allBuildings } from './world.js';
+import { createWorld, housesOf, population, allBuildings, newRaidState } from './world.js';
 import { drawRoad, paintHouses, place, setGuide, setSpeed } from './commands.js';
 import { goalMet } from './goals.js';
 import { idx } from './grid.js';
@@ -19,7 +19,7 @@ import { isWorking } from './labour.js';
 import { igniteBuilding, staffedCover, burning } from './fire.js';
 import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget } from './raids.js';
 import { tickDay, monthIndex } from './clock.js';
-import { milestoneIndex } from './progression.js';
+import { milestoneIndex, updateMilestone, isUnlocked } from './progression.js';
 
 export const LESSON_LENGTH = LESSON_STEPS.length;
 
@@ -231,9 +231,57 @@ export function enterStep(world, step) {
   if (step && step.stage && STAGES[step.stage]) STAGES[step.stage](world);
 }
 
+// Version 9.1 (Track F, ruling 1657): the staged raid's warning brings its raiders LESSON_RAID_LEAD days after its own day, not a real city's RAIDS.warningDays, so the
+// lesson's end is not two minutes of waiting. Set on the warning itself (warning.arrives), which the sim's arrival, the countdown and every word read; only in the lesson's
+// own city and only for its first warning. Idempotent; true when it changed the arrival.
+export function leadRaid(world) {
+  const w = world.lesson ? world.raid.warning : null;
+  if (!w || w.index !== 0 || w.arrives === w.day + LESSON_RAID_LEAD) return false;
+  w.arrives = w.day + LESSON_RAID_LEAD;
+  return true;
+}
+
+// Version 9.1 (Track F, ruling 1661): the cards the lesson put in the player's hands beyond the rank the people earned: each step's own card and every kind standing in
+// the city that the rank does not unlock (the tower, and anything else built from the staged Market town's tray). They stay unlocked after the hand-over through
+// world.lessonCards (src/sim/progression.js isUnlocked), so a building the player has is never a locked card. Read with the rank already set back.
+export function lessonCardsOf(world) {
+  const staged = new Set(MILESTONES.slice(milestoneIndex('village') + 1, milestoneIndex('market_town') + 1).flatMap((m) => m.unlocks));   // what STAGES.raid opened
+  const kinds = [...LESSON_STEPS.filter((s) => s.show).map((s) => s.show.item), ...allBuildings(world).map((b) => (b.type === 'gate' ? 'wall' : b.type))];
+  const out = [];
+  for (const t of kinds) if (staged.has(t) && !out.includes(t) && !isUnlocked(world, t)) out.push(t);
+  return out;
+}
+
+// Version 9.1 (Track F, ruling 1671): the speed a step plays at now: its waitSpeed while the warned raiders have not arrived (no raid under way, none over yet), else
+// its speed; null for a step with no speed of its own.
+export function stepSpeed(world, step) {
+  if (!step || !step.speed) return null;
+  return step.waitSpeed && !world.raid.active && !world.raid.last ? step.waitSpeed : step.speed;
+}
+
+// Version 9.1 (Track F, rulings 1655, 1661, 1662): the lesson's city as it becomes the player's own (src/boot.js adoptLesson). What the lesson staged for its raid is taken
+// back, so the city stands as a real one with its people would: the rank is what updateMilestone gives for the people alone (from Village: about 94 people is a Village),
+// the splits of the ranks it has not earned are cleared, the raid's state is a fresh city's (the clock stopped until RAIDS.clockPeople, no warning drawn, the next raid its
+// first), keeping only the report of the raid just beaten, and the "New" tags of the cards it no longer has go. world.lessonCards keeps what the lesson put in its hands.
+export function handOverWorld(world) {
+  const earnedFrom = milestoneIndex('village');
+  for (let k = earnedFrom + 1; k < MILESTONES.length; k++) delete world.splits[MILESTONES[k].id];
+  world.milestone = MILESTONES[earnedFrom].id;
+  delete world.lessonCards;
+  const cards = lessonCardsOf(world);
+  if (cards.length) world.lessonCards = cards;
+  updateMilestone(world);                                           // the rank the people have earned (a city past 150 people is a Town at once, with its split today)
+  world.newItems = world.newItems.filter((t) => !BUILDINGS[t] || isUnlocked(world, t));
+  const fresh = newRaidState();                                     // the clock, the warning and the count a fresh city has; the report and what the beaten raid left (its spoils) stay
+  world.raid = { ...world.raid, clockDay: fresh.clockDay, nextWarnDay: fresh.nextWarnDay, index: fresh.index, warning: fresh.warning, active: fresh.active, adaptation: fresh.adaptation };
+  world.handOverDay = world.day;                                    // ruling 1663: the interface's first month after the hand-over (src/ui/lesson.js handOverMonth)
+  return world;
+}
+
 // The step the city is at, from `from` on: enters each step it reaches and passes every one the sim already shows done (a player who built the
 // well before it was asked for it is not asked again). LESSON_LENGTH when every step is done.
 export function lessonAt(world, from = 0) {
+  leadRaid(world);
   let i = Math.max(0, from);
   if (i < LESSON_LENGTH) enterStep(world, LESSON_STEPS[i]);
   while (i < LESSON_LENGTH && stepDone(world, LESSON_STEPS[i])) {
@@ -276,11 +324,12 @@ export const LESSON_SCRIPT = {
   tower(world, io) {
     setSpeed(world, 1); io.did();
     until(world, io, () => Boolean(world.raid.warning));            // the first warning pauses the game
+    leadRaid(world);                                                // Version 9.1 (ruling 1657): its raiders come LESSON_RAID_LEAD days on, as the interface sets it
     put(world, io, 'tower', P.tower);
     setSpeed(world, 1); io.did();
     until(world, io, () => stepDone(world, stepById('tower')));
   },
-  raid(world, io) { setSpeed(world, 3); io.did(); until(world, io, () => stepDone(world, stepById('raid')), 600); },
+  raid(world, io) { setSpeed(world, stepSpeed(world, stepById('raid')) || 1); io.did(); until(world, io, () => stepDone(world, stepById('raid')), 600); },   // Version 9.1: at the step's own speed
 };
 
 // The lesson's city as it stands once steps 0 .. n - 1 are done (the resume of a lesson left part-way: the player's own streets are not kept,
