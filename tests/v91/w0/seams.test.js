@@ -134,8 +134,10 @@ describe('v91 w0 seams: the rescue, autosave\'s blocked() and the caches', () =>
     expect(body.split('\n')[1]).toContain('blocked()');
     expect(ui.split('function blocked()').length).toBe(2);
   });
-  it('window.__thebes.caches() gives { terrainBytes: 0, spriteBytes: 0 } on the title and in a game, from the renderer', async () => {
+  // Track P filled it (ruling 1686): the bytes the one renderer's caches hold, zero before anything is drawn (tests/v91/p/caches.test.js has the figures).
+  it('window.__thebes.caches() gives { terrainBytes, spriteBytes } on the title and in a game, from the renderer', async () => {
     expect(createRenderer({ canvas: document.createElement('canvas') }).cacheBytes()).toEqual({ terrainBytes: 0, spriteBytes: 0 });
+    const counts = (c) => [Object.keys(c).sort(), Number.isFinite(c.terrainBytes) && c.terrainBytes >= 0, Number.isFinite(c.spriteBytes) && c.spriteBytes >= 0];
     const shell = await mountShell(1280, 800);
     const history = fakeHistory();
     const api = await boot(document, window, {
@@ -146,11 +148,15 @@ describe('v91 w0 seams: the rescue, autosave\'s blocked() and the caches', () =>
     });
     try {
       expect(api.phase()).toBe('title');
-      expect(window.__thebes.caches()).toEqual({ terrainBytes: 0, spriteBytes: 0 });
+      expect(counts(window.__thebes.caches())).toEqual([['spriteBytes', 'terrainBytes'], true, true]);
       api.startGame(api.freshWorld(), { saveNow: false });
       await flush();
       expect(api.phase()).toBe('game');
-      expect(window.__thebes.caches()).toEqual({ terrainBytes: 0, spriteBytes: 0 });
+      const { renderer, world } = window.__thebes;
+      expect(window.__thebes.caches()).toEqual(renderer.cacheBytes());
+      renderer.renderFrame(world, window.__thebes.cam, { view: { width: 1280, height: 800 } });
+      expect(window.__thebes.caches()).toEqual({ terrainBytes: renderer.baker.bytes(world), spriteBytes: renderer.spriteCache.bytes() });
+      expect(window.__thebes.caches().terrainBytes).toBeGreaterThan(0);
     } finally { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; }
   });
 });
@@ -198,7 +204,10 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     const at = (s) => html.indexOf(s);
     for (const m of MARKS) expect([m, html.split(m).length]).toEqual([m, 2]);
     for (let i = 1; i < MARKS.length; i++) expect([MARKS[i], at(MARKS[i - 1]) < at(MARKS[i])]).toEqual([MARKS[i], true]);
-    for (let i = 0; i < MARKS.length; i += 2) expect([MARKS[i], html.slice(at(MARKS[i]) + MARKS[i].length, at(MARKS[i + 1])).trim()]).toEqual([MARKS[i], '']);
+    for (let i = 0; i < MARKS.length; i += 2) {
+      if (MARKS[i] === '<!-- v91 preload -->') continue;   // Track P fills it (tools/sw-files.ps1; tests/v91/p/preload.test.js)
+      expect([MARKS[i], html.slice(at(MARKS[i]) + MARKS[i].length, at(MARKS[i + 1])).trim()]).toEqual([MARKS[i], '']);
+    }
     const firstSheet = at('<link rel="stylesheet"'), lastSheet = html.lastIndexOf('<link rel="stylesheet"');
     expect(at('<!-- end v91 early-error -->') < firstSheet).toBe(true);
     expect(at('<!-- v91 preload -->') > lastSheet && at('<!-- end v91 preload -->') < at('</head>')).toBe(true);

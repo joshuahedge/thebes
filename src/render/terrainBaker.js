@@ -460,15 +460,34 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   return { canvas, ax, ay, scale, cx, cy };
 }
 
-export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32 } = {}) {
-  const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }) }
-  let tick = 0;
+// Version 9.1 (Track P, ruling 1686): the chunks are held by their canvas bytes as well as their count. At DPR 2 and zoom 1 a chunk bakes at
+// scale 3 (1,560 x 792 px, about 4.9 MB), so 32 of them were about 160 MB; the budget keeps about 48 MB, evicting the least recently used. A
+// chunk the frame shows (the renderer names them in frame()) is never evicted for the budget, at any scale, so a view that needs more than the
+// budget keeps every chunk it shows, and the ring round it is not baked ahead (room()). The renderer may lower the budget for a frame (ruling
+// 1687: the terrain gives way to the sprites a view needs, so the two together keep CACHES_BUDGET_BYTES, target P3's 64 MB at DPR 2).
+export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;
+export const CACHES_BUDGET_BYTES = 64 * 1024 * 1024;
+export const chunkBytes = (scale) => Math.ceil((32 * CHUNK + 2 * CHUNK_MARGIN) * scale) * Math.ceil((16 * CHUNK + 2 * CHUNK_MARGIN) * scale) * 4;   // bakeChunk's canvas
+
+export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32, maxBytes = TERRAIN_BUDGET_BYTES } = {}) {
+  const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }), bytes }
+  // shown: the chunks ('cx,cy') the frame being drawn shows; budget: this frame's; frameTick: the tick it began at (an entry used since was looked at in it)
+  let tick = 0, shown = new Set(), budget = maxBytes, frameTick = 0;
+  const trim = (w, keep = null) => { while (w.bytes > budget) { const o = oldest(w, keep, false); if (o === null) break; drop(w, o); } };
   const entryFor = (world) => {
     let e = perWorld.get(world);
-    if (!e) { e = { map: new Map() }; perWorld.set(world, e); }
+    if (!e) { e = { map: new Map(), bytes: 0 }; perWorld.set(world, e); }
     return e;
   };
   const key = (cx, cy, scale) => `${cx},${cy}@${scale}`;
+  const bytesOf = (sprite) => sprite.canvas.width * sprite.canvas.height * 4;
+  const drop = (w, k) => { const v = w.map.get(k); if (v) { w.bytes -= bytesOf(v.sprite); w.map.delete(k); } };
+  // The least recently used entry but `keep`; unless `any`, only among the chunks the frame does not show.
+  const oldest = (w, keep, any) => {
+    let found = null, at = Infinity;
+    for (const [k, v] of w.map) if (k !== keep && v.used < at && (any || !shown.has(`${v.sprite.cx},${v.sprite.cy}`))) { found = k; at = v.used; }
+    return found;
+  };
 
   // The cached sprite for the chunk and whether it is still fresh (signature unchanged). Never bakes.
   function peek(world, cx, cy, zoom, dpr) {
@@ -496,19 +515,39 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
     if (!e || e.sig !== sig) {
       if (!allowBake) return null;
       if (counter) counter.bakes = (counter.bakes || 0) + 1;
+      drop(w, k);
       e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
       w.map.set(k, e);
+      w.bytes += bytesOf(e.sprite);
       // Drop only this chunk's entries at other scales; the rest stay as fallbacks until their own re-bake.
-      for (const [otherKey, v] of w.map) if (otherKey !== k && v.sprite.cx === cx && v.sprite.cy === cy) w.map.delete(otherKey);
-      if (w.map.size > maxChunks) {
-        let oldest = null;
-        for (const [ok, v] of w.map) if (ok !== k && (oldest === null || v.used < w.map.get(oldest).used)) oldest = ok;
-        if (oldest !== null) w.map.delete(oldest);
-      }
+      for (const [otherKey, v] of [...w.map]) if (otherKey !== k && v.sprite.cx === cx && v.sprite.cy === cy) drop(w, otherKey);
+      if (w.map.size > maxChunks) { const o = oldest(w, k, true); if (o !== null) drop(w, o); }
+      trim(w, k);
     }
     e.used = ++tick;
     return e.sprite;
   }
 
-  return { get, peek, capacity: maxChunks, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world) };
+  return {
+    get, peek, capacity: maxChunks, budget: maxBytes, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world),
+    // Version 9.1 (Track P): the renderer calls frame(chunks, world, bytes) as each frame begins with the chunks ({ cx, cy }) it shows, which the
+    // budget never evicts, and this frame's budget (at most maxBytes), down to which the world's other chunks go at once; trim(world, bytes) sets
+    // the budget again later in the frame. bytes(world) is what the world's chunks hold. room(world, zoom, dpr) says whether the ring's pre-bake
+    // may bake one more chunk at that scale: it fits the count and the budget once the chunks this frame has not looked at are let go (the ring
+    // ahead takes the place of chunks left behind, never of the ring itself, which the pre-bake's search looks at every frame).
+    frame(chunks = [], world = null, bytes = maxBytes) {
+      shown = new Set(chunks.map(({ cx, cy }) => `${cx},${cy}`));
+      frameTick = tick;
+      budget = Math.min(maxBytes, bytes);
+      if (world) trim(entryFor(world));
+    },
+    trim(world, bytes = maxBytes) { budget = Math.min(maxBytes, bytes); trim(entryFor(world)); },
+    bytes: (world) => entryFor(world).bytes,
+    room: (world, zoom, dpr) => {
+      const w = entryFor(world);
+      let stale = 0, staleBytes = 0;
+      for (const v of w.map.values()) if (v.used <= frameTick && !shown.has(`${v.sprite.cx},${v.sprite.cy}`)) { stale++; staleBytes += bytesOf(v.sprite); }
+      return (w.map.size < maxChunks || stale > 0) && w.bytes - staleBytes + chunkBytes(chunkScaleFor(zoom, dpr)) <= budget;
+    },
+  };
 }
