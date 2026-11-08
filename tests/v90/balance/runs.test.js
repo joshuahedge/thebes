@@ -30,8 +30,8 @@ describe('v90 balance T1 the Builder\'s great-work run', () => {
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
     expect(Math.abs(r.won.day - 6380)).toBeLessThanOrEqual(200);
-    expect(r.won.day).toBe(6235);                                  // WAVE2-PIN 9.1 Track H (ruling 1714): was 6640
-    expect(Math.round(r.lowestGold)).toBe(713);                    // WAVE2-PIN 9.1 Track H (ruling 1714): was -3204
+    expect(r.won.day).toBe(6235);                                  // 9.1 balance (ruling 1731): was 6640
+    expect(Math.round(r.lowestGold)).toBe(713);                    // 9.1 balance (ruling 1731): was -3204
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([3, 3]);
   });
@@ -42,7 +42,7 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
     const warns = [];
     const cap = runCapital(CAPITAL_YEARS * 12, { heir: 'unconquered', adapt: true, onMonth: (w, events) => { for (const e of events || []) if (e.type === 'raid_warning') warns.push(e.arrives - RAIDS.warningDays); } });
     expect([cap.w.raid.clockDay, warns[0]]).toEqual([210, 410]);   // the Steady's: 510
-    expect([cap.w.tally.raidsBeaten, cap.w.tally.raidsLost]).toEqual([4, 0]);   // WAVE2-PIN 9.1 Track H (ruling 1715): was [3, 0] (the habit's towers beat the year-6 raid too)
+    expect([cap.w.tally.raidsBeaten, cap.w.tally.raidsLost]).toEqual([4, 0]);   // 9.1 balance (ruling 1731): was [3, 0] (the habit's towers beat the year-6 raid too)
     const late = runLate({ base: cap, onMonth: cap.habit.onMonth });
     expect([late.w.tally.raids, late.w.tally.raidsBeaten, late.w.tally.raidsLost]).toEqual([10, 10, 0]);   // the Steady's: 10, 9, 0
   });
@@ -57,7 +57,7 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
   // from the capital years on (the late run's rule), and beats all 13 (MET); the run is not won and its treasury still goes below 0 in the great-work years.
   it('on seed 5 with the player\'s habits: beats all 13 raids, as the Steady does (T3 met)', () => {
     const s5 = greatDangerRun(5, { habits: true, heir: 'unconquered', adapt: true });
-    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);          // WAVE2-PIN 9.1 Track H (ruling 1715): was [13, [6, 7, 8, 9, 10, 11, 12]]
-    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -19997]);   // WAVE2-PIN 9.1 Track H (ruling 1715): was [null, -28072]
+    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);          // 9.1 balance (ruling 1731): was [13, [6, 7, 8, 9, 10, 11, 12]]
+    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -19997]);   // 9.1 balance (ruling 1731): was [null, -28072]
   });
 });
