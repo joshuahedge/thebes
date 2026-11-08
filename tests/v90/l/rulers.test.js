@@ -50,9 +50,10 @@ describe('v90 l rulers: the list', () => {
       const body = root.querySelector('#body');
       renderRulers(body, { records });
       const [newest, older] = [...body.querySelectorAll('.ruler-row')];
-      expect(newest.querySelector('.ruler-name').textContent).toBe('Ramesses IV the Steady');
+      // 9.2 (Track D, ruling 1818): was one string "Ramesses IV the Steady"; the name and number are one line, the title under it
+      expect([newest.querySelector('.cartouche-ruler').textContent, newest.querySelector('.cartouche-title').textContent]).toEqual(['Ramesses IV', 'the Steady']);
       expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1.0 years');
-      expect([older.querySelector('.ruler-name').textContent, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
+      expect([`${older.querySelector('.cartouche-ruler').textContent} ${older.querySelector('.cartouche-title').textContent}`, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
       expect(newest.querySelector('.ruler-medal').textContent).toBe('No medal');
       expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12.5 years, score 312, Gold medal');
       expect([1, 4, 9, 14, 49].map((n) => V90_D_TEXT.regnal('Ra', n))).toEqual(['Ra I', 'Ra IV', 'Ra IX', 'Ra XIV', 'Ra XLIX']);
@@ -161,9 +162,9 @@ describe('v90 l rulers: layout at phone width', () => {
         renderRulers(body, { records });
         const rows = [...body.querySelectorAll('.ruler-row')];
         for (const r of rows) {
-          const b = r.getBoundingClientRect(), name = r.querySelector('.ruler-name').getBoundingClientRect(), score = r.querySelector('.ruler-score-box').getBoundingClientRect(), map = r.querySelector('canvas').getBoundingClientRect();
+          const b = r.getBoundingClientRect(), name = r.querySelector('.cartouche').getBoundingClientRect(), score = r.querySelector('.ruler-score-box').getBoundingClientRect(), map = r.querySelector('canvas').getBoundingClientRect();
           expect(b.height >= 44).toBe(true);
-          expect(name.right <= score.left + 1).toBe(true);                         // the name wraps before it can go under the score
+          expect(name.bottom <= score.top + 1).toBe(true);                         // 9.2 (Track D, ruling 1818): the cartouche has the row's first line to itself, so the name never goes under the score
           expect(score.right <= map.left + 1).toBe(true);
           expect(b.right <= sheet.getBoundingClientRect().right + 1).toBe(true);
         }

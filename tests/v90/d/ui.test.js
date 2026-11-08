@@ -58,7 +58,9 @@ describe('v90 d ui: the heir\'s first-screen line', () => {
     try {
       r.api.startGame(r.api.freshWorld());
       await frame();
-      expect(r.api.game().ui.celebrations.recent()[0]).toEqual({ tier: 'info', text: 'Heir of the Builder', why: 'Monuments rise 15% faster; taxes 5% lower. The city summary says it again.', reward: 0 });
+      // 9.2 (Track D, ruling 1817): was a caption in the guidance row; it is Ipi's line now (his bubble), and no caption is made
+      expect(r.api.game().ui.celebrations.recent()).toEqual([]);
+      expect(document.querySelector('.scribe-words').textContent).toBe('Heir of the Builder. Monuments rise 15% faster; taxes 5% lower.');
     } finally { r.cleanup(); }
   });
 });
@@ -141,7 +143,7 @@ describe('v90 d ui: the lesson (design section 10, items 1, 2 and 5)', () => {
     const d = dynastyFor(l);
     d.ui.opening();
     d.ui.onEvents([{ type: 'milestone', id: 'city' }, { type: 'month' }]);
-    expect([d.shown, d.tips, d.ui.summary(), Object.keys(d.ui.sheets)]).toEqual([[], [], [], ['passThrone', 'passHeir']]);
+    expect([d.shown, d.tips, d.ui.summary(), Object.keys(d.ui.sheets)]).toEqual([[], [], [], ['passThrone', 'passSealed', 'passHeir']]);
   });
   it('keeps the tower step\'s "10 months" read from RAIDS.firstWarnAfter, untouched by any trait', () => {
     expect([RAIDS.firstWarnAfter, DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)]).toEqual([300, '10 months']);

@@ -9,7 +9,7 @@ import { createRecords, normalizeRecords } from '../../../src/save/records.js';
 import { RECORDS_KEY } from '../../../src/data/scoring.js';
 import { generateMap } from '../../../src/sim/mapgen.js';
 import { createWorld } from '../../../src/sim/world.js';
-import { S46_MAP_TEXT, TITLE_SCORE_TEXT, score4StampLabel } from '../../../src/ui/text.js';
+import { S46_MAP_TEXT, TITLE_SCORE_TEXT, D92_D_TEXT, score4StampLabel } from '../../../src/ui/text.js';
 import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
@@ -175,11 +175,13 @@ describe('s46 map sizes: share links, personal bests and stamps carry the size',
 describe('s46 map sizes: a best and a stamp say their map size when it is not Normal', () => {
   it('adds "80 x 80 map" to a Large best and a Small stamp, from the size itself, and nothing for Normal or a record from before', () => {
     const best = { score: 900, medal: 'gold', seed: 5, difficulty: 'normal' };
-    const normal = TITLE_SCORE_TEXT.bestLine(best);
-    const large = TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 80 });
+    // 9.2 (Track D, ruling 1819): the title's line is "Best reign: 900, Gold" and the size moved to the line's tooltip (bestLabel) and the Rulers list
+    const normal = D92_D_TEXT.bestLabel(best);
+    const large = D92_D_TEXT.bestLabel({ ...best, mapSize: 80 });
     expect([large.includes('80 x 80 map'), normal.includes(' map')]).toEqual([true, false]);
-    expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 48 }).includes(S46_MAP_TEXT.sizeNote(48))).toBe(true);
-    expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: DEFAULT_MAP_SIZE })).toBe(normal);
+    expect(D92_D_TEXT.bestLabel({ ...best, mapSize: 48 }).includes(S46_MAP_TEXT.sizeNote(48))).toBe(true);
+    expect(D92_D_TEXT.bestLabel({ ...best, mapSize: DEFAULT_MAP_SIZE })).toBe(normal);
+    expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 80 })).toBe('Best reign: 900, Gold');
     const stamp = { seed: 5, score: 700, medal: null, built: [] };
     expect(score4StampLabel({ ...stamp, mapSize: 48 }).includes('48 x 48 map')).toBe(true);
     expect(score4StampLabel(stamp).includes(' map')).toBe(false);

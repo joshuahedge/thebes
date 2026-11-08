@@ -9,6 +9,7 @@ import { el, button, clear } from '../components.js';
 import { drawMapString } from '../share.js';
 import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T } from '../text.js';
 import { sideBySide } from './sideBySide.js';
+import { rulerCartouche } from '../v92/cartouche.js';
 
 // The row's picture: the map square on a 32 x 32 canvas the stylesheet scales; a row without one (a ruler brought from a file that had none) gets a blank square.
 function mapCanvas(row) {
@@ -34,8 +35,10 @@ export function rulerRow(row, { onPlay = () => {} } = {}) {
   const L = V90_L_TEXT;
   const detailId = `ruler-detail-${row.id.replace(/[^A-Za-z0-9_-]/g, '_')}`;
   const toggle = el('button', { type: 'button', class: 'ruler-row', 'aria-expanded': 'false', 'aria-controls': detailId, 'aria-label': L.rowName(row) }, [
+    // Version 9.2 (Track D, ruling 1818): the cartouche heads the row on its own line, the name and number on one line and the title under it; the rank and years
+    // run under it, the score and the map square beside them.
+    rulerCartouche(row),
     el('span', { class: 'ruler-text' }, [
-      el('span', { class: 'ruler-name', text: L.rulerName(row) }),
       el('span', { class: 'ruler-sub small muted', text: `${L.rankWords(row.rank)} · ${L.years(row.day)}` }),
     ]),
     el('span', { class: 'ruler-score-box' }, [

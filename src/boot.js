@@ -186,7 +186,10 @@ export async function boot(doc, win, {
     const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), size: mapSize, difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant, heir });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
-    setGuide(world, settings.get().help === 'full' && !stress && !sample);
+    // Version 9.2 (Track D, ruling 1816): an heir's city (the dynasty has a ruler kept, or a trait to play) has no beginner's guide: its player has played a whole reign.
+    let kept = 0;
+    try { kept = records.rulers().length; } catch (e) { kept = 0; }
+    setGuide(world, settings.get().help === 'full' && !stress && !sample && heir === 'steady' && !kept);
     return world;
   }
 
@@ -264,7 +267,7 @@ export async function boot(doc, win, {
       current.ui.store.set(openSheet(current.ui.store.get(), 'passThrone'));
     },
     canPassThrone: () => Boolean(current && !current.lesson && canPassThrone(current.world).ok),
-    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice })); },
+    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice, heirStart: true })); },   // Version 9.2 (Track D, ruling 1817): heirStart holds the install ask back for the heir's first game month
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -310,7 +313,9 @@ export async function boot(doc, win, {
   // The install ask, once, at the first start of a city after the first Pass (a ruler is kept and the device has not been asked): the storage is asked to persist again,
   // and a device that can install gets one toast with Install. The device remembers it was asked, installed or not.
   const askStore = (() => { try { return storage || win.localStorage || null; } catch (e) { return null; } })();
-  function noteFirstPass(ui) {
+  // Version 9.2 (Track D, ruling 1817): wait: the heir's own first start. The ask is held and returned as a function the game calls at the first month end, so the
+  // heir's first screen has one voice (Ipi's line); the Rulers list's top line asks at any time.
+  function noteFirstPass(ui, { wait = false } = {}) {
     let rulers = 0, asked = false;
     try { rulers = records.rulers().length; } catch (e) { rulers = 0; }
     try { asked = Boolean(askStore && askStore.getItem(INSTALL_ASK_KEY)); } catch (e) { asked = false; }
@@ -322,15 +327,21 @@ export async function boot(doc, win, {
     }
     // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
     // start must not use the ask up (a start later in the session, or the next visit, shows it).
-    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000, group: 'welcome', waits: true }); }
-    else if (flow.env.standalone) remember();
+    const ask = () => {
+      if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000, group: 'welcome', waits: true }); }
+      else if (flow.env.standalone) remember();
+    };
+    if (wait) return ask;
+    ask();
+    return null;
   }
   let persistAsked = false;
 
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).
-  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null } = {}) {
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null, heirStart = false } = {}) {
     playUndo = null;                                    // a city starting keeps the choices Play this map made
+    let lateAsk = null;                                 // Version 9.2 (Track D): the install ask held for an heir's first game month
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
@@ -341,11 +352,11 @@ export async function boot(doc, win, {
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
-    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); if (lateAsk && events.some((e) => e.type === 'month')) { const ask = lateAsk; lateAsk = null; ask(); } }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
       onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
     current = { world, ui, loop, cam, lesson: Boolean(lesson) };
     rescue.attach(current);                             // the ?crash= dev hook (once a page)
-    if (!lesson) noteFirstPass(ui);
+    if (!lesson) lateAsk = noteFirstPass(ui, { wait: heirStart });
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();

@@ -36,7 +36,7 @@ describe('s3 score title card', () => {
     try {
       const box = c.container.querySelector('.title-records');
       expect(box.previousElementSibling.classList.contains('continue')).toBe(true);
-      expect([...box.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best: 312, gold, seed 11, Normal', 'Best: 250, bronze, seed 7, Hard', 'Best: 120, seed 9, Relaxed']);
+      expect([...box.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best reign: 312, Gold', 'Best reign: 250, Bronze', 'Best reign: 120']);   // 9.2 (Track D, ruling 1819): was 'Best: 312, gold, seed 11, Normal' and so on; the seed and level are in the Rulers list
       const stamps = [...box.querySelectorAll('.stamp')];
       expect(stamps.map((s) => s.getAttribute('aria-label'))).toEqual(['Sealed reign: score 300, gold, seed 7', 'Sealed reign: score 247, silver, seed 11']);
       expect([stamps[0].getAttribute('role'), stamps[0].width]).toEqual(['img', 40]);
@@ -48,7 +48,7 @@ describe('s3 score title card', () => {
     const records = createRecords({ storage: memory({ version: 1, cities: [{ ...row('a', 5, 'normal', 200, 'bronze'), scoreVersion: 0 }], chronicle }) });
     const c = card({ records });
     try {
-      expect(c.container.querySelector('.best-line').textContent).toBe('Best: 200, bronze, seed 5, Normal, older scoring');
+      expect(c.container.querySelector('.best-line').textContent).toBe('Best reign: 200, Bronze, older scoring');   // 9.2 (Track D, ruling 1819): was 'Best: 200, bronze, seed 5, Normal, older scoring'
       expect(c.container.querySelectorAll('.stamp').length).toBe(8);
       expect(c.container.querySelector('.stamp').getAttribute('aria-label')).toBe('Sealed reign: score 110, seed 5');
       expect(c.container.querySelector('.more-stamps').textContent).toBe('+2 more');
