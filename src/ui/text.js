@@ -4588,7 +4588,7 @@ export const V91_R_TEXT = {
   // The error card.
   errorTitle: 'Something went wrong',
   paused: 'The game has paused.',
-  taintedSaved: 'Your city was saved at the start of this month.',
+  taintedSaved: 'Your city was last saved this month.',   // fix wave (ruling 1738): a save also happens when the tab is hidden, so it is not said to be "at the start"
   taintedNone: 'This city has not been saved, so there is nothing to go back to.',
   taintedLesson: "The lesson's city is never saved.",
   stopped: 'The game has stopped drawing.',
@@ -4597,7 +4597,7 @@ export const V91_R_TEXT = {
   safeLesson: "The lesson's city is never saved.",
   idle: 'The page hit a problem before the game began.',
   checking: 'Checking your save…',
-  reloadSave: 'Reload from the save', reloadSaveWhy: 'Goes back to the start of this month: up to one game month of play is lost.',
+  reloadSave: 'Reload from the save', reloadSaveWhy: 'Goes back to the last save: up to one game month of play is lost.',
   reloadNone: 'Reload', reloadNoneWhy: 'Reloads the page and goes back to the title.',
   reloadSafe: 'Reload', reloadSafeWhy: 'Reloads the page. Your city is saved as it is now: nothing is lost.',
   reloadLesson: 'Reload', reloadLessonWhy: 'Reloads the page and goes back to the title.',
@@ -4606,7 +4606,7 @@ export const V91_R_TEXT = {
   copyDetails: 'Copy the details', copyWhy: 'Copies the version and the first lines of the error. Nothing personal.',
   copied: 'Copied.', copyBy: 'Could not copy by itself: select the text below and copy it.',
   detailsHead: (n) => (n === 1 ? 'Details' : `Details (${n} errors)`),
-  where: { tick: "the day's tick", render: 'the drawing', ui: 'a button or a timer', promise: 'a task that was waiting', idle: 'the page', storm: 'errors that kept coming' },
+  where: { tick: "the day's tick", render: 'the drawing', ui: 'a button or a timer', promise: 'a task that was waiting', idle: 'the page' },
   uiFailed: "That didn't work; your city is safe",
   // The details Copy the details puts on the clipboard.
   detailLines: ({ version, build, where, device, errors }) => [`Thebes ${version}${build ? ` (build ${build})` : ''}`, `Where: ${where}`, `Device: ${device}`, ...errors],
@@ -4622,6 +4622,8 @@ export const V91_R_TEXT = {
   costsNone: 'No building costs anything right now.',
   pause: 'Pause',
   pauseLabel: (name) => `Pause ${name}`,
+  // Fix wave (ruling 1739): a row's name, the kind alone for one building and "2 Builders' guilds" for more.
+  kindName: (type, count = 1) => (count > 1 ? `${count} ${capitalised(pluralName(type))}` : buildingName(type)),
   costRow: (name, cost) => `${name}: ${cost} a month`,
   pauseSaves: (cost) => `Pausing saves ${cost} a month and stops its work. Resume it on its sheet.`,
   pauseSavesUpTo: (cost) => `Pausing saves up to ${cost} a month and stops its work: its workers may take other jobs. Resume it on its sheet.`,
@@ -4630,7 +4632,6 @@ export const V91_R_TEXT = {
   climbs: (months) => `The treasury is out of debt in ${months === 1 ? '1 month' : `${months} months`}.`,
   breaksEven: 'The treasury stays where it is: nothing pays the debt back.',
   keepsFalling: (n) => `The treasury keeps falling by ${n} a month: it will not recover.`,
-  limitHead: 'The limit',
   limitAhead: (room) => `Below ${-ECONOMY.debtFloor} gold in debt nothing new can be bought: ${room} gold of room is left.`,
   limitAt: `The treasury is past ${-ECONOMY.debtFloor} gold in debt: nothing new can be bought until it climbs back above it.`,
   limitIn: (months) => `At this rate that is ${months === 0 ? 'before the month ends' : `in ${months === 1 ? '1 month' : `${months} months`}`}.`,

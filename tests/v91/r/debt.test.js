@@ -62,7 +62,7 @@ describe('v91 r debt: the sheet\'s figures are the sim\'s', () => {
       const row = topCosts(w)[k];
       expect(row.exact).toBe(true);
       const before = monthFigures(w).net;
-      expect(setPaused(w, row.id, true).ok).toBe(true);
+      for (const id of row.ids) expect(setPaused(w, id, true).ok).toBe(true);   // fix wave (ruling 1739): a row is every building of its kind
       assignLabour(w);
       expect(monthFigures(w).net - before).toBe(row.cost);
     }
@@ -185,7 +185,7 @@ describe('v91 r debt: the sheet', () => {
       const rows = [...s.querySelectorAll('.debt-cost')];
       expect(rows.length).toBe(m.top.length);
       rows.forEach((row, i) => {
-        const name = buildingName(m.top[i].type);
+        const name = W.kindName(m.top[i].type, m.top[i].count);   // fix wave (ruling 1739): was buildingName(type)
         expect(row.querySelector('strong').textContent).toBe(W.costRow(name, m.top[i].cost));
         expect(row.querySelector('button').getAttribute('aria-label')).toBe(W.pauseLabel(name));
         expect(row.querySelector('button').textContent).toBe(W.pause);
@@ -204,10 +204,10 @@ describe('v91 r debt: the sheet', () => {
       open(r);
       const before = monthFigures(c.w).net, row = debtModel(c.w).top[0];
       sheetOf(r).querySelector('.debt-cost .debt-pause').click();
-      expect(c.w.buildings[row.id].paused).toBe(true);
+      expect(row.ids.every((id) => c.w.buildings[id].paused)).toBe(true);   // fix wave (ruling 1739): was the one building
       expect(monthFigures(c.w).net - before).toBe(row.cost);
       const note = sheetOf(r).querySelector('.debt-note');
-      expect(note.textContent).toBe(W.pausedNote(buildingName(row.type), row.cost));
+      expect(note.textContent).toBe(W.pausedNote(W.kindName(row.type, row.count), row.cost));
       expect(document.activeElement).toBe(note);
       expect([...sheetOf(r).querySelectorAll('.debt-cost')].some((el) => el.dataset.id === String(row.id))).toBe(false);
     } finally { r.cleanup(); }

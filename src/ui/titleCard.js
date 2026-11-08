@@ -78,9 +78,10 @@ function layoutRow(initial, onChoose) {
 
 // Version 9.1 (Track F, ruling 1660): the layout the new-city card starts on before the player picks one: the classic river while the device's records hold no city
 // (its first own city, after the lesson or without it, should teach the game, not the map), Surprise me ('auto') from then on. records: src/save/records.js's store.
-export function firstCityLayout(records) {
+// Fix wave (ruling 1735): the city the lesson's hand-over adopted (adoptedId, the setting lessonCityId) is not one the player started.
+export function firstCityLayout(records, adoptedId = '') {
   let cities = 0;
-  try { const r = records && typeof records.load === 'function' ? records.load() : null; cities = r && Array.isArray(r.cities) ? r.cities.length : 0; } catch (e) { cities = 0; }
+  try { const r = records && typeof records.load === 'function' ? records.load() : null; cities = r && Array.isArray(r.cities) ? r.cities.filter((c) => !adoptedId || !c || c.id !== adoptedId).length : 0; } catch (e) { cities = 0; }
   return cities > 0 ? 'auto' : 'classic';
 }
 

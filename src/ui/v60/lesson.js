@@ -34,7 +34,7 @@ import { setSpeed } from '../../sim/commands.js';
 import { lessonFacts, stepWords, handOverMonth } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
-import { D2_TEXT, P_TEXT, V711_TEXT, T } from '../text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, T } from '../text.js';
 import { V81T_TEXT } from '../v81/lessonText.js';
 import { mountScribe, unmountScribe, say, hush, portrait } from '../v81/scribe.js';
 import { lockTo, unlock } from '../v81/lessonLock.js';
@@ -300,7 +300,8 @@ export function createLessonUi(ctx) {
     hush(); endBeat(false);
     const first = at === 0;   // ruling 1110: the first card offers Skip, I've played before
     // Version 9.1 (Track F, ruling 1667): the story is told once, on the title card the lesson starts from; the first card says its chapter's why like every other.
-    const said = [chapter.why, words.do].join(' ');
+    // Fix wave (ruling 1736): a step that sets a speed of its own (the raid's) says it on the card, before Play, as the docked row does.
+    const said = [chapter.why, step.waitSpeed ? V91F_TEXT.raidFast : '', words.do].filter(Boolean).join(' ');
     const beat = leadBeat;
     leadBeat = '';
     card.show({ label: V81T_TEXT.chapterLabel(ch.index + 1, LESSON_CHAPTER_COUNT, chapter.name), text: said, beat, skipOffered: first && typeof run.skip === 'function', goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
