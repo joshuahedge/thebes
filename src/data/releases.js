@@ -12,12 +12,12 @@ export const RELEASES = [
     version: '9.1', date: '2026-11-08', title: 'First hours', build: 'live',
     new: [
       'The lesson now hands you a Village city with no surprise raid. A marker shows where to lay the first road, and the waits are shorter: the raid step runs at triple speed, then double, and its card says so.',
-      'Toasts that only repeat what you just did no longer pile up in Messages, and a quiet first goal greets your own city.',
+      'Toasts that only repeat what you just did no longer pile up in Messages, and the goals your city already meets at the hand-over complete quietly.',
       'Your first own city starts on the classic river, and Surprise me comes from the second. I\'ve played before skips the lesson and starts a city at once.',
       'A loading screen shows while the game starts and says so when the connection is slow. If something breaks, a card keeps your city safe and offers Reload, Export this city and Copy the details. Nothing is sent anywhere.',
-      'When gold runs out, the debt sheet\'s Back to gold lists what the month costs, the three dearest buildings with a Pause for each, and how many months the fix gives you.',
+      'When gold runs out, the debt sheet\'s Back to gold lists what the month costs, the dearest kinds of building with a Pause for each, and how many months the fix gives you.',
       'About, in Options, says who made the game ("Made by Josh"), that all rights are reserved, and that nothing is sent anywhere.',
-      'Big maps use less memory, so the tab is less likely to reload on a phone. Heirs are tuned against cities that play to their traits.',
+      'Big maps use less memory, so the tab is less likely to reload on a phone. The court\'s yearly due and the Nilometer now read your heir\'s traits.',
     ],
     fixed: [
       'The lesson\'s firehouse now reaches the buildings the lesson asks for.',

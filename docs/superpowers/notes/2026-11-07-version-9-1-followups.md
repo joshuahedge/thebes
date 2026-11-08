@@ -44,6 +44,10 @@ Measured on the merged branch at 390x844, DPR 2, in headless Edge on a desktop a
 - **The heirs' remaining misses** (ruling 1734): the Builder's year-6 gold is 37,278, -26.1% against the 25% band; the Merchant's great work is won on day 6,938, 358 days late; the Bountiful and the Generous do not win the great work; seed-5 raids are still lost (the Builder's two, the Merchant's two on each seed). Their weaknesses never bite in the balance runs (no floodplain, no High rate), so a number would be a pin, not a balance.
 - **The lesson's workers step waits 31 s** at 1x, 1 s over the 30 s bar (ruling 1726): the homes fill under the sim's own rules. **The farm stands one road tile outside the firehouse's reach** (ruling 1727): a farm is low risk, but it can catch fire in a city that grows past Town without a second firehouse.
 - **Partly fixed from the new-player walk:** on desktop the hand-over still stacks the Ipi line, the goals strip and the rank chip; at 1920x1080 the title card stays small (the showcase fills its band, ruling 1673).
+- **Accepted from the fix wave's re-review:**
+  - A 9.0 device that already holds an adopted lesson city in its records has no `lessonCityId`, so its New city still opens on Surprise me. Nothing tells that city from one the player started.
+  - If the lesson is adopted a second time after the slot was emptied while the records survive, `lessonCityId` holds only the newer id, so the first lesson city counts as a started city. This is rare; a list of ids would close it.
+  - `hooks.closeCards()` (the error card closing a picture card) drops the card's onDone, so a New city waiting behind the cards is dropped. The card was already marked seen.
 - **The test suite takes 30 to 60 minutes.** Split the whole-game balance runs and the frame-time tests into a slower set run at merges, and run the rest in parallel.
 
 ## For 9.2
