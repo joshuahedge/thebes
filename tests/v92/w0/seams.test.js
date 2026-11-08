@@ -41,7 +41,7 @@ describe('v92 w0 rigs', () => {
 });
 
 describe('v92 w0 seams: the alerts\' roll-up shape', () => {
-  it('every alert carries ids and count; an alert with an id carries just it; rollUpAlerts returns the list as it is', () => {
+  it('every alert carries ids and count; an alert with an id carries just it; rollUpAlerts has rows no more than the alerts', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
     addRaw(w, 'storehouse', 20, 20);   // off the road: a no_road alert
@@ -54,7 +54,8 @@ describe('v92 w0 seams: the alerts\' roll-up shape', () => {
       if (a.id !== undefined) expect(a.ids).toEqual([a.id]);
     }
     expect(list.find((a) => a.code === 'debt').count).toBe(1);
-    expect(rollUpAlerts(list)).toBe(list);
+    // Track Q (ruling 1775) fills rollUpAlerts: alertsFor stays flat, and a list with no repeated cause comes back as rows equal to it.
+    expect(rollUpAlerts(list).length).toBeLessThanOrEqual(list.length);
   });
   it('stepRow walks a row\'s alerts round and round, and a rolled-up alert\'s ids one by one', () => {
     const fires = [{ code: 'fire', id: 4, ids: [4], count: 1 }, { code: 'fire', id: 9, ids: [9], count: 1 }];
@@ -65,11 +66,16 @@ describe('v92 w0 seams: the alerts\' roll-up shape', () => {
 });
 
 describe('v92 w0 seams: the letters\' gate', () => {
-  it('letterMayCome is true for every kind and noteLetter changes nothing', () => {
+  it('letterMayCome is true for every kind on a world without the gate field (the 9.1 schedules); Track Q (ruling 1777): noteLetter then adds only letterGate', () => {
     const w = makeTestWorld();
     const before = JSON.stringify(w);
-    for (const k of ['event', 'demand', 'request', 'card']) { expect(letterMayCome(w, k)).toBe(true); noteLetter(w, k); }
+    for (const k of ['event', 'demand', 'request', 'card']) expect(letterMayCome(w, k)).toBe(true);
     expect(JSON.stringify(w)).toBe(before);
+    noteLetter(w, 'event');
+    const after = JSON.parse(JSON.stringify(w));
+    expect(Object.keys(after.letterGate).sort()).toEqual(['lastDay', 'n', 'nextDay', 'served']);
+    delete after.letterGate;
+    expect(JSON.stringify(after)).toBe(before);
   });
 });
 

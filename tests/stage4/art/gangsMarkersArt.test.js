@@ -196,7 +196,8 @@ describe('s4 art pinned markers', () => {
     const w = makeTestWorld();
     const back = addRaw(w, 'well', 10, 10), front = addRaw(w, 'well', 11, 11);    // one behind the other on screen, zoomed out
     const cam = camOn(11, 11, 0.5);
-    const two = layoutMarkers(w, [{ code: 'no_road', id: back.id }, { code: 'no_road', id: front.id }], cam, view);
+    const near = { far: false };                                                   // 9.2 (Track Q, ruling 1779): at 0.5 and under the layout is the far one (one badge per row); this pins the near layout where it crowds
+    const two = layoutMarkers(w, [{ code: 'no_road', id: back.id }, { code: 'no_road', id: front.id }], cam, view, near);
     expect(two.map((m) => m.ids[0])).toEqual([back.id, front.id]);                // back first: the front is drawn last, asked first
     const [b, f] = two, stem = (m) => m.foot.y - m.y;
     expect(Math.hypot(b.x - f.x, b.y - f.y) >= 2 * MARKER.r).toBe(true);
@@ -204,7 +205,7 @@ describe('s4 art pinned markers', () => {
     expect(markerAt(two, f.x, f.y).ids).toEqual([front.id]);
     const crowd = [12, 13, 14, 15].map((k) => addRaw(w, 'well', k, k));            // six wells in a diagonal row, zoomed out
     const all = [back, front, ...crowd].map((x) => ({ code: 'no_road', id: x.id }));
-    const far = layoutMarkers(w, all, camOn(12, 12, 0.5), view);
+    const far = layoutMarkers(w, all, camOn(12, 12, 0.5), view, near);
     const merged = far.find((m) => m.count > 1);
     expect(Boolean(merged)).toBe(true);
     expect([merged.count, merged.ids]).toEqual([4, [crowd[3].id, crowd[2].id, crowd[1].id, crowd[0].id]]);   // front first
@@ -234,12 +235,13 @@ describe('s4 art pinned markers', () => {
     setRoad(w, 8, 9, 15, 9);
     const homes = [10, 11, 12].map((x) => addRaw(w, 'house', x, 10, { tier: 3, residents: 5, downTimer: 4 }));
     const cam = camOn(11, 10, 0.5);
-    const three = layoutMarkers(w, [], cam, view);
+    const near = { far: false };                                                    // 9.2 (Track Q, ruling 1779): the far zoom (0.6 and under) draws one badge per row; this pins the near layout where it crowds
+    const three = layoutMarkers(w, [], cam, view, near);
     expect(three.map((m) => [m.count, m.glyph, m.tone, [...m.ids].sort()])).toEqual([[3, 'down', 'warning', homes.map((h) => h.id).sort()]]);
     homes[2].downTimer = 0;
-    expect(layoutMarkers(w, [], cam, view).map((m) => m.count)).toEqual([1, 1]);   // two stay two
+    expect(layoutMarkers(w, [], cam, view, near).map((m) => m.count)).toEqual([1, 1]);   // two stay two
     const problem = addRaw(w, 'well', 13, 10);
-    const mixed = layoutMarkers(w, [{ code: 'understaffed', id: problem.id }], cam, view);
+    const mixed = layoutMarkers(w, [{ code: 'understaffed', id: problem.id }], cam, view, near);
     expect(mixed.map((m) => m.count).sort()).toEqual([1, 1, 1]);                  // a problem beside them: the three-in-one rule
     // the warning's footprint: half the wash and a thin ring, no white halo
     const draw = (tone) => {

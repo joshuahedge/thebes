@@ -201,7 +201,7 @@ describe('ui goals', () => {
     expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     r.cleanup();
   });
-  it('stacks under the banner and the legend, and Show me puts a building ghost on a free tile near the target', async () => {
+  it('stacks under the banner and the legend (9.2, Track Q: on the wide layout the strip is in the side panel, above the minimap), and Show me puts a building ghost on a free tile near the target', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     r.world.gold = -30; r.ui.alerts.refresh();
     r.store.set({ overlay: 'water' });
@@ -210,7 +210,7 @@ describe('ui goals', () => {
     expect(bottom('#banner')).toBeGreaterThan(top('#banner'));
     expect(bottom('#legend')).toBeGreaterThan(top('#legend'));
     expect(top('#legend') >= bottom('#banner')).toBe(true);
-    expect(top('#goals .goal-strip') >= bottom('#legend')).toBe(true);
+    expect(r.root.querySelector('#goals').parentNode.id).toBe('panel');   // 9.2 (Track Q, ruling 1777): was under the legend in the top left
     r.world.gold = 1000;                                              // out of debt, so the ghost's tile can be judged a fit
     r.world.goals.completed.push('road', 'plots');
     r.ui.refresh();

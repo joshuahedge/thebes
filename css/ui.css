@@ -1710,3 +1710,31 @@ body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }
    confirm dialog, the chapter card, the opened guidance rows. tests/v82/l/scroll.test.js fills each with long content at 375x667 and 150% text. */
 #sheet, .lesson-card, .picture-cards .pc-text, #lesson.open, .goal-strip.one-row.open, #tip .tip-row.open, #cheer .cheer.open { overscroll-behavior: contain; }
 #dialog .box { max-height: calc(100% - 72px); overflow-y: auto; overscroll-behavior: contain; }   /* content box: its own padding (16 + 22) and a margin to the screen's edge */
+/* Version 9.2 (Track Q, ruling 1792): Options' sections are details, their heading in a 44 px summary, as How to play's are. */
+.options-group > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; }
+.options-group > summary::-webkit-details-marker { display: none; }
+.options-group > summary::before { content: '▸'; flex: none; width: 1em; text-align: center; color: var(--teal); }
+.options-group[open] > summary::before { content: '▾'; }
+.options-group > summary > h3 { flex: 1 1 auto; margin: 0; padding-bottom: 2px; border-bottom: 2px solid var(--teal); font-family: var(--font); font-size: calc(12px * var(--ui-scale)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); text-align: left; }
+/* Version 9.2 (Track Q, ruling 1777): on the wide layout the goals strip and the rank bar (#goals) sit in the side panel above the minimap (createUI placeGoals), so the top
+   left keeps one banner and one tip. They fill the panel's width; the strip's buttons wrap under its words. */
+#panel > #goals { max-width: 100%; padding: 8px 8px 0; box-sizing: border-box; align-items: stretch; flex: none; }
+#panel > #goals .goal-strip { width: 100%; }
+#panel > #goals .threshold { align-self: stretch; }
+#panel > #goals .nudge-line { box-shadow: none; }
+/* In the 320 px panel the goal's words take a row to themselves (the label, the progress and the reward wrap round them), so the text keeps a column of 8em or more at every text size. */
+#panel > #goals .goal-strip .main { flex-wrap: wrap; row-gap: 0; }
+#panel > #goals .goal-strip .label { order: 0; }
+#panel > #goals .goal-strip .text { order: 1; flex: 1 1 100%; }
+#panel > #goals .goal-strip .chip { order: 2; }
+#panel > #goals .goal-strip .reward { order: 3; }
+/* Version 9.2 (Track Q, ruling 1792): the toast is parchment with an ink outline (the lapis band and its blocks go), docked where it was, above the tray and the corner buttons. */
+.toast { background: var(--parchment); background-image: none; color: var(--ink); box-shadow: var(--shadow), inset 0 0 0 2px var(--ink); }
+.toast button { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.toast button:focus-visible { outline-color: var(--ink); }
+.toast { padding-top: 6px; }
+/* New city's replace note says it in amber, a word that is also in its sentence (it is no colour alone). */
+.replace-note, .replace-note.muted { color: var(--amber-text); background: var(--amber-soft); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 6px 12px; }
+/* While a sheet fills the panel (body.panel-sheet) the goals strip steps aside, so the sheet keeps all the room under the minimap that it had before the strip lived here. */
+body.panel-sheet #panel > #goals { display: none; }
+

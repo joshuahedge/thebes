@@ -68,11 +68,10 @@ export function createScoreUi(ctx) {
   }
 
   const goTo = (kind) => store.set(openSheet(store.get(), kind));
-  // Seal this reign, Share score and Screenshot mode (spec 4.19: screenshot mode sits beside Share score).
+  // Seal this reign and Share score (Version 9.2, ruling 1791: Screenshot mode moved to Options > Display).
   const scoreActions = () => el('div', { class: 'actions score-actions' }, [
     button(SCORE_TEXT.sealReign, { class: 'seal-reign', onClick: () => goTo('sealReign') }),
     button(SCORE_TEXT.shareScore, { class: 'share-score', onClick: () => goTo('shareScore') }),
-    button(T.screenshotMode, { class: 'screenshot-mode quiet', onClick: () => ctx.screenshotMode() }),
   ]);
 
   // Feats (spec 4.19): their own group, after the score and just above the achievements, each with its exact condition
@@ -171,7 +170,7 @@ export function createScoreUi(ctx) {
       el('p', { class: 'honour', text: SHARE_TEXT.honourHelp }),
       el('pre', { class: 'emoji-row', text: rows }),
       input,
-      el('div', { class: 'actions' }, [sharePicture, shareText, button(T.screenshotMode, { class: 'screenshot-mode quiet', onClick: () => ctx.screenshotMode() })]),
+      el('div', { class: 'actions' }, [sharePicture, shareText]),   // Version 9.2 (Track Q, ruling 1791): Screenshot mode is in Options > Display
     );
   }
 

@@ -20,7 +20,7 @@ describe('v91 h habits: the Steady plays as on 9.0', () => {
   it('builds the same year-6 city with adapt on: Capital on day 600, 50,457 gold, lowest 255, score 360', () => {
     const r = runCapital(CAPITAL_YEARS * 12, { adapt: true });
     expect(r.habit).toBe(null);
-    expect([r.capitalMonth * 30, Math.round(r.w.gold), Math.round(r.lowestGold), scoreOf(r.w).total]).toEqual([600, 50457, 255, 360]);
+    expect([r.capitalMonth * 30, Math.round(r.w.gold), Math.round(r.lowestGold), scoreOf(r.w).total]).toEqual([600, 50657, 255, 360]);   // WAVE2-PIN 9.2 Track Q (ruling 1777): was 50,457 gold (the court's gate moves the letters' gold by 200)
     expect(serialize(r.w) === serialize(capitalRun().w)).toBe(true);
   });
 });

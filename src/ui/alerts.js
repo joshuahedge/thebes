@@ -9,7 +9,7 @@
 // A raid warning is its countdown chip from the start, and the chip's words open the raid sheet (the tribute sheet), which
 // holds the arrival, the defence and Pay tribute; there is no Shrink and no "+N more", and the Map badge counts every alert
 // the banner is not showing, criticals included. Wide screens keep the full banner.
-import { alertsFor } from '../sim/alerts.js';
+import { alertsFor, rollUpAlerts } from '../sim/alerts.js';
 import { tributeQuote } from '../sim/raids.js';
 import { summaryData } from './hud.js';
 import { noteView } from '../render/overlays.js';
@@ -106,6 +106,8 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
   let lastSig = null;
   let step = 0;                     // the rolled-up fire row's View: which fire it shows next
   let shown = 0;                    // how many alerts the banner stands for (every fire when it is the fires' row)
+  const rowsMemo = new WeakMap();   // a list of alerts -> its rows (refresh makes a new list; the badge and the sheet ask often)
+  const rowsOf = (list) => { let r = rowsMemo.get(list); if (!r) { r = rollUpAlerts(list); rowsMemo.set(list, r); } return r; };
   const collapsed = new Set();      // raid warnings (by arrival day) the player shrank to the chip
 
   // Ruling 9: one announcer (#live, no role="alert" on the rows); a change that brings a new critical is announced at
@@ -222,8 +224,10 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
     refresh: () => refresh(false),
     // The Map badge's count: on wide screens the warnings (the banner's "+N more" counts the other criticals); on phones
     // every alert the banner is not showing, criticals included (ruling 167).
-    count: () => (phone() ? current.all.length - shown : current.ordinary.length),
+    // Version 9.2 (Track Q, ruling 1775): it counts rows, one per cause (the list's rows), and the banner is one row.
+    count: () => (phone() ? rowsOf(current.all).length - (shown ? 1 : 0) : rowsOf(current.ordinary).length),
     list: () => current.all,
+    rows: () => rowsOf(current.all),
     critical: () => current.critical,
     action: (alert, kind) => onAction(alert, kind),
   };

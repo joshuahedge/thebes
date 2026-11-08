@@ -130,13 +130,13 @@ describe('s45 forecast (cards and the confirm bar)', () => {
       }
     }
   });
-  it('shows the card line in the tray (a card of a locked building shows its lock, not a bill)', async () => {
+  it('shows the price alone on the tray card (9.2, Track Q, ruling 1792: the monthly cost and workers are in the confirm bar, below)', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     try {
       r.store.set({ dock: 'tray', category: 'food' });
       const farm = r.root.querySelector('.card[data-item="farm_grain"]');
-      expect(farm && farm.querySelector('.upkeep').textContent).toBe('Costs 46 a month · 10 workers');
-      expect(farm.querySelector('.upkeep').title).toBe(S45_TEXT.upkeepTitle(monthlyBill('farm_grain')));
+      expect(Boolean(farm) && farm.querySelector('.upkeep')).toBe(null);
+      expect(farm.querySelector('.cost').textContent.includes('gold')).toBe(true);
     } finally { r.cleanup(); }
   });
   it('says "Costs N a month" and "Monthly balance becomes +X or -X" in the bar, computed by the sim, with a staffed workforce or none', () => {
