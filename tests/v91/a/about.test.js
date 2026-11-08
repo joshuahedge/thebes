@@ -12,6 +12,7 @@ import { readBuildStamp } from '../../../src/ui/s46/whatsNew.js';
 import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { devScene, measureRows } from '../../../src/dev/scenes.js';
+import { budgetChecks } from '../../ui/mobileBudget.test.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { mount } from '../../helpers/dom.js';
@@ -43,7 +44,8 @@ describe('v91 a about: the lines', () => {
     await flush(); await flush();
     const version = r.body.querySelector('.version').textContent;
     expect(version.startsWith(`Version ${APP_VERSION}`)).toBe(true);
-    if (stamp) expect(version).toBe(`Version ${APP_VERSION} · build ${stamp}`);
+    expect(Boolean(stamp)).toBe(true);                         // the build stamp must be readable off sw-files.js, or the build line is not being tested
+    expect(version).toBe(`Version ${APP_VERSION} · build ${stamp}`);
     r.cleanup();
   });
 
@@ -130,10 +132,7 @@ describe('v91 a about: Options with About open on a phone (the mobile budget)', 
           if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} > ${sheet.clientWidth})`);
           about.scrollIntoView({ block: 'end' });
           const m = measureRows(r.root);
-          const large = textSize >= 125;
-          const limit = large ? 0.25 : 0.2;                                      // the sheet-open line of tests/ui/mobileBudget.test.js
-          if (m.rowsEnd / m.height > limit + 0.005) wrong.push(`${at}: the rows end at ${Math.round((m.rowsEnd / m.height) * 100)}% (limit ${Math.round(limit * 100)}%)`);
-          if (!Object.keys(m.layers).every((k) => k === 'alert')) wrong.push(`${at}: rows ${Object.keys(m.layers).join('+')} beside an open sheet`);
+          for (const c of budgetChecks('sheet', m)) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);   // the suite's own sheet-open budget, not a copy of it
         } finally { r.cleanup(); }
       }
     }

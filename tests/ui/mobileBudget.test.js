@@ -75,7 +75,7 @@ const SET_UP_WANTED = {
 };
 
 // The budget checks for one measurement: [{ id, ok, got, limit }].
-function budgetChecks(scene, m) {
+export function budgetChecks(scene, m) {
   const at = `${scene} ${m.width}x${m.height} ${m.textSize}%`;
   const portrait = m.layout === 'portrait', sheet = m.sheet !== null;
   const large = m.textSize >= 125;                   // the spec's budget names 100% and 150%; 125% is held to the larger-text line
