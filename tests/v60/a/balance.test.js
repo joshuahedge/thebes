@@ -72,7 +72,7 @@ describe('v60 a balance great work', () => {
     expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3, 4]);
     expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.map((o) => o.good));
     expect(r.won !== null).toBe(true);
-    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(18);
+    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(17);   // WAVE2-PIN 9.2 Track S (ruling 1808): was 18; won in year 17 now
     expect(yearOf(r.won.day)).toBeLessThanOrEqual(20);
     expect(r.w.reign.won).toBe(r.won.day);
     expect(r.w.reign.seal.won).toBe(true);

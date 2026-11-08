@@ -469,10 +469,11 @@ export function difficultyHint(level) {
   const { cost, risk, raids } = DIFFICULTIES[level];
   const by = Math.abs(Math.round((risk - 1) * 100));
   const way = risk < 1 ? 'slower' : 'faster';
-  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${way}.`;
-  const danger = raids === false ? `No raids, sickness or thefts. ${fire}`
+  // Version 9.2 (Track S, ruling 1806): Peaceful still has Low Niles, locusts and fires, rarer (HAZARD_LEVELS chance, risk); Relaxed says its weather comes about half as often too.
+  const weather = b1Levels[level].chance < 1 ? ` Low Niles and locusts come ${Math.round(b1Levels[level].chance * 100)}% as often.` : '';
+  const danger = raids === false ? 'No raids, sickness or thefts. Low Niles, locusts and fires still come, rarer.'
     : risk === 1 ? 'Raids, fire, sickness and theft risk as usual.'
-      : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. Fire, sickness and theft risk build ${by}% ${way}.`;
+      : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. Fire, sickness and theft risk build ${by}% ${way}.${weather}`;
   const pct = Math.round((cost - 1) * 100);
   const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
   const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
@@ -1016,7 +1017,7 @@ export function scoreReasonText(r) {
 export const scoreChipText = (total) => `${SCORE_TEXT.score} ${total}`;
 export const medalText = (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : SCORE_TEXT.noMedal);
 export const nextMedalText = (next) => (next ? `${plural(next.points, 'point', 'points')} to ${SCORE_TEXT.medals[next.medal]}` : SCORE_TEXT.topMedal);
-export const partBarLabel = (part, n) => `${SCORE_TEXT.parts[part]}: ${progressText(n, 100)}`;
+export const partBarLabel = (part, n, cap = 100) => `${SCORE_TEXT.parts[part]}: ${progressText(n, cap)}`;   // Version 9.2 (Track S, ruling 1813): the part's own ceiling under score v3
 export const factorText = (raw, factor, level) => `Parts ${raw} × ${factor} on ${DIFFICULTY_NAMES[level] || level}`;
 // The confirm bar's score line: the parts that would change by a whole point or more ("+3 Culture, −1 Safety"); '' for none.
 export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p) => Math.abs(delta[p] || 0) >= 1)
@@ -4381,10 +4382,10 @@ export const V90_D_TEXT = {
   },
   weakness: {
     builder: () => `taxes ${d90Pct(d90Traits.builder.taxes)} lower`,
-    unconquered: () => `the first raid warning comes ${d90Traits.unconquered.sooner} days sooner`,
+    unconquered: () => `every raid warning comes ${d90Traits.unconquered.sooner} days sooner`,   // Version 9.2 (Track S, ruling 1802): was the first warning only, 100 days; edited in place because the dynasty's help line reads it when this file loads
     bountiful: () => `a low flood takes ${d90Traits.bountiful.floodLoss === 1.5 ? 'half again as much' : `${d90Traits.bountiful.floodLoss}x as much`} of the harvest`,
     merchant: () => `workshops make ${d90Pct(d90Traits.merchant.workshops)} less`,
-    generous: () => `High taxes take ${d90Traits.generous.high}x, not ${g84Rates.high.factor}x`,
+    generous: () => `taxes ${d90Pct(d90Traits.generous.taxes)} lower at every rate, and High taxes take ${d90Traits.generous.high}x, not ${g84Rates.high.factor}x`,   // Version 9.2 (Track S, ruling 1803): the lasting 5% added
   },
   traitLine: (id) => (V90_D_TEXT.strength[id] ? `${V90_D_TEXT.strength[id]()}; ${V90_D_TEXT.weakness[id]()}` : 'a plain start, with no strength and no weakness'),
   // The new city's first-screen line (a caption in the guidance row) and the score sheet's header.
@@ -4750,6 +4751,12 @@ export function rolledWords(alert, world) {
 }
 
 // Version 9.2, Track S
+// (The two weaknesses that changed, rulings 1802 and 1803, are edited in place in V90_D_TEXT above: the dynasty's help line reads them while this file loads.)
+export const S92_S_TEXT = {
+  // A monument site whose sheet has not been opened for a game month (src/ui/monumentSheet.js): one caption, with how much is built.
+  siteQuiet: (type, percent) => `${buildingName(type)}: ${percent}% built, not looked at for a month`,
+  siteQuietWhy: 'Open its sheet to see what it needs.',
+};
 
 // Version 9.2, Track D
 

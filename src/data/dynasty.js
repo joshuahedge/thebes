@@ -13,8 +13,8 @@
 //   generous     month ends at the Low tax rate, over month ends from Town; at least `months`, with High in at most `highMax` of them
 export const TITLES = [
   { id: 'unconquered', bar: 5 },
-  { id: 'builder', bar: 4600 },
-  { id: 'merchant', bar: 0.40 },
+  { id: 'builder', bar: 8000 },   // Version 9.2 (Track S, ruling 1804): was 4600, which the great-work run cleared far above every other title's fit
+  { id: 'merchant', bar: 0.25 },   // Version 9.2 (Track S, ruling 1805): was 0.40
   { id: 'bountiful', bar: 0.90, months: 24 },
   { id: 'generous', bar: 0.50, months: 24, highMax: 0.1 },
 ];
@@ -24,7 +24,7 @@ export const TITLES = [
 //   crews      monuments.js baseDayUnits: the units a crew lays a day
 //   taxes      economy.js monthFigures: the month's taxes, on the rate's factor (the score's taxes term keeps reading taxesNormal)
 //   pay        costs.js soldiersPayOf: every unit's pay, before the captured weapons' share (ruling 1568)
-//   sooner     raids.js: the first warning comes this many days sooner after the clock starts
+//   sooner     raids.js: every warning comes this many days sooner (the first after the clock starts, and each later one: laterWarnDay)
 //   farms      production.js: a farm's daily rate
 //   floodLoss  flood.js levelHarvest (so production.js harvestFactor and harvestQuote): a low flood's loss, times this
 //   buys       trade.js tradePrices: what a partner pays for each good it buys from the city
@@ -33,10 +33,10 @@ export const TITLES = [
 //   high       palace.js taxFactorOf: the High rate's factor in place of TAX_RATES.high's
 export const TRAITS = {
   builder: { crews: 1.15, taxes: 0.95 },
-  unconquered: { pay: 0.8, sooner: 100 },
+  unconquered: { pay: 0.8, sooner: 30 },   // Version 9.2 (Track S, ruling 1802): was sooner 100 on the first warning only; now every warning, 30 days
   bountiful: { farms: 1.15, floodLoss: 1.5 },
   merchant: { buys: 1.15, workshops: 0.85 },
-  generous: { arrivals: 1.2, high: 1.15 },
+  generous: { arrivals: 1.2, high: 1.15, taxes: 0.95 },   // Version 9.2 (Track S, ruling 1803): taxes x0.95 at every rate, a cost that lasts (High 1.15 alone cost a city that never sets High nothing)
   steady: {},
 };
 

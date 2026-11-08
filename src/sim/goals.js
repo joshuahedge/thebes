@@ -78,6 +78,7 @@ export function goalMet(world, need) {
     case 'finished': return finishedOf(world, need.type) >= (need.n || 1);
     case 'unlocked': return Number.isInteger(world.prestigeUnlocks[need.type]);
     case 'crewNear': return crewNear(world);
+    case 'tally': return (world.tally[need.key] || 0) >= (need.n || 1);                // Version 9.2 (Track S): a count the world keeps (the luxury goal: luxuryBought)
     case 'foods': return foodKinds(world) >= need.n;                                    // Version 5.0 (Task 7)
     case 'desirability': return streetMet(world, need.tier);
     case 'courtAnswered': return world.court.guided === 'answered' || world.tally.cardsPlayed > 0;   // Stage 4.6 (ruling 380): the court's first letter has been answered: the guided request (sent, refused or missed), or a card if one came first

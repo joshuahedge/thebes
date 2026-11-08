@@ -1,8 +1,11 @@
 // The city score (spec 4.19), all tunable. Five parts, each 0-100, computed from the city's state at every month's
 // end (src/sim/score.js scoreOf); the city score is their sum times the difficulty's factor, rounded. Records keep the
 // version, so a change to any formula or weight here bumps SCORE_VERSION. Stage 4 made it 2 (score v2): the fifth part,
-// Monuments, and medals at 200, 300 and 400 of 500 (rulings 202-204).
-export const SCORE_VERSION = 2;
+// Monuments, and medals at 200, 300 and 400 of 500 (rulings 202-204). Version 9.2 made it 3 (Track S, rulings 1795-1799): a term that has not started
+// counts nothing and is left out of the part's ceiling, the growth term runs to the Seat of the Two Lands, the Monuments part is measured against all
+// eleven kinds, and the medals sit at 240, 320 and 400.
+import { PRESTIGE } from './monuments.js';
+export const SCORE_VERSION = 3;
 
 export const SCORE_PARTS = ['people', 'prosperity', 'culture', 'safety', 'monuments'];
 // Score v1's parts (Stage 3): a v1 record, history row or t1 link has these four only.
@@ -17,14 +20,16 @@ export const SCORE_WEIGHTS = {
   monuments: { prestige: 100 },
 };
 
-// The terms' scales (spec 4.19). growth = (milestones reached after Village + the fraction to the next) / growthSteps;
+// The terms' scales (spec 4.19). growth = (milestones reached after Village + the fraction to the next) / growthSteps (v3: the ranks after Village up
+// to the Seat, 7; v2 stopped at Capital, 5);
 // homes = (resident-weighted average tier - 1) / homesSpan; taxes = last month's tax per person / taxPerPerson;
 // jobs = 1 - (unemployment - jobsFull) / (jobsZero - jobsFull), clamped; treasury = 1 at 0 gold or more, falling to 0 at
 // treasuryZero; trade = open routes / routes; pleasant = average home desirability / pleasant; record = 1 - burned x
 // burnedPenalty - raids lost x raidLostPenalty over the last recordDays, at least 0; prestige = sqrt(prestige /
-// prestigeFull), at most 1 (PRESTIGE.scoreFull in src/data/monuments.js).
+// prestigeFull), at most 1 (PRESTIGE.scoreFull in src/data/monuments.js, the sum of every kind). v3: a term that has not started counts nothing (fire
+// safety until Town, defence until the raid clock starts, and on Peaceful never), see TERMS_START below.
 export const SCORE_TERMS = {
-  growthSteps: 5,
+  growthSteps: 7,
   homesSpan: 8,
   taxPerPerson: 5,
   jobsFull: 0.05,
@@ -35,7 +40,7 @@ export const SCORE_TERMS = {
   burnedPenalty: 0.2,
   raidLostPenalty: 0.5,
   recordDays: 360,
-  prestigeFull: 700,
+  prestigeFull: PRESTIGE.scoreFull,
 };
 
 // Each difficulty's score factor (spec 4.18): the most a city can score is 500 times it.
@@ -43,9 +48,16 @@ export const SCORE_FACTOR = { peaceful: 0.7, relaxed: 0.8, normal: 1, hard: 1.25
 
 // Medals on the parts' total before the factor (spec 4.19); shown in city-score points (times the factor). Score v1's
 // were 160, 240 and 320 of 400 (the same 40%, 60% and 80%).
-export const MEDALS = [
+// Score v2's were 200, 300 and 400 of 500. Version 9.2 (Track S, ruling 1796): v3's are 240, 320 and 400, measured on the scripted runs so a new village
+// is under Bronze and a reasonable Capital reaches Silver or Gold (the table is in the rulings note).
+export const MEDALS_V2 = [
   { id: 'bronze', at: 200 },
   { id: 'silver', at: 300 },
+  { id: 'gold', at: 400 },
+];
+export const MEDALS = [
+  { id: 'bronze', at: 240 },
+  { id: 'silver', at: 320 },
   { id: 'gold', at: 400 },
 ];
 // Each score version's medals and parts (spec 4.19: a best keeps its own version and is labelled "older scoring"). A
@@ -53,8 +65,8 @@ export const MEDALS = [
 // 400), so its medal is read on its own scale and never compared with a v2 total.
 export const MEDALS_BY_VERSION = {
   1: [{ id: 'bronze', at: 160 }, { id: 'silver', at: 240 }, { id: 'gold', at: 320 }],
-  2: MEDALS,
-  3: MEDALS,   // Version 9.2 wave 0 (ruling 1752): score v3's slot, v2's numbers until Track S fills it and flips SCORE_VERSION
+  2: MEDALS_V2,
+  3: MEDALS,   // Version 9.2 (Track S, ruling 1796): score v3's own
 };
 export const PARTS_BY_VERSION = { 1: SCORE_PARTS_V1, 2: SCORE_PARTS, 3: SCORE_PARTS };
 
@@ -75,16 +87,16 @@ export const SPLITS = [...SPLIT_MILESTONES, 'pyramids', 'great_pyramid'];
 export const RECORDS_KEY = 'thebes.records';
 export const RECORDS_MAX = 200;
 
-// The share link (spec 4.19): https://joshuahedge.github.io/thebes/#t2.<seed>.<p|r|n|h>.<parts>.<splits>.<check>. A link is
+// The share link (spec 4.19): https://joshuahedge.github.io/thebes/#t3.<seed>.<p|r|n|h>.<parts>.<splits>.<check>. A link is
 // written in `format`; formats lists every one that still opens: each with its score version, parts and splits. A t1
 // link (four parts, five splits) opens as older scoring (ruling 203).
 export const SHARE = {
   base: 'https://joshuahedge.github.io/thebes/',
-  format: 't2',
+  format: 't3',
   formats: {
     t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES },
     t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS },
-    t3: { version: 3, parts: SCORE_PARTS, splits: SPLITS },   // Version 9.2 wave 0: read as t2 until Track S fills it
+    t3: { version: 3, parts: SCORE_PARTS, splits: SPLITS },   // Version 9.2 (Track S, ruling 1797): written from now on; read as t2 is
   },
   difficulty: { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' },
   checkLength: 4,

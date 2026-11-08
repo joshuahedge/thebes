@@ -159,9 +159,11 @@ export function explainStat(world, kind, deps = {}) {
     const s = deps.score ? deps.score() : null;
     Object.assign(out, { title: s ? `${name} ${s.total}` : name, what: B.score.what });
     if (s) {
-      for (const p of SCORE_PARTS) out.lines.push([SCORE_TEXT.parts[p], B.score.of(Math.round(s.parts[p]))]);
-      const weakest = SCORE_PARTS.reduce((a, p) => (s.parts[p] < s.parts[a] ? p : a), SCORE_PARTS[0]);
+      const cap = (p) => (s.ceilings ? s.ceilings[p] : 100);   // Version 9.2 (Track S): the part's ceiling, without the terms not started
+      for (const p of SCORE_PARTS) out.lines.push([SCORE_TEXT.parts[p], B.score.of(Math.round(s.parts[p]), cap(p))]);
+      const weakest = SCORE_PARTS.reduce((a, p) => (cap(p) - s.parts[p] > cap(a) - s.parts[a] ? p : a), SCORE_PARTS[0]);
       out.notes.push(B.score.weakest(SCORE_TEXT.parts[weakest], score4ReasonText(s.reasons[weakest])));
+      for (const w of s.waiting || []) out.notes.push(B.score.waiting(w));
     }
   }
   if (!out.action && deps.openSummary) out.action = cityAction(kind, deps);

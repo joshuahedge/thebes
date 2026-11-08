@@ -80,17 +80,17 @@ describe('s3 contract data', () => {
     expect(DANGER_MOOD).toEqual({ fireLastMonth: -4, burnedEach: -2, burnedMax: -10, burnedDays: 180, raidBeaten: 4, raidLost: -8, raidDays: 180, victoryDays: 90 });   // Version 8.4 (ruling 1488): a beaten raid is a Victory row, +4 for 90 days (was -3 for 180)
   });
   it('sets the score (score v2 from Stage 4: tests/stage4/contract): parts whose weights add up to 100, a factor per level, medals and the share link', () => {
-    expect(SCORE_VERSION).toBe(2);
+    expect(SCORE_VERSION).toBe(3);   // Version 9.2 (Track S): score v3
     expect(SCORE_PARTS).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
     expect(Object.keys(SCORE_WEIGHTS)).toEqual(SCORE_PARTS);
     for (const part of SCORE_PARTS) expect([part, Object.values(SCORE_WEIGHTS[part]).reduce((a, b) => a + b, 0)]).toEqual([part, 100]);
-    expect(SCORE_TERMS).toEqual({ growthSteps: 5, homesSpan: 8, taxPerPerson: 5, jobsFull: 0.05, jobsZero: 0.30, treasuryZero: -500, routes: 2, pleasant: 50, burnedPenalty: 0.2, raidLostPenalty: 0.5, recordDays: 360, prestigeFull: 700 });
+    expect(SCORE_TERMS).toEqual({ growthSteps: 7, homesSpan: 8, taxPerPerson: 5, jobsFull: 0.05, jobsZero: 0.30, treasuryZero: -500, routes: 2, pleasant: 50, burnedPenalty: 0.2, raidLostPenalty: 0.5, recordDays: 360, prestigeFull: 1280 });   // 9.2 (Track S): growthSteps 7 (to the Seat), prestigeFull 1,280 (every kind)
     expect(SCORE_FACTOR).toEqual({ peaceful: 0.7, relaxed: 0.8, normal: 1, hard: 1.25 });
     expect(Object.keys(SCORE_FACTOR).sort()).toEqual([...DIFFICULTY_ORDER].sort());
-    expect(MEDALS).toEqual([{ id: 'bronze', at: 200 }, { id: 'silver', at: 300 }, { id: 'gold', at: 400 }]);
+    expect(MEDALS).toEqual([{ id: 'bronze', at: 240 }, { id: 'silver', at: 320 }, { id: 'gold', at: 400 }]);   // 9.2 (Track S): v3's medals
     expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1, 6).map((m) => m.id));       // Version 6.0 (Track A): the ranks beyond Capital are not score splits
     expect([RECORDS_KEY, RECORDS_MAX]).toEqual(['thebes.records', 200]);
-    expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't2', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
+    expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't3', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
     expect(FEATS.length).toBe(12);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js); Stage 4 adds two
   });
   it('sets the ambient numbers of ruling 133', () => {

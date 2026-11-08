@@ -232,5 +232,6 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     expect(at('// Version 9.2, Track L') > at('// ── end v91 h ──')).toBe(true);
     // 9.2 (Track Q onward): the tracks write under their own 9.2 headers, so only what lies between the 9.1 end line and the first 9.2 header is pinned empty.
     expect(text.slice(at('// ── end v91 h ──'), at('// Version 9.2, Track L')).replace(/^\/\/.*$/gm, '').trim()).toBe('');
+    // 9.2 (Track S): the 9.2 sections fill as their tracks merge, so what follows the end line is no longer pinned empty (tests/v92/w0 pins the headers' order).
   });
 });

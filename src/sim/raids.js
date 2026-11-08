@@ -99,7 +99,7 @@ import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
 import { raidSpoils, spoilsMonth } from './spoils.js';
 import { scoutsAt } from './scouts.js';
-import { firstWarnAfterOf } from './dynasty.js';
+import { firstWarnAfterOf, warnSoonerOf } from './dynasty.js';
 import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -240,7 +240,7 @@ export const tributeFor = (world, size) => Math.round(favourTributeFactor(world)
 export function laterWarnDay(world, fromDay) {
   const span = RAIDS.laterMax - RAIDS.laterMin + 1;
   const warn = fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
-  return warn + leanWait(warn + RAIDS.warningDays);
+  return warn + leanWait(warn + RAIDS.warningDays) - warnSoonerOf(world);   // Version 9.2 (Track S, ruling 1802): the Unconquered's every warning comes sooner, whatever the lean wait gave
 }
 
 // The first day of Shemu as a day of the year (0-359), from SEASONS (src/data/tips.js): the first Shemu month that follows a month of another season.

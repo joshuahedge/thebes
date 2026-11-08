@@ -3,14 +3,14 @@
 // runMonth stores each month's score and parts in the history row (src/sim/clock.js).
 //
 // Each part is 0-100, the weighted sum of terms that are each 0 to 1 (SCORE_WEIGHTS, SCORE_TERMS in data/scoring.js):
-//   people      60 growth (milestones after Village + the fraction to the next by people now, / 5; 1 at Capital)
+//   people      60 growth (milestones after Village + the fraction to the next by people now, / 7; 1 at the Seat)
 //               + 40 homes ((the residents' average tier - 1) / 8)
 //   prosperity  30 taxes (last month's tax per person / 5) + 30 jobs (full at 5% jobless, 0 at 30%)
 //               + 20 treasury (1 at 0 gold or more, 0 at -500) + 20 trade (open routes / 2)
 //   culture     25 each: the share of lived-in homes a working temple, booth and bazaar reach, and pleasant (the
 //               homes' average desirability / 50)
-//   safety      40 fire (the share of buildings that can burn a staffed firehouse covers; 1 before Town) + 40 defence
-//               ((working towers + soldiers / 3) / the towers a raid sized now needs; 1 before the raid clock and on
+//   safety      40 fire (the share of buildings that can burn a staffed firehouse covers; counts from Town) + 40 defence
+//               ((working towers + soldiers / 3) / the towers a raid sized now needs; counts from the raid clock, never on
 //               Peaceful) + 20 record (1 - 0.2 a building burned and 0.5 a raid lost in the last 360 days)
 // A city with no lived-in homes scores 0 on homes and on every culture term.
 //
@@ -40,6 +40,7 @@ import { desirabilityField, houseDesirability } from './desirability.js';
 import { openRoutes } from './trade.js';
 import { canBurn, fireStarted, fireCoverage } from './fire.js';
 import { FIRE } from '../data/fire.js';
+import { RAIDS } from '../data/raids.js';
 import { baseRaidSize, towersNeeded, workingTowers } from './raids.js';
 import { raidsOn } from './costs.js';
 
@@ -74,9 +75,9 @@ function peopleTerms(world, lived) {
   const i = milestoneIndex(world.milestone);
   const pop = population(world);
   let growth;
-  // Version 6.0 (Track A, ruling 659): the growth term is full at Capital (growthSteps milestones after Village) as before; the ranks beyond it
-  // add nothing to the score (the great temple's sealed score is the reign's prize).
-  if (i >= MILESTONES.length - 1 || i >= T.growthSteps) growth = { value: 1, reason: null };
+  // Version 9.2 (Track S, ruling 1795; score v3): the growth term runs to the Seat of the Two Lands (growthSteps = the ranks after Village, 7), so the
+  // two ranks beyond Capital add to the score as the others do. Version 6.0's cap at Capital (ruling 659) is lifted.
+  if (i >= MILESTONES.length - 1) growth = { value: 1, reason: null };
   else {
     const from = MILESTONES[i].population, next = MILESTONES[i + 1];
     const frac = clamp01((pop - from) / (next.population - from));
@@ -162,16 +163,19 @@ function sideOf(all, some) {
 }
 
 // Safety: firehouse cover, defence against a raid sized now, and the last year's record.
+// Version 9.2 (Track S, ruling 1795; score v3): a term that has not started counts nothing (started: false) and is left out of its part's ceiling, so
+// the score only grows as terms start: fire safety counts from Town, defence from the day the raid clock starts, and on Peaceful never.
 function safetyTerms(world) {
-  let fire = { value: 1, reason: null };
+  let fire = { value: 0, reason: null, started: false };
   if (fireStarted(world)) {
+    fire = { value: 1, reason: null };
     const all = allBuildings(world);
     const burnable = all.filter(canBurn);
     const cover = fireCoverage(world);                  // once: staffedCover's rule (coverage >= FIRE.staffedAt) per building
     const open = burnable.filter((b) => !((cover.get(b.id) || 0) >= FIRE.staffedAt));
     if (burnable.length) fire = { value: (burnable.length - open.length) / burnable.length, reason: { code: 'fire_cover', n: open.length, dir: open.length ? sideOf(burnable, open) : null } };
   }
-  let defence = { value: 1, reason: null };
+  let defence = { value: 0, reason: null, started: false };
   if (raidsOn(world) && world.raid.clockDay !== null) {
     const need = towersNeeded(baseRaidSize(world));   // before favour's step: favour never moves the score (rulings 344, 441)
     // Ruling 414 (344): only foot soldiers count here, so archers and chariots (Stage 4.6) leave every score as it was.
@@ -191,17 +195,29 @@ function safetyTerms(world) {
 }
 
 // A part from its terms: round(sum of weight x term), and the reason of the term that lost the most points.
+// Version 9.2 (score v3): the part's ceiling is the weights of the terms that have started; a term that has not counts nothing and loses nothing.
 function partOf(part, terms) {
   const weights = SCORE_WEIGHTS[part];
-  let sum = 0, worst = null, worstLoss = 0;
+  let sum = 0, worst = null, worstLoss = 0, ceiling = 0;
   for (const [term, w] of Object.entries(weights)) {
     const t = terms[term];
+    if (t.started === false) continue;
+    ceiling += w;
     sum += w * t.value;
     const loss = w * (1 - t.value);
     if (loss > worstLoss + 1e-9) { worstLoss = loss; worst = t.reason; }
   }
   const value = Math.round(sum);
-  return { value, reason: value >= 100 ? null : worst };
+  return { value, ceiling, reason: value >= ceiling ? null : worst };
+}
+
+// The terms that have not started yet, for the explainer: [{ part, term, from }], from the milestone the term counts from ('town' for fire safety),
+// the people the raid clock waits for ({ people }) or null when it never starts (Peaceful's defence).
+function waitingOf(world) {
+  const out = [];
+  if (!fireStarted(world)) out.push({ part: 'safety', term: 'fire', from: FIRE.startsAt });
+  if (!(raidsOn(world) && world.raid.clockDay !== null)) out.push({ part: 'safety', term: 'defence', from: raidsOn(world) ? { people: RAIDS.clockPeople } : null });
+  return out;
 }
 
 // The prestige a kind gives in all (its courses' share and its completion share).
@@ -253,6 +269,8 @@ export function monumentPreview(world, type) {
 
 // The score now: { version, total, raw, factor, parts, reasons, medal, next }
 //   parts    { people, prosperity, culture, safety, monuments }, each a whole number 0-100 (spec 4.19, data/scoring.js)
+//   ceilings (v3) each part's most so far: 100 less the weights of the terms that have not started (safety is 20 before Town, 60 from Town to the raid clock)
+//   waiting  (v3) the terms not started: [{ part, term, from }] (waitingOf above)
 //   raw      the parts' sum (0-500); total: round(raw x factor), the city score
 //   reasons  per part, null or { code, ... }: the term that lost the part the most points, for its reason line
 //            (codes and their fields above; the words live in SCORE_TEXT in src/ui/text.js)
@@ -267,11 +285,11 @@ export function scoreOf(world) {
     monuments: partOf('monuments', monumentsTerms(world)),
   };
   const parts = zeroParts();
-  const reasons = {};
-  for (const p of SCORE_PARTS) { parts[p] = all[p].value; reasons[p] = all[p].reason; }
+  const reasons = {}, ceilings = {};
+  for (const p of SCORE_PARTS) { parts[p] = all[p].value; reasons[p] = all[p].reason; ceilings[p] = all[p].ceiling; }
   const raw = SCORE_PARTS.reduce((s, p) => s + parts[p], 0);
   const factor = scoreFactor(world);
-  return { version: SCORE_VERSION, total: Math.round(raw * factor), raw, factor, parts, reasons, medal: medalFor(raw), next: nextMedal(world, raw) };
+  return { version: SCORE_VERSION, total: Math.round(raw * factor), raw, factor, parts, ceilings, waiting: waitingOf(world), reasons, medal: medalFor(raw), next: nextMedal(world, raw) };
 }
 
 // What placing a building of this type at (x, y) would change, counting it as staffed: { people, prosperity, culture,

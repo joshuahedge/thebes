@@ -21,7 +21,7 @@ import { TIERS } from '../../src/data/housing.js';
 
 const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town'];   // Stage 4.5 added profit after the temple
 const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
-  'great_city', 'linen', 'third_food', 'villa_street', 'villas', 'capital', 'jewellery', 'estate_street', 'estate'];   // Version 5.0 (Task 7): a third food and the two streets
+  'great_city', 'linen', 'third_food', 'villa_street', 'villas', 'luxury_route', 'capital', 'jewellery', 'estate_street', 'estate'];   // Version 5.0 (Task 7): a third food and the two streets; 9.2 (Track S): the luxury route
 const DANGER = ['firehouse', 'physician', 'defences', 'police_post'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js), and Stage 4.5's physician and police post (tests/stage45/threatsUi.test.js)
 const MONUMENTS4 = GOALS.filter((g) => g.chapter === 'monuments').map((g) => g.id);   // Stage 4's chain goals (tests/stage4/score/goals.test.js)
 const REIGN = GOALS.filter((g) => g.chapter === 'reign').map((g) => g.id);   // Version 6.0 (Track A)'s goals beyond Capital (tests/v60/a)
@@ -43,7 +43,7 @@ function town() {
 describe('sim goals and rewards for Stage 2', () => {
   it('keeps the opening chain and goes on from Town in two chapters, one new need at a time', () => {
     expect(GOALS.filter(notDanger).map((g) => g.id)).toEqual([...STAGE1, ...STAGE2]);
-    expect(GOALS.filter(notDanger).slice(10).map((g) => g.chapter)).toEqual([...Array(6).fill('goods'), ...Array(12).fill('grand')]);
+    expect(GOALS.filter(notDanger).slice(10).map((g) => g.chapter)).toEqual([...Array(6).fill('goods'), ...Array(13).fill('grand')]);
     expect(goalById('pottery').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] });
     expect(goalById('trade_route').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] });
     expect([goalById('market_town').need, goalById('capital').need, goalById('estate').need]).toEqual([{ kind: 'people', n: 250 }, { kind: 'people', n: 1000 }, { kind: 'tier', tier: 9, n: 1 }]);
@@ -63,7 +63,7 @@ describe('sim goals and rewards for Stage 2', () => {
   });
   it('lists the chain only as far as the milestone the city has reached, so no later goal shows ahead of a waiting one', () => {
     const waiting = [['pottery', 'town'], ['homes_townhouse', 'town'], ['booth_gardens', 'town'], ['trade_route', 'market_town'], ['defences', 'market_town'], ['beer', 'city'],
-      ['fine_manors', 'city'], ['linen', 'great_city'], ['third_food', 'great_city'], ['villa_street', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate_street', 'capital'], ['estate', 'capital']];
+      ['fine_manors', 'city'], ['linen', 'great_city'], ['third_food', 'great_city'], ['villa_street', 'great_city'], ['villas', 'great_city'], ['luxury_route', 'great_city'], ['jewellery', 'capital'], ['estate_street', 'capital'], ['estate', 'capital']];
     expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id) && !DANGER.includes(g.id) && !REIGN.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting.filter((x) => x[0] !== 'defences'));   // defences, like the physician and police post, is a danger goal (tests/stage3/score/dangerGoals.test.js)
     const w = town();
     const open = () => openGoals(w, Infinity).map((g) => g.id).filter((id) => !REIGN.includes(id));
@@ -186,6 +186,7 @@ describe('sim goals and rewards for Stage 2', () => {
       [() => { fine.stock = { ...fine.stock, grain: 20, figs: 20, game: 20 }; }, ['third_food']],   // grain, figs and game in stock: three kinds
       [() => decorate(fine, 8), ['villa_street']],
       [() => { home(8); villa = home(8); }, ['villas']],
+      [() => { w.tally.luxuryBought = 1; }, ['luxury_route']],                          // Version 9.2 (Track S): the first luxury bought
       [() => { people(1000); w.milestone = 'capital'; }, ['capital']],
       [() => build('gem_mine', 'jeweller'), ['jewellery']],
       [() => decorate(villa, 9), ['estate_street']],
