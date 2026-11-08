@@ -189,8 +189,8 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     }
     expect(maxTerrain).toBeLessThanOrEqual(TERRAIN_BUDGET_BYTES);
     expect(maxSprites).toBeGreaterThan(SPRITE_BUDGET_BYTES);       // a hilly view at zoom 2 draws more than the sprite budget in one frame
-    expect(over / frames).toBeLessThan(0.1);   // WAVE2-PIN 9.1 Track P (ruling 1687): new, design target 64 MB (P3 holds in nine frames of ten)
-    expect(maxBoth).toBeLessThan(80 * MB);     // WAVE2-PIN 9.1 Track P (ruling 1687): new, design target 64 MB (the worst view measured 77 MB)
+    expect(over / frames).toBeLessThan(0.1);   // 9.1 balance (ruling 1730): new, design target 64 MB (P3 holds in nine frames of ten)
+    expect(maxBoth).toBeLessThan(80 * MB);     // 9.1 balance (ruling 1730): new, design target 64 MB (the worst view measured 77 MB)
     const c = renderer.cacheBytes();
     expect(c).toEqual({ terrainBytes: renderer.baker.bytes(w), spriteBytes: renderer.spriteCache.bytes() });
     expect(renderer.spriteCache.buckets().length).toBe(3);            // zoom 2, and 1.5 and 1 left under SPRITE_IDLE_MS ago; 0.5 and 0.75 dropped

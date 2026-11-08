@@ -41,8 +41,8 @@ function walk() {
 // and the raid ends beaten on day 198.
 // Version 9.1 (Track F, ruling 1657): the lesson sets the staged warning's arrival LESSON_RAID_LEAD (30) days on once it is up, so its raiders come on day 93 and the raid
 // ends on day 138; the warning event still says what the sim raised (63 + RAIDS.warningDays), and every step before the raid keeps its day.
-const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // WAVE2-PIN 9.1 Track F (ruling 1657): was 'raid:65>199'
-const RAID_END = 138;   // WAVE2-PIN 9.1 Track F (ruling 1657): was 198
+const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // 9.1 balance (ruling 1728): was 'raid:65>199'
+const RAID_END = 138;   // 9.1 balance (ruling 1728): was 198
 
 describe('v84 r the lesson: the staged raid does not move', () => {
   for (const [name, numbers] of [['today\'s numbers', {}], ['8.4\'s numbers', NUMBERS_84]]) {
