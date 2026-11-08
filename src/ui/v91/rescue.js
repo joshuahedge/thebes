@@ -137,6 +137,7 @@ export function installRescue(ctx) {
     ]);
     card.addEventListener('keydown', trap);
     (root || doc.body).append(card);
+    behind(true);   // the card is aria-modal: the page behind it takes no tap, key or reader focus
     reload.focus();
     // What the slot holds, said once it is known: the card is up at once, with Reload working, whatever the storage does.
     if (kind === 'tainted') {
@@ -156,6 +157,9 @@ export function installRescue(ctx) {
       if (lesson) done('lesson');
       else Promise.resolve().then(() => ctx.hooks.save('error')).then((ok) => done(ok ? 'saved' : 'none'), () => done('none'));
     }
+  }
+  function behind(on) {
+    for (const id of ['ui', 'map']) { const n = (root || doc).querySelector ? (root || doc).querySelector('#' + id) : null; if (n) n.inert = on; }
   }
   // Tab stays inside the card; Esc does nothing until the player chooses (Reload leaves the page).
   function trap(e) {
@@ -252,7 +256,7 @@ export function installRescue(ctx) {
     destroyed = true;
     for (const [target, type, fn, opts] of listeners) target.removeEventListener(type, fn, opts);
     listeners.length = 0;
-    if (card) { card.remove(); card = null; }
+    if (card) { behind(false); card.remove(); card = null; }
     if (typeof save === 'function' && ctx.hooks.save && ctx.hooks.save.name === 'rescueSave') ctx.hooks.save = save;
   }
 

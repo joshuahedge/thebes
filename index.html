@@ -77,13 +77,22 @@ html{background:#F3E7CB}
    shows is said on the loading screen with Reload, instead of a blank page. Capture phase: a failed script element's error does not bubble. After the title shows it does nothing. */
 (function () {
   var w = window;
+  /* Not failures of the start (the same list as src/ui/v91/rescue.js ignorable; keep the two alike): the browser's ResizeObserver notice, the cross-origin "Script error.", a
+     cancelled share or a blocked sound (AbortError, NotAllowedError), a rejection with no reason. */
+  function ignore(err, message) {
+    var text = (message || '') + ' ' + (err && err.message ? err.message : '');
+    if (/ResizeObserver loop|^\s*Script error\.?\s*$/.test(text)) return true;
+    if (err === undefined || err === null) return !message;
+    return err.name === 'AbortError' || err.name === 'NotAllowedError';
+  }
   function say(msg) { var L = w.__v91Loading; if (L && L.active()) L.fail(msg); }
   w.addEventListener('error', function (e) {
     var t = e && e.target;
     if (t && t !== w && t.tagName) { if (t.tagName === 'SCRIPT') say('a file did not load'); return; }
+    if (ignore(e && e.error, e && e.message)) return;
     say((e && e.message) || 'an error');
   }, true);
-  w.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; say((r && r.message) || 'an error'); });
+  w.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; if (ignore(r, '')) return; say((r && r.message) || 'an error'); });
 })();
 </script>
 <!-- end v91 early-error -->

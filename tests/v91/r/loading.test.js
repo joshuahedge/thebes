@@ -143,6 +143,18 @@ describe('v91 r loading: the early error line', () => {
     on('unhandledrejection').fn({ reason: new Error('later') });
     expect(p.node()).toBe(null);
   });
+  it('the browser\'s own notices are not a failed start: ResizeObserver, "Script error.", a cancelled share, a blocked sound, a rejection with no reason', async () => {
+    const { p, on } = await both();
+    const failShown = () => !p.node().getElementsByTagName('p')[3].hidden;
+    on('error').fn({ target: p.win, message: 'ResizeObserver loop completed with undelivered notifications.' });
+    on('error').fn({ target: p.win, message: 'Script error.' });
+    on('unhandledrejection').fn({ reason: { name: 'AbortError', message: 'Share canceled' } });
+    on('unhandledrejection').fn({ reason: { name: 'NotAllowedError', message: 'play() blocked' } });
+    on('unhandledrejection').fn({ reason: undefined });
+    expect(failShown()).toBe(false);
+    on('error').fn({ target: p.win, message: 'Uncaught TypeError: x is not a function', error: new TypeError('x is not a function') });
+    expect(failShown()).toBe(true);
+  });
   it('a long message is cut, and the screen never shows more than the first 160 characters of it', async () => {
     const { p } = await both();
     p.win.__v91Loading.fail('x'.repeat(500));

@@ -343,6 +343,15 @@ describe('v91 r rescue: one card a session, and the card itself', () => {
       expect([css.position, css.bottom, Math.abs(box.bottom - window.innerHeight) < 1]).toEqual(['fixed', '0px', true]);
     } finally { r.cleanup(); }
   });
+  it('the page behind the card is inert while it shows, and a phone held sideways gets a side sheet at the right edge, not the map\'s middle', async () => {
+    const { r } = await taintedRig();
+    try {
+      expect([r.shell.root.querySelector('#ui').inert, r.shell.root.querySelector('#map').inert]).toEqual([true, true]);
+      document.body.dataset.layout = 'compact';
+      const box = cards()[0].getBoundingClientRect(), css = getComputedStyle(cards()[0]);
+      expect([css.top, css.right, Math.abs(box.right - window.innerWidth) < 1, box.width <= window.innerWidth * 0.55 + 1, box.height >= window.innerHeight - 1]).toEqual(['0px', '0px', true, true, true]);
+    } finally { document.body.dataset.layout = 'portrait'; r.cleanup(); }
+  });
   it('Copy the details puts the version, where, the device and the error on the clipboard, with no address or query, and says Copied', async () => {
     const { r } = await taintedRig();
     let got = null;
