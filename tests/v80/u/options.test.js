@@ -23,17 +23,18 @@ function sheet(hooks = {}) {
 }
 
 describe('v80 u options: four groups, smaller rows, the version at the foot', () => {
-  it('lists Sound, Display, Controls and Saves in that order, each a labelled group with its rows', () => {
+  it('lists Sound, Display, Controls, Help and Saves in that order, each a labelled group with its rows (9.2, Track Q: Help has its own section; each is a collapsible details)', () => {
     const r = sheet({ exportCity() {} });
     try {
       const groups = [...r.body.querySelectorAll('.options-group')];
-      expect(groups.map((g) => g.querySelector('h3').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Saves']);
+      expect(groups.map((g) => g.querySelector('h3').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Help', 'Saves']);
       for (const g of groups) expect([g.className, document.getElementById(g.getAttribute('aria-labelledby')) === g.querySelector('h3')]).toEqual([g.className, true]);
       const has = (g, sel) => Boolean(groups[g].querySelector(sel));
       expect([has(0, '.switch.sound'), has(0, '.switch.music'), has(0, '.music-volume:not(.effects-volume)'), has(0, '.effects-volume')]).toEqual([true, true, true, true]);
       expect([has(1, '.choice.textSize'), has(1, '.switch.dayNight')]).toEqual([true, true]);
-      expect([has(2, '.switch.keyboardShortcuts'), has(2, '.switch.leftHanded'), has(2, '.switch.vibration'), has(2, '.choice.fireReaction'), has(2, '.choice.help')]).toEqual([true, true, true, true, true]);
-      expect([has(3, '.export-city'), has(3, '.choice.difficulty')]).toEqual([true, true]);
+      expect([has(2, '.switch.keyboardShortcuts'), has(2, '.switch.leftHanded'), has(2, '.switch.vibration'), has(2, '.choice.fireReaction')]).toEqual([true, true, true, true]);
+      expect(has(3, '.choice.help')).toBe(true);
+      expect([has(4, '.export-city'), has(4, '.choice.difficulty')]).toEqual([true, true]);
       expect(r.body.querySelector('.switch.keyboardShortcuts').textContent).toContain('Single keys');
       expect(r.body.querySelectorAll('.options-group .row').length).toBeGreaterThan(8);
     } finally { r.cleanup(); }

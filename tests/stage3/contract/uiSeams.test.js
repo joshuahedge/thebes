@@ -155,14 +155,15 @@ describe('s3 contract interface seams', () => {
       expect(seen).toEqual([['danger', 'raid_warning', 'tribute'], ['score', 'raid_warning', 'tribute']]);
     } finally { r.cleanup(); }
   });
-  it('hides the whole interface in screenshot mode, from the menu, until a tap, Esc or Back, and leaves the speed alone', async () => {
+  it('hides the whole interface in screenshot mode, from Options > Display (9.2, Track Q: it left the menu), until a tap, Esc or Back, and leaves the speed alone', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.ui.speedControl.set(2);
       r.store.set(openSheet(r.store.get(), 'menu'));
       const items = [...r.root.querySelectorAll('#sheet .menu-list button')].map((b) => b.textContent);
-      expect(items.slice(-3)).toEqual([T.howToPlay, T.screenshotMode, T.about]);
-      fire(r.root.querySelector('#sheet .screenshot-mode'), 'click');
+      expect(items.slice(-2)).toEqual([T.howToPlay, T.about]);
+      r.store.set(openSheet(r.store.get(), 'settings'));
+      fire(r.root.querySelector('#sheet .options-group.display .screenshot-mode'), 'click');
       expect([r.store.get().screenshot, r.store.get().sheet, document.body.classList.contains('screenshot')]).toEqual([true, null, true]);
       expect(getComputedStyle(r.root.querySelector('#topbar')).display).toBe('none');
       expect(getComputedStyle(r.root.querySelector('#dock')).display).toBe('none');

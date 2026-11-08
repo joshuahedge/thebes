@@ -63,6 +63,7 @@ import { forMap, riverless, OASIS_TEXT } from './v82/oasisText.js';   // Version
 import { watchMapWords } from './v82/mapWords.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
+import { cityAdvice } from '../sim/advice.js';
 import { anotherFor, canCopy } from './another.js';
 import { areaKindOf } from '../data/areas.js';
 import { welcomeSheet } from './welcomeBack.js';
@@ -207,7 +208,7 @@ export function createUI({
     cameraControl.keepVisible(end[0] + 0.5, end[1] + 0.5, undefined, OPEN_ROAD_MARGIN_PX, 0);
   }
   const placement = createPlacement({ world, store, afterCommand, effects, now, look: () => ({ x: cam.x, y: cam.y }), roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
-  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden, { group: 'welcome' }), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
@@ -286,6 +287,16 @@ export function createUI({
   };
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide, onToggle: () => toggleGuidance(), phone, barAllowed });
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
+  // Version 9.2 (Track Q, ruling 1777): on the wide layout the goals strip and the rank bar (both are #goals) sit in the side panel above the minimap, so the top left
+  // keeps one banner and one tip; phones, a compact screen and a folded panel keep them under the top bar as ever. It is the same element, so every hand on it keeps working.
+  const placeGoals = () => {
+    const g = $('goals'), s = store.get(), panel = $('panel'), under = $('under-bar');
+    const inPanel = g.parentNode === panel, want = s.layout === 'wide' && !s.panelFolded;
+    if (want && !inPanel) panel.insertBefore(g, panel.querySelector('.minimap'));
+    else if (!want && inPanel) under.insertBefore(g, $('tip'));
+  };
+  placeGoals();
+  const stopGoalsPlace = store.subscribe(placeGoals);
   // Stage 3 seams (the Stage 3 plan's contract): the danger interface (Track D, ui/danger.js) and the score interface
   // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
   // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
@@ -342,7 +353,14 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
+  // Version 9.2 (Track Q, ruling 1775): the Minimap sheet leads with City advice's top three; the advice is read once a game day (it asks every home), and only once the advice has begun.
+  let topAdvice = { day: -1, list: [] };
+  const adviceTop = () => {
+    if (!advice.on()) return [];
+    if (topAdvice.day !== world.day) topAdvice = { day: world.day, list: cityAdvice(world).slice(0, 3) };
+    return topAdvice.list;
+  };
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
   createDialog({ container: $('dialog'), store });
   // Version 8.0 (ruling 1160): the number on the scroll button follows the tray, and an open tray sheet shows a message the moment it arrives (unless focus is inside it: a rebuild would drop it).
   const stopTray = tray.subscribe((why) => {
@@ -679,7 +697,7 @@ export function createUI({
     trayLayers.refresh();                              // Version 8.1 (Track D): what the tray shows and says follows the advice just read
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
-    setText($('map-summary'), mapSummaryText(world, alerts.list()));
+    setText($('map-summary'), mapSummaryText(world, alerts.rows()));
     // Tips that follow the alerts: asked for whenever a problem marker is on the map or a labour shortage is on, not only when
     // one first appears, because the gap or a tool may have turned the tip away then. Seen tips and the first 10 s turn the
     // question down cheaply, so a saved city never meets a tip on load. Goal progress feeds the nudge.
@@ -1285,6 +1303,8 @@ export function createUI({
       cardDrag.detach(); noZoom.detach();
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
+      stopGoalsPlace();
+      if ($('goals').parentNode === $('panel')) $('under-bar').insertBefore($('goals'), $('tip'));   // Version 9.2 (Track Q): home again for the next UI
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }

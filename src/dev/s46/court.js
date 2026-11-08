@@ -37,6 +37,7 @@ function requestOf(w, kind, guided) {
     w.court.letters = [];
     w.court.request = null;
     w.court.nextRequestDay = w.day;
+    delete w.letterGate;                         // Version 9.2 (Track Q): the scene stages a letter, so the court's gate (src/sim/letters.js) is out of the way
     if (guided) w.court.guided = 'pending';
     courtDay(w);
     if (w.court.request && (guided || w.court.request.kind === kind)) return w.court.request;

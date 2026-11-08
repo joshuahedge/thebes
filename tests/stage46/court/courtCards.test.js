@@ -42,10 +42,12 @@ describe('s46 court cards: the set', () => {
 describe('s46 court cards: when they come', () => {
   it('comes every 12-18 months, and never twice in a row while another can come', () => {
     const w = ready({ seed: 4 });
+    w.court.nextRequestDay = null;                                          // WAVE2-PIN 9.2 Track Q (ruling 1777): no request in this test, so the court's gate (its own tests: tests/v92/q/letters.test.js) is not made by one
     expect(w.court.nextCardDay - YEAR >= 12 * MONTH && w.court.nextCardDay - YEAR <= 18 * MONTH).toBe(true);
     const seen = [];
     for (let i = 0; i < 6; i++) {
       w.day = w.court.nextCardDay;
+      delete w.letterGate;                                                   // WAVE2-PIN 9.2 Track Q (ruling 1777): the cards' own 12-18 month schedule is pinned here; the court's gate has its own tests (tests/v92/q/letters.test.js)
       courtDay(w);
       const l = w.court.letters.filter((x) => x.kind === 'card').pop();
       seen.push(l.card);
@@ -58,15 +60,18 @@ describe('s46 court cards: when they come', () => {
   });
   it('waits while a raid is under way and while another card waits to be answered', () => {
     const w = ready({ seed: 4 });
+    w.court.nextRequestDay = null;                                          // WAVE2-PIN 9.2 Track Q (ruling 1777): as above
     w.raid.active = { size: 4 };
     w.day = w.court.nextCardDay;
     courtDay(w);
     expect([w.court.letters.some((l) => l.kind === 'card'), w.court.nextCardDay]).toEqual([false, w.day + CARDS.raidRetryDays]);
     w.raid.active = null;
     w.day = w.court.nextCardDay;
+    delete w.letterGate;                                                     // WAVE2-PIN 9.2 Track Q (ruling 1777): as above, the cards' own schedule
     courtDay(w);
     expect(w.court.letters.filter((l) => l.kind === 'card').length).toBe(1);
     w.day = w.court.nextCardDay;
+    delete w.letterGate;
     courtDay(w);
     expect(w.court.letters.filter((l) => l.kind === 'card').length).toBe(1);
     expect(w.court.nextCardDay).toBe(w.day + CARDS.retryDays);

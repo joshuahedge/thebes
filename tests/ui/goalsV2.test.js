@@ -323,6 +323,8 @@ describe('ui goals v2', () => {
           const top = r.root.getBoundingClientRect().top;
           const box = strip.getBoundingClientRect();
           expect(`${where}: text column ${text.getBoundingClientRect().width >= 8 * em}`).toBe(`${where}: text column true`);
+          // 9.2 (Track Q, ruling 1777): on the wide layout the strip is in the side panel, above the minimap, not over the map: it keeps its column but the height and the top-third bounds are for a strip over the map.
+          if (layout === 'wide') { expect(`${where}: in the panel ${Boolean(strip.closest('#panel'))}`).toBe(`${where}: in the panel true`); expectWholeButtons(r); continue; }
           expect(`${where}: strip height ${box.height <= 2 * line + 44 + 8}`).toBe(`${where}: strip height true`);   // wrapping happens by rows, never inside the words
           // never over the middle of the map: the top third, or in a landscape phone, where the top bar alone takes
           // a sixth of the screen at large text, above the middle
