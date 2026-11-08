@@ -177,7 +177,7 @@ describe('v81 i Ipi: one place at a time, read whole', () => {
       const row = s.root.querySelector('#lesson');
       expect([bubbleOf().hidden, row.classList.contains('refused'), row.querySelector('.beat-line').textContent, shown(row.querySelector('.ipi-why'))]).toEqual([true, true, V81T_TEXT.refused('homes'), false]);
       await new Promise((r) => setTimeout(r, 2900));
-      expect([row.classList.contains('refused'), shown(row.querySelector('.ipi-why'))]).toEqual([false, true]);
+      expect([row.classList.contains('refused'), shown(row.querySelector('.ipi-why'))]).toEqual([false, false]);   // Version 9.2 (Track L, design 2.5): was [false, true]: the why is behind More, so the refusal's line just goes
     } finally { s.cleanup(); }
   });
 

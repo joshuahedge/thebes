@@ -18,7 +18,7 @@ import { isUnlocked } from '../sim/progression.js';
 import { makerOf, storeFor, goodMakers, fetchStoreFor } from '../sim/advice.js';
 import { JOBLESS_BANDS } from '../data/layers.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
-import { isWorking } from '../sim/labour.js';
+import { isWorking, workersWentTo } from '../sim/labour.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -4675,6 +4675,31 @@ FIRST_TEXT.first_nilometer.whyFor = (world) => `Staffed, it shows the next flood
 // ── end v91 h ──
 
 // Version 9.2, Track L
+export const V92L_TEXT = {
+  roadStart: 'Start on the diamond at the end of the road.',   // 2.3: the lesson's road refused further than two tiles from the end of the road
+  roadLone: 'Road laid · it joins nothing yet',                  // 2.3: a road that touches no road and no building
+  // 2.4: the end card, on both paths. The numbers come from the sim (people, gold, the raid's report); each line says one thing learned.
+  endRow: 'Your first city stands. Choose what comes next.',
+  endChoose: 'What next?',
+  endNumbers: ({ people, gold, won }) => `${plural(people, 'person lives', 'people live')} here, with ${gold} gold in the treasury. ${won ? 'Your tower beat the raid.' : 'The raid got through; staffed towers would have stopped it.'}`,
+  learned: ['Roads join every building to the city.', 'Homes need a road beside them.', 'A well gives nearby homes water.', 'A farm and a granary feed everyone.',
+    'A bazaar needs workers, and homes supply them.', 'A firehouse puts fires out.', 'Staffed towers stop raiders.'],
+  endKeep: 'Keep building this city', keepHint: 'It becomes yours and is saved as you play.', keepHintSaved: 'It replaces the city saved on this device.',
+  endOwn: 'Start my own city', ownHint: 'Leaves this city and opens the title screen to found your own.', ownHintSaved: 'Opens the title screen. Your saved city stays as it is.',
+  // 2.7: chapter 2's card says how many people work, from the sim's own share (ECONOMY.workerShare: "four in ten").
+  workersLine: `About ${['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'all'][Math.round(ECONOMY.workerShare * 10)]} in ten people here will work.`,
+  workersWent: (what) => `Its workers went to the ${what} first. More homes bring more workers`,   // 2.6: the cause on a short workplace's alert
+  // 1772: the month step plays at its own speed (LESSON_STEPS month.speed), and its row says so; the wait is under 30 s.
+  monthDo: (paused, n, speed) => `${paused ? 'Press Play, then watch' : 'Watch'} your gold and mood for ${n} months${speed > 1 ? ` at ${{ 2: 'double', 3: 'triple' }[speed] || `${speed}x`} speed` : ''}.`,
+  keepReplaceConfirm: 'Keeping this city replaces the city saved on this device. Export that one first if you want it.', keepReplace: 'Replace it', exportFirst: 'Export it first',
+};
+// 2.6: a short workplace's alert names who took its workers (the level ahead of it in the order workers now fill: services before safety until Town), as the sim assigned them.
+ALERT_TEXT.understaffed = (alert, world, b, name) => {
+  const went = b ? workersWentTo(world, b) : null;
+  return { title: `${name} is short of workers`, fix: went ? V92L_TEXT.workersWent(buildingName(went).toLowerCase()) : 'More homes bring more workers' };
+};
+// 2.8 (D15): Swift Town's line says the days the sim counts (day 300), never a fraction of a year ("year 1.83").
+FEAT_TEXT.swift_town = { name: 'Swift Town', condition: `Become a ${scoreFeatMilestone('swift_town')} within ${scoreFeatCheck('swift_town').day} days` };
 
 // Version 9.2, Track Q
 

@@ -128,6 +128,15 @@ export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_M
   ...V70_TIPS, ...FERRY_TIPS,   // Version 7.0: each track's tips from its own data file (src/data/v70.js V70_TIPS), words in its text.js section
   ...TIPS_V83_C, ...TIPS_V83_K, ...TIPS_V90_D];
 
+// Version 9.2 (Track L, ruling 1759, design 2.4): the tips about what the lesson itself had the player place or meet, by the building type it stands on (src/ui/lesson.js
+// lessonTaughtTips): marked seen as the lesson's city is handed over, so the Large plot's tip does not come up about a plot the player has just laid, nor the firehouse's about one the
+// lesson built. The tower and the raid share the raid warning's two.
+export const LESSON_TAUGHT_TIPS = { large_plot: ['large_plot_card'], firehouse: ['fire_risk'], tower: ['raider_targets', 'tribute_once'] };
+// Version 9.2 (Track L, design 2.7): after the hand-over no tip shows until the goal in view then is done, and not before this many game days (ten minutes at 1x) have passed,
+// whichever is later; and never for longer than HANDOVER_HOLD_MAX_DAYS (so a goal the player never turns to does not silence every tip for ever).
+export const HANDOVER_HOLD_DAYS = 600;
+export const HANDOVER_HOLD_MAX_DAYS = 1800;
+
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
 export const TIP_FIRST_DELAY_MS = 10000;   // none in the first 10 s of a session

@@ -88,10 +88,14 @@ export function createTips({ container, settings, now = () => performance.now(),
     return Boolean(goals) && !goals.hidden && goals.getClientRects().length > 0;
   }
 
+  // Version 9.2 (Track L, design 2.7): after the hand-over the tips wait until the goal in view is done or ten game minutes have passed, whichever is later (the lesson seam marks
+  // `handover-hold` on the root, src/ui/lesson.js handOverHold): held as a tool holds them, the priority tip (Press Play, the treasury) excepted.
+  const holding = () => Boolean(container.closest) && Boolean(container.closest('.handover-hold'));
+
   function consider(tip, busy) {
     if (!enabled() || seen().includes(tip.id)) return false;
     const t = now();
-    if ((busy || crowded()) && !tip.priority) {
+    if ((busy || crowded() || holding()) && !tip.priority) {
       if (tip.waits === false) return false;            // its words would be false by the time the slot is flushed; unseen, it may fire again
       // One slot: the first tip held keeps it, unless it has gone stale; the same tip triggering again is still news.
       if (!waiting || waiting.tip === tip || t - waiting.at > TIP_HELD_MAX_MS) waiting = { tip, at: t };

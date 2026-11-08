@@ -7,10 +7,12 @@ import { LESSON_LENGTH, firstOf, warnedRaid, stepDone, playWhen } from '../sim/l
 import { towersNeeded, workingTowers, raidTargetKind } from '../sim/raids.js';
 import { staffedCover } from '../sim/fire.js';
 import { monthForecast } from '../sim/economy.js';
-import { population } from '../sim/world.js';
+import { population, allBuildings } from '../sim/world.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { LESSON_TAUGHT_TIPS, HANDOVER_HOLD_DAYS, HANDOVER_HOLD_MAX_DAYS } from '../data/tips.js';
 import { say } from './v81/scribe.js';
 import { V81T_TEXT } from './v81/lessonText.js';
-import { V91F_TEXT } from './text.js';
+import { V91F_TEXT, V92L_TEXT } from './text.js';
 import { DAYS_PER_MONTH } from '../sim/time.js';
 
 // Whether the title should offer only "Start the lesson" (ruling 617): on a device that has not finished the lesson and has no saved city.
@@ -59,7 +61,7 @@ export function stepWords(step, f) {
   switch (step.id) {
     case 'road': return { ...base, do: V91F_TEXT.roadDo };
     case 'firehouse': return f.missing ? base : { ...base, do: V91F_TEXT.firehouseDo };
-    case 'month': return { why: V91F_TEXT.monthWhy, do: V91F_TEXT.monthDo(f.paused, step.check.n) };
+    case 'month': return { why: V91F_TEXT.monthWhy, do: V92L_TEXT.monthDo(f.paused, step.check.n, step.speed) };   // Version 9.2 (ruling 1772): says the speed the step plays at
     case 'raid': return f.raidOn || !f.warning ? base : { why: V91F_TEXT.raidFast, do: V91F_TEXT.raidDo(f.paused, f.target, f.warning.daysLeft) };
     default: return base;
   }
@@ -68,6 +70,26 @@ export function stepWords(step, f) {
 // Version 9.1 (Track F, ruling 1663): the first game month after the hand-over (src/sim/lesson.js handOverWorld writes handOverDay), when the rows under the top bar are
 // kept to two: no tip while an alert and a goal are both up (src/ui/tips.js). False for every other city.
 export const handOverMonth = (world) => Boolean(world) && Number.isInteger(world.handOverDay) && world.day < world.handOverDay + DAYS_PER_MONTH;
+
+// Version 9.2 (Track L, design 2.7): the tips' wait after the hand-over: no tip until the goal in view at the hand-over is done and HANDOVER_HOLD_DAYS have passed, whichever is later
+// (never past HANDOVER_HOLD_MAX_DAYS). The lesson seam marks it on the root as `handover-hold` (src/ui/tips.js holds every tip but the priority one while it stands).
+export function handOverHold(world) {
+  if (!world || !Number.isInteger(world.handOverDay)) return false;
+  const since = world.day - world.handOverDay;
+  if (since >= HANDOVER_HOLD_MAX_DAYS) return false;
+  if (since < HANDOVER_HOLD_DAYS) return true;
+  const g = world.handOverGoal;
+  return Boolean(g) && Boolean(world.goals) && Array.isArray(world.goals.completed) && !world.goals.completed.includes(g);
+}
+
+// Version 9.2 (Track L, design 2.4): the ids of the tips about what the lesson placed or met in this city (data/tips.js LESSON_TAUGHT_TIPS), to be marked seen as it is handed over.
+export function lessonTaughtTips(world) {
+  const types = new Set(allBuildings(world).map((b) => b.type));
+  if ((world.tally.largePlots || 0) > 0 || types.has(LARGE_PLOT.type)) types.add('large_plot');
+  const out = [];
+  for (const [type, ids] of Object.entries(LESSON_TAUGHT_TIPS)) if (types.has(type)) for (const id of ids) if (!out.includes(id)) out.push(id);
+  return out;
+}
 
 // The step's check, with a name for tests and the row (which step the city is at is the interface's own count, src/ui/v60/lesson.js).
 export const stepIsDone = (world, id) => stepDone(world, LESSON_STEPS.find((s) => s.id === id));
