@@ -335,14 +335,17 @@ export async function boot(doc, win, {
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
-    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
+      onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
     current = { world, ui, loop, cam, lesson: Boolean(lesson) };
+    rescue.attach(current);                             // the ?crash= dev hook (once a page)
     if (!lesson) noteFirstPass(ui);
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
     if (pendingUpdate) { ui.offerUpdate(pendingUpdate); pendingUpdate = null; }
     win.__thebes = { ...(win.__thebes || {}), world, cam, renderer, loop, ui };
+    rescue.loadingDone();                               // a development flag's game has no title: the loading screen goes here too
     return current;
   }
 
@@ -472,6 +475,7 @@ export async function boot(doc, win, {
     backdrop.frame();
     if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
+    rescue.loadingDone();                               // Version 9.1 (Track R, ruling 1676): the title shows, so the loading screen goes and the page's ready mark is set
   }
 
   function leaveTitle() {
@@ -483,7 +487,7 @@ export async function boot(doc, win, {
 
   // Version 9.1 (wave 0 seam, ruling 1651): the error handler and its card, once, before the title or a development flag's game opens (Track R,
   // src/ui/v91/rescue.js).
-  installRescue({ win, doc, root, store, settings, records, io, hooks, game: () => current });
+  const rescue = installRescue({ win, doc, root, store, settings, records, io, hooks, params, game: () => current });
 
   // The offline cache (spec 7.1). ?nosw=1 drops it while developing, so edits show without a restart.
   if (params.get('nosw') === '1') { if (sw && sw.getRegistrations) sw.getRegistrations().then((regs) => regs.forEach((r) => r.unregister())).catch(() => {}); }
@@ -508,10 +512,10 @@ export async function boot(doc, win, {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
     titleView: () => (title ? { world: title.world, cam: title.cam } : null),   // Stage 4 (Track F): the backdrop's city and camera, for the title scene
-    startGame, hooks, records, music,
+    startGame, hooks, records, music, rescue,           // rescue (Version 9.1, Track R): the error handler's pieces, for the tests
     freshWorld,                                         // Stage 4.6: a new world as New city makes it ({ seed, variant, size }), for the dev scenes
     destroy() {
-      win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame();
+      win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame(); rescue.destroy();
       if (cards) { cards.close(); cards = null; }
       for (const t of MUSIC_GESTURES) root.removeEventListener(t, onMusicGesture);
       doc.removeEventListener('visibilitychange', onMusicVisibility); stopMusicWatch(); music.destroy(); settings.destroy();

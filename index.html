@@ -21,8 +21,71 @@
 <meta name="twitter:card" content="summary_large_image">
 <title>Thebes</title>
 <!-- v91 loading -->
+<style>
+html{background:#F3E7CB}
+#v91-loading{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:#F3E7CB;color:#2B1F0E;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#v91-loading p{margin:6px 0;max-width:30em}
+#v91-loading .v91-name{font:700 36px/1.2 "Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;letter-spacing:.06em}
+#v91-loading .v91-line{color:#5A4832}
+#v91-loading button{margin-top:12px;min-width:44px;min-height:44px;padding:0 20px;font:inherit;color:#F5D98A;background:#1C3768;border:1px solid #1C3768;border-radius:12px;cursor:pointer}
+#v91-loading [hidden]{display:none}
+</style>
+<script>
+/* The loading screen (Version 9.1, Track R, design 5a): painted from the page's own head, so a slow connection sees the name and a quiet line at once; boot.js removes it when the
+   title shows (window.__v91Loading.done). After 15 s it says so and offers Reload; a failed file (the early-error block, below) says so too. Plain old script: it must run anywhere. */
+(function () {
+  var w = window, d = document, node = null, finished = false, timer = null, state = { slow: false, fail: '', old: false };
+  function paint() {
+    if (!node) build();
+    if (!node) return;
+    var p = node.getElementsByTagName('p'), button = node.getElementsByTagName('button')[0], bad = Boolean(state.fail), line = p[1], slow = p[2], fail = p[3], old = p[4];
+    line.hidden = bad || state.old;
+    slow.hidden = !state.slow || bad || state.old;
+    fail.hidden = !bad;
+    fail.textContent = bad ? 'Thebes could not start (' + state.fail.slice(0, 160) + '). Check your connection, then Reload.' : '';
+    old.hidden = !state.old;
+    button.hidden = state.old || !(state.slow || bad);
+  }
+  function build() {
+    if (node || finished || !d.body) return;
+    node = d.createElement('div');
+    node.id = 'v91-loading';
+    node.setAttribute('role', 'status');
+    node.innerHTML = '<p class="v91-name">Thebes</p><p class="v91-line">Loading</p><p class="v91-slow" hidden>Still loading. Slow connection?</p><p class="v91-fail" hidden></p><p class="v91-old" hidden>This browser is too old to run Thebes. Try a current Safari, Chrome, Edge or Firefox.</p><button type="button" hidden>Reload</button>';
+    node.getElementsByTagName('button')[0].onclick = function () { w.location.reload(); };
+    d.body.appendChild(node);
+    paint();
+  }
+  w.__v91Loading = {
+    active: function () { return !finished; },
+    slow: function () { state.slow = true; paint(); },
+    fail: function (msg) { state.fail = String(msg || 'an error'); paint(); },
+    old: function () { state.old = true; paint(); },
+    done: function () { finished = true; if (timer !== null) clearTimeout(timer); if (node && node.parentNode) node.parentNode.removeChild(node); node = null; }
+  };
+  timer = setTimeout(function () { timer = null; w.__v91Loading.slow(); }, 15000);
+  if (d.body) build();
+  else if (w.MutationObserver) { var mo = new w.MutationObserver(function () { if (d.body) { mo.disconnect(); build(); } }); mo.observe(d.documentElement, { childList: true }); }
+  else d.addEventListener('DOMContentLoaded', build);
+})();
+</script>
+<script nomodule>window.__v91Loading && window.__v91Loading.old();</script>
 <!-- end v91 loading -->
 <!-- v91 early-error -->
+<script>
+/* The early error line (Version 9.1, Track R, design 5a): a module that fails to load (a missing file, a lost connection, a syntax error) or a start that throws before the title
+   shows is said on the loading screen with Reload, instead of a blank page. Capture phase: a failed script element's error does not bubble. After the title shows it does nothing. */
+(function () {
+  var w = window;
+  function say(msg) { var L = w.__v91Loading; if (L && L.active()) L.fail(msg); }
+  w.addEventListener('error', function (e) {
+    var t = e && e.target;
+    if (t && t !== w && t.tagName) { if (t.tagName === 'SCRIPT') say('a file did not load'); return; }
+    say((e && e.message) || 'an error');
+  }, true);
+  w.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; say((r && r.message) || 'an error'); });
+})();
+</script>
 <!-- end v91 early-error -->
 <link rel="stylesheet" href="./css/ui.css">
 <link rel="stylesheet" href="./css/v80-u.css">

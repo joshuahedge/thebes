@@ -93,6 +93,7 @@ import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 import { SPLITS } from '../data/scoring.js';
+import { createDebtSheets } from './v91/debtSheet.js';   // Version 9.1 (Track R): Back to gold, the debt alert's sheet
 import { onSplit } from './v90/rivalToast.js';   // Version 9.0 (wave 0 seam): the rival toast at a new split (Track L)
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -330,6 +331,7 @@ export function createUI({
     advice: advice.sheet,
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
     ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
+    ...createDebtSheets(seamCtx),                        // Version 9.1 (Track R): Back to gold
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -575,6 +577,7 @@ export function createUI({
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
+    if (alert.code === 'debt') { store.set(openSheet(store.get(), 'backToGold')); return; }   // Version 9.1 (Track R, ruling 1681): the way back, from the treasury's own figures
     if (alert.code === 'plots_no_road') { const b = nearestPlot(alert); if (b && selectBuilding(b.id)) return; }
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
