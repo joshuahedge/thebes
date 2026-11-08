@@ -337,13 +337,14 @@ export function sendTribute(w) {
 // (called after each month end's own play, and through the capital run's years too); both default to the run as it always was.
 // Version 6.0.1: seed is the world's seed (the capital run's: 5 as tuned); habits the player's moving workers out of idle workplaces (setHabits, above).
 // Version 9.0 (wave 2, tests/v90/balance): heir the trait the city plays under from day 0 (runCapital's), the Steady as it always was.
-export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false, events: eventsPlayer = null, eventsFrom = 'start', heir = 'steady' } = {}) {
+// Version 9.1 (Track H, rulings 1710, 1714): adapt the heir's habit (runCapital's, the same one taken on from year 7), called after onMonth; returned as `habit`.
+export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false, events: eventsPlayer = null, eventsFrom = 'start', heir = 'steady', adapt = false } = {}) {
   const started = performance.now();
   skips = {};
   setHabits(withHabits);
   idlePaused.clear();
   monumentsPaused.length = 0;
-  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed, events: eventsFrom === 'start' ? eventsPlayer : null, heir });
+  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed, events: eventsFrom === 'start' ? eventsPlayer : null, heir, adapt });
   const w = base.w;
   if (eventsPlayer && eventsFrom !== 'start') releaseEvents(w);   // Version 7.0 (wave 3): the city events come from the grand years (7 on) when the capital years were held
   const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
@@ -369,11 +370,12 @@ export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null,
     playMonth(w, built);
     if (eventsPlayer) eventsPlayer.onMonth(w, events, m);   // Version 7.0 (wave 3): the city events, answered as a steady player does (tests/v70/balance/events.js)
     if (onMonth) onMonth(w, events, m);
+    if (base.habit) base.habit.onMonth(w, events, m);   // Version 9.1 (Track H): the heir's habit
     const t = tiers(w);
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;
     months.push({ month: m, gold: Math.round(w.gold), people: population(w), tiers: t, taxes: w.stats.lastMonth.taxes });
   }
-  return { w, base, atBase, policies, built, months, raids, first, lowestGold, skips, elapsed: performance.now() - started };
+  return { w, habit: base.habit, base, atBase, policies, built, months, raids, first, lowestGold, skips, elapsed: performance.now() - started };
 }
 
 let shared = null;

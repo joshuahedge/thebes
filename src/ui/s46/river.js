@@ -44,7 +44,7 @@ export function riverRows(world, b) {
     const r = R.nilometerRow(look, working, next);
     out.push(row(r.label, r.value));
     if (next && next.level && r.label !== R.nilometerLabel) out.push(row(R.nilometerLabel, R.nilometerNext(next)));
-    out.push(line(R.nilometerNote));
+    out.push(line(R.nilometerNoteFor(world)));   // Version 9.1 (Track H, ruling 1712): this city's own numbers (the Bountiful's deeper low flood)
   }
   if (b.type === 'hunting_lodge') {
     const o = huntingOutlook(world, b);
