@@ -701,8 +701,13 @@ export function createUI({
     corners.render();
     goalsStrip.render();                               // the threshold bar steps aside for the banner on a phone
   }
+  // Version 9.1 (wave 0 seam, ruling 1651): autosave is blocked for a tainted city (the sim threw mid-tick, so it may be half-changed), so the
+  // slot keeps its last good save. Track R sets it through ui.setAutosaveBlocked(true); nothing sets it yet, so blocked() is false.
+  let autosaveBlocked = false;
+  function blocked() { return autosaveBlocked; }
+  function setAutosaveBlocked(flag) { autosaveBlocked = Boolean(flag); }
   async function autosave(reason) {
-    if (destroyed || typeof hooks.save !== 'function') return;
+    if (destroyed || blocked() || typeof hooks.save !== 'function') return;
     let ok = false;
     try { ok = await hooks.save(reason); } catch (e) { ok = false; }
     setSaveFailed(!ok);                 // a no-op if the UI was destroyed while the save was in flight
@@ -1255,7 +1260,7 @@ export function createUI({
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   const unwatchWords = watchMapWords(world, root);   // Version 8.2 (integration, ruling 1335): a city with no river says the great lake in every word it draws
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed, setAutosaveBlocked,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
     monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),

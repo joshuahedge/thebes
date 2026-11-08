@@ -302,5 +302,9 @@ export function createRenderer({
     return stats;
   }
 
-  return { renderFrame, stats, spriteCache, baker, get dpr() { return currentDpr; } };
+  // Version 9.1 (wave 0 seam, ruling 1651; Track P fills it): the bytes of canvas the terrain chunks and the sprite buckets hold, for
+  // window.__thebes.caches() and the profile.
+  function cacheBytes() { return { terrainBytes: 0, spriteBytes: 0 }; }
+
+  return { renderFrame, stats, spriteCache, baker, cacheBytes, get dpr() { return currentDpr; } };
 }

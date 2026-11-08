@@ -4561,3 +4561,18 @@ export const V90_L_TEXT = {
 
 // Version 9.0, Track V (animations and visual effects; rulings 1600-1619). Track V writes only between this header and its end line.
 // ── end v90 v ──
+
+// Version 9.1, Track F (first hours: the lesson, the hand-over, the first own city; rulings 1655-1674). Track F writes only between this header and its end line.
+// ── end v91 f ──
+
+// Version 9.1, Track R (never stuck: the error card, the loading screen, the debt sheet; rulings 1675-1684). Track R writes only between this header and its end line.
+// ── end v91 r ──
+
+// Version 9.1, Track A (clear and trusted: About; rulings 1700-1709). Track A writes only between this header and its end line.
+// ── end v91 a ──
+
+// Version 9.1, Track P (runs well: the profile, the caches, the preload; rulings 1685-1699). Track P writes only between this header and its end line.
+// ── end v91 p ──
+
+// Version 9.1, Track H (the heirs; rulings 1710-1724). Track H writes only between this header and its end line.
+// ── end v91 h ──

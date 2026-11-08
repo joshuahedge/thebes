@@ -40,6 +40,7 @@ import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/les
 import { lessonWorld, replayTo, LESSON_LENGTH } from './sim/lesson.js';
 import { seenKey } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
+import { installRescue } from './ui/v91/rescue.js';   // Version 9.1 (Track R): the error handler and its card
 
 const HOUR = 3600 * 1000;
 
@@ -68,6 +69,9 @@ export async function boot(doc, win, {
   let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
   let title = null;          // { card, loop, backdrop } while the title shows
   win.__thebes = { devScene: (name, options) => devScene(api, name, options), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
+  // Version 9.1 (wave 0 seam, ruling 1651): the canvas caches' bytes for the profile, from the one renderer the title and every game share (Track P fills
+  // renderer.cacheBytes in src/render/renderer.js).
+  win.__thebes.caches = () => renderer.cacheBytes();
   // One audio context for the whole page: every game (New city, import) shares it.
   // Version 7.0 (Track S, ruling 935): the Sound switch is the master of both the effects and the music; each has its own volume (Effects volume
   // and Music volume in Settings; 100 effects is the loudness every effect had before 7.0).
@@ -476,6 +480,10 @@ export async function boot(doc, win, {
     root.classList.remove('on-title');
     title = null;
   }
+
+  // Version 9.1 (wave 0 seam, ruling 1651): the error handler and its card, once, before the title or a development flag's game opens (Track R,
+  // src/ui/v91/rescue.js).
+  installRescue({ win, doc, root, store, settings, records, io, hooks, game: () => current });
 
   // The offline cache (spec 7.1). ?nosw=1 drops it while developing, so edits show without a restart.
   if (params.get('nosw') === '1') { if (sw && sw.getRegistrations) sw.getRegistrations().then((regs) => regs.forEach((r) => r.unregister())).catch(() => {}); }

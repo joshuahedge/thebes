@@ -70,10 +70,11 @@ describe('v90 w0 seams: the interface and the frame, each a stub', () => {
     const at = (s) => r.indexOf(s);
     expect(at('opts.effects.draw(') < at('effectsV90(g,') && at('effectsV90(g,') < at('if (opts.drawOverlay)')).toBe(true);
   });
-  it('links css/v90.css after every other stylesheet', async () => {
+  // Version 9.1 wave 0 (ruling 1651): css/v91.css now comes last, so v90.css is the one before it (was: v90.css the last stylesheet).
+  it('links css/v90.css after every other stylesheet but 9.1\'s', async () => {
     const page = new DOMParser().parseFromString(await source('/index.html'), 'text/html');
     const hrefs = [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.getAttribute('href')).filter((h) => /css\//.test(h));
-    expect(hrefs[hrefs.length - 1]).toBe('./css/v90.css');
+    expect(hrefs.slice(-2)).toEqual(['./css/v90.css', './css/v91.css']);
     expect(hrefs.filter((h) => h === './css/v90.css').length).toBe(1);
   });
 });

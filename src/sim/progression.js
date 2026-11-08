@@ -43,6 +43,9 @@ export function isUnlocked(world, type) {
   // Version 6.0 (ruling 652): one great temple a city. Once one stands (a site or finished) its card is locked, so the Seat's tray stops
   // showing it (src/ui/cards.js cardShown: nothing comes after the last rank) and the placing rule refuses a second.
   if (type === GREAT_WORK.type && allBuildings(world).some((b) => b.type === type)) return false;
+  // Version 9.1 (wave 0 seam, rulings 1651, 1652): the cards the lesson showed stay unlocked after the hand-over, whatever the rank
+  // (world.lessonCards, a list of building types, optional: absent on every other city, which unlocks by rank alone as before).
+  if (Array.isArray(world.lessonCards) && world.lessonCards.includes(type)) return true;
   if (PRESTIGE_UNLOCKS.includes(type)) return Number.isInteger(world.prestigeUnlocks[type]);
   const cur = milestoneIndex(world.milestone);
   for (let i = 0; i <= cur; i++) if (MILESTONES[i].unlocks.includes(type)) return true;

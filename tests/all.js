@@ -177,3 +177,5 @@ import './v83/all.js';
 import './v84/all.js';
 // Version 9.0 "Dynasty": one aggregator (tests/v90/all.js); nothing is added here.
 import './v90/all.js';
+// Version 9.1 "First hours": one aggregator (tests/v91/all.js); nothing is added here.
+import './v91/all.js';
