@@ -90,6 +90,22 @@ export function sellLever(world) {
   return best && { ...best, months: monthsToNextArrival(world) };
 }
 
+// Version 9.2 (Track Q, ruling 1793): why a lever is closed, from the sim's own answers: { reason, show } where show is what a Show me goes to (a palace's id, or a trading
+// post's or quay's id), or null with nothing to show. Null for a lever that is open.
+export function taxClosed(world, f = monthFigures(world)) {
+  if (taxLever(world, f)) return null;
+  const palace = palaceOf(world);
+  if (!palace) return { reason: 'noPalace', show: null };
+  return { reason: taxRates.indexOf(taxRateOf(world)) >= taxRates.length - 1 ? 'taxTop' : 'taxNothing', show: palace.id };
+}
+export function sellClosed(world) {
+  if (sellLever(world)) return null;
+  const open = Object.keys(PARTNERS).filter((id) => world.trade.routes[id]);
+  if (!open.length) return { reason: 'noRoute', show: null };
+  const site = open.map((id) => arrivalAt(world, id)).find(Boolean);
+  return site ? { reason: 'noSurplus', show: site.id } : { reason: 'noSite', show: null };
+}
+
 // Everything the sheet says, as numbers.
 export function debtModel(world) {
   const f = monthFigures(world), gold = world.gold;
@@ -101,6 +117,7 @@ export function debtModel(world) {
     monthsToClear: gold >= 0 ? 0 : f.net > 0 ? Math.ceil(-gold / f.net) : null,
     room, monthsToLimit: room > 0 && f.net < 0 ? Math.floor(room / -f.net) : null, pastLimit: room < 0,
     top: topCosts(world), taxLever: taxLever(world, f), sellLever: sellLever(world),
+    taxClosed: taxClosed(world, f), sellClosed: sellClosed(world),   // Version 9.2 (Track Q, ruling 1793)
   };
 }
 
@@ -141,6 +158,10 @@ export function createDebtSheets(ctx) {
     return el('li', { class: 'debt-lever' }, [el('p', { text }), button(T.showMe, { class: 'debt-show', 'aria-label': label, onClick: onShow })]);
   }
 
+  function closedRow(text, show) {
+    return el('li', { class: 'debt-lever-closed' }, [el('p', { class: 'muted', text }), show ? button(T.showMe, { class: 'debt-show', 'aria-label': show[0], onClick: show[1] }) : null]);
+  }
+
   function sheet(body, { setTitle } = {}) {
     if (typeof setTitle === 'function') setTitle(W.debtTitle);
     const m = debtModel(world);
@@ -154,6 +175,10 @@ export function createDebtSheets(ctx) {
       levers.push(leverRow(W.sellLever(goodName(s.good), partnerName(s.partner), s.gold, s.months, s.boat, s.keep), W.sellLeverLabel(goodName(s.good)),
         () => store.set(openSheet(store.get(), 'trade', s.post))));
     }
+    // Version 9.2 (Track Q, ruling 1793): a lever that is closed says why, in the sim's terms, with Show me where there is something to show.
+    const closed = [];
+    if (m.taxClosed) closed.push(closedRow(W.closed[m.taxClosed.reason], m.taxClosed.show === null ? null : [W.closedPalaceLabel, () => ctx.selectBuilding(m.taxClosed.show)]));
+    if (m.sellClosed) closed.push(closedRow(W.closed[m.sellClosed.reason], m.sellClosed.show === null ? null : [W.closedTradeLabel, () => store.set(openSheet(store.get(), 'trade', m.sellClosed.show))]));
     body.append(el('section', { class: 'debt-sheet' }, [
       note ? el('p', { class: 'debt-note', role: 'status', tabindex: '-1', text: note }) : null,
       el('p', { class: 'debt-head', text: m.inDebt ? W.inDebt(m.gold) : W.notInDebt(m.gold) }),
@@ -166,7 +191,8 @@ export function createDebtSheets(ctx) {
       rate ? el('p', { class: 'debt-rate', text: rate }) : null,
       el('p', { class: 'debt-limit', text: limit }),
       el('h3', { text: W.leversHead }),
-      levers.length ? list('debt-levers', levers) : el('p', { class: 'muted', text: W.leversNone }),
+      levers.length ? list('debt-levers', levers) : null,
+      closed.length ? list('debt-closed', closed) : null,
     ]));
   }
   return { backToGold: sheet };

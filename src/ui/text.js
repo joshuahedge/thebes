@@ -347,6 +347,7 @@ function bazaarEmptyWords(alert, world) {
 
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
+  if (alert.members && alert.members.length > 1) { const rolled = rolledWords(alert, world); if (rolled) return rolled; }   // Version 9.2 (Track Q, ruling 1775): a rolled-up row says its cause once
   const b = alert.id ? world.buildings[alert.id] : null;
   const name = b ? buildingName(b.type) : 'A building';
   if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
@@ -4702,6 +4703,51 @@ ALERT_TEXT.understaffed = (alert, world, b, name) => {
 FEAT_TEXT.swift_town = { name: 'Swift Town', condition: `Become a ${scoreFeatMilestone('swift_town')} within ${scoreFeatCheck('swift_town').day} days` };
 
 // Version 9.2, Track Q
+export const Q92_TEXT = {
+  fixFirst: 'Fix these first',          // the Minimap sheet's head: City advice's top three (ruling 1775)
+  screenshotNote: 'Hides the buttons and panels for a clean picture. Tap, Esc or Back brings them back.',   // Options > Display (ruling 1791)
+};
+V91_R_TEXT.closed = {                    // the debt sheet's closed levers, each its reason (ruling 1793; leversNone is no longer shown)
+  noPalace: 'No palace yet: taxes cannot be raised.',
+  taxTop: 'Taxes are already at High: they cannot be raised.',
+  taxNothing: 'A higher tax rate would bring in nothing more.',
+  noRoute: 'No trade route is open yet: nothing can be sold.',
+  noSite: 'No trading post or quay is working to send goods from.',
+  noSurplus: 'Nothing above your Keep floors to sell.',
+};
+V91_R_TEXT.closedPalaceLabel = 'Show me the palace';
+V91_R_TEXT.closedTradeLabel = 'Show me the trade sheet';
+V80_U_TEXT.groups.help = 'Help';          // Options' sections: Sound, Display, Controls, Help, Saves, About (ruling 1792)
+// Ruling 1775: the words of a rolled-up row (src/sim/alerts.js rollUpAlerts), the same cause said once with its count: "7 firehouses are short of workers". The
+// noun is the buildings' own plural when they are all one kind, else "buildings"; the fix is the cause's, said for the lot. A row that stands for one alert keeps
+// its own words (alertText asks rolledWords only for a row with members).
+const q92Kinds = (alert, world) => [...new Set((alert.members || []).map((a) => (world.buildings[a.id] ? world.buildings[a.id].type : null)))];
+const q92Noun = (alert, world) => { const k = q92Kinds(alert, world); return k.length === 1 && k[0] ? pluralName(k[0]) : 'buildings'; };
+const q92Good = (alert, world) => {
+  const k = q92Kinds(alert, world);
+  const def = k.length === 1 && k[0] ? BUILDINGS[k[0]] : null;
+  return def && def.produces ? goodWord(def.produces.good) : 'their goods';
+};
+export const ROLLED_TEXT = {
+  no_road: (n, w, a) => ({ title: `${n} ${q92Noun(a, w)} have no road`, fix: 'Lay a road beside each' }),
+  no_storage: (n, w, a) => ({ title: `${n} ${q92Noun(a, w)} have nowhere to store ${q92Good(a, w)}`, fix: 'Build a granary or storehouse within reach of each' }),
+  storage_full: (n, w, a) => ({ title: `${n} ${q92Noun(a, w)} are full or have no room in storage`, fix: 'Build more storage nearby' }),
+  no_input: (n, w, a) => ({ title: `${n} ${q92Noun(a, w)} have nothing to work with`, fix: 'Store what each needs within reach' }),
+  understaffed: (n, w, a) => ({ title: `${n} ${q92Noun(a, w)} are short of workers`, fix: 'More homes bring more workers' }),
+  bazaar_empty: (n) => ({ title: `${n} bazaars have no food on the shelf`, fix: 'Open each to see why' }),
+  bazaar_sold_out: (n) => ({ title: `${n} bazaars sell out before their homes are fed`, fix: 'Build more bazaars near the homes' }),
+  fire: (n) => ({ title: DANGER_UI_TEXT.firesTitle(n), fix: DANGER_UI_TEXT.firesFix }),
+  blaze: (n) => ({ title: `${n} buildings are burning`, fix: 'A staffed firehouse reaches them' }),
+  fire_risk: (n) => ({ title: `${n} buildings could catch fire`, fix: 'Build a firehouse nearby and keep it staffed' }),
+  site_stalled: (n) => ({ title: `${n} building sites are stalled`, fix: 'Open each to see what it waits for' }),
+  labour_shortage: (n, w, a) => { const names = a.members.map((m) => LEVEL_NAMES[m.level] || m.level); return { title: `Not enough workers for ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`, fix: "More homes, or pause buildings you don't need" }; },
+  illness: (n) => ({ title: HEALTH_TEXT.sickMany(n), fix: HEALTH_TEXT.cause.none }),
+  crime_risk: (n) => ({ title: CRIME_TEXT.title(n), fix: CRIME_TEXT.cause.none }),
+};
+export function rolledWords(alert, world) {
+  const f = ROLLED_TEXT[alert.code];
+  return f ? f(alert.count, world, alert) : null;
+}
 
 // Version 9.2, Track S
 

@@ -237,6 +237,7 @@ describe('s46 court requests', () => {
     refuseRequest(w);
     expect(w.court.nextRequestDay).toBeGreaterThan(w.day);                    // a month's breather before the next
     w.day = w.court.nextRequestDay;
+    delete w.letterGate;                                                      // WAVE2-PIN 9.2 Track Q (ruling 1777): the requests' own schedule is pinned here; the court's gate has its own tests (tests/v92/q/letters.test.js)
     courtDay(w);
     expect(w.court.request.id).toBeGreaterThan(first.id);
   });

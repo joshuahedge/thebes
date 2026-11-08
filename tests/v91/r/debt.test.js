@@ -193,8 +193,9 @@ describe('v91 r debt: the sheet', () => {
       });
       expect(s.querySelector('.debt-rate').textContent).toBe(W.climbs(m.monthsToClear));
       expect(s.querySelector('.debt-limit').textContent).toBe(`${W.limitAhead(m.room)}`);
-      expect(s.querySelector('.debt-levers')).toBe(null);   // no palace, no post: the sheet says so
-      expect(s.textContent).toContain(W.leversNone);
+      expect(s.querySelector('.debt-levers')).toBe(null);   // no palace, no post: the sheet says why (9.2, Track Q, ruling 1793: the reasons replace "No other way is open")
+      expect([...s.querySelectorAll('.debt-lever-closed p')].map((p) => p.textContent)).toEqual([W.closed.noPalace, W.closed.noRoute]);
+      expect(s.textContent.includes(W.leversNone)).toBe(false);
     } finally { r.cleanup(); }
   });
   it('Pause pauses that building through the sim and says so, focus on the note, and the month gains what the row said', async () => {

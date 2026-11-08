@@ -32,7 +32,7 @@ describe('v80 v the band is 6 px and is the frame of every panel', () => {
     } finally { r.cleanup(); }
   });
 
-  it('is on the top edge of a sheet\'s head, a dialog, the placing bar and a toast, at a phone and a desktop size', async () => {
+  it('is on the top edge of a sheet\'s head, a dialog and the placing bar (a toast wore it until 9.2), at a phone and a desktop size', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       for (const [w, h] of SIZES) {
@@ -48,8 +48,7 @@ describe('v80 v the band is 6 px and is the frame of every panel', () => {
         r.ui.placement.start({ kind: 'building', type: 'well' });
         expect([at, 'bar', wearsBand(r.root.querySelector('#confirm .confirm'))]).toEqual([at, 'bar', BANDED]);
         r.ui.placement.cancel();
-        r.ui.toasts.show('Well placed', { ms: 60000 });
-        expect([at, 'toast', wearsBand(r.root.querySelector('#toasts .toast'))]).toEqual([at, 'toast', BANDED]);
+        // 9.2 (Track Q, ruling 1792): the toast is parchment with an ink outline and wears no band (tests/v92/q/tidies.test.js).
       }
     } finally { r.cleanup(); }
   });

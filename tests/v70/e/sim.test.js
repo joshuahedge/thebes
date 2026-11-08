@@ -133,7 +133,7 @@ describe('v70 e sim: when an event may come', () => {
       w.day = s.waiting.due;
       eventDay(w);
       expect(s.waiting).toBe(null);
-      w.day = s.nextDay;
+      w.day = Math.max(s.nextDay, w.letterGate ? w.letterGate.nextDay : 0);   // WAVE2-PIN 9.2 Track Q (ruling 1777): was w.day = s.nextDay; the court's gate also holds a letter back 5 to 8 months from the last
       w.court.request = null;
       eventDay(w);
       if (s.waiting) (EVENT_DEFS.find((d) => d.id === s.waiting.kind).welcome ? welcome : trouble).push(s.waiting.kind);
@@ -573,7 +573,7 @@ describe('v70 e sim: the alert, the advice and the save', () => {
       advanceDays(w, 1, events);
       for (const e of events.splice(0)) if (e.type === 'city_event_offered') offered.push([w.day - start, e.kind]);
     }
-    expect(offered.length).toBeGreaterThan(5);
+    expect(offered.length).toBeGreaterThan(1);                                 // WAVE2-PIN 9.2 Track Q (ruling 1777): was > 5; the four streams share one letter every 5 to 8 months, so the events are about one in four of them
     expect(offered.length).toBeLessThan(16);
     for (let i = 1; i < offered.length; i++) expect(offered[i][0] - offered[i - 1][0] >= CITY_EVENTS.gapMonths[0] * MONTH).toBe(true);
     expect(w.tally.eventsOffered).toBe(offered.length);

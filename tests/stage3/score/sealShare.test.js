@@ -18,14 +18,12 @@ const tick = () => new Promise((res) => setTimeout(res, 20));
 async function until(test, tries = 300) { for (let i = 0; i < tries && !test(); i++) await tick(); return test(); }
 
 describe('s3 score seal this reign', () => {
-  it('puts Seal this reign, Share score and Screenshot mode in the score section; Screenshot mode hides everything', async () => {
+  it('puts Seal this reign and Share score in the score section (9.2, Track Q: Screenshot mode moved to Options > Display)', async () => {
     const r = await rigUI();
     try {
       openSummary(r);
       const buttons = [...sheet(r).querySelectorAll('.score-actions button')].map((b) => b.textContent);
-      expect(buttons).toEqual([SCORE_TEXT.sealReign, SCORE_TEXT.shareScore, T.screenshotMode]);
-      fire(sheet(r).querySelector('.score-actions .screenshot-mode'), 'click');
-      expect([r.store.get().screenshot, r.store.get().sheet]).toEqual([true, null]);
+      expect(buttons).toEqual([SCORE_TEXT.sealReign, SCORE_TEXT.shareScore]);
     } finally { r.cleanup(); }
   });
   it('asks first in words that say what sealing does, and Not yet leaves everything as it was', async () => {

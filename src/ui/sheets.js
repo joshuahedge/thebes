@@ -6,7 +6,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
-import { V84_G_TEXT } from './text.js';
+import { V84_G_TEXT, Q92_TEXT } from './text.js';
 import { taxRateOf } from '../sim/palace.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
@@ -16,7 +16,9 @@ import { roadGoods } from '../sim/carts.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
-import { CRITICAL_RANK } from './alerts.js';
+import { CRITICAL_RANK, stepRow } from './alerts.js';
+import { rollUpAlerts } from '../sim/alerts.js';
+import { adviceWords } from './adviceText.js';
 import { summaryData } from './hud.js';
 import { cityTabs, markTabPanel, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
@@ -76,7 +78,7 @@ if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
   document.addEventListener('pointerdown', () => mark(false), true);
 }
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
   const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
@@ -435,31 +437,49 @@ export function createSheets({ container, store, world, placement, cameraControl
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const map = [el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut])];
     const phone = store.get().layout !== 'wide';
-    const list = phone ? criticalFirst(getAlerts()) : getAlerts();
-    const alerts = [el('h3', { text: T.alerts })];
+    const rows = getRows();   // Version 9.2 (Track Q, ruling 1775): one row per cause
+    const list = phone ? criticalFirst(rows) : rows;
+    const alerts = [];
+    // The top of City advice first (the same items, the same Show me), then every cause.
+    const first = adviceTop();
+    if (first.length) alerts.push(el('h3', { class: 'fix-first-head', text: Q92_TEXT.fixFirst }), el('ol', { class: 'fix-first' }, first.map((a) => {
+      const w = adviceWords(a, world);
+      return el('li', { class: 'fix-first-item', dataset: { kind: a.kind } }, [el('strong', { text: w.what }), ' ', w.action ? button(w.action.label, { class: 'show-me quiet', 'aria-label': w.action.aria, onClick: () => onAdviceFix(a) }) : null]);
+    })));
+    alerts.push(el('h3', { text: T.alerts }));
     if (!list.length) alerts.push(el('p', { class: 'muted', text: T.noAlerts }));
     else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => {
       const t = alertText(a, world);
       // Stage 4 (spec 4.16): a stalled site's fix is Show me for a missing guild or material (the card, its ghost near the site).
-      const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
+      const stall = a.code === 'site_stalled' && !a.members && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
       const threat = alertShowMe(world, a);
       const food = bazaarFix(world, a);   // Version 8.2.1 (ruling 1366): the bazaar's food alerts, aimed by their cause
       const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })]
         : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })]
         : food ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => { if (food.view) { noteView(world, food.view); if (food.keep) aimKeepStocked(food.view, food.keep.good); onSelect(food.view); } else onShowMe(food.showMe); } })]
         : threat ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(threat) })] : [];   // Stage 4.5: an illness or crime alert with no physician or police post in reach
-      return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
+      return el('li', { dataset: { code: a.code } }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));
     body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
-    minimap.render(list);
+    minimap.render(getAlerts());
     return [head(T.minimap), body];
   }
+
+  // Version 9.2 (Track Q, ruling 1775): View on a rolled-up row goes to its first building, then the next on each press, round and round (stepRow, as the fire row's does).
+  const rowPress = new Map();
+  const stepInList = (a) => {
+    if (!a.members) return a;
+    const n = rowPress.get(a.code) || 0;
+    rowPress.set(a.code, n + 1);
+    return stepRow(a, n);
+  };
 
   // View in the alert list: a building's alert goes through onView (it selects the building); a raid's alert sits at a
   // map point (Stage 3), so the sheet closes and the camera goes there.
   // Stage 4: View outlines what it frames (ruling 281); a site stalled because its guild is short of workers or burning views
   // that guild (spec 4.16 Stalls).
-  function viewInList(a) {
+  function viewInList(row) {
+    const a = stepInList(row);
     if ((a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y)) { close(); cameraControl.panTo(a.x + 0.5, a.y + 0.5); return; }
     const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
     if (stall && stall.view) { noteView(world, stall.view); onSelect(stall.view); return; }

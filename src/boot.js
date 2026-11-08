@@ -322,7 +322,7 @@ export async function boot(doc, win, {
     }
     // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
     // start must not use the ask up (a start later in the session, or the next visit, shows it).
-    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
+    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000, group: 'welcome', waits: true }); }
     else if (flow.env.standalone) remember();
   }
   let persistAsked = false;
