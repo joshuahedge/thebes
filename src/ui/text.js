@@ -4569,6 +4569,14 @@ export const V90_L_TEXT = {
 // ── end v91 r ──
 
 // Version 9.1, Track A (clear and trusted: About; rulings 1700-1709). Track A writes only between this header and its end line.
+export const V91_A_TEXT = {
+  about: 'About',
+  madeBy: 'Made by Josh',
+  aboutLicence: 'All rights reserved',   // ruling 1701: the licence Josh chose, in one string
+  art: 'Art, music and sounds are made by the game itself.',
+  privacy: 'Thebes keeps your cities on this device. It sends nothing anywhere; a share link carries only what it shows.',
+  licenceLine: (licence) => `Licence: ${licence}`,
+};
 // ── end v91 a ──
 
 // Version 9.1, Track P (runs well: the profile, the caches, the preload; rulings 1685-1699). Track P writes only between this header and its end line.
