@@ -37,6 +37,9 @@ export const DEFAULT_SETTINGS = {
   // Version 6.0 (Track 0 seam, Track D2 owns them; ruling 626): the lesson is the device's, never a city's. lessonDone: it has ended ("Your first city
   // stands"); lessonStep: the step reached (0 before it starts), for a lesson left part-way. src/ui/lesson.js lessonDue reads them.
   lessonDone: false, lessonStep: 0,
+  // Version 9.1 (fix wave, ruling 1735): the records id of the city the lesson's hand-over made the player's own ('' on a device that never adopted one), so the
+  // new-city card does not count it as a city the player started (firstCityLayout).
+  lessonCityId: '',
   // Version 7.0 (Track 0 seam, Track S owns them): dayNight, the Settings switch "Day and night" (on: the six-minute light loop, unless Motion is
   // Still); effectsVolume, the effects' volume beside musicVolume (MUSIC_VOLUMES steps; 100 is today's loudness), both under the Sound master.
   dayNight: true, effectsVolume: 100,
@@ -55,6 +58,7 @@ const VALID = {
   roadMode: (v) => v === 'straight' || v === 'route',
   lessonDone: isBool,
   lessonStep: (v) => Number.isInteger(v) && v >= 0,
+  lessonCityId: (v) => typeof v === 'string' && v.length <= 64,
   difficulty: (v) => DIFFICULTY_ORDER.includes(v),
   fireReaction: (v) => FIRE_REACTIONS.includes(v),
   motion: (v) => MOTION_SETTINGS.includes(v),

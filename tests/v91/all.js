@@ -8,3 +8,4 @@ import './p/all.js';         // Track P: runs well (the caches, the preload; the
 import './h/all.js';         // Track H: the heirs retuned
 import './balance/all.js';   // Wave 2: the balance check, against the design's targets
 import './docs/all.js';      // The docs step: What's new for 9.1
+import './fix/all.js';       // The fix wave after the final review (rulings 1735-1739)

@@ -41,10 +41,17 @@ export function topCosts(world, n = TOP_COSTS) {
     const cost = costOf(world, scale, b);
     if (cost > 0) rows.push({ id: b.id, type: b.type, cost });
   }
-  rows.sort((a, b) => b.cost - a.cost || a.id - b.id);
+  // Fix wave (ruling 1739): buildings of one kind are one row ("2 Builders' guilds: 152 a month"), so no two rows read alike; id is the lowest of them, ids all of them.
+  const kinds = new Map();
+  for (const r of rows) {
+    const k = kinds.get(r.type);
+    if (k) { k.cost += r.cost; k.count += 1; k.ids.push(r.id); } else kinds.set(r.type, { id: r.id, ids: [r.id], type: r.type, cost: r.cost, count: 1 });
+  }
+  const merged = [...kinds.values()];
+  merged.sort((a, b) => b.cost - a.cost || a.id - b.id);
   // Freed workers go to jobs that were short of them, so the wages come off in full only while no level of work is short (assignLabour's shortLevels).
   const exact = !(world.labour && world.labour.shortLevels && world.labour.shortLevels.length);
-  return rows.slice(0, n).map((r) => ({ ...r, exact }));
+  return merged.slice(0, n).map((r) => ({ ...r, exact }));
 }
 
 // The tax lever: one step up from the palace's rate, with what it brings and what it costs in mood. None without a palace (the rate lives there), at High, or when the step brings nothing.
@@ -104,10 +111,11 @@ export function createDebtSheets(ctx) {
   const list = (cls, rows) => el('ul', { class: cls, style: { listStyle: 'none', margin: '0', padding: '0' } }, rows);
 
   function pause(row) {
-    const r = setPaused(world, row.id, true);
-    if (!r.ok) { if (ctx.toasts) ctx.toasts.show(reasonText(r.reason)); return; }
+    let r = null;
+    for (const id of row.ids) { r = setPaused(world, id, true); if (!r.ok) break; }   // every building of the row's kind
+    if (!r.ok) { assignLabour(world); if (ctx.toasts) ctx.toasts.show(reasonText(r.reason)); return; }
     assignLabour(world);
-    note = W.pausedNote(buildingName(row.type), row.cost);
+    note = W.pausedNote(W.kindName(row.type, row.count), row.cost);
     ctx.afterCommand({ kind: 'pause', result: r, text: T.paused, undoable: false });
     note = null;
     const said = (ctx.root || document).querySelector('#sheet .debt-note');
@@ -115,7 +123,7 @@ export function createDebtSheets(ctx) {
   }
 
   function costRow(row) {
-    const name = buildingName(row.type);
+    const name = W.kindName(row.type, row.count);
     return el('li', { class: 'debt-cost', dataset: { id: String(row.id) } }, [
       el('div', { class: 'debt-cost-words' }, [
         el('strong', { text: W.costRow(name, row.cost) }),

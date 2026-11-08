@@ -5,6 +5,7 @@
 import { createWorld } from './sim/world.js';
 import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
+import { settleGoals } from './sim/goals.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
@@ -155,7 +156,7 @@ export async function boot(doc, win, {
   // Version 9.1 (Track F, ruling 1660): null until the player picks one, and the card then starts on firstCityLayout (the classic river while the device's records hold
   // no city, Surprise me after); a ?variant= flag keeps Surprise me's place, so the flag still names the map.
   let newCityLayout = null;
-  const layoutNow = () => newCityLayout || (variantParam ? 'auto' : firstCityLayout(records));
+  const layoutNow = () => newCityLayout || (variantParam ? 'auto' : firstCityLayout(records, settings.get().lessonCityId));
   // Version 8.2 (Track G, ruling 1310): the seed the new-city card's map preview shows (null until the card draws one), kept through Back and size or layout
   // changes until Another draws a new one or a city starts with it; the city that starts is that seed's map, at that size and layout.
   let newCitySeed = null;
@@ -270,6 +271,8 @@ export async function boot(doc, win, {
       if (current && current.world.speed > 0) current.ui.speedControl.set(0);
       openCards(onDone, { join: true });
     },
+    // Fix wave (ruling 1738): the error card takes the screen alone; the picture cards mount outside #ui, so it closes them, without their onDone (that may start a city).
+    closeCards() { if (cards) { const open = cards; cards = null; joined = []; open.close(); } },
     // Version 6.0 (Track D2, rulings 760-779): one picture card on its own at its first moment (src/ui/cardMoments.js), the game paused behind it. false when
     // other cards are already open (the moment is tried again), or the card is not one.
     pictureCard(id) {
@@ -389,7 +392,11 @@ export async function boot(doc, win, {
     handOverWorld(world);
     delete world.lesson;
     setGuide(world, settings.get().help === 'full');
+    settleGoals(world);                                 // Fix wave (ruling 1737): goals the city already meets complete quietly here, so none shows a toast or counts in Messages
     markLessonDone();
+    // Fix wave (ruling 1735): the adopted city's records id is kept, so the new-city card does not count it as a city the player started (firstCityLayout).
+    if (!world.cityId) setCityId(world, newCityId(clock()));
+    settings.set({ lessonCityId: world.cityId });
     // Version 9.1 (Track F, ruling 1663): the picture cards whose moment the lesson itself taught (the Large plot, the raid) are seen, so none opens over the hand-over.
     const seen = Array.isArray(settings.get().seenTips) ? settings.get().seenTips : [];
     const taught = dueCards(world, seen).map((c) => seenKey(c.id));

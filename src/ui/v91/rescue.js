@@ -137,6 +137,7 @@ export function installRescue(ctx) {
     ]);
     card.addEventListener('keydown', trap);
     (root || doc.body).append(card);
+    if (ctx.hooks && typeof ctx.hooks.closeCards === 'function') ctx.hooks.closeCards();   // one panel at a time: the picture cards sit outside #ui, so behind() cannot reach them (ruling 1738)
     behind(true);   // the card is aria-modal: the page behind it takes no tap, key or reader focus
     reload.focus();
     // What the slot holds, said once it is known: the card is up at once, with Reload working, whatever the storage does.
