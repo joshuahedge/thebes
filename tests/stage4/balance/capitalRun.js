@@ -19,6 +19,7 @@ import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
 import { LARGE_PLOT } from '../../../src/data/largePlots.js';
 import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
+import { heirHabit } from '../../v91/h/habits.js';   // Version 9.1 (Track H): the heirs' habits (adapt)
 
 const SIZE = 48;
 const RESERVE = 400;
@@ -49,9 +50,9 @@ function capitalWorld(size = SIZE, dangers = false, seed = 5, events = false, he
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
 // is a broken script, so the run stops there. when: a further wait (the small pyramid's prestige unlock).
-const road = (x0, y0, x1, y1) => ({ cost: (w) => previewRoad(w, x0, y0, x1, y1).cost, run: (w) => drawRoad(w, x0, y0, x1, y1) });
+const road = (x0, y0, x1, y1) => ({ cost: (w) => previewRoad(w, x0, y0, x1, y1).cost, run: (w) => drawRoad(w, x0, y0, x1, y1), line: [x0, y0, x1, y1] });   // Version 9.1: line, the ground it claims (tests/v91/h/habits.js)
 const build = (type, x, y) => ({ cost: (w) => { const c = canPlace(w, type, x, y); return c.ok || c.reason === 'no_gold' ? costOf(w, type) : Infinity; }, run: (w) => place(w, type, x, y), type, x, y });
-const plots = (x0, y0, x1, y1) => ({ cost: (w) => previewHouses(w, x0, y0, x1, y1).cost, run: (w) => paintHouses(w, x0, y0, x1, y1) });
+const plots = (x0, y0, x1, y1) => ({ cost: (w) => previewHouses(w, x0, y0, x1, y1).cost, run: (w) => paintHouses(w, x0, y0, x1, y1), line: [x0, y0, x1, y1] });
 const route = (partner) => ({ cost: (w) => routeCostOf(w, partner), run: (w) => openRoute(w, partner) });
 const order = (good, mode, keep) => ({ cost: () => 0, run: (w) => setTradeOrder(w, good, mode, keep) });
 const at = (milestone, ...steps) => steps.map((s) => ({ milestone, pop: 0, ...s }));
@@ -154,9 +155,12 @@ function insanity(w, m) {
 // Version 6.0.1: seed is the world's seed (5, the run as tuned; tests/v60/balance measures the great work on another seed too).
 // Version 7.0 (wave 3): events the city events' player (tests/v70/balance/events.js eventPlayer), called after each month end's books like onMonth; with none the events are held off as before.
 // Version 9.0 (wave 2, tests/v90/balance): heir the trait the city plays under from day 0 (src/data/v90.js HEIRS); the Steady, the run as it always was.
-export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5, events: eventsPlayer = null, heir = 'steady' } = {}) {
+// Version 9.1 (Track H, rulings 1710, 1714): adapt gives the city its heir's habit (tests/v91/h/habits.js heirHabit: none for the Steady), called after onMonth at each
+// month end and returned as `habit` for the runs that take this city on; off, the run as it always was.
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5, events: eventsPlayer = null, heir = 'steady', adapt = false } = {}) {
   const started = performance.now();
   const w = capitalWorld(size, dangers, seed, Boolean(eventsPlayer), heir);
+  const habit = adapt ? heirHabit(heir) : null;
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {
@@ -186,9 +190,10 @@ export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth 
     months.push({ ...w.stats.lastMonth, workforce: w.labour.workforce, employed: w.labour.employed, crews, gold: w.gold });
     if (eventsPlayer) eventsPlayer.onMonth(w, events, m);
     if (onMonth) onMonth(w, events, m);
+    if (habit) habit.onMonth(w, events, m);
     tryBuild();
   }
-  return { w, steps: next, lowestGold, net, spent, capitalMonth, made, months, insane, elapsed: performance.now() - started };
+  return { w, habit, steps: next, lowestGold, net, spent, capitalMonth, made, months, insane, elapsed: performance.now() - started };
 }
 
 // The run both test files read: run once per page, the first time either asks (elapsed is that run's own time).

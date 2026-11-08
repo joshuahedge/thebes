@@ -4575,4 +4575,12 @@ export const V90_L_TEXT = {
 // ── end v91 p ──
 
 // Version 9.1, Track H (the heirs; rulings 1710-1724). Track H writes only between this header and its end line.
+// Ruling 1712: the Nilometer's rule in one clause, with this city's own numbers. The Steady's is the River track's static rvPrepRule ("60% becomes 73%");
+// the Bountiful's low flood loses half again as much (src/sim/dynasty.js heirLoss, the sim's rule), so its farms go from 40% to 60%. The static lines stay
+// for How to play, which states the game's rule, not a city's.
+import { heirLoss as h91HeirLoss } from '../sim/dynasty.js';
+const h91LowPct = (world, prepared) => `${Math.round(h91HeirLoss(world, rvPrepared(rvLevelRow('low').harvest, prepared)) * 100)}%`;
+const h91PrepRule = (world) => `a Low flood's loss is cut by ${rvCut} (${h91LowPct(world, false)} becomes ${h91LowPct(world, true)})`;
+S46_RIVER_TEXT.nilometerNoteFor = (world) => `While staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}`;
+FIRST_TEXT.first_nilometer.whyFor = (world) => `Staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${h91PrepRule(world)}.`;
 // ── end v91 h ──

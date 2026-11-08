@@ -210,16 +210,13 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     expect(hrefs.filter((h) => h === './css/v91.css').length).toBe(1);
     expect((await fetch('/css/v91.css')).status).toBe(200);
   });
-  it('ends text.js with the five 9.1 sections in merge order, F, R, A, P then H, each empty', async () => {
+  it('ends text.js with the five 9.1 sections in merge order, F, R, A, P then H, each closed by its end line (a track fills its own)', async () => {
     const text = await source('/src/ui/text.js');
     const at = (s) => text.indexOf(s);
     const marks = ['f', 'r', 'a', 'p', 'h'].flatMap((k) => [`// Version 9.1, Track ${k.toUpperCase()} (`, `// ── end v91 ${k} ──`]);
     for (const m of marks) expect([m, text.split(m).length, at(m) > at('// ── end v90 v ──')]).toEqual([m, 2, true]);
     for (let i = 1; i < marks.length; i++) expect([marks[i], at(marks[i - 1]) < at(marks[i])]).toEqual([marks[i], true]);
-    for (let i = 0; i < marks.length; i += 2) {
-      const header = text.indexOf('\n', at(marks[i]));
-      expect([marks[i], text.slice(header, at(marks[i + 1])).trim()]).toEqual([marks[i], '']);
-    }
+    // Version 9.1 (Track A): the sections were empty in wave 0; each track now writes between its own header and end line, so only the order is pinned.
     expect(text.trimEnd().endsWith('// ── end v91 h ──')).toBe(true);
   });
 });
