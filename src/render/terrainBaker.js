@@ -464,9 +464,12 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
 // scale 3 (1,560 x 792 px, about 4.9 MB), so 32 of them were about 160 MB; the budget keeps about 48 MB, evicting the least recently used. A
 // chunk the frame shows (the renderer names them in frame()) is never evicted for the budget, at any scale, so a view that needs more than the
 // budget keeps every chunk it shows, and the ring round it is not baked ahead (room()). The renderer may lower the budget for a frame (ruling
-// 1687: the terrain gives way to the sprites a view needs, so the two together keep CACHES_BUDGET_BYTES, target P3's 64 MB at DPR 2).
+// 1687: the terrain gives way to the sprites a view needs, so the two together keep CACHES_BUDGET_BYTES, target P3's 64 MB at DPR 2), never below
+// TERRAIN_FLOOR_BYTES, so a sprite-heavy view (hills at zoom 2) still keeps the ring round it instead of evicting and baking it again frame after frame.
 export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;
 export const CACHES_BUDGET_BYTES = 64 * 1024 * 1024;
+export const TERRAIN_FLOOR_BYTES = 16 * 1024 * 1024;
+export const terrainBudgetFor = (spriteBytes) => Math.max(TERRAIN_FLOOR_BYTES, CACHES_BUDGET_BYTES - spriteBytes);
 export const chunkBytes = (scale) => Math.ceil((32 * CHUNK + 2 * CHUNK_MARGIN) * scale) * Math.ceil((16 * CHUNK + 2 * CHUNK_MARGIN) * scale) * 4;   // bakeChunk's canvas
 
 export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32, maxBytes = TERRAIN_BUDGET_BYTES } = {}) {

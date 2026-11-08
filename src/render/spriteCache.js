@@ -44,13 +44,14 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
   const images = new Map();  // slot -> { img, promise }
   const buckets = new Map(); // `${bucket}x${dpr}` -> { keys: Set of sprite keys, bytes, left: when it stopped being the bucket in use }
   const drawnIn = new Map(); // key -> the frame it was last got in
-  let current = null, gets = 0, bytes = 0, drops = 0, frameNo = 0;
+  let current = null, gets = 0, bytes = 0, drops = 0, frameNo = 0, spentIn = -1;   // spentIn: the frame a trim found nothing left to evict
 
   const count = (k) => { if (counter) counter[k] = (counter[k] || 0) + 1; };
 
-  // Past the budget, the sprites not got in this frame, least recently got first, until the bytes are back under it.
+  // Past the budget, the sprites not got in this frame, least recently got first, until the bytes are back under it. Once a trim ends over the
+  // budget, every sprite left was got in this frame and none can become evictable before the next, so the frame's later misses skip the scan.
   function trim() {
-    if (bytes <= maxBytes) return;
+    if (bytes <= maxBytes || spentIn === frameNo) return;
     const old = [...drawnIn].filter(([, f]) => f < frameNo).sort((a, b) => a[1] - b[1]);
     for (const [key] of old) {
       if (bytes <= maxBytes) break;
@@ -61,6 +62,7 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
       bytes -= n;
       count('evicted');
     }
+    if (bytes > maxBytes) spentIn = frameNo;
   }
 
   function sweep(t) {

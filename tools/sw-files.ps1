@@ -6,7 +6,8 @@ $rel = { param($path) $path.Substring($root.Length + 1) -replace '\\', '/' }
 
 # Version 9.1 (Track P, ruling 1685): index.html's preload block, written first (index.html is in the build stamp). Every module src/main.js
 # imports, directly or not, through static import and export-from lines (a dynamic import() stays lazy), in the order the browser meets them
-# (depth first from main.js), as <link rel="modulepreload">, so the browser asks for the whole tree at once instead of a level at a time.
+# (depth first from main.js), as <link rel="modulepreload">, so the browser asks for the whole tree at once instead of a level at a time. A line
+# comment is skipped (the keyword must start a statement); a bare import line inside a block comment would still count (no module has one).
 $importLine = [regex]'(?s)(?:^|[;\n}])\s*(?:import|export)\s+(?:[^;''"`()]*?\s+from\s+)?[''"](\.{1,2}/[^''"]+\.js)[''"]'
 $seen = [System.Collections.Generic.HashSet[string]]::new()
 $order = [System.Collections.Generic.List[string]]::new()

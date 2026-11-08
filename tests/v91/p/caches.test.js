@@ -5,7 +5,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { createRenderer } from '../../../src/render/renderer.js';
 import { createSpriteCache, ZOOM_BUCKETS, SPRITE_IDLE_MS, SPRITE_BUDGET_BYTES, canvasBytes } from '../../../src/render/spriteCache.js';
-import { createTerrainBaker, TERRAIN_BUDGET_BYTES, chunkBytes, chunkScaleFor, CHUNK } from '../../../src/render/terrainBaker.js';
+import { createTerrainBaker, TERRAIN_BUDGET_BYTES, CACHES_BUDGET_BYTES, TERRAIN_FLOOR_BYTES, terrainBudgetFor, chunkBytes, chunkScaleFor, CHUNK } from '../../../src/render/terrainBaker.js';
 import { createCamera } from '../../../src/render/camera.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
@@ -180,7 +180,7 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
             over++;
             const need = [...drawn.values()].reduce((a, b) => a + b, 0);
             expect([zoom, cx, cy, c.spriteBytes <= Math.max(SPRITE_BUDGET_BYTES, need)]).toEqual([zoom, cx, cy, true]);
-            expect([zoom, cx, cy, c.terrainBytes <= Math.max(P3_CANVAS_BYTES - c.spriteBytes, renderer.stats.chunks * chunkBytes(3))]).toEqual([zoom, cx, cy, true]);
+            expect([zoom, cx, cy, c.terrainBytes <= Math.max(terrainBudgetFor(c.spriteBytes), renderer.stats.chunks * chunkBytes(3))]).toEqual([zoom, cx, cy, true]);
           }
           k++; frames++;
         } while ((renderer.stats.bakes > 0 || renderer.stats.stale > 0) && k < 24);
@@ -189,11 +189,38 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     }
     expect(maxTerrain).toBeLessThanOrEqual(TERRAIN_BUDGET_BYTES);
     expect(maxSprites).toBeGreaterThan(SPRITE_BUDGET_BYTES);       // a hilly view at zoom 2 draws more than the sprite budget in one frame
-    expect(over / frames).toBeLessThan(0.1);                         // P3 holds in nine frames of ten, panning the whole map at every zoom
-    expect(maxBoth).toBeLessThan(80 * MB);                           // and the worst view (measured 77 MB) is reported against P3
+    expect(over / frames).toBeLessThan(0.1);   // WAVE2-PIN 9.1 Track P (ruling 1687): new, design target 64 MB (P3 holds in nine frames of ten)
+    expect(maxBoth).toBeLessThan(80 * MB);     // WAVE2-PIN 9.1 Track P (ruling 1687): new, design target 64 MB (the worst view measured 77 MB)
     const c = renderer.cacheBytes();
     expect(c).toEqual({ terrainBytes: renderer.baker.bytes(w), spriteBytes: renderer.spriteCache.bytes() });
     expect(renderer.spriteCache.buckets().length).toBe(3);            // zoom 2, and 1.5 and 1 left under SPRITE_IDLE_MS ago; 0.5 and 0.75 dropped
     expect(frames).toBeGreaterThan(5 * n * n);
+  });
+  it('keeps the terrain at TERRAIN_FLOOR_BYTES under a sprite-heavy hilly view at zoom 2, so its ring is baked once, not frame after frame', () => {
+    const w = buildSampleCity(createWorld({ seed: 11, size: 80 }), { days: 120, stageTwoDays: 60 });
+    const V = { width: 390, height: 844 };
+    const counter = {};
+    // Sprites past 48 MB (64 less the floor): the hilliest view's own (about 41 MB here) and the whole city's at zoom 2, kept by an unbounded cache.
+    const sprites = createSpriteCache({ maxBytes: Infinity });
+    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: sprites, baker: createTerrainBaker({ counter }) });
+    const cam = createCamera({ x: 40, y: 40, zoom: 2 });
+    for (let y = 4; y < w.size; y += 8) for (let x = 4; x < w.size; x += 8) { cam.x = x; cam.y = y; renderer.renderFrame(w, cam, { view: V }); }
+    expect(terrainBudgetFor(sprites.bytes())).toBe(TERRAIN_FLOOR_BYTES);
+    cam.x = 3 * CHUNK + CHUNK / 2; cam.y = 2 * CHUNK + CHUNK / 2;    // the hilliest view of this city at zoom 2
+    let quiet = 0;
+    for (let i = 0; i < 120 && quiet < 5; i++) {
+      const s = renderer.renderFrame(w, cam, { view: V });
+      quiet = s.bakes === 0 && s.prebakes === 0 ? quiet + 1 : 0;
+    }
+    expect(quiet).toBe(5);                                           // settled: the view and what of the ring fits are baked
+    const c = renderer.cacheBytes();
+    expect(c.spriteBytes).toBeGreaterThan(CACHES_BUDGET_BYTES - TERRAIN_FLOOR_BYTES);   // the sprites alone would leave the terrain under the floor
+    expect(c.terrainBytes).toBeGreaterThan(Math.max(TERRAIN_FLOOR_BYTES - chunkBytes(3), renderer.stats.chunks * chunkBytes(3) - 1));   // the floor (or the view, if more) is held
+    const bakes = counter.bakes;
+    for (let i = 0; i < 20; i++) {
+      const s = renderer.renderFrame(w, cam, { view: V });
+      expect([i, s.bakes, s.prebakes]).toEqual([i, 0, 0]);
+    }
+    expect(counter.bakes).toBe(bakes);
   });
 });

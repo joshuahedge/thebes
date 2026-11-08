@@ -5,18 +5,20 @@ import { describe, it, expect } from '../../harness.js';
 const source = (path) => fetch(path).then((r) => r.text());
 const OPEN = '<!-- v91 preload -->', CLOSE = '<!-- end v91 preload -->';
 
-// The static imports of one module, resolved against its own URL (the same lines tools/sw-files.ps1 follows).
+// The static imports of one module, resolved against its own URL (the same lines tools/sw-files.ps1 follows). A line comment is skipped (the
+// keyword must start a statement); a bare import line inside a /* block comment */ would still count (a known gap: no module has one).
 const IMPORT = /(?:^|[;\n}])\s*(?:import|export)\s+(?:[^;'"`()]*?\s+from\s+)?['"](\.{1,2}\/[^'"]+\.js)['"]/g;
+// The tree in the order the script writes it: depth first from main.js, each module before the ones it imports, in its import order.
 async function importTree() {
-  const seen = new Set(), queue = ['/src/main.js'];
-  while (queue.length) {
-    const path = queue.shift();
-    if (seen.has(path)) continue;
-    seen.add(path);
+  const order = [], seen = new Set();
+  async function add(path) {
+    if (seen.has(path)) return;
+    seen.add(path); order.push(path);
     const text = await source(path);
-    for (const m of text.matchAll(IMPORT)) queue.push(new URL(m[1], `http://x${path}`).pathname);
+    for (const m of [...text.matchAll(IMPORT)]) await add(new URL(m[1], `http://x${path}`).pathname);
   }
-  return seen;
+  await add('/src/main.js');
+  return order;
 }
 
 describe('v91 p preload: index.html\'s module preload block', () => {
@@ -31,12 +33,13 @@ describe('v91 p preload: index.html\'s module preload block', () => {
     expect(hrefs[0]).toBe('src/main.js');
     expect(html.split('rel="modulepreload"').length - 1).toBe(hrefs.length);   // no preload outside the block
   });
-  it('lists exactly the modules main.js imports, directly or not, and each is a file the service worker caches', async () => {
+  it('lists exactly the modules main.js imports, directly or not, in the order the browser meets them, and each is a file the service worker caches', async () => {
     const html = await source('/index.html');
     const hrefs = [...html.slice(html.indexOf(OPEN), html.indexOf(CLOSE)).matchAll(/href="\.\/([^"]+)"/g)].map((m) => `/${m[1]}`);
     const tree = await importTree();
-    expect(hrefs.filter((h) => !tree.has(h))).toEqual([]);
-    expect([...tree].filter((h) => !hrefs.includes(h))).toEqual([]);
+    expect(hrefs.filter((h) => !tree.includes(h))).toEqual([]);
+    expect(tree.filter((h) => !hrefs.includes(h))).toEqual([]);
+    expect(hrefs).toEqual(tree);                                      // the same walk: a stale block (an import added or moved) fails here
     const sw = await source('/sw-files.js');
     expect(hrefs.filter((h) => !sw.includes(`'.${h}'`))).toEqual([]);
     for (const h of hrefs) expect([h, (await fetch(h, { method: 'HEAD' })).status]).toEqual([h, 200]);
