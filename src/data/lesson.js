@@ -35,6 +35,10 @@ export const LESSON_PLACES = {
 // alone once the warning is up (src/sim/lesson.js leadRaid). The raid step plays its wait at LESSON_RAID_WAIT_SPEED until the raiders arrive, then the fight at
 // LESSON_RAID_SPEED so it stays watchable, which its words say before Play.
 export const LESSON_RAID_LEAD = 30;
+// Version 9.2 (Track L, fix wave, ruling 1870): where the staged raid's band comes in, on the south edge of the lesson's map, 9 tiles from the tower and 4 from the bazaar. The
+// map's own two entries (east at 47,24 and north at 24,0) are about 40 screen units of tiles from the tower, so at the 0.5 zoom floor on a 375 px screen the tower, the target and
+// the band were never in one frame; from here all three are inside it from the arrival (src/sim/lesson.js leadRaid sets it on the first warning, in the lesson's city only).
+export const LESSON_RAID_ENTRY = { x: 26, y: 47 };
 export const LESSON_RAID_SPEED = 2;
 export const LESSON_RAID_WAIT_SPEED = 3;
 

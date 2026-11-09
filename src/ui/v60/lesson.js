@@ -122,7 +122,7 @@ export function createLessonUi(ctx) {
   const chip = el('span', { class: 'chip small', role: 'img' });
   const more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
   const beatLine = el('span', { class: 'beat-line' });   // Ipi's reaction to the step just done takes the why's place for its beat (ruling 1206); the next step's do stays in sight
-  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, beatLine, text, ' ', chip, ' ', ipiWhy]);   // the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
+  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, chip, ' ', beatLine, text, ' ', ipiWhy]);   // Version 9.2 (fix wave, ruling 1873): the count comes before the words, so a phone's clamp cuts the words, never the count;   // the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
   // Version 8.2 (integration, ruling 1330): the bubble is Ipi's two short lines and nothing more. The 7.0 detail line that followed them repeated the why at full size (the
   // farm: "the green land by the river" twice); it is gone from the bubble, and what it added lives in the step's card, Show me and How to play.
   more.addEventListener('click', () => toggleOpen());   // Version 9.2: More is the row's own control now (it was inside the body, whose tap toggled it)
@@ -488,7 +488,7 @@ export function createLessonUi(ctx) {
   function paintEnd() { newCity.hidden = !finished || endSheetOpen(); }
   const canAdopt = () => typeof run.adopt === 'function' && (typeof run.canAdopt !== 'function' || run.canAdopt());
   // Whether something the end card must not open over is up: a sheet, the confirm dialog, a step card (the picture cards of a lesson are its own) or any other dialog.
-  const somethingUp = () => { const s = store.get(); return Boolean(s.sheet) || Boolean(s.confirmDialog) || card.isUp() || Boolean(root.querySelector('.picture-card:not([hidden]), .tutorial-card:not([hidden])')); };
+  const somethingUp = () => { const s = store.get(); return Boolean(s.sheet) || Boolean(s.confirmDialog) || card.isUp() || Boolean(root.querySelector('.picture-cards:not([hidden])')); };
   function openEnd() { if (!somethingUp()) store.set(openSheet(store.get(), 'lessonEnd')); }
   // The end card opens once, as soon as nothing else is open (it waits for them: a card, a sheet, the dialog), and never while the interface is still being built (its sheets are
   // made after its seams: a lesson begun at the end, a dev scene's, opens it at the first refresh instead).
@@ -700,10 +700,11 @@ export function createLessonUi(ctx) {
     // Version 9.2 (Track L, ruling 1755): one card for both paths: the city's numbers (the sim's own), a line for each thing learned, and two buttons that each say what they do before the
     // tap. On a device with a saved city, keeping this city would replace that one, so it asks first and offers Export (the dialog's extra button).
     const saved = !canAdopt();
-    sheetBody.append(el('div', { class: 'lesson-end' }, [
+    // Fix wave (ruling 1872): the order is the numbers, the two choices, then the lines learned, so at large text on a phone both choices are above the fold and the list scrolls under them.
+    const endBox = el('div', { class: 'lesson-end' }, [
       el('p', { class: 'lead', text: V92L_TEXT.endNumbers({ people, gold: Math.floor(world.gold), won: raidWon }) }),
-      el('ul', { class: 'lesson-learned small' }, V92L_TEXT.learned.map((t) => el('li', { text: t }))),
-    ]));
+    ]);
+    sheetBody.append(endBox);
     const keep = () => {
       if (!saved) { close(); if (ctx.speedControl) ctx.speedControl.set(1); run.adopt(); return; }
       store.set({ confirmDialog: { text: V92L_TEXT.keepReplaceConfirm, confirmLabel: V92L_TEXT.keepReplace, destructive: true,
@@ -713,10 +714,10 @@ export function createLessonUi(ctx) {
     const choice = (btn, hint) => el('div', { class: 'lesson-choice' }, [btn, el('p', { class: 'small muted lesson-hint', id: `${btn.className.split(' ')[0]}-hint`, text: hint })]);
     const keepBtn = button(V92L_TEXT.endKeep, { class: 'lesson-keep primary', onClick: keep }), ownBtn = button(V92L_TEXT.endOwn, { class: 'lesson-new-city', onClick: () => run.finish() });
     keepBtn.setAttribute('aria-describedby', 'lesson-keep-hint'); ownBtn.setAttribute('aria-describedby', 'lesson-new-city-hint');
-    sheetBody.append(el('div', { class: 'actions lesson-end-actions' }, [
+    endBox.append(el('div', { class: 'actions lesson-end-actions' }, [
       choice(keepBtn, saved ? V92L_TEXT.keepHintSaved : V92L_TEXT.keepHint),
       choice(ownBtn, saved ? V92L_TEXT.ownHintSaved : V92L_TEXT.ownHint),
-    ]));
+    ]), el('ul', { class: 'lesson-learned small' }, V92L_TEXT.learned.map((t) => el('li', { text: t }))));
   }
 
   const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) { paintEnd(); tryEnd(); } if (cardWaits && !midAction()) sync(); } });

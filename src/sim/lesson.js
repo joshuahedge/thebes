@@ -6,7 +6,7 @@
 // The lesson's city is a city like any other (the same sim, the same rules), on a fixed map, and is never saved (src/boot.js). Three
 // steps stage something a city this young would not have, and each says so in its words: the Large plot card (a Townhouse opens it in a real
 // city), a small blaze in the bazaar, and the Market town's tower with the raid clock (a real city meets raiders at 250 people).
-import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS, LESSON_RAID_LEAD } from '../data/lesson.js';
+import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS, LESSON_RAID_LEAD, LESSON_RAID_ENTRY } from '../data/lesson.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -17,7 +17,7 @@ import { idx } from './grid.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { igniteBuilding, staffedCover, burning } from './fire.js';
-import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget } from './raids.js';
+import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget, entryDir } from './raids.js';
 import { tickDay, monthIndex } from './clock.js';
 import { milestoneIndex, updateMilestone, isUnlocked } from './progression.js';
 
@@ -134,8 +134,8 @@ export function stepDone(world, step) {
   }
 }
 
-// Version 9.2 (Track L, ruling 1756): the months passed since the month step began (STAGES.month keeps the month it began in on the lesson's world, never saved); for a
-// world that never entered the step, the city's own count (the old absolute check).
+// Version 9.2 (Track L, ruling 1756): the months passed since the month step began (STAGES.month keeps the month it began in on the lesson's world). The lesson is never saved, and
+// handOverWorld deleting lessonMonth0 is what keeps it out of the adopted city's save (the adopted city is saved); for a world that never entered the step, the city's own count (the old absolute check).
 export const monthsSinceEntry = (world) => monthIndex(world) - (Number.isInteger(world.lessonMonth0) ? world.lessonMonth0 : 0);
 
 // The lesson's fire is over: one was staged (tally.fires) and nothing burns now.
@@ -288,8 +288,13 @@ export function enterStep(world, step) {
 // own city and only for its first warning. Idempotent; true when it changed the arrival.
 export function leadRaid(world) {
   const w = world.lesson ? world.raid.warning : null;
-  if (!w || w.index !== 0 || w.arrives === w.day + LESSON_RAID_LEAD) return false;
-  w.arrives = w.day + LESSON_RAID_LEAD;
+  if (!w || w.index !== 0) return false;
+  const at = w.day + LESSON_RAID_LEAD, e = LESSON_RAID_ENTRY;
+  // Version 9.2 (Track L, fix wave, ruling 1870): and it comes in by the lesson's own entry (src/data/lesson.js), a band the tower's frame can hold on a phone.
+  if (w.arrives === at && w.entry && w.entry.x === e.x && w.entry.y === e.y) return false;
+  w.arrives = at;
+  w.entry = { ...e };
+  w.dir = entryDir(world, e);
   return true;
 }
 

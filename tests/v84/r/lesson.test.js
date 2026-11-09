@@ -41,8 +41,8 @@ function walk() {
 // and the raid ends beaten on day 198.
 // Version 9.1 (Track F, ruling 1657): the lesson sets the staged warning's arrival LESSON_RAID_LEAD (30) days on once it is up, so its raiders come on day 93 and the raid
 // ends on day 138; the warning event still says what the sim raised (63 + RAIDS.warningDays), and every step before the raid keeps its day.
-const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>168'];   // 9.1 balance (ruling 1728): was 'raid:65>199'; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139' (the month step waits two months from its entry)
-const RAID_END = 167;   // 9.1 balance (ruling 1728): was 198; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 138
+const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>143'];   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 'raid:94>168' (the band comes in from the south, 12 tiles off, so the fight ends sooner); 9.1 balance (ruling 1728): was 'raid:65>199'; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139' (the month step waits two months from its entry)
+const RAID_END = 142;   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 167 (the lesson's band comes in by its own south entry); 9.1 balance (ruling 1728): was 198; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 138
 const CLOCK_DAY = 92;   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 63 (the day the tower step begins)
 
 describe('v84 r the lesson: the staged raid does not move', () => {

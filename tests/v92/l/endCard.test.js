@@ -89,7 +89,8 @@ describe('v92 l end: the lesson ends on one card on both paths (T4, ruling 1755)
     } finally { s.cleanup(); }
   });
 
-  it('Start my own city goes to the title', async () => {
+  // Fix wave (ruling 1871), over 9.2's "goes to the title": it goes on to the title's New city card (Start and Back, the classic river's choices).
+  it('Start my own city opens the New city card (S6)', async () => {
     const s = await pageAt('raid', { width: 390, height: 844 });
     try {
       const g = await toLastStep(s);
@@ -97,7 +98,43 @@ describe('v92 l end: the lesson ends on one card on both paths (T4, ruling 1755)
       await frame();
       s.root.querySelector('#sheet .lesson-new-city').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
+      expect(await waitFor(() => Boolean(s.root.querySelector('#title .start-city')))).toBe(true);
+      expect(Boolean(s.root.querySelector('#title .lesson-start'))).toBe(false);          // the front card's buttons are not what shows
     } finally { s.cleanup(); }
+  });
+
+  it('S3: a picture card held up at the lesson\'s end makes the end card wait, and it opens once the card is gone', async () => {
+    const s = await pageAt('raid', { width: 390, height: 844 });
+    try {
+      const g = await toLastStep(s);
+      const pc = document.createElement('div');
+      pc.className = 'picture-cards';
+      s.root.appendChild(pc);
+      LESSON_SCRIPT.raid(g.world, s.io);
+      await frame(); await frame();
+      expect(kind(g)).toBe(null);
+      pc.remove();
+      g.ui.refresh();
+      expect(await waitFor(() => kind(g) === 'lessonEnd')).toBe(true);
+    } finally { s.cleanup(); }
+  });
+
+  it('S5: the two choices come right after the numbers line, the learned list under them', async () => {
+    const s = await pageAt('raid', { width: 390, height: 844 });
+    try {
+      const g = await toLastStep(s);
+      LESSON_SCRIPT.raid(g.world, s.io);
+      await frame();
+      const kids = [...s.root.querySelector('#sheet .lesson-end').children].map((n) => n.className.split(' ')[0]);
+      expect(kids).toEqual(['lead', 'actions', 'lesson-learned']);
+    } finally { s.cleanup(); }
+  });
+
+  it('M11: the numbers line is under 90 characters whether the raid was won or lost, at a big city\'s numbers too', () => {
+    for (const won of [true, false]) for (const [people, gold] of [[1, 0], [150, 1234], [1234, 99999]]) {
+      const line = V92L_TEXT.endNumbers({ people, gold, won });
+      expect([won, people, line.length < 90]).toEqual([won, people, true]);
+    }
   });
 });
 

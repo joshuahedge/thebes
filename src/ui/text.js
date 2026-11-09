@@ -4693,11 +4693,11 @@ export const V92L_TEXT = {
   // 2.4: the end card, on both paths. The numbers come from the sim (people, gold, the raid's report); each line says one thing learned.
   endRow: 'Your first city stands. Choose what comes next.',
   endChoose: 'What next?',
-  endNumbers: ({ people, gold, won }) => `${plural(people, 'person lives', 'people live')} here, with ${gold} gold in the treasury. ${won ? 'Your tower beat the raid.' : 'The raid got through; staffed towers would have stopped it.'}`,
+  endNumbers: ({ people, gold, won }) => `${plural(people, 'person lives', 'people live')} here, with ${gold} gold${won ? ' in the treasury. Your tower beat the raid.' : '. The raid got through; staffed towers stop it.'}`,   // fix wave (ruling 1874): a lost raid's line is under 90 characters (tests/v92/l/endCard.test.js)
   learned: ['Roads join every building to the city.', 'Homes need a road beside them.', 'A well gives nearby homes water.', 'A farm and a granary feed everyone.',
     'A bazaar needs workers, and homes supply them.', 'A firehouse puts fires out.', 'Staffed towers stop raiders.'],
   endKeep: 'Keep building this city', keepHint: 'It becomes yours and is saved as you play.', keepHintSaved: 'It replaces the city saved on this device.',
-  endOwn: 'Start my own city', ownHint: 'Leaves this city and opens the title screen to found your own.', ownHintSaved: 'Opens the title screen. Your saved city stays as it is.',
+  endOwn: 'Start my own city', ownHint: 'Leaves this city and opens the New city card to found your own.', ownHintSaved: 'Opens the New city card. Your saved city stays as it is.',
   // 2.7: chapter 2's card says how many people work, from the sim's own share (ECONOMY.workerShare: "four in ten").
   workersLine: `About ${['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'all'][Math.round(ECONOMY.workerShare * 10)]} in ten people here will work.`,
   workersWent: (what) => `Its workers went to the ${what} first. More homes bring more workers`,   // 2.6: the cause on a short workplace's alert
