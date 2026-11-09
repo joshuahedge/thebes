@@ -4514,7 +4514,12 @@ export const V90_L_TEXT = {
   // A ruler's name with its regnal number and title: "Ramesses II the Builder" (Track D's titleNames and regnal; ruling 1575).
   rulerName: (r) => `${V90_D_TEXT.regnal(r.name, r.n)} ${V90_D_TEXT.titleNames[r.title] || V90_D_TEXT.titleNames.steady}`,
   heirOfLower: (id) => V90_D_TEXT.heirOf(id).replace(/^./, (c) => c.toLowerCase()),
-  years: (day) => `${(day / 360).toFixed(1)} years`,
+  // Version 9.2 (Track D): whole years and months in words, from the reign's days (a month is 30 days, a year 12): "1 year, 8 months", "30 years", "Under a month".
+  years: (day) => {
+    const months = Math.max(0, Math.floor(day / 30)), y = Math.floor(months / 12), m = months % 12;
+    if (!y && !m) return 'Under a month';
+    return [y ? plural(y, 'year', 'years') : '', m ? plural(m, 'month', 'months') : ''].filter(Boolean).join(', ');
+  },
   rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
   medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
   rowName: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,
@@ -4759,6 +4764,25 @@ export const S92_S_TEXT = {
 };
 
 // Version 9.2, Track D
+// Rulings 1815-1824: the sealed-ruler card, the heir's first line, the title's record line.
+export const D92_D_TEXT = {
+  sealedSheet: 'Remembered as',
+  // The card's facts under the cartouche: years, rank, then the score with its medal in words.
+  factsLine: (r) => `${V90_L_TEXT.rankWords(r.rank)} · ${V90_L_TEXT.years(r.day)}`,
+  scoreLine: (r) => `Score ${r.score} · ${V90_L_TEXT.medalWords(r.medal)}`,
+  cartoucheLabel: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,
+  mapCaption: 'The city you leave',
+  inherits: (id) => V90_D_TEXT.heirCity(id),
+  found: "Found the heir's city",
+  foundNote: 'Next you choose the heir\'s map. The reign is sealed only when you start the city.',
+  back: 'Back',
+  // The heir's first line, in Ipi's voice: who the heir is and the two sides of the trait.
+  heirIpi: (id) => `${V90_D_TEXT.heirOf(id)}. ${V90_D_TEXT.traitLine(id).replace(/^./, (c) => c.toUpperCase())}.`,
+  // The title's record line: "Best reign: 200, Bronze" (the medal is the best's own version's; the seed, level and size are in the Rulers list).
+  bestLine: (b) => `Best reign: ${b.score}${b.medal && SCORE_TEXT.medals[b.medal] ? `, ${SCORE_TEXT.medals[b.medal]}` : ''}${b.older ? ', older scoring' : ''}`,
+  bestLabel: (b) => `${D92_D_TEXT.bestLine(b)}. Seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}`,
+};
+TITLE_SCORE_TEXT.bestLine = D92_D_TEXT.bestLine;
 
 // Version 9.2, Track A
 

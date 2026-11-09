@@ -21,7 +21,7 @@ import { el, button } from './components.js';
 import { createDynastyUi } from './v90/dynastyUi.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT, D92_D_TEXT,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -255,7 +255,7 @@ export function createScoreUi(ctx) {
     refresh() { if (world) version++; },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
-    destroy() { picture = null; cached = null; },       // a picture still being made never touches a later interface's sheet
+    destroy() { picture = null; cached = null; dynasty.destroy(); },     // a picture still being made never touches a later interface's sheet
   };
 }
 
@@ -342,7 +342,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     const rulerCount = records && typeof onRulers === 'function' ? safe(() => records.rulers().length, 0) : 0;
     if (bests.length || stamps.length || rulerCount) {
       const box = el('div', { class: 'title-records', role: 'group', 'aria-label': TITLE_SCORE_TEXT.records }, [
-        ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b) })),
+        ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b), title: D92_D_TEXT.bestLabel(b) })),   // Version 9.2 (Track D, ruling 1819): "Best reign: 200, Bronze"; the seed, level and size are in the Rulers list (a pointer's tooltip has them too)
         stamps.length ? el('div', { class: 'stamps' }, [
           ...stamps.slice(0, STAMP_MAX).map((e) => stampFor(e, dpr)),
           stamps.length > STAMP_MAX ? el('span', { class: 'more-stamps small muted', text: TITLE_SCORE_TEXT.moreStamps(stamps.length - STAMP_MAX) }) : null,

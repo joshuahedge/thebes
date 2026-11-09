@@ -140,13 +140,16 @@ describe('v90 d pass: the interface', () => {
       const before = serialize(w);
       r.api.hooks.passThrone(); await frame();
       fire(sheet().querySelector('.pass-confirm'), 'click'); await frame();
+      fire(sheet().querySelector('.sealed-found'), 'click'); await frame();   // 9.2 (Track D, ruling 1815): the sealed-ruler card sits between the sheet and the heir's card
       const s = sheet();
       expect(s.querySelector('.head h2').textContent).toBe("Your heir's city");
       const line = s.querySelector('.heir-trait-line');
       expect(line.textContent).toBe("Your heir's city: monuments rise 15% faster; taxes 5% lower");
       expect(line.nextElementSibling.classList.contains('actions')).toBe(true);
       expect(s.querySelector('.start-city')).toBeTruthy();
-      fire(s.querySelector('.guide-back'), 'click'); await frame();
+      fire(s.querySelector('.guide-back'), 'click'); await frame();           // Back from the heir's card is the sealed-ruler card; its Back the sheet; Not yet closes
+      fire(sheet().querySelector('.sealed-back'), 'click'); await frame();
+      fire(sheet().querySelector('.pass-not-yet'), 'click'); await frame();
       expect([r.api.game().world, r.api.game().ui.store.get().sheet, serialize(w) === before, r.api.records.rulers().length, r.api.records.dynasty().heir]).toEqual([w, null, true, 0, 'steady']);
     } finally { r.cleanup(); }
   });
@@ -161,6 +164,7 @@ describe('v90 d pass: the interface', () => {
       input.value = 'Ana'; fire(input, 'input');
       expect(sheet().querySelector('.pass-title').textContent).toBe('Ana I will be remembered as the Builder.');
       fire(sheet().querySelector('.pass-confirm'), 'click'); await frame();
+      fire(sheet().querySelector('.sealed-found'), 'click'); await frame();
       const kept = passScore(w);
       fire(sheet().querySelector('.start-city'), 'click'); await frame();
       const seal = w.seals.at(-1);
@@ -170,7 +174,7 @@ describe('v90 d pass: the interface', () => {
       expect(r.api.records.dynasty()).toEqual({ name: 'Ana', heir: 'builder' });
       const next = r.api.game().world;
       expect([next === w, next.heir, next.day]).toEqual([false, 'builder', 0]);
-      expect(document.querySelector('#toasts').textContent).toContain('Ana I is remembered as the Builder.');
+      expect(document.querySelector('#toasts').textContent).toBe('');   // 9.2 (Track D, ruling 1817): was the toast "Ana I is remembered as the Builder."; the heir's first line is Ipi's
     } finally { r.cleanup(); }
   });
   it('adds the regnal number by the rulers already of that name', async () => {

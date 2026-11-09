@@ -50,7 +50,7 @@ describe('s4 score summary and title card', () => {
     try {
       expect(c.container.querySelector('.friend-older').textContent).toBe(SCORE4_TEXT.olderLink);
       expect(c.container.querySelector('.your-best').textContent).toBe('Your best here under older scoring: 300');
-      expect([...c.container.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best: 300, gold, seed 11, Normal, older scoring', 'Best: 210, seed 11, Normal']);   // 9.2 (Track S): v3's current best, 210 under v3's 240 no medal
+      expect([...c.container.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best reign: 300, Gold, older scoring', 'Best reign: 210']);   // 9.2 (Track D, ruling 1819): was 'Best: 300, gold, seed 11, Normal, older scoring' and 'Best: 210, seed 11, Normal';   // 9.2 (Track S): v3's current best, 210 under v3's 240 no medal
     } finally { c.cleanup(); }
     const none = card(createRecords({ storage: memory() }), t1Link(11, '70-60-50-40', '3-x-x-x-x'));
     try {
