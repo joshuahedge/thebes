@@ -75,7 +75,7 @@ const once = (pop, ...steps) => steps.map((s) => ({ ...s, pop }));
 // x 22, the large mastaba at x 26 and a firehouse at x 30. Every guild, quarry and brickworks reaches the sites it serves
 // within 12 road tiles, and the colossus and the small mastaba lie nearer every guild than the large mastaba, so the four
 // crews finish them first (a crew goes to the nearest site with room). At City a guild, a quarry and the small obelisk;
-// at Great city a second guild and quarry, the storehouse, a clay pit and a brickworks, the colossus and the small
+// at Great City a second guild and quarry, the storehouse, a clay pit and a brickworks, the colossus and the small
 // mastaba; at Capital two more guilds, the third quarry, a second brickworks and clay pit and the large mastaba; then
 // the small pyramid the day its prestige unlock comes (100 prestige). The second brickworks is one more than spec 9's
 // list: with one, the small mastaba's brick courses (60 bricks a month for three crews) take twice as long, and it is

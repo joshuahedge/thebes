@@ -11,7 +11,7 @@ import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { fire, key, startNewCity } from '../../helpers/dom.js';
 import { pageAt, cardOf, rect, frame } from '../lessonPage.js';
 
-const SKIP = "I've played before";   // Version 8.0 (Track U): it lost its "Skip,"; the button and its behaviour are as 7.1.1 had them
+const SKIP = "Skip the lesson";   // Version 8.0 (Track U): it lost its "Skip,"; the button and its behaviour are as 7.1.1 had them
 const saved = (s) => JSON.parse(s.storage.data['thebes.settings']);
 const flush = () => new Promise((r) => setTimeout(r, 0));
 

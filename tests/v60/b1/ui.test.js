@@ -83,7 +83,7 @@ describe('v60 b1 ui the raid report', () => {
     const warning = { index: 3, entry: { x: 31, y: 16 }, dir: 'east', size: 10, tribute: 300, target: 'storehouse', day: w.day, arrives: w.day + 90, first: false, mix: footMix(10) };
     expect(sheet(warning).includes(B1_TEXT.chiefWarning)).toBe(false);
     expect(sheet({ ...warning, chiefs: [0] }).includes(B1_TEXT.chiefWarning)).toBe(true);
-    expect(B1_TEXT.chiefWarning).toBe('A chieftain leads the band: he has 2 times a raider\'s strength and hits 1.5 times as hard, and when he falls the band turns back.');
+    expect(B1_TEXT.chiefWarning).toBe('A chieftain leads the band: 2 times a raider\'s strength. When he falls, it turns back.');
   });
 });
 
@@ -130,7 +130,7 @@ describe('v60 b1 ui plague', () => {
     w.hazards.plague.warning = { day: w.day, strikes: w.day + 60, origin: homes[3].id };
     const ctx = ctxOf(w);
     const parts = plagueParts(ctx, homes[3]);
-    expect(texts(parts)[0]).toContain('A plague is warned to start in this home in 2 months');
+    expect(texts(parts)[0]).toContain('A plague is warned to start here in 2 months');
     expect(find(parts, 'show-me')).toBeTruthy();                                         // no physician reaches it: Show me one
     find(parts, 'show-me').click();
     expect(ctx.log.shown[0].item).toBe('physician');
@@ -260,7 +260,7 @@ describe('v60 b1 ui locusts and blight', () => {
     const item = cityAdvice(w).find((a) => a.kind === 'locusts');
     const words = adviceWords(item, w);
     expect([words.what, words.action.label, item.fix.select]).toEqual(['Locusts will fall on 3 farms in 1 month', 'View', list[0].id]);
-    expect(words.why).toBe(`Harvest now takes 40% of a month's crop at once, extra to what the farm makes until it comes; the farm then rests ${HARVEST_NOW.restDays} days from the day after`);
+    expect(words.why).toBe(`Harvest now takes 40% of a month's crop at once; the farm then rests ${HARVEST_NOW.restDays} days`);
     const rows = texts(cropRows(ctx, list[0]));
     const q = harvestQuote(w, list[0]);
     expect(rows).toEqual(['Locusts warned for this farm, due in 1 month', `Takes ${q.units} grain into the stores today, extra to what the farm goes on making until the locusts come. It then rests 15 days from the day after, while the locusts eat the crop for 1 month: the rest costs less than the grain gives`]);

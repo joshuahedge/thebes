@@ -110,7 +110,7 @@ describe('v71 fg lesson card: Ctrl+Z', () => {
 describe('v71 fg help: the Keyboard entry', () => {
   it('says in one sentence that over a lesson card every game key waits until it is closed, and that Enter, Space or Esc closes it', () => {
     const kb = V70_HELP.p.find((p) => p.head === 'Keyboard').text;
-    expect(P_TEXT.lessonKeys).toBe('Over a lesson card every game key waits until the card is closed (Enter, Space or Esc closes it).');
+    expect(P_TEXT.lessonKeys).toBe('Over a lesson card, game keys wait until it is closed (Enter, Space or Esc).');
     expect(kb.includes(P_TEXT.lessonKeys)).toBe(true);
     expect(kb.includes('nothing happens over a dialog or a lesson card')).toBe(false);
   });

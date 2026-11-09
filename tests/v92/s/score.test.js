@@ -179,7 +179,7 @@ describe('v92 s the Villa and the luxury goal', () => {
   it('taxes a Villa at 7, above the Fine manor\'s 5 and under the Estate\'s 8', () => {
     expect([TIERS[7].tax, TIERS[8].tax, TIERS[9].tax]).toEqual([5, 7, 8]);
   });
-  it('has a Great city goal met by the first luxury bought, with a Show me', () => {
+  it('has a Great City goal met by the first luxury bought, with a Show me', () => {
     const goal = GOALS.find((g) => g.id === 'luxury_route');
     expect([goal.text, goal.from, goal.showMe !== null && typeof goal.showMe === 'object']).toEqual(['Open a route that sells a luxury', 'great_city', true]);
     const w = makeTestWorld();

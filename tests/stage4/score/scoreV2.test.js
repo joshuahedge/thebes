@@ -32,8 +32,8 @@ describe('s4 score Monuments part', () => {
     finished(w, 'obelisk_small', 10, 11);
     expect(words(w)).toBe('Found a large obelisk: +30 prestige when finished');
     finished(w, 'obelisk_large', 12, 11);
-    // Stage 4.6: the kinds are in the order of their cost, so the great sphinx (Great city) comes before the colossus
-    expect([reason(w), words(w)]).toEqual([{ code: 'locked', type: 'great_sphinx', first: false, milestone: 'great_city' }, 'The great sphinx comes with Great city']);
+    // Stage 4.6: the kinds are in the order of their cost, so the great sphinx (Great City) comes before the colossus
+    expect([reason(w), words(w)]).toEqual([{ code: 'locked', type: 'great_sphinx', first: false, milestone: 'great_city' }, 'The great sphinx comes with Great City']);
     w.milestone = 'capital';
     for (const [k, x] of [['great_sphinx', 14], ['colossus', 18], ['mastaba_small', 21], ['mastaba_large', 25], ['sun_temple', 29]]) finished(w, k, x, 11);
     expect(prestigeOf(w)).toBe(440);   // the seven kinds' 270 so far, the great sphinx's 40 and the sun temple's 130

@@ -210,7 +210,7 @@ describe('v50 step: the line on the house sheet', () => {
         const btn = line.querySelector('button');
         expect([btn.textContent, btn.getAttribute('aria-label')]).toEqual([T.showMe, S47_PRESSURE_TEXT.showFar(step.cause, w)]);
         expect(btn.getAttribute('aria-label')).toBe(near ? 'Show me the storehouse near the bazaar that can keep pottery stocked' : 'Show me the storehouse that holds pottery');   // Version 8.3: Keep stocked
-        expect(line.textContent).toContain(near ? 'have the storehouse near the bazaar keep pottery stocked by cart' : `pottery is held only in a storehouse ${step.cause.len} road tiles from the bazaar, and no store near the bazaar can keep it stocked yet`);
+        expect(line.textContent).toContain(near ? 'have the storehouse near the bazaar keep pottery stocked by cart' : `pottery is held only in a storehouse, ${step.cause.len} road tiles from the bazaar; no store near it can keep it stocked yet`);
         fire(btn, 'click');
         const row = rowFor(r.root, 'pottery');
         expect(row.querySelector('.fix').textContent).toContain(near ? 'The storehouse near the bazaar can keep it stocked by cart' : 'No store near the bazaar can keep it stocked yet; Show me the one that holds it');

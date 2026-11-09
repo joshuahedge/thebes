@@ -150,10 +150,10 @@ describe('data tiers 5-9', () => {
 });
 
 describe('data milestones to Capital', () => {
-  it('runs Village, Town, Market town, City, Great city and Capital with the spec 4.14 unlocks', () => {
+  it('runs Village, Town, Market town, City, Great City and Capital with the spec 4.14 unlocks', () => {
     expect(MILESTONES.map((m) => [m.id, m.name, m.population])).toEqual([
       ['village', 'Village', 0], ['town', 'Town', 150], ['market_town', 'Market town', 250],
-      ['city', 'City', 400], ['great_city', 'Great city', 650], ['capital', 'Capital', 1000],
+      ['city', 'City', 400], ['great_city', 'Great City', 650], ['capital', 'Capital', 1000],
       ['great_capital', 'Great Capital', 1250], ['seat', 'Seat of the Two Lands', 1400],   // Version 6.0 (Track A), ruling 653: the ranks beyond Capital
     ]);
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
@@ -215,7 +215,7 @@ describe('data desirability', () => {
 });
 
 describe('data trade', () => {
-  it('opens Memphis at Market town for 300 gold and Byblos at Great city for 600', () => {
+  it('opens Memphis at Market town for 300 gold and Byblos at Great City for 600', () => {
     expect(Object.keys(PARTNERS)).toEqual(['memphis', 'byblos', 'nubia', 'punt']);   // Version 7.0: the two river partners (tests/v70/t)
     expect(Object.values(PARTNERS).map((p) => [p.name, p.milestone, p.routeCost])).toEqual([['Memphis', 'market_town', 300], ['Byblos', 'great_city', 600], ['Nubia', 'capital', 800], ['Punt', 'great_capital', 1200]]);
     for (const p of Object.values(PARTNERS)) expect(MILESTONES.some((m) => m.id === p.milestone)).toBe(true);

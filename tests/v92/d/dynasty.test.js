@@ -164,7 +164,7 @@ describe('v92 d the Rulers list', () => {
   });
   it('keeps the seed, level and size in an opened row', () => {
     const { body, cleanup } = list([ruler(1, { mapSize: 80, seed: 4242, difficulty: 'hard', mapVariant: 'east' })]);
-    try { expect(body.querySelector('.ruler-map-line').textContent).toBe(`Seed 4242, Hard, east layout, ${S46_MAP_TEXT.sizeNote(80)}`); } finally { cleanup(); }
+    try { expect(body.querySelector('.ruler-map-line').textContent).toBe(`Map number 4242, Hard, east layout, ${S46_MAP_TEXT.sizeNote(80)}`); } finally { cleanup(); }
   });
   it('draws the cartouche whole with its facts and map square, and a short name shares the facts\' row', () => {
     const { root, cleanup } = mount('<div id="x"></div>');
@@ -193,6 +193,6 @@ describe('v92 d the title\'s record line', () => {
     expect(line({ score: 200, medal: 'bronze', seed: 5, difficulty: 'normal' })).toBe('Best reign: 200, Bronze');
     expect(line({ score: 90, medal: null, seed: 5, difficulty: 'hard', mapSize: 80 })).toBe('Best reign: 90');
     expect(line({ score: 300, medal: 'gold', older: true })).toBe('Best reign: 300, Gold, older scoring');
-    expect(D92_D_TEXT.bestLabel({ score: 200, medal: 'bronze', seed: 5, difficulty: 'hard', mapSize: 80 })).toBe(`Best reign: 200, Bronze. Seed 5, Hard, ${S46_MAP_TEXT.sizeNote(80)}`);
+    expect(D92_D_TEXT.bestLabel({ score: 200, medal: 'bronze', seed: 5, difficulty: 'hard', mapSize: 80 })).toBe(`Best reign: 200, Bronze. Map number 5, Hard, ${S46_MAP_TEXT.sizeNote(80)}`);
   });
 });

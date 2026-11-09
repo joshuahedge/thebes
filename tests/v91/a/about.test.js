@@ -32,7 +32,7 @@ const LINES = () => [
   ['made', 'Made by Josh'],
   ['licence', `Licence: ${V91_A_TEXT.aboutLicence}`],
   ['art', 'Art, music and sounds are made by the game itself.'],
-  ['privacy', 'Thebes keeps your cities on this device. It sends nothing anywhere; a share link carries only what it shows.'],
+  ['privacy', 'Cities stay on this device; nothing is sent. A share link carries only what it shows.'],
 ];
 
 describe('v91 a about: the lines', () => {

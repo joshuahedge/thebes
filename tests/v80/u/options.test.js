@@ -111,7 +111,7 @@ describe('v80 u words: short labels, place and lay', () => {
     const primary = [T.continueGame, T.newCity, V80_U_TEXT.play, V80_U_TEXT.start, T.settings, S46_UX_TEXT.whatsNew, D2_TEXT.titleStart, D2_TEXT.titleContinue, T.installMenu, T.install, D1_TEXT.lesson,
       V80_U_TEXT.resumeLesson, V80_U_TEXT.moreChoices, V80_U_TEXT.fewerChoices, CARDS4_TEXT.showCards, D2_TEXT.endNew, D2_TEXT.endStay, T.exportCity, T.back];
     for (const label of primary) expect([label, words(label) <= 2]).toEqual([label, true]);
-    expect([V711_TEXT.skip, words(V711_TEXT.skip)]).toEqual(["I've played before", 3]);   // the one secondary button the design names in three
+    expect([V711_TEXT.skip, words(V711_TEXT.skip)]).toEqual(['Skip the lesson', 3]);   // the one secondary button the design names in three
   });
   it('says place for plots and lay for roads where a player reads it, never paint', () => {
     const homes = D2_TEXT.steps.homes().text, workers = D2_TEXT.steps.workers({ labour: { jobs: 8, workforce: 4 }, paused: false }).text;

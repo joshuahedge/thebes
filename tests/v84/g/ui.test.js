@@ -79,7 +79,7 @@ describe('v84 g Rush on the site\'s sheet', () => {
     expect(rows.map((x) => x.key)).toEqual(['rush', 'rush-how']);
     expect([q.saved, q.extra]).toEqual([60, 2080]);
     expect(rows[0].text).toBe(`Rush this course: about 60 days sooner, about 2,080 gold more`);   // 160 stone, two crews: 120 days or 60; 160 x 13 gold
-    expect(rows[1].text.startsWith('Crews work twice as fast on this course; each unit costs 3x the work gold. Stone and bricks must keep up.')).toBe(true);
+    expect(rows[1].text.startsWith('Crews work twice as fast; each unit costs 3x the work gold. Stone and bricks must keep up.')).toBe(true);
     const poor = rushCity({ gold: 10 });
     const pq = rushQuote(poor.w, poor.site.id);
     expect(rushRows(poor.w, poor.site)).toEqual([{ key: 'rush', text: `Rush: a rushed day costs about ${pq.dayGold} gold; you have 10. It can't put the treasury below 0` }]);

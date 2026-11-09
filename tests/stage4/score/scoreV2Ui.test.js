@@ -54,7 +54,7 @@ describe('s4 score summary and title card', () => {
     } finally { c.cleanup(); }
     const none = card(createRecords({ storage: memory() }), t1Link(11, '70-60-50-40', '3-x-x-x-x'));
     try {
-      expect(none.container.querySelector('.your-best').textContent).toBe('You have no older-scoring score on this seed and level');
+      expect(none.container.querySelector('.your-best').textContent).toBe('You have no older-scoring score on this map and level');
     } finally { none.cleanup(); }
   });
   it('draws a glyph on a stamp for each mastaba and pyramid finished, and names them', () => {

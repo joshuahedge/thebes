@@ -184,6 +184,6 @@ describe('s46 map sizes: a best and a stamp say their map size when it is not No
     expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 80 })).toBe('Best reign: 900, Gold');
     const stamp = { seed: 5, score: 700, medal: null, built: [] };
     expect(score4StampLabel({ ...stamp, mapSize: 48 }).includes('48 x 48 map')).toBe(true);
-    expect(score4StampLabel(stamp).includes(' map')).toBe(false);
+    expect(score4StampLabel(stamp).includes(' x ')).toBe(false);
   });
 });

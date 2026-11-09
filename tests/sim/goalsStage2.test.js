@@ -75,7 +75,7 @@ describe('sim goals and rewards for Stage 2', () => {
     w.milestone = 'town';
     w.goals.completed.push('pottery', 'homes_townhouse', 'booth_gardens', 'manor');
     const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 249 });
-    expect(open()).toEqual(['market_town']);                               // 249 people: no trading post goal, and no City or Great city beside Market town
+    expect(open()).toEqual(['market_town']);                               // 249 people: no trading post goal, and no City or Great City beside Market town
     crowd.residents = 250;
     expect(settleGoals(w).map((g) => g.id)).toEqual(['market_town']);
     expect(open()).toEqual(['trade_route', 'city']);                       // the milestone moves at month end; the people for it are enough to list the next goal

@@ -97,7 +97,7 @@ describe('s4 score firsts and achievements', () => {
 describe('s4 score feats and daily goals', () => {
   it('earns Steady hands for a mastaba or pyramid whose crews never waited for material, and Swift pyramid before year 25', () => {
     expect(FEATS.slice(10).map((f) => [f.id, FEAT_TEXT[f.id].name, FEAT_TEXT[f.id].condition])).toEqual([
-      ['steady_hands', 'Steady hands', 'Finish a mastaba or pyramid with no month in which its crews stood idle for lack of material'],
+      ['steady_hands', 'Steady hands', 'Finish a mastaba or pyramid with no month of idle crews for lack of material'],
       ['swift_pyramid', 'Swift pyramid', 'Finish the great pyramid before year 25 begins'],
     ]);
     const w = city('capital');

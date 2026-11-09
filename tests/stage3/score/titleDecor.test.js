@@ -38,7 +38,7 @@ describe('s3 score title card', () => {
       expect(box.previousElementSibling.classList.contains('continue')).toBe(true);
       expect([...box.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best reign: 312, Gold', 'Best reign: 250, Bronze', 'Best reign: 120']);   // 9.2 (Track D, ruling 1819): was 'Best: 312, gold, seed 11, Normal' and so on; the seed and level are in the Rulers list
       const stamps = [...box.querySelectorAll('.stamp')];
-      expect(stamps.map((s) => s.getAttribute('aria-label'))).toEqual(['Sealed reign: score 300, gold, seed 7', 'Sealed reign: score 247, silver, seed 11']);
+      expect(stamps.map((s) => s.getAttribute('aria-label'))).toEqual(['Sealed reign: score 300, gold, map number 7', 'Sealed reign: score 247, silver, map number 11']);
       expect([stamps[0].getAttribute('role'), stamps[0].width]).toEqual(['img', 40]);
     } finally { c.cleanup(); }
   });
@@ -50,7 +50,7 @@ describe('s3 score title card', () => {
     try {
       expect(c.container.querySelector('.best-line').textContent).toBe('Best reign: 200, Bronze, older scoring');   // 9.2 (Track D, ruling 1819): was 'Best: 200, bronze, seed 5, Normal, older scoring'
       expect(c.container.querySelectorAll('.stamp').length).toBe(8);
-      expect(c.container.querySelector('.stamp').getAttribute('aria-label')).toBe('Sealed reign: score 110, seed 5');
+      expect(c.container.querySelector('.stamp').getAttribute('aria-label')).toBe('Sealed reign: score 110, map number 5');
       expect(c.container.querySelector('.more-stamps').textContent).toBe('+2 more');
     } finally { c.cleanup(); }
   });
@@ -78,7 +78,7 @@ describe('s3 score title card', () => {
       const sec = c.container.querySelector('.shared-score');
       expect(sec.nextElementSibling.classList.contains('title-buttons')).toBe(true);
       expect([...sec.querySelectorAll('p')].map((p) => p.textContent)).toEqual([
-        `${total} on seed 202641, Hard. Friends' honour`, 'People 72 · Prosperity 65 · Culture 58 · Safety 40 · Monuments 36', 'Your best here: 230', `Beat ${total}?`,
+        `${total} on map number 202641, Hard. Friends' honour`, 'People 72 · Prosperity 65 · Culture 58 · Safety 40 · Monuments 36', 'Your best here: 230', `Beat ${total}?`,
         'It starts on Hard, the level of the shared score.',
       ]);
       expect(total).toBe(Math.round(271 * 1.25));

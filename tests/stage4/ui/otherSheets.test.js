@@ -104,7 +104,7 @@ describe('s4 ui the palace\'s sheet', () => {
     far.milestone = 'town';
     const lone = addRaw(far, 'palace', 20, 14);
     const rows = palaceRows(far, lone);
-    expect([text(rows).road, rows.find((r) => r.key === 'road').fix.showMe.item, text(rows).mood]).toEqual(['No road yet: no desirability or mood until a road touches it', 'road', undefined]);
+    expect([text(rows).road, rows.find((r) => r.key === 'road').fix.showMe.item, text(rows).mood]).toEqual(['No road yet: no mood or pleasantness until a road touches it', 'road', undefined]);
   });
 
   it('names the next style and its price, or why Enlarge waits, from palaceQuote', () => {
@@ -164,17 +164,17 @@ describe('s4 ui demolishing, undoing and plazas', () => {
     const w = city();
     const s = addRaw(w, 'pyramid_small', 12, 11);
     s.site.course = 7;
-    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. The city loses 70 prestige. Refunds 750 gold (a quarter of its founding).');
+    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. The city loses 70 prestige. Refunds 750 gold (25% of its founding).');
     expect(demolishRefundFor(w, s)).toBe(750);
     const first = addRaw(w, 'pyramid_small', 20, 20);
     first.site.course = 8; first.site.done = 5;                                     // the first holds the kind's prestige now
-    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. Refunds 750 gold (a quarter of its founding).');
+    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. Refunds 750 gold (25% of its founding).');
     // The city counts the best of each kind: tearing down the holder drops it to the runner-up (160 to 70), a loss of 90, not 160.
     expect([prestigeOfBuilding(first), prestigeOf(w), prestigeLoss(w, first), prestigeLoss(w, s)]).toEqual([160, 160, 90, 0]);
-    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 90 prestige. Refunds 750 gold (a quarter of its founding).');
+    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 90 prestige. Refunds 750 gold (25% of its founding).');
     s.site.course = 0;                                                               // a second of the kind at 0 holds nothing: the first's loss is all of 160
-    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 160 prestige. Refunds 750 gold (a quarter of its founding).');
-    expect(demolishQuestion(w, addRaw(w, 'obelisk_small', 26, 11))).toBe('Tear down the small obelisk? Refunds 37 gold (a quarter of its founding).');
+    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 160 prestige. Refunds 750 gold (25% of its founding).');
+    expect(demolishQuestion(w, addRaw(w, 'obelisk_small', 26, 11))).toBe('Tear down the small obelisk? Refunds 37 gold (25% of its founding).');
     const p = addRaw(w, 'palace', 2, 20);
     p.style = 3;
     expect(demolishQuestion(w, p)).toBe('Tear down the palace? Its 3 enlargements are lost. Refunds 75 gold.');

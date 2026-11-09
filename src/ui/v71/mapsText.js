@@ -27,7 +27,7 @@ export const LAYOUT_LINES = {
 
 export const MAPS_HELP = [{
   head: 'Maps',
-  text: `A new city's map comes from its seed, in one of ${MAP_VARIANTS_OFFERED.length} layouts. The river may run north to south or east to west. `
+  text: `A new city's map comes from its map number, in one of ${MAP_VARIANTS_OFFERED.length} layouts. The river may run north to south or east to west. `
     + MAP_VARIANTS_71.map((v) => `${LAYOUT_NAMES[v]}: ${LAYOUT_LINES[v]}.`).join(' ')
     + ` ${LAYOUT_NAMES['great-oasis']}: ${OASIS_TEXT.layoutLine}.`   // Version 8.2 (Track G)
     + ` On every map your start, the trade road and the raiders' way in share one stretch of land, with clay and farmland near the start.`

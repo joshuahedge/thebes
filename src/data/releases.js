@@ -33,7 +33,7 @@ export const RELEASES = [
       'The Rulers list shows every reign with its name, number, title, score and a small map. Open one to see it side by side with a rival or your last reign, or tap Play this map to start again on the same land.',
       'A friend\'s link now carries their name and heir. It is kept as a rival on its map, and at a new split a toast says how you compare. Bring rulers in Options adds rulers and rivals from a file, never cities.',
       'Units walk in two poses and glide to where the game moved them. Buildings go up behind scaffold poles, workshops smoke, festivals light lamps and scatter petals, fires fought show their water, and a beaten raid gets its moment on the map.',
-      'The picture draws at most 60 frames a second and no finer than twice the pixels, so phones run cooler. Panels fade open instead of snapping.',
+      'Phones run cooler, and panels fade open instead of snapping.',
     ],
     fixed: [
       'The Nilometer, the unit pay and the work gold now quote the numbers for your heir\'s city.',
@@ -114,7 +114,7 @@ export const RELEASES = [
       'The top bar is now pictures: gold, people, mood, the season and flood, and your score, each changing with the city. Tap one to see what it means, why it is moving, and what to do about it.',
       'The scroll icon opens Messages and a new City page: income and spending, people and jobs, what moves the mood, stores, and a year of gold, people and mood.',
       'Drag a card from the build tray onto the map and let go to build it. Roads and plots keep drawing as you drag.',
-      'Each build group shows the few things that matter now, with More for the rest; things you have not unlocked yet stay out of the way, and the build Ipi suggests glows.',
+      'Each build group shows the few things that matter now, with More for the rest; things you have not unlocked yet stay out of the way, and the build marked Suggested glows.',
     ],
     fixed: [
       'The Nilometer now does something: with one staffed, the next flood shows on the top bar all year, and farms prepare, so a low flood costs a third less harvest.',
@@ -145,8 +145,8 @@ export const RELEASES = [
   {
     version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'a6eae26',
     new: [
-      'The game now says what it is for: grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple. You see it on the title card, at the start of the first lesson card, and at the top of How to play.',
-      "Been here before? Skip, I've played before, under Start the lesson on the title card or on the lesson's first card, marks the lesson done and takes you to a city of your own.",
+      'The game now says what it is for: grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple. You see it on the title screen, at the start of the first lesson card, and at the top of How to play.',
+      "Been here before? Skip, I've played before, under Start the lesson on the title screen or on the lesson's first card, marks the lesson done and takes you to a city of your own.",
     ],
     fixed: [
       'In the lesson, the Undo message after a placement no longer sits on top of the next lesson card, and a lesson card now waits until you have finished a road or plots you are drawing. The step you have just completed does not offer Undo.',
@@ -166,7 +166,7 @@ export const RELEASES = [
       'Paid event choices that would spare nothing, because the workshops or stores were already gone, now say so instead of taking your gold, and the strike and quarrel lines say work starts again by itself.',
       'Trade: Buy at Keep at least 0 now says it buys nothing yet, the line follows the route switches, and Keep at least steps by 50 from 100 up.',
       'How to play folds into sections you open with a tap or Enter, and a sheet opened with the keyboard moves focus into it.',
-      'Settings says when Sound Off silences the music and effects, in words, and the volumes speak their level.',
+      'Options says when Sound Off silences the music and effects, in words, and the volumes speak their level.',
       'Delta maps no longer merge two arms into one, and walkers and carts cross a running ferry as a short road.',
     ],
   },
@@ -176,12 +176,12 @@ export const RELEASES = [
       'Trade with Nubia (from Capital) and Punt (from Great Capital) by river: build a Quay on a riverbank with a road and boats sail in. Punt sells incense. Each route can be switched off by good, and Keep at least stops trade selling what your city needs.',
       'A Trade sheet from the trading post, the Quay or the summary shows every route, last year\'s profit and what is held back for the great temple or the court. On a phone one route opens at a time.',
       'City events: once or twice a year from Town, an envoy, a fever, a festival or a quarrel asks for a decision. Each choice says exactly what it does first, a choice you cannot afford says why, and an unanswered card takes the default, which never costs gold.',
-      'Seasons and a gentle day and night: the land and river change with flood, growing and harvest, and a six-minute loop darkens to lamp-lit evenings. Settings can turn Day and night off, and Still motion keeps daylight.',
+      'Seasons and a gentle day and night: the land and river change with flood, growing and harvest, and a six-minute loop darkens to lamp-lit evenings. Options can turn Day and night off.',
       'Sound polish: music that follows the season, a tense tune when danger is near, small sounds for placing, roads, fire, battle, caravans and boats, and separate Music and Effects volumes.',
       'Advice now says where a raid tower will truly defend, or to lay the road first, and to build a storehouse near a bazaar whose goods are stranded far away. It also covers the Quay and trade.',
       'The lesson card: each lesson step stops the game and sits in the middle of the screen; press Show me, Got it, Enter or Space and it docks, and play carries on by itself when you have done the step.',
       'On a computer, Delete or Backspace takes back what you just placed or demolishes the building whose sheet is open. The full list of keys is in How to play under Keyboard.',
-      'Placing shows each square as right or wrong, with a mark and not only a colour, and a line says what is missing in plain words, such as a road one tile away not counting. Land that suits a farm or a quarry is lightly marked.',
+      'Placing shows each tile as right or wrong, with a mark and not only a colour, and a line says what is missing in plain words, such as a road one tile away not counting. Land that suits a farm or a quarry is lightly marked.',
       'Empty house plots and building sites before work starts are pegged out on the map, so you can see what you placed. On a computer the Trade sheet and event card get the whole side panel.',
     ],
     fixed: [
@@ -212,12 +212,11 @@ export const RELEASES = [
       'A guided first city: on a new device the title offers a short lesson on a small map, from the first road to a fire and a raid warning, with picture cards for the new rules. Replay it from the menu.',
       'A Huge map, 112 tiles across, for tablets and computers; a phone is told it is best on a bigger screen.',
       'Desktop keys: arrows or WASD move the view, + and - zoom, ] and [ change the speed. They are listed in How to play.',
-      'Sound is on by default and starts on your first tap; turn it off in Settings. This week\'s Nile is gone.',
+      'Sound is on by default and starts on your first tap; turn it off in Options. This week\'s Nile is gone.',
     ],
     fixed: [
       'A Route preview draws bridge tiles as bridges, locked layers show greyed with the rank that opens them, and farm-area leftovers are marked and counted.',
-      'The advice now names the Estate trick: a store in the open, then a workshop beside it, then a Fetch order.',
-      'Pausing no longer rebuilds the map layers for nothing.',
+      'The advice now names the Estate trick: a store in the open, then a workshop beside it, then a Keep stocked order.',
     ],
   },
   {
@@ -226,10 +225,10 @@ export const RELEASES = [
       'A City advice button in the top bar opens a sheet that ranks what holds your city back: homes stuck for want of a good, a raid on its way, a street too plain, a shortage coming. Each item shows its cause, the fix, the price and a Show me. A dot says when the advice has changed.',
       'Every house sheet starts with the one next step for that home, with its price and a Show me, or says why there is nothing to do yet.',
       'Three new layers: Home progress (which homes are ready to grow and what each is missing), Goods supply (who asks for a good and which stores and bazaars hold it) and Workers (where the jobs and the jobless are).',
-      'Build another on every building sheet copies that building, with its style and a store\'s Fetch orders, and tells you why when it cannot.',
+      'Build another on every building sheet copies that building, with its style and a store\'s Keep stocked orders, and tells you why when it cannot.',
       'Drag areas for farms, gardens and statues, like plots: the bar shows the total and what was skipped before you confirm, and one Undo takes it all back.',
       'Roads that find their way: Route takes two ends and lays the cheapest road round buildings and hills, over existing road, and over water by a bridge where one is allowed. It shows the tiles, bridges and price first. Straight is still there.',
-      'A smoother camera: a quick swipe flings the map, Show me glides to the place and frames it, zoom stays under your fingers, and a two-finger double tap zooms out. Gentle shortens these and Still turns them off.',
+      'A smoother camera: a quick swipe flings the map, Show me glides to the place and frames it, zoom stays under your fingers, and a two-finger double tap zooms out.',
       'Grand homes are within reach: new goals ask for a third kind of food and a better street, and the advice names the decoration that lifts a low street most, and where to put it.',
       'Large maps draw faster, so zooming out on one no longer drags.',
     ],
@@ -244,7 +243,7 @@ export const RELEASES = [
     version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'b541f9e',
     new: [
       'After you place a house, the plots that suit the next one light up: Good where water and a bazaar are in reach, Fair where one of them is. Done ends the house tool.',
-      'A storehouse or granary can Fetch a good from another store, by cart along the roads, at any distance. Set it from the store\'s sheet, which says what it will do before you tap and where the cart is after.',
+      'A storehouse or granary can keep a good stocked from another store, by cart along the roads, at any distance. Set it from the store\'s sheet, which says what it will do before you tap and where the cart is after.',
       'Every new map has clay, a mine site and farmland near the start.',
       'Green now grows along the river and around oases, and fades out slowly into the desert instead of lying in patches.',
       'Oases form in the desert: a small pool with palms, rich soil and a little clay.',
@@ -256,7 +255,7 @@ export const RELEASES = [
     ],
     fixed: [
       'A Fair flood now gives x1.0 of a normal harvest (it was x0.9), so an average year is a small gain.',
-      'Clay stranded in a far store no longer stops homes upgrading: a store near them can Fetch it, and a tip points at the homes that wait.',
+      'Clay stranded in a far store no longer stops homes upgrading: a store near them can keep it stocked, and a tip points at the homes that wait.',
       'Your existing cities keep their land, with no hills, oases or new green. A Villa or Estate from before has two months to find a third food before it steps down a tier.',
     ],
   },
@@ -274,7 +273,7 @@ export const RELEASES = [
       'Enter lays what you have drawn, and Esc takes it back, whichever button you last pressed. The tick shows its Enter key where there is a keyboard.',
       'Play and pause read at a glance: pause is two clear bars, and a paused game says Paused on the corner button.',
       'Pause and the three speeds in the top bar each show a picture, and the one in use also says its word, so playing and paused are never a guess.',
-      'The title card shows the version and its build, and What\'s new lists what changed in every version.',
+      'The title screen shows the version and its build, and What\'s new lists what changed in every version.',
       'Easier to read: the overlay legend keeps its words on a wide screen, the bottom tabs scroll on a phone at large text, the confirm bar no longer squeezes its words, and sheet headings lose their heavy edge.',
     ],
     fixed: [
@@ -291,7 +290,7 @@ export const RELEASES = [
       'Clay is ground of its own along the river banks, and a clay pit has to stand on it.',
       'Bridges carry a road over at most 4 tiles of water, and a road across a wall makes a gate.',
       'The gold chip shows the month\'s forecast, and every card says what a building costs a month in upkeep and wages. A new picture card, Gold, teaches where money comes from and goes.',
-      'New villagers walk in from the road to their homes, and fires show flames and smoke even under Gentle motion.',
+      'New villagers walk in from the road to their homes.',
       'Raids grow year by year, can come as two bands, and go after your granaries and homes. Sickness (with the physician) and thieves (with the police post) join fire as things to keep down.',
     ],
     fixed: [
@@ -317,7 +316,7 @@ export const RELEASES = [
     new: [
       'Fertile and rocky ground can be shown on the map, from a new Layers picker.',
       'Roads, walls, plots and demolish can be drawn with a finger, or tapped tile by tile.',
-      'Each placing condition (free ground, a road beside it) is checked on its own and shown on the ghost and in the bar.',
+      'Each placing condition (free ground, a road beside it) is checked on its own and shown on the building you are placing and in the bar.',
     ],
     fixed: [
       'A building with no road gives nothing until a road touches it, and plots with no road say so in a big sign.',
@@ -368,7 +367,7 @@ export const RELEASES = [
       'A home\'s sheet says why it is not growing. Workers raise each building you place.',
     ],
     fixed: [
-      'The ghost lands where it fits, and the confirm bar says what a service will do.',
+      'A building lands where it fits, and the confirm bar says what a service will do.',
       'The top bar keeps its numbers on one row, and the speed button and confirm bar stop jumping about.',
       'Calmer land: darker river loam, greener meadow and turquoise shallows.',
     ],
