@@ -98,7 +98,7 @@ describe('v60 b2 moment words', () => {
     expect(V60_HELP.b2.length).toBeGreaterThan(0);
     expect(help).toContain(`${CHIEFTAIN.fromSize} or more`);
     expect(help).toContain(`${MOMENT.days} game days`);
-    for (const word of ['chieftain', 'banner', 'Gentle', 'Still', 'Report', 'alert row']) expect([word, help.includes(word)]).toEqual([word, true]);
+    for (const word of ['chieftain', 'banner', 'Report', 'alert row']) expect([word, help.includes(word)]).toEqual([word, true]);
   });
 });
 

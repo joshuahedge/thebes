@@ -17,6 +17,6 @@ describe('s47 releases', () => {
     const fixed = r47.fixed.join(' ');
     expect([fixed.includes('x1.0'), fixed.includes('two months')]).toEqual([true, true]);
     const notes = r47.new.join(' ');
-    for (const word of ['Fetch', 'oases', 'tribute', 'year 8', 'year 10', 'third kind of food']) expect([word, notes.includes(word)]).toEqual([word, true]);
+    for (const word of ['keep a good stocked', 'oases', 'tribute', 'year 8', 'year 10', 'third kind of food']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
 });

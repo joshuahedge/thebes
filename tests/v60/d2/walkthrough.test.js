@@ -183,7 +183,7 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 7]);
       { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
-      expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
+      expect([dialog.hidden, dialog.textContent.includes('Your step is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
       dialog.querySelector('.ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect(titleButtons().includes(D2_TEXT.titleContinue)).toBe(true);

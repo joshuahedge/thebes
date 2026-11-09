@@ -79,7 +79,7 @@ describe('v70 p the placing bar says why, from the sim', () => {
     const r = rig();
     const pv = preview(r, FARM, 2, 8);
     expect([pv.state, pv.why, states(pv)]).toEqual(['ok', '', ['met', 'met', 'met', 'met']]);
-    expect(pv.needs).toBe(`Needs ${S46_MAP_TEXT.ground.fertile} under every square, a road touching one side and a granary within ${BUILDINGS.farm_grain.producerReach} road tiles`);
+    expect(pv.needs).toBe(`Needs ${S46_MAP_TEXT.ground.fertile} under every tile, a road touching one side and a granary within ${BUILDINGS.farm_grain.producerReach} road tiles`);
     expect(needsLine('well')).toBe('Needs a road touching one side');
     expect(needsLine('garden')).toBe('');                                                          // nothing to need
     expect(needsLine(QUAY_TYPE)).toBe('Needs water along a long side and a road touching one side');
@@ -99,12 +99,12 @@ describe('v70 p the placing bar says why, from the sim', () => {
     expect(none.why).toBe('');                                                                     // wave 3 (ruling 992): the chip says "No road yet", so the line has nothing to add (only a road one tile off does)
     expect(none.joins.length).toBeGreaterThan(0);
   });
-  it('ground rule both ways, counted as the sim counts it: 2 of 4 squares on fertile land refuses and says so, 4 of 4 does not, a house on a square is a square taken', () => {
+  it('ground rule both ways, counted as the sim counts it: 2 of 4 tiles on fertile land refuses and says so, 4 of 4 does not, a house on a square is a square taken', () => {
     const r = rig();
     const half = preview(r, FARM, 7, 8);
     expect(half.state).toBe('bad');
     expect(half.whyParts.map((x) => x.text)).toEqual([W.terrain('fertile', 2, 4, 4)]);              // the sim's count, in the line's own words ...
-    expect(half.whyParts[0].text).toBe('fertile land under 2 of 4 squares: all 4 needed');
+    expect(half.whyParts[0].text).toBe('fertile land under 2 of 4 tiles: all 4 needed');
     expect(half.why).toBe('');                                                                     // ... which the bar leaves to the chip while chips show (wave 3, ruling 992)
     expect(states(half)).toEqual(['met', 'cant', 'met', 'cant']);
     expect(preview(r, FARM, 6, 8).why).toBe('');                                                  // all four on the fertile land: nothing to refuse
@@ -122,12 +122,12 @@ describe('v70 p the placing bar says why, from the sim', () => {
     const both = preview(r, FARM, 7, 8);
     expect(both.why).toBe(`${W.leadCant}: ${W.taken(1, 4)}`);
   });
-  it('the clay pit counts 2 of its 4 squares: one clay square refuses ("clay under 1 of 4 squares: 2 needed") with the others off, two is met with the others plain', () => {
+  it('the clay pit counts 2 of its 4 squares: one clay square refuses ("clay under 1 of 4 tiles: 2 needed") with the others off, two is met with the others plain', () => {
     const r = rig();
     layClay(r.world, 20, 5, 1, 1);
     const one = preview(r, CLAY, 20, 5);
     expect([one.state, one.whyParts[0].text.startsWith(W.terrain('clay', 1, 4, 2)), one.why]).toEqual(['bad', true, '']);   // (the chip says it; wave 3, ruling 992)
-    expect(one.whyParts[0].text).toBe('clay under 1 of 4 squares: 2 needed');
+    expect(one.whyParts[0].text).toBe('clay under 1 of 4 tiles: 2 needed');
     expect(states(one)).toEqual(['met', 'off', 'off', 'off']);
     layClay(r.world, 21, 5, 1, 1);
     const two = preview(r, CLAY, 20, 5);

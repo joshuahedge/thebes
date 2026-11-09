@@ -52,9 +52,9 @@ describe('v90 l rulers: the list', () => {
       const [newest, older] = [...body.querySelectorAll('.ruler-row')];
       expect(newest.querySelector('.ruler-name').textContent).toBe('Ramesses IV the Steady');
       expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1.0 years');
-      expect([older.querySelector('.ruler-name').textContent, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
+      expect([older.querySelector('.ruler-name').textContent, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great City · 12.5 years', '312', 'Gold medal']);
       expect(newest.querySelector('.ruler-medal').textContent).toBe('No medal');
-      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12.5 years, score 312, Gold medal');
+      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great City, 12.5 years, score 312, Gold medal');
       expect([1, 4, 9, 14, 49].map((n) => V90_D_TEXT.regnal('Ra', n))).toEqual(['Ra I', 'Ra IV', 'Ra IX', 'Ra XIV', 'Ra XLIX']);
       const c = older.querySelector('canvas.ruler-map');
       expect([c.width, c.height, c.getAttribute('aria-hidden')]).toEqual([32, 32, 'true']);
@@ -76,7 +76,7 @@ describe('v90 l rulers: the list', () => {
       expect([...detail.querySelectorAll('.ruler-part')].map((p) => [p.dataset.part, p.querySelector('.part-number').textContent])).toEqual([['people', '72'], ['prosperity', '65'], ['culture', '58'], ['safety', '40'], ['monuments', '36']]);
       expect(detail.querySelector('.ruler-heir').textContent).toBe('Heir of the Bountiful');
       expect(detail.querySelector('.ruler-feats').textContent).toBe('Feats: Debt-free founder, Well fed');
-      expect(detail.querySelector('.ruler-map-line').textContent).toBe('Seed 4242, Hard, east layout, 80 x 80 map');
+      expect(detail.querySelector('.ruler-map-line').textContent).toBe('Map number 4242, Hard, east layout, 80 x 80 map');
       expect(detail.querySelector('.side-by-side')).toBe(null);                      // no rival kept
       fire(row, 'click');
       expect([row.getAttribute('aria-expanded'), detail.hidden]).toEqual(['false', true]);
@@ -103,7 +103,7 @@ describe('v90 l rulers: the list', () => {
       const body = root.querySelector('#body');
       renderRulers(body, { records, onPlay: (r) => played.push([r.seed, r.difficulty, r.mapVariant, r.mapSize]) });
       const play = body.querySelector('.play-map');
-      expect([play.textContent, body.querySelector('.ruler-play-note').textContent]).toEqual(['Play this map', 'Opens New city on this seed, level, layout and size. A city you have is replaced unless you export it first.']);
+      expect([play.textContent, body.querySelector('.ruler-play-note').textContent]).toEqual(['Play this map', 'Opens New city on this map. A city you have is replaced unless you export it first.']);
       expect(play.getAttribute('aria-describedby')).toBe(body.querySelector('.ruler-play-note').id);
       fire(play, 'click');
       expect(played).toEqual([[4242, 'hard', 'island', 80]]);

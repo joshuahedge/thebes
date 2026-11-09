@@ -59,7 +59,7 @@ describe('ui trade sheet', () => {
       const memphis = () => route(r, 'memphis').querySelector('.open-route');
       expect(memphis().disabled).toBe(true);
       expect(route(r, 'memphis').querySelector('.reason').textContent).toBe('Opens at Market town');
-      expect(route(r, 'byblos').querySelector('.reason').textContent).toBe('Opens at Great city');
+      expect(route(r, 'byblos').querySelector('.reason').textContent).toBe('Opens at Great City');
       w.milestone = 'market_town';
       w.gold = routeCostOf(w, 'memphis') + ECONOMY.debtFloor - 1;                     // one gold short of what the sim's canAfford allows
       r.ui.refresh();
@@ -327,7 +327,7 @@ describe('ui trade sheet', () => {
         r.root.style.left = '0px';                                                   // on screen (its foot at the window's), so the page can say what is on top
         r.root.style.top = `${Math.min(0, innerHeight - height)}px`;
         const sheet = r.root.querySelector('#sheet'), head = sheet.querySelector('.head');
-        const open = route(r, 'byblos').querySelector('.open-route');                // Byblos waits for the Great city: disabled
+        const open = route(r, 'byblos').querySelector('.open-route');                // Byblos waits for the Great City: disabled
         expect(open.disabled).toBe(true);
         sheet.scrollTop += open.getBoundingClientRect().top - head.getBoundingClientRect().top + 4;   // the button slides under the heading
         const b = open.getBoundingClientRect(), h = head.getBoundingClientRect();

@@ -30,9 +30,12 @@ export const GOAL_REWARD = 25;
 export const EVENT_REWARD = 10;    // a first-time trouble put right
 export const GUIDE_REWARD = 50;    // paid once, when the guided start's goals are all done
 
+// Version 9.2 (Track W, ruling 1840): a goal's number in its words is {n}, filled from the need it checks, so the line cannot drift from the rule.
+const fillN = (g) => (typeof g.text === 'string' && g.text.includes('{n}') ? { ...g, text: g.text.replace('{n}', Number(g.need.n).toLocaleString('en-US')) } : g);
+
 export const GOALS = [
   { id: 'road', chapter: 'first_homes', text: 'Lay a road: buildings need one', why: 'Homes and workplaces work only when they touch a road.', reward: GOAL_REWARD, need: { kind: 'road' }, showMe: { category: 'roads', item: 'road', target: 'startRoad' } },
-  { id: 'plots', chapter: 'first_homes', text: 'Place 6 housing plots by the road', why: 'Plots off the road stay empty until a road reaches them.', reward: GOAL_REWARD, need: { kind: 'houses', n: 6 }, showMe: { category: 'homes', item: 'house', target: 'startRoad' } },
+  { id: 'plots', chapter: 'first_homes', text: 'Place {n} housing plots by the road', why: 'Plots off the road stay empty until a road reaches them.', reward: GOAL_REWARD, need: { kind: 'houses', n: 6 }, showMe: { category: 'homes', item: 'house', target: 'startRoad' } },
   { id: 'well', chapter: 'first_homes', text: "Build a well by the homes' road", why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts become shacks.`, reward: GOAL_REWARD, need: { kind: 'building', type: 'well', n: 1 }, showMe: { category: 'services', item: 'well', target: 'houses' } },
   { id: 'food', chapter: 'feed', text: 'Farm on fertile land, granary, bazaar', why: 'Farms need the fertile land by the river: Layers → Ground shows it. Each needs a road.', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_grain', n: 1 }, { kind: 'building', type: 'granary', n: 1 }, { kind: 'building', type: 'bazaar', n: 1 }] }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'temple', chapter: 'feed', text: 'Build a temple', reward: GOAL_REWARD, need: { kind: 'building', type: 'temple', n: 1 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
@@ -40,10 +43,10 @@ export const GOALS = [
   // own tally (world.tally.profitMonths, the same count the "First month in profit" caption uses); its Show me opens the homes card (homes pay the taxes),
   // where the forecast section would say what the month brings. It makes the opening chain eleven goals long.
   { id: 'profit', chapter: 'grow', text: 'End a month in profit', why: 'Homes pay taxes; every building costs upkeep and wages. Build homes before luxuries.', reward: GOAL_REWARD, need: { kind: 'profit' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
-  { id: 'homes_cottage', chapter: 'grow', text: 'Grow 8 homes to Cottage or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 3, n: 8 }, showMe: { category: 'services', item: 'bazaar', target: 'houses' } },
-  { id: 'people100', chapter: 'grow', text: 'Reach 100 people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
-  { id: 'homes_house', chapter: 'grow', text: 'Grow 8 homes to House or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 4, n: 8 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
-  { id: 'town', chapter: 'grow', text: 'Reach 150 people to become a Town', reward: GOAL_REWARD, need: { kind: 'people', n: 150 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'homes_cottage', chapter: 'grow', text: 'Grow {n} homes to Cottage or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 3, n: 8 }, showMe: { category: 'services', item: 'bazaar', target: 'houses' } },
+  { id: 'people100', chapter: 'grow', text: 'Reach {n} people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'homes_house', chapter: 'grow', text: 'Grow {n} homes to House or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 4, n: 8 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
+  { id: 'town', chapter: 'grow', text: 'Reach {n} people to become a Town', reward: GOAL_REWARD, need: { kind: 'people', n: 150 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   // Stage 3 (spec 4.1, 4.19): fire risk begins at Town, so the firehouse comes right after it.
   { id: 'firehouse', chapter: 'danger', text: 'Build a firehouse', reward: GOAL_REWARD, need: { kind: 'building', type: 'firehouse', n: 1 }, showMe: { category: 'services', item: 'firehouse', target: 'houses' } },
   // Stage 4.5 (ruling 320): disease starts at Town, so the physician comes right after the firehouse (not on Peaceful, which has none).
@@ -52,25 +55,25 @@ export const GOALS = [
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
   { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'clay' } },
-  { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
+  { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow {n} homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
   { id: 'booth_gardens', chapter: 'goods', from: 'town', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
   { id: 'manor', chapter: 'goods', text: 'Grow a Manor on a Large plot', why: 'Small plots stop at Townhouse. A Large plot opens as a Manor once its needs are met nearby.', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'large_plot', target: 'houses' } },   // Version 6.0 (Track C, ruling 701): a Manor no longer merges four plots
-  { id: 'market_town', chapter: 'goods', text: 'Reach 250 people for a Market town', reward: GOAL_REWARD, need: { kind: 'people', n: 250 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'market_town', chapter: 'goods', text: 'Reach {n} people for a Market town', reward: GOAL_REWARD, need: { kind: 'people', n: 250 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },
   // Stage 3: the raid clock starts at Market town; the defences come after the trade route (not on Peaceful).
   { id: 'defences', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a tower and a barracks', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'tower', n: 1 }, { kind: 'building', type: 'barracks', n: 1 }] }, showMe: { category: 'defence', item: 'tower', target: 'raid' } },
   // Stage 4.5 (ruling 320): crime starts at Market town, with the police post (not on Peaceful).
   { id: 'police_post', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a police post', reward: GOAL_REWARD, need: { kind: 'building', type: 'police_post', n: 1 }, showMe: { category: 'services', item: 'police_post', target: 'houses' } },
-  { id: 'city', chapter: 'grand', text: 'Reach 400 people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'city', chapter: 'grand', text: 'Reach {n} people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'beer', chapter: 'grand', from: 'city', text: 'Build a barley farm, brewery, orchard', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_barley', n: 1 }, { kind: 'building', type: 'brewery', n: 1 }, { kind: 'building', type: 'farm_fig', n: 1 }] }, showMe: { category: 'industry', item: 'farm_barley', target: 'fertile' } },
-  { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow 2 homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
+  { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow {n} homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
   // Stage 4 (spec 4.19): the Monuments chapter. From City the small obelisk and its supply; a "Found a" goal counts a
   // site once a road touches it (ruling 226), as every "Build a" goal does.
   { id: 'found_obelisk', chapter: 'monuments', from: 'city', text: 'Found a small obelisk', reward: GOAL_REWARD, need: { kind: 'building', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'obelisk_small', target: 'focus' } },
   { id: 'guild_near', chapter: 'monuments', from: 'city', text: "Build a builders' guild on a road to it", reward: GOAL_REWARD, need: { kind: 'crewNear' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'quarry', chapter: 'monuments', from: 'city', text: 'Build a quarry on rocky ground', reward: GOAL_REWARD, need: { kind: 'building', type: 'quarry', n: 1 }, showMe: { category: 'monuments', item: 'quarry', target: 'rocky' } },
   { id: 'finish_obelisk', chapter: 'monuments', from: 'city', text: 'Finish the small obelisk', reward: GOAL_REWARD, need: { kind: 'finished', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
-  { id: 'great_city', chapter: 'grand', text: 'Reach 650 people for a Great city', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'great_city', chapter: 'grand', text: 'Reach {n} people for a Great City', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'linen', chapter: 'grand', from: 'great_city', text: 'Build a flax farm and a weaver', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_flax', n: 1 }, { kind: 'building', type: 'weaver', n: 1 }] }, showMe: { category: 'industry', item: 'farm_flax', target: 'fertile' } },
   // Version 5.0 (Task 7, rulings 580-599): once Fine manors stand and the weaver comes, a Villa's other two wants come one at a time: a third kind
   // of food (need foods: the most kinds of food any one home holds in stock, as the home check counts them, so a maker whose food no bazaar carries to a home does not count), then a Fine manor's street raised to the Villa's desirability
@@ -78,13 +81,13 @@ export const GOALS = [
   // jewellery. The numbers and names come from the data (TIERS, GOODS); Show me 'grand' aims at the decoration the house sheet names (desirabilityFix).
   { id: 'third_food', chapter: 'grand', from: 'great_city', text: `Bring in a third food: ${GOODS.game.name.toLowerCase()} or ${GOODS.fish.name.toLowerCase()}`, why: `${TIERS[8].name}s need three kinds of food. A hunting lodge by a herd or a fishing wharf on the river adds one.`, reward: GOAL_REWARD, need: { kind: 'foods', n: 3 }, showMe: { category: 'food', item: 'hunting_lodge', target: 'herd' } },
   { id: 'villa_street', chapter: 'grand', from: 'great_city', text: `Raise a ${TIERS[7].name}'s desirability to ${TIERS[8].desirability.rise}`, why: STREET_WHY, reward: GOAL_REWARD, need: { kind: 'desirability', tier: 8 }, showMe: { category: 'homes', item: 'statue', target: 'grand', tier: 8 } },
-  { id: 'villas', chapter: 'grand', from: 'great_city', text: 'Grow 2 homes to Villa or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 8, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
+  { id: 'villas', chapter: 'grand', from: 'great_city', text: 'Grow {n} homes to Villa or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 8, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
   // Version 9.2 (Track S, ruling 1801): a Villa's luxury comes from a route, so the goal asks for one: met by the first luxury bought (world.tally.luxuryBought).
   { id: 'luxury_route', chapter: 'grand', from: 'great_city', text: 'Open a route that sells a luxury', why: `${TIERS[8].name}s want a luxury. Byblos sells ${GOODS.cedar.name.toLowerCase()}: open its route and set a Buy order for it.`, reward: GOAL_REWARD, need: { kind: 'tally', key: 'luxuryBought' }, showMe: { category: 'industry', item: 'trading_post', target: 'focus' } },
-  // Stage 4: from Great city a colossus or a small mastaba, and the brickworks once a mastaba is founded.
+  // Stage 4: from Great City a colossus or a small mastaba, and the brickworks once a mastaba is founded.
   { id: 'found_colossus', chapter: 'monuments', from: 'great_city', text: 'Found a colossus or a small mastaba', reward: GOAL_REWARD, need: { kind: 'any', of: [{ kind: 'building', type: 'colossus', n: 1 }, { kind: 'building', type: 'mastaba_small', n: 1 }] }, showMe: { category: 'monuments', item: 'colossus', target: 'focus' } },
   { id: 'brickworks', chapter: 'monuments', from: 'great_city', when: { kind: 'any', of: [{ kind: 'building', type: 'mastaba_small', n: 1 }, { kind: 'building', type: 'mastaba_large', n: 1 }] }, text: 'Build a brickworks', reward: GOAL_REWARD, need: { kind: 'building', type: 'brickworks', n: 1 }, showMe: { category: 'monuments', item: 'brickworks', target: 'site' } },
-  { id: 'capital', chapter: 'grand', text: 'Reach 1,000 people for the Capital', reward: GOAL_REWARD, need: { kind: 'people', n: 1000 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  { id: 'capital', chapter: 'grand', text: 'Reach {n} people for the Capital', reward: GOAL_REWARD, need: { kind: 'people', n: 1000 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'jewellery', chapter: 'grand', from: 'capital', text: 'Build a gem mine and a jeweller', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'gem_mine', n: 1 }, { kind: 'building', type: 'jeweller', n: 1 }] }, showMe: { category: 'industry', item: 'gem_mine', target: 'rocky' } },
   { id: 'estate_street', chapter: 'grand', from: 'capital', text: `Raise a ${TIERS[8].name}'s desirability to ${TIERS[9].desirability.rise}`, why: STREET_WHY, reward: GOAL_REWARD, need: { kind: 'desirability', tier: 9 }, showMe: { category: 'homes', item: 'statue', target: 'grand', tier: 9 } },
   { id: 'estate', chapter: 'grand', from: 'capital', text: 'Grow an Estate', reward: GOAL_REWARD, need: { kind: 'tier', tier: 9, n: 1 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
@@ -96,7 +99,7 @@ export const GOALS = [
   ...V60_GOALS,
   // Version 7.0 (src/data/v70.js V70_GOALS): Track T's rows, from its own data file.
   ...V70_GOALS,
-];
+].map(fillN);
 
 // The guided start (early-game pass 3.2) runs while any of these is open.
 export const GUIDE_GOALS = ['road', 'plots', 'well', 'food', 'temple'];

@@ -191,7 +191,7 @@ describe('v84 g luxury: the causes and their fixes', () => {
     expect([c.code, c.good]).toEqual(['good_far', 'ivory']);
   });
 
-  it('offers no fix before any partner selling one is open to the city (Byblos comes with Great city)', () => {
+  it('offers no fix before any partner selling one is open to the city (Byblos comes with Great City)', () => {
     const { world, home } = luxuryStreet();
     world.milestone = 'city';
     const c = luxuryTradeCause(world);

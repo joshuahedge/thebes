@@ -225,7 +225,7 @@ function whyRig({ road = false } = {}) {
 const previewAt = (r, type, x, y) => { r.pl.start({ kind: 'building', type }, { x, y }); r.pl.moveGhost(x, y); return r.pl.preview(); };
 
 describe('v70 p review: the placing bar\'s why line says only what no chip says (ruling 992)', () => {
-  it('a farm with 2 of 4 squares fertile and no road shows no why line: the chips say both', () => {
+  it('a farm with 2 of 4 tiles fertile and no road shows no why line: the chips say both', () => {
     const r = whyRig();
     const p = previewAt(r, 'farm_grain', 7, 20);
     expect([p.state, p.conditions.some((c) => c.key === 'ground' && c.state === 'cant'), p.why, p.needs]).toEqual(['bad', true, '', '']);

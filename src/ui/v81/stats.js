@@ -59,7 +59,7 @@ export function compact(n) {
 
 // Each stat as the bar shows it: { value (the words on the bar), full (the whole number), state (the picture's), words (the state said) }.
 // score is null while scoreUi has not given one (it measures the score at most once per command and game day).
-// date: 'long' ("Year 2, month 1, day 1"), 'short' ("Y2 M1") or 'month' ("M1": a phone's bar, ruling 1227: the year is in its name and explainer).
+// date: 'long' ("Year 2, month 1, day 1"), 'short' ("Yr 2 Mo 1") or 'month' ("M1": a phone's bar, ruling 1227: the year is in its name and explainer).
 export function statState(world, { date: form = 'short', score = null } = {}) {
   const d = summaryData(world), f = monthForecast(world), n = nextFlood(world), season = seasonAt(world).season;
   const falling = f.active && f.net < 0;

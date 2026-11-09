@@ -60,8 +60,8 @@ describe('v80 u title: the buttons', () => {
     const skipped = [];
     const c = card({ lesson: { due: true, partWay: false, onSkip: () => skipped.push('skip') } });
     try {
-      expect(shown(c.container)).toEqual(['Play', "I've played before", T.settings, S46_UX_TEXT.whatsNew]);
-      expect([c.container.querySelector('.lesson-start').textContent, V711_TEXT.skip, D2_TEXT.titleStart]).toEqual(['Play', "I've played before", 'Play']);
+      expect(shown(c.container)).toEqual(['Play', 'Skip the lesson', T.settings, S46_UX_TEXT.whatsNew]);
+      expect([c.container.querySelector('.lesson-start').textContent, V711_TEXT.skip, D2_TEXT.titleStart]).toEqual(['Play', 'Skip the lesson', 'Play']);
       expect(c.container.querySelector('.lesson-start').classList.contains('primary')).toBe(true);
       expect(c.container.querySelector('.new-city')).toBe(null);
       fire(c.container.querySelector('.lesson-start'), 'click');

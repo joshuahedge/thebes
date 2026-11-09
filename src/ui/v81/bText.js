@@ -45,12 +45,12 @@ export const V81_B_TEXT = {
     costliest: (name, cost) => `The costliest building: ${name}, ${cost} a month`,
   },
   people: {
-    what: `People living in the city's homes. Newcomers arrive while the mood is ${MOOD.arrivalsMin} or more and homes have room; below ${MOOD.departuresBelow} people leave.`,
+    what: `People in the city's homes. At mood ${MOOD.arrivalsMin} or more newcomers arrive; below ${MOOD.departuresBelow} people leave.`,
     homes: 'Homes', workforce: 'Workforce', working: T.working, jobless: T.jobless, jobs: 'Jobs in workplaces',
     workingOf: (a, b) => `${a} of ${b}`,
   },
   mood: {
-    what: `How content the people are, from 0 to 100. Below ${MOOD.departuresBelow} people leave; at ${MOOD.arrivalsMin} or more newcomers arrive.`,
+    what: `How content people are, 0 to 100. Below ${MOOD.departuresBelow} they leave; at ${MOOD.arrivalsMin} or more newcomers arrive.`,
     head: 'What moves it now',
     none: 'Nothing moves it from the starting mood yet.',
     face: (face) => `Now: ${V81_B_TEXT.faceWords[face]}`,

@@ -177,11 +177,11 @@ describe('s46 map sizes: a best and a stamp say their map size when it is not No
     const best = { score: 900, medal: 'gold', seed: 5, difficulty: 'normal' };
     const normal = TITLE_SCORE_TEXT.bestLine(best);
     const large = TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 80 });
-    expect([large.includes('80 x 80 map'), normal.includes(' map')]).toEqual([true, false]);
+    expect([large.includes('80 x 80 map'), normal.includes(' x ')]).toEqual([true, false]);
     expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: 48 }).includes(S46_MAP_TEXT.sizeNote(48))).toBe(true);
     expect(TITLE_SCORE_TEXT.bestLine({ ...best, mapSize: DEFAULT_MAP_SIZE })).toBe(normal);
     const stamp = { seed: 5, score: 700, medal: null, built: [] };
     expect(score4StampLabel({ ...stamp, mapSize: 48 }).includes('48 x 48 map')).toBe(true);
-    expect(score4StampLabel(stamp).includes(' map')).toBe(false);
+    expect(score4StampLabel(stamp).includes(' x ')).toBe(false);
   });
 });

@@ -319,7 +319,7 @@ describe('s46 court ui: the summary and the court sheet', () => {
     expect(C.bandNow.high).toContain(`${Math.round((1 - favourTributeFactor(r.world)) * 100)}% less`);
     r.world.court.favour = FAVOUR.low;
     expect(C.bandNow.low).toContain(`${Math.round((favourTributeFactor(r.world) - 1) * 100)}% more`);
-    expect([favourRaidSize(r.world, 8) > 8, C.bandNow.low.includes('one size step bigger')]).toEqual([true, true]);
+    expect([favourRaidSize(r.world, 8) > 8, C.bandNow.low.includes('one step bigger')]).toEqual([true, true]);
     r.world.court.favour = FAVOUR.low + 1;
     expect([favourRaidSize(r.world, 8), favourTributeFactor(r.world)]).toEqual([8, 1]);
     open(r, 'court');

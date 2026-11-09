@@ -223,7 +223,7 @@ describe('v60 a demands: a building demand can be met inside its deadline', () =
     expect(buildMonths('obelisk_large')).toBe(MONUMENTS.obelisk_large.crewMonths / MONUMENTS.obelisk_large.crews);
   });
 
-  it('draws only deadlines that fit: every building demand the court offers from a Great city on has months for its build time', () => {
+  it('draws only deadlines that fit: every building demand the court offers from a Great City on has months for its build time', () => {
     let seen = 0;
     for (let seed = 1; seed <= 80; seed++) {
       const w = due({ seed });

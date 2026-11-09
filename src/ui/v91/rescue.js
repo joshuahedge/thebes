@@ -64,13 +64,14 @@ export function installRescue(ctx) {
     else if (errors.length < MAX_ERRORS) errors.push({ where, lines, count: 1 });
     stamps.push(now());
     if (stamps.length > STORM_COUNT) stamps.shift();
-    if (details) details.textContent = detailsText();
+    if (details) details.textContent = detailsText(false);
     return lines;
   }
-  function detailsText() {
+  // Version 9.2 (Track W, ruling 1837): the on-screen details leave out "Where:", which only helps whoever reads a copied report.
+  function detailsText(forCopy = true) {
     const device = String((win.navigator && win.navigator.userAgent) || 'unknown').slice(0, 160);
     const list = errors.map((e) => `${e.count > 1 ? `(${e.count} times) ` : ''}${e.lines.join('\n  ')}`);
-    return W.detailLines({ version: APP_VERSION, build, where: W.where[errors.length ? errors[0].where : 'idle'] || W.where.idle, device, errors: list }).join('\n');
+    return W.detailLines({ version: APP_VERSION, build, where: forCopy ? W.where[errors.length ? errors[0].where : 'idle'] || W.where.idle : null, device, errors: list }).join('\n');
   }
   const storming = () => stamps.length >= STORM_COUNT && stamps[stamps.length - 1] - stamps[0] <= STORM_MS;
 
@@ -108,7 +109,7 @@ export function installRescue(ctx) {
 
   function showCard({ kind, game = null }) {
     if (card || destroyed) return;
-    readBuildStamp().then((b) => { if (b) { build = b; if (details) details.textContent = detailsText(); } }).catch(() => {});
+    readBuildStamp().then((b) => { if (b) { build = b; if (details) details.textContent = detailsText(false); } }).catch(() => {});
     const lesson = Boolean(game && game.lesson);
     const first = kind === 'idle' ? W.idle : kind === 'tainted' ? W.paused : W.stopped;
     const second = el('span', { class: 'v91-error-second', text: kind === 'idle' ? '' : W.checking });
@@ -118,7 +119,7 @@ export function installRescue(ctx) {
     const act = (btn, why) => el('div', { class: 'v91-act' }, [btn, why]);
     const acts = [act(reload, reloadWhy)];
     status = el('p', { class: 'v91-status small', role: 'status' });
-    details = el('pre', { class: 'v91-details-text', text: detailsText() });
+    details = el('pre', { class: 'v91-details-text', text: detailsText(false) });
     const more = el('details', { class: 'v91-details' }, [el('summary', { text: W.detailsHead(errors.length || 1) }), details]);
     if (game && !lesson && ctx.hooks && typeof ctx.hooks.exportCity === 'function') {
       const exp = button(W.exportCity, { class: 'v91-export', onClick: async () => {
