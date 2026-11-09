@@ -41,7 +41,7 @@ export const STEP_TEXT = {
   // The price in the parentheses: "30 gold", "5 gold a tile", and when the treasury cannot pay it, how much it has (colour is never the only cue).
   // Version 5.0 (Task 7): where a decoration goes, what it does to the street, and a hunting lodge's place.
   spot: (dist) => (dist <= 1 ? 'beside this home' : `${dist} tiles from this home`),
-  lifts: (from, to, needs) => `raises its desirability from ${signed(from)} to ${signed(to)} (it needs ${needs})`,   // a score below zero reads with a minus sign, as the desirability row's does
+  lifts: (from, to, needs) => `raises its pleasantness from ${signed(from)} to ${signed(to)} (it needs ${needs})`,   // a score below zero reads with a minus sign, as the desirability row's does
   herd: 'by the nearest herd',
   price: (gold, unit, have, short) => `${gold} gold${unit ? ` a ${unit}` : ''}${short ? `, more than the ${have} you have` : ''}`,
 };

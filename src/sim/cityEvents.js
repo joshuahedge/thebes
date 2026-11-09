@@ -432,7 +432,7 @@ export function offerFor(world, kind) {
   return figs ? { kind, day: world.day, due: world.day + def.months * DAYS_PER_MONTH, id, figs } : null;
 }
 
-// The event to offer today, or null: { kind, day, due, id, figs } (see the header for when none is). Pure: the same world gives the same answer.
+// The event to offer today, or null: { kind, day, due, id, figs } (see the header for when none is). Deterministic: the same world gives the same answer, but letterMayCome notes the court's gate in world.letterGate (want, served); only eventDay calls it.
 export function drawEvent(world) {
   const s = world.cityEvents;
   if (s.waiting || !eventsOn(world) || world.day < s.nextDay) return null;

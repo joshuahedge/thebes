@@ -82,8 +82,8 @@ function dotKeys(kind) {
   const colour = { color: OVERLAY_HUE[kind] };
   if (kind === 'health') {   // Version 9.2 (Track V, ruling 1849): the keys are the squares the map draws, a home edged in a solid line and one edged in a dashed line, not a dot and a ring
     const hue = OVERLAY_HUE.health;
-    const solid = { backgroundColor: TERRAIN.sand, boxShadow: `inset 0 0 0 1.5px ${hue}` };
-    const dashed = { backgroundColor: TERRAIN.sand, boxShadow: 'none', border: `1.5px dashed ${hue}`, boxSizing: 'border-box' };
+    const solid = { backgroundColor: TERRAIN.sand, boxShadow: `inset 0 0 0 2px ${hue}` };   // ruling 1882: a 2 px edge, so the two keys tell apart on a phone at 150%
+    const dashed = { backgroundColor: TERRAIN.sand, boxShadow: 'none', border: `2px dashed ${hue}`, boxSizing: 'border-box' };
     return [
       el('span', { class: 'key' }, [el('span', { class: 'swatch', style: solid, 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: has })]),
       el('span', { class: 'key' }, [el('span', { class: 'swatch', style: dashed, 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: missing })]),

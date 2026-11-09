@@ -92,7 +92,7 @@ describe('v80 u new-city card: difficulty tiles, More choices, Surprise me', () 
       expect(c.container.querySelector('.new-city-head').textContent).toBe(T.newCity);
     } finally { c.cleanup(); }
     // the words come from DIFFICULTIES: change the data and the line changes with it (and is put back)
-    expect(V80_U_TEXT.difficultyLine('peaceful')).toBe('No raids, sickness or thefts; buildings 20% cheaper.');
+    expect(V80_U_TEXT.difficultyLine('peaceful')).toBe('No raids, sickness or thefts; rarer fires and Low Niles; buildings 20% cheaper.');
     expect(V80_U_TEXT.difficultyLine('relaxed')).toBe('Later raids 50% smaller; buildings 20% cheaper.');
     expect(V80_U_TEXT.difficultyLine('normal')).toBe('Raids and fire as designed; buildings at full price.');
     expect(V80_U_TEXT.difficultyLine('hard')).toBe('Later raids 50% bigger; buildings 25% dearer.');

@@ -554,7 +554,7 @@ export const T = {
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Single keys', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
-  guideHelp: 'While the guide runs, the next card says Suggested and a ring marks it. Skip guide ends it',
+  guideHelp: 'While the guide runs, the next card says Suggested, with a ring on it. Skip guide ends it.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'The installed app keeps its own storage, so it starts without the city you have here.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Try Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
@@ -680,7 +680,7 @@ export const TIP_TEXT = {
   more_workers: 'Place more homes: buildings need workers, and homes provide them.',
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
   goals_list: "Tap the goal, then All goals, to see what's next and what each pays.",
-  overlay_keys: 'Read the layer: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
+  overlay_keys: 'Read the layer: its keys say what each mark means. Tap ✕ to close.',
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
   trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
@@ -3958,7 +3958,7 @@ export const V80_U_TEXT = {
   difficultyLine(level) {
     const { cost, risk, raids } = DIFFICULTIES[level];
     const price = cost === 1 ? 'buildings at full price' : `buildings ${u80Pct(cost)}% ${cost < 1 ? 'cheaper' : 'dearer'}`;
-    if (raids === false) return `No raids, sickness or thefts; ${price}.`;
+    if (raids === false) return `No raids, sickness or thefts; rarer fires and Low Niles; ${price}.`;   // Version 9.2 (ruling 1884): agrees with difficultyHint's Peaceful line (ruling 1806)
     return `${risk === 1 ? 'Raids and fire as designed' : `Later raids ${u80Pct(risk)}% ${risk < 1 ? 'smaller' : 'bigger'}`}; ${price}.`;
   },
 };
@@ -4765,7 +4765,8 @@ export function rolledWords(alert, world) {
 export const S92_S_TEXT = {
   // A monument site whose sheet has not been opened for a game month (src/ui/monumentSheet.js): one caption, with how much is built.
   siteQuiet: (type, percent) => `${buildingName(type)}: ${percent}% built, not looked at for a month`,
-  siteQuietWhy: 'Open its sheet to see what it needs.',
+  siteQuietMany: (n) => `${n} monument sites not looked at for a month`,
+  siteQuietWhy: 'Open a site\'s sheet to see what it needs.',
 };
 
 // Version 9.2, Track D
@@ -4782,7 +4783,14 @@ export const D92_D_TEXT = {
   foundNote: 'Next you choose the heir\'s map. The reign is sealed only when you start the city.',
   back: 'Back',
   // The heir's first line, in Ipi's voice: who the heir is and the two sides of the trait.
-  heirIpi: (id) => `${V90_D_TEXT.heirOf(id)}. ${V90_D_TEXT.traitLine(id).replace(/^./, (c) => c.toUpperCase())}.`,
+  // The Generous heir's full line is 105 characters and the Bountiful's 98 (the Pass sheet keeps both); Ipi's bubble says them short, from the same TRAITS numbers (ruling 1883).
+  heirIpi: (id) => {
+    const cap = (s) => s.replace(/^./, (c) => c.toUpperCase());
+    const trait = id === 'generous' ? `${V90_D_TEXT.strength.generous()}; taxes ${d90Pct(d90Traits.generous.taxes)} lower`
+      : id === 'bountiful' ? `${V90_D_TEXT.strength.bountiful()}; ${V90_D_TEXT.weakness.bountiful().replace(/ of the harvest$/, '')}`
+        : V90_D_TEXT.traitLine(id);
+    return `${V90_D_TEXT.heirOf(id)}. ${cap(trait)}.`;
+  },
   // The title's record line: "Best reign: 200, Bronze" (the medal is the best's own version's; the map number, level and size are in the Rulers list).
   bestLine: (b) => `Best reign: ${b.score}${b.medal && SCORE_TEXT.medals[b.medal] ? `, ${SCORE_TEXT.medals[b.medal]}` : ''}${b.older ? ', older scoring' : ''}`,
   bestLabel: (b) => `${D92_D_TEXT.bestLine(b)}. Map number ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}`,

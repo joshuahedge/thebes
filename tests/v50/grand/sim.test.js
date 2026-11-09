@@ -199,8 +199,8 @@ describe('v50 grand sim: goals lead to a Villa and an Estate, one want at a time
     const grand = GOALS.filter((g) => g.chapter === 'grand').map((g) => g.id);
     expect(grand).toEqual(['city', 'beer', 'fine_manors', 'great_city', 'linen', 'third_food', 'villa_street', 'villas', 'luxury_route', 'capital', 'jewellery', 'estate_street', 'estate']);   // 9.2 (Track S): the luxury route
     expect(goalById('third_food').text).toBe(`Bring in a third food: ${GOODS.game.name.toLowerCase()} or ${GOODS.fish.name.toLowerCase()}`);
-    expect(goalById('villa_street').text).toBe(`Raise a ${TIERS[7].name}'s desirability to ${TIERS[8].desirability.rise}`);
-    expect(goalById('estate_street').text).toBe(`Raise a ${TIERS[8].name}'s desirability to ${TIERS[9].desirability.rise}`);
+    expect(goalById('villa_street').text).toBe(`Raise a ${TIERS[7].name}'s pleasantness to ${TIERS[8].desirability.rise}`);
+    expect(goalById('estate_street').text).toBe(`Raise a ${TIERS[8].name}'s pleasantness to ${TIERS[9].desirability.rise}`);
     for (const id of ['third_food', 'villa_street', 'estate_street']) expect(goalById(id).text.length).toBeLessThanOrEqual(40);
   });
 

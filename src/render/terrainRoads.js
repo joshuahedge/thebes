@@ -10,7 +10,7 @@ import { TERRAIN, SHADOW } from './art/palette.js';
 export const KERB = { drop: 2.4, width: 11, alpha: 0.3 };            // Version 9.2 (Track V): art px the low side's shadow drops, its width and its strength
 export const CART_TRACK = { width: 4.6, alpha: 0.3 };                  // the darker centre: art px wide, and the strength of the road's edge tone over the top
 
-const isRoad =(world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
+const isRoad = (world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
 
 export function roadSegments(world, range) {
   const segs = [], dots = [];
