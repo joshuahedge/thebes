@@ -24,7 +24,7 @@ describe('v60 balance great work margin', () => {
     const r = greatWorkRun();
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS - 100);
-    expect(r.lowestGold).toBeGreaterThanOrEqual(2000);
+    expect(Math.round(r.lowestGold)).toBe(-6413);   // 9.2 balance (ruling 1856): was at least 2,000 (9.1: 8,866), the 8.3 pin and B7's floor NOT MET now; won on day 5,965 (1,235 days to spare)
     expect(GREAT_YEARS * YEAR_DAYS).toBe(7200);
   });
 });
@@ -47,12 +47,12 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 6.0.1 pin (won by day 6,800, never under 20,000 from year 10) is not: the crews still stand short of workers for months at a time.
   it('the tuned seed (5) with the player\'s habits and 8.4\'s raid clock: reaches the Seat and is won by year 20 with every raid beaten (B7)', () => {
     const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
-    expect(r.ranks.seat).toBe(3690);   // WAVE2-PIN 9.2 Track S (rulings 1795-1808): was 3720
+    expect(r.ranks.seat).toBe(3690);   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795-1808): was 3720
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
-    expect(r.won.day).toBe(7008);                                                // 8.4 (ruling 1551): was won on day 6,927. WAVE2-PIN 9.2 Track S: day 7,008 now, won by year 20 still
-    expect(Math.round(r.lowestGold)).toBe(18870);                               // 8.4 (ruling 1551): was 7,732 the lowest. WAVE2-PIN 9.2 Track S: 18,870 now
-    expect([raids, raidsLost]).toEqual([13, 0]);
+    expect(r.won.day).toBe(5992);                                                // 8.4 (ruling 1551): was won on day 6,927. 9.2 balance (ruling 1855): 5,992 (Track S alone 7,008)
+    expect(Math.round(r.lowestGold)).toBe(-37664);                              // 8.4 (ruling 1551): was 7,732 the lowest. 9.2 balance (ruling 1855): -37,664 (Track S alone 18,870; Q alone -46,293)
+    expect([raids, raidsLost]).toEqual([13, 1]);                                 // 9.2 balance (ruling 1855): was [13, 0]; the second raid (index 2) is lost, B7 NOT MET (the court's gate: Q alone loses 2 and 12)
     expect(r.insane).toEqual([]);
   });
   // Version 8.4 (Track G, rulings 1468 and 1478; a MOVED pin for wave 2's balance check): with the luxury need this seed, played by the script as it was (no habits),
@@ -66,8 +66,8 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 8.3 pin is not.
   it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (the 8.3 pin not met)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, undefined, 3690]);        // 8.4 (ruling 1551): was Great Capital on day 3,660. WAVE2-PIN 9.2 Track S: the Seat on day 3,690 now, not won
-    expect(Math.round(r.lowestGold)).toBe(-36051);                                                 // 8.4 (ruling 1551): was -36,172. WAVE2-PIN 9.2 Track S: -36,051 now
-    expect([raids, raidsLost]).toEqual([11, 0]);
+    expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, undefined, undefined]);        // 8.4 (ruling 1551): was Great Capital on day 3,660. 9.2 balance (ruling 1855): neither Great Capital nor the Seat now (Track S alone: the Seat on day 3,690)
+    expect(Math.round(r.lowestGold)).toBe(-33883);                                                 // 8.4 (ruling 1551): was -36,172. 9.2 balance (ruling 1855): -33,883 (Track S alone -36,051)
+    expect([raids, raidsLost]).toEqual([11, 1]);                                                   // 9.2 balance (ruling 1855): was [11, 0]; raid 8 lost (the court's gate: Q alone loses raid 5)
   });
 });

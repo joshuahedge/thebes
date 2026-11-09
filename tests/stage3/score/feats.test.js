@@ -54,14 +54,14 @@ describe('s3 score feats', () => {
   it('judges Debt-free founder, Grain alone and Swift Town on the day the city became each milestone', () => {
     const w = city();
     expect(checkFeats(w)).toEqual([]);
-    w.milestone = 'town'; w.splits.town = 290;                              // WAVE2-PIN 9.2 Track L (ruling 1760): was 690 (the feat's day was 720, now 300)
+    w.milestone = 'town'; w.splits.town = 290;                              // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1760): was 690 (the feat's day was 720, now 300)
     expect(checkFeats(w)).toEqual(['debt_free', 'swift_town']);            // Town on day 290: before day 300
     w.gold = -5;
     addRaw(w, 'farm_fig', 2, 11);
     checkFeats(w);
     expect([status(w, 'grain_alone'), status(w, 'debt_free')]).toEqual(['lost', 'earned']);   // an earned feat stays earned
     const late = city();
-    late.day = 300;                                                         // WAVE2-PIN 9.2 Track L (ruling 1760): was 720
+    late.day = 300;                                                         // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1760): was 720
     checkFeats(late);
     expect(status(late, 'swift_town')).toBe('lost');                        // day 300 came before Town
     const debt = city();

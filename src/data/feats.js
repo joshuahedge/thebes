@@ -28,7 +28,7 @@ export const FEATS = [
   { id: 'merchant_prince', check: { kind: 'tally', key: 'sold', n: 1000 } },
   // Version 9.2 (Track L, ruling 1760, D15): day 300, was 720. The scripted city (tests/v92/helpers/capital6.js) becomes a Town on day 180, so 720 (two years) was no feat; 300 leaves it
   // 120 days of slack for a plain good start and asks the player to be quicker than a plain one.
-  { id: 'swift_town', check: { kind: 'before', milestone: 'town', day: 300 } },   // WAVE2-PIN 9.2 Track L (ruling 1760): was day 720
+  { id: 'swift_town', check: { kind: 'before', milestone: 'town', day: 300 } },   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1760): was day 720
   // Stage 4 (spec 4.19): a mastaba or pyramid built without its crews ever waiting for material, and the great pyramid
   // finished before game-year 25 begins (day 8,640).
   { id: 'steady_hands', check: { kind: 'steadyBuild', types: ['mastaba_small', 'mastaba_large', 'pyramid_small', 'pyramid_great'] } },

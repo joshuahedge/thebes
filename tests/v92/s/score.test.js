@@ -241,18 +241,19 @@ describe('v92 s the titles and the traits', () => {
   it('sets the Builder\'s bar to 8,000 and the Merchant\'s to 0.25, the other bars as they were', () => {
     expect(TITLES.map((t) => [t.id, t.bar])).toEqual([['unconquered', 5], ['builder', 8000], ['merchant', 0.25], ['bountiful', 0.90], ['generous', 0.50]]);
   });
-  it('takes 5% off every tax of the Generous, and keeps its High rate', () => {
-    expect(TRAITS.generous).toEqual({ arrivals: 1.2, high: 1.15, taxes: 0.95 });
+  // 9.2 balance (rulings 1858, 1859): the Generous's taxes 0.95 -> 0.98 and the Unconquered's warnings 30 -> 15 days sooner, each back toward 9.1 until the heir meets T3 as 9.1 did.
+  it('takes 2% off every tax of the Generous, and keeps its High rate', () => {
+    expect(TRAITS.generous).toEqual({ arrivals: 1.2, high: 1.15, taxes: 0.98 });
     const w = createWorld({ seed: 3, heir: 'generous' });
-    expect([heirFactor(w, 'taxes'), heirFactor(createWorld({ seed: 3 }), 'taxes')]).toEqual([0.95, 1]);
-    expect(V90_D_TEXT.traitLine('generous')).toBe('20% more newcomers; taxes 5% lower at every rate, and High taxes take 1.15x, not 1.25x');
+    expect([heirFactor(w, 'taxes'), heirFactor(createWorld({ seed: 3 }), 'taxes')]).toEqual([0.98, 1]);
+    expect(V90_D_TEXT.traitLine('generous')).toBe('20% more newcomers; taxes 2% lower at every rate, and High taxes take 1.15x, not 1.25x');
   });
-  it('brings every one of the Unconquered\'s warnings 30 days sooner, the first and the later ones', () => {
+  it('brings every one of the Unconquered\'s warnings 15 days sooner, the first and the later ones', () => {
     const heir = createWorld({ seed: 3, heir: 'unconquered' }), plain = createWorld({ seed: 3 });
-    expect(TRAITS.unconquered.sooner).toBe(30);
-    expect([firstWarnAfterOf(plain), firstWarnAfterOf(heir)]).toEqual([RAIDS.firstWarnAfter, RAIDS.firstWarnAfter - 30]);
-    for (const from of [500, 1200, 3000]) expect(laterWarnDay(plain, from) - laterWarnDay(heir, from)).toBe(30);
-    expect(V90_D_TEXT.traitLine('unconquered')).toBe("soldiers' pay 20% lower; every raid warning comes 30 days sooner");
+    expect(TRAITS.unconquered.sooner).toBe(15);
+    expect([firstWarnAfterOf(plain), firstWarnAfterOf(heir)]).toEqual([RAIDS.firstWarnAfter, RAIDS.firstWarnAfter - 15]);
+    for (const from of [500, 1200, 3000]) expect(laterWarnDay(plain, from) - laterWarnDay(heir, from)).toBe(15);
+    expect(V90_D_TEXT.traitLine('unconquered')).toBe("soldiers' pay 20% lower; every raid warning comes 15 days sooner");
   });
 });
 

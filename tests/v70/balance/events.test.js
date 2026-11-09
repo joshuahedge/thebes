@@ -29,9 +29,10 @@ let careless = null;
 const carelessRun = () => careless || (careless = runLate({ defend: false, send: false, fetchClay: false, answer: false }));
 
 // What every run's record must say: whole rows, known kinds, a default never costing gold, the gaps between offers (CITY_EVENTS.gapMonths), nothing offered before `from`.
-function checkRecord(label, rec, from, { allLapse = false } = {}) {
+// 9.2 balance (ruling 1855): `min` the fewest rows (3 as before); the court's one gate (Track Q, ruling 1777) shares the letters, so a run's events are fewer.
+function checkRecord(label, rec, from, { allLapse = false, min = 3 } = {}) {
   const rows = rec.drawn;
-  expect([label, rows.length >= 3]).toEqual([label, true]);
+  expect([label, rows.length >= min]).toEqual([label, true]);
   for (const r of rows) {
     expect([label, r.kind, KINDS.includes(r.kind), Number.isInteger(r.id), Number.isInteger(r.offered), r.offered >= from]).toEqual([label, r.kind, true, true, true, true]);
     if (r.result === null) continue;                                                     // the one still waiting when the run ended
@@ -47,7 +48,7 @@ describe('v70 balance events: what the long runs drew', () => {
   it('the late run plays years 6 to 15 with the events on: whole rows, none before year 6, a default never costing gold', () => {
     const r = lateRun();
     checkRecord('late', r.eventRec, 6 * YEAR);
-    expect(r.eventRec.drawn.length).toBeGreaterThanOrEqual(6);                           // one or two a year over nine years
+    expect(r.eventRec.drawn.length).toBeGreaterThanOrEqual(4);                           // 9.2 balance (ruling 1855): was 6 (one or two a year over nine years); 4 with the court's one gate
     expect(r.eventRec.drawn.some((d) => d.result === 'answered' && !d.default)).toBe(true);   // the player paid for one of them
   });
 
@@ -69,7 +70,8 @@ describe('v70 balance events: what the long runs drew', () => {
     const late = lateDangerRun(), grand = grandDangerRun();
     checkRecord('late-dangers', late.events, 0);
     expect(late.events.drawn[0].offered).toBeGreaterThanOrEqual(CITY_EVENTS.firstMonths * DAYS_PER_MONTH);
-    checkRecord('grand-dangers', grand.events, 6 * YEAR);
+    expect(grand.events.drawn.length).toBe(2);   // 9.2 balance (ruling 1855): 2 events in the grand district years 7-10 (was at least 3)
+    checkRecord('grand-dangers', grand.events, 6 * YEAR, { min: 2 });   // 9.2 balance (ruling 1855): was at least 3
     for (const [seed, habits] of [[5, true], [10, false]]) {
       const g = greatDangerRun(seed, { habits });
       checkRecord(`great-dangers-${seed}`, g.events, 10 * YEAR);

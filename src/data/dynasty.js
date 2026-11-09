@@ -33,10 +33,10 @@ export const TITLES = [
 //   high       palace.js taxFactorOf: the High rate's factor in place of TAX_RATES.high's
 export const TRAITS = {
   builder: { crews: 1.15, taxes: 0.95 },
-  unconquered: { pay: 0.8, sooner: 30 },   // Version 9.2 (Track S, ruling 1802): was sooner 100 on the first warning only; now every warning, 30 days
+  unconquered: { pay: 0.8, sooner: 15 },   // Version 9.2 (Track S, ruling 1802): was sooner 100 on the first warning only; now every warning. The balance check (ruling 1858): 30 -> 15 days (at 30 the seed-5 run lost raids 7-13, T3)
   bountiful: { farms: 1.15, floodLoss: 1.5 },
   merchant: { buys: 1.15, workshops: 0.85 },
-  generous: { arrivals: 1.2, high: 1.15, taxes: 0.95 },   // Version 9.2 (Track S, ruling 1803): taxes x0.95 at every rate, a cost that lasts (High 1.15 alone cost a city that never sets High nothing)
+  generous: { arrivals: 1.2, high: 1.15, taxes: 0.98 },   // Version 9.2 (Track S, ruling 1803): taxes lower at every rate, a cost that lasts (High 1.15 alone cost a city that never sets High nothing). The balance check (ruling 1859): x0.95 -> x0.98 (at 0.95 the seed-5 run lost six raids, 9.1 two)
   steady: {},
 };
 

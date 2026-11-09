@@ -103,8 +103,8 @@ describe('v90 d fix: the Generous through the palace\'s taxModel', () => {
     // The Generous's sample city grows differently (more newcomers), so each is quoted against its own normal taxes (monthFigures' taxesNormal, untraited).
     expect([ms.normal, mg.normal]).toEqual([monthFigures(s).taxesNormal, monthFigures(g).taxesNormal]);
     expect(ms.normal > 100).toBe(true);
-    expect([ms.at.high, mg.at.high]).toEqual([Math.round(ms.normal * 1.25), Math.round(mg.normal * 1.15 * 0.95)]);   // 9.2 (Track S): the Generous's taxes x0.95 at every rate
-    expect([ms.at.low, mg.at.low]).toEqual([Math.round(ms.normal * 0.75), Math.round(mg.normal * 0.75 * 0.95)]);   // Low is the same factor for both, less the Generous's 5%
+    expect([ms.at.high, mg.at.high]).toEqual([Math.round(ms.normal * 1.25), Math.round(mg.normal * 1.15 * 0.98)]);   // 9.2 (Track S): the Generous's taxes lower at every rate (x0.98, 9.2 balance ruling 1859)
+    expect([ms.at.low, mg.at.low]).toEqual([Math.round(ms.normal * 0.75), Math.round(mg.normal * 0.75 * 0.98)]);   // Low is the same factor for both, less the Generous's 2%
     const normal = mg.normal;
     const high = (m) => m.choices.find((c) => c.rate === 'high');
     expect(high(mg).line).toBe(V84_G_TEXT.rateLine('high', normal, mg.at));

@@ -16,7 +16,7 @@ import { ADVICE_KINDS } from '../../../src/data/advice.js';
 const TOP = {
   village: { 3: 'home_need', 6: 'home_need', 10: 'home_need' },
   capital: { 6: 'raid_towers' },
-  // WAVE2-PIN 9.2 Track S (rulings 1795, 1808): the crowded term dropped from the daily sickness risk moves the late, careless, grand and great tops; the values below are measured now
+  // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795, 1808): the crowded term dropped from the daily sickness risk moves the late, careless, grand and great tops; the values below are measured now
   // (were: late illness 8, 10, 12 home_need, 15 illness; careless 15 illness; grand 7 stranded, 8 home_need, 9 crime, 10 home_need; great 12 home_need, 14 crime, 16 home_need, 18 stranded, 20 home_need).
   late: { 8: 'home_need', 10: 'home_need', 12: 'home_need', 15: 'illness' },
   // Version 8.4 wave 2 (rulings 1521, 1528; settles Tracks R's and G's moved pins): with 8.4's raid clock the careless city meets twice the raids, so crime leads at year 8
@@ -32,7 +32,8 @@ const TOP = {
   // (Track G measured 14 stranded, 16 home_need; 8.3 had 14 home_need).
   // Escalation by years (ruling 1534): a far good at 14 and a home's need at 20 (was crime at 14, stranded at 20).
   // The retune (rulings 1540, 1542; the run is won on day 6,380): crime at 14 and a home's need at 16 (was a far good at both).
-  great: { 12: 'home_need', 14: 'stranded', 16: 'stranded', 18: 'home_need', 20: 'home_need' },
+  // 9.2 balance (ruling 1855): a home's need at 16 (Track S alone: stranded), the court's gate moving the great-work years' goods.
+  great: { 12: 'home_need', 14: 'stranded', 16: 'home_need', 18: 'home_need', 20: 'home_need' },
 };
 
 function sensible(label, rows) {
@@ -71,9 +72,9 @@ describe('v60 balance advice the top items on each run', () => {
     // Exactly where each of the run's eleven warnings ranked (a fixed run): 8 first, and the three that sit second or third are behind another danger already under way (a plague, a swarm).
     expect(rec.warnings.map((wn) => [wn.type, wn.rank])).toEqual([
       ['locusts_warning', 0], ['plague_warning', 0], ['drought_warning', 0], ['locusts_warning', 1], ['plague_warning', 0], ['locusts_warning', 0],
-      ['drought_warning', 0], ['locusts_warning', 1], ['plague_warning', 1], ['locusts_warning', 0],
-    ]);   // WAVE2-PIN 9.2 Track S (ruling 1808): ten warnings now, not eleven (the late run's sickness changed with the crowded term dropped); was ... ['drought_warning', 0], ['plague_warning', 1], ['locusts_warning', 2], ['locusts_warning', 0], ['plague_warning', 0]
-    expect(first.length).toBe(7);   // WAVE2-PIN 9.2 Track S (ruling 1808): was 8
+      ['plague_warning', 0], ['drought_warning', 0], ['locusts_warning', 1], ['locusts_warning', 0], ['plague_warning', 0],
+    ]);   // 9.2 balance (ruling 1855): eleven warnings again (Track S alone: ten, its ruling 1808); was (9.1) ... ['drought_warning', 0], ['plague_warning', 1], ['locusts_warning', 2], ['locusts_warning', 0], ['plague_warning', 0]
+    expect(first.length).toBe(9);   // 9.2 balance (ruling 1855): was 8 (9.1), 7 on Track S alone
     expect(new Set(first)).toEqual(new Set(['locusts', 'plague', 'drought']));
   });
 });

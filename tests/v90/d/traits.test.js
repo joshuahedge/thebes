@@ -43,10 +43,10 @@ describe('v90 d traits: the data and heirFactor', () => {
   it('has the design\'s strengths and weaknesses (Q5)', () => {
     expect(TRAITS).toEqual({
       builder: { crews: 1.15, taxes: 0.95 },
-      unconquered: { pay: 0.8, sooner: 30 },   // 9.2 (Track S, ruling 1802): was sooner 100, the first warning only
+      unconquered: { pay: 0.8, sooner: 15 },   // 9.2 (Track S, ruling 1802): was sooner 100, the first warning only; 9.2 balance (ruling 1858): 30 -> 15
       bountiful: { farms: 1.15, floodLoss: 1.5 },
       merchant: { buys: 1.15, workshops: 0.85 },
-      generous: { arrivals: 1.2, high: 1.15, taxes: 0.95 },   // 9.2 (Track S, ruling 1803): taxes x0.95 added
+      generous: { arrivals: 1.2, high: 1.15, taxes: 0.98 },   // 9.2 (Track S, ruling 1803): taxes x0.95 added; 9.2 balance (ruling 1859): 0.95 -> 0.98
       steady: {},
     });
   });
@@ -56,7 +56,7 @@ describe('v90 d traits: the data and heirFactor', () => {
       as(w, heir);
       for (const lever of FACTOR_LEVERS) expect([heir, lever, heirFactor(w, lever)]).toEqual([heir, lever, TRAITS[heir][lever] || 1]);
       expect([heir, heirFactor(w, 'sooner'), heirFactor(w, 'high')]).toEqual([heir, 1, 1]);   // days and a replaced factor have their own helpers
-      expect([heir, firstWarnAfterOf(w)]).toEqual([heir, heir === 'unconquered' ? RAIDS.firstWarnAfter - 30 : RAIDS.firstWarnAfter]);
+      expect([heir, firstWarnAfterOf(w)]).toEqual([heir, heir === 'unconquered' ? RAIDS.firstWarnAfter - 15 : RAIDS.firstWarnAfter]);
       expect([heir, heirHighFactor(w)]).toEqual([heir, heir === 'generous' ? 1.15 : null]);
     }
   });
@@ -130,13 +130,13 @@ describe('v90 d traits: the Unconquered', () => {
       expect([heir, w.tally.spoilsGold - gold]).toEqual([heir, less]);
     }
   });
-  it('is warned first 30 days sooner after the clock starts (270, not 300; 9.2: was 100 days sooner)', () => {
+  it('is warned first 15 days sooner after the clock starts (285, not 300; 9.2: was 100 days sooner, Track S 30, the balance check 15: ruling 1858)', () => {
     for (const heir of HEIRS) {
       const w = as(createWorld({ seed: 8 }), heir);
       w.tally.peakPeople = RAIDS.clockPeople;
       w.day = 700;
       raidDay(w, []);
-      expect([heir, w.raid.clockDay, w.raid.nextWarnDay]).toEqual([heir, 700, 700 + (heir === 'unconquered' ? 270 : 300)]);
+      expect([heir, w.raid.clockDay, w.raid.nextWarnDay]).toEqual([heir, 700, 700 + (heir === 'unconquered' ? 285 : 300)]);
     }
   });
 });
@@ -229,7 +229,7 @@ describe('v90 d traits: the Generous', () => {
   it('takes x1.15 at High, not x1.25, and the palace\'s High choice says so', () => {
     const s = createWorld({ seed: 3 }), g = as(createWorld({ seed: 3 }), 'generous');
     expect([taxFactorOf(s, 'high'), taxFactorOf(g, 'high'), taxFactorOf(g, 'low'), taxFactorOf(g, 'normal')]).toEqual([1.25, 1.15, 0.75, 1]);
-    expect([taxesAt(s, 'high', 100), taxesAt(g, 'high', 100)]).toEqual([125, 109]);   // 9.2 (Track S): the Generous's taxes x0.95 on the High rate's 1.15
+    expect([taxesAt(s, 'high', 100), taxesAt(g, 'high', 100)]).toEqual([125, 113]);   // 9.2 (Track S): the Generous's taxes lower on the High rate's 1.15 (x0.98, 9.2 balance ruling 1859; was 109 at x0.95)
     expect(V84_G_TEXT.rateLine('high', 100, { low: 75, normal: 100, high: 115 })).toBe('15 gold a month more, mood −8');
     expect(V84_G_TEXT.rateLine('high', 100)).toBe('25 gold a month more, mood −8');   // 8.4's words when no city is quoted
   });
@@ -254,10 +254,10 @@ describe('v90 d traits: the score never reads the trait', () => {
   });
   it('words each trait from the data', () => {
     expect(V90_D_TEXT.heirLine('builder')).toBe('Heir of the Builder: monuments rise 15% faster; taxes 5% lower');
-    expect(V90_D_TEXT.traitLine('unconquered')).toBe("soldiers' pay 20% lower; every raid warning comes 30 days sooner");
+    expect(V90_D_TEXT.traitLine('unconquered')).toBe("soldiers' pay 20% lower; every raid warning comes 15 days sooner");
     expect(V90_D_TEXT.traitLine('bountiful')).toBe('farms yield 15% more; a low flood takes half again as much of the harvest');
     expect(V90_D_TEXT.traitLine('merchant')).toBe('partners pay 15% more for what they buy; workshops make 15% less');
-    expect(V90_D_TEXT.traitLine('generous')).toBe('20% more newcomers; taxes 5% lower at every rate, and High taxes take 1.15x, not 1.25x');
+    expect(V90_D_TEXT.traitLine('generous')).toBe('20% more newcomers; taxes 2% lower at every rate, and High taxes take 1.15x, not 1.25x');
     expect(V90_D_TEXT.traitLine('steady')).toBe('a plain start, with no strength and no weakness');
   });
 });

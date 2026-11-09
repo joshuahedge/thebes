@@ -35,7 +35,9 @@ describe('v60 a balance careless', () => {
     expect(r.yearly[LATE_YEARS].gold).toBeLessThan(0);
     expect(r.yearly[LATE_YEARS].favour).toBeLessThanOrEqual(FAVOUR.low);
     expect(r.dues.length).toBeGreaterThanOrEqual(8);
-    expect(r.dues.every((d) => d.band === 'low')).toBe(true);                      // every due doubled: the court's favour is gone
+    // 9.2 balance (ruling 1860): 8 of its 9 dues doubled (was every one): the court's one gate (Track Q, ruling 1777) sends fewer letters to ignore, so the favour reaches the
+    // low band a year later. Still in debt: -11,463 at year 15 (9.1: -11,437), favour 0.
+    expect([r.dues.length, r.dues.filter((d) => d.band === 'low').length]).toEqual([9, 8]);
     expect(r.quotas.filter((q) => q.result === 'met')).toEqual([]);
   });
 });
@@ -72,12 +74,12 @@ describe('v60 a balance great work', () => {
     expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3, 4]);
     expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.map((o) => o.good));
     expect(r.won !== null).toBe(true);
-    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(17);   // WAVE2-PIN 9.2 Track S (ruling 1808): was 18; won in year 17 now
+    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(17);   // 9.2 Track S (kept by the balance check, ruling 1855) (ruling 1808): was 18; won in year 17 now
     expect(yearOf(r.won.day)).toBeLessThanOrEqual(20);
     expect(r.w.reign.won).toBe(r.won.day);
     expect(r.w.reign.seal.won).toBe(true);
     expect(r.w.tally.greatWorkStages).toBe(GREAT_WORK.stages.length);
-    expect(r.lowestGold).toBeGreaterThan(0);
+    expect(Math.round(r.lowestGold)).toBe(-6413);   // 9.2 balance (ruling 1856): was above 0 (9.1: 8,866; Track S alone 11,454). Q's court gate with S's changes: the New Year dues at lower favour take the treasury under 0 in years 18-20, won on day 5,965
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect(yearOf(r.ranks.seat)).toBe(11);
     expect(r.elapsed).toBeLessThan(60000);
