@@ -60,7 +60,7 @@ export const COURT_DUE = {
 export const DEMANDS = {
   from: 'town', firstMonths: 10, gapMonths: [10, 14], offerMonths: 3,
   deadlineMonths: { goods: [8, 12], gold: [4, 6], building: [12, 18], soldiers: [4, 6] },
-  favour: { met: [8, 12], failed: [15, 20], declined: 5 },
+  favour: { met: [16, 24], failed: [30, 40], declined: 10 },   // Version 9.2 (the balance check, ruling 1865): doubled (were [8, 12], [15, 20], 5): the court's one gate lets about half as many demands through
   amounts: {
     goods: { months: [3, 5], min: 40, step: 10 },
     gold: { months: [1, 2], min: 200, step: 50, reserve: 0.6 },

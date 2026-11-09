@@ -573,7 +573,7 @@ describe('v70 e sim: the alert, the advice and the save', () => {
       advanceDays(w, 1, events);
       for (const e of events.splice(0)) if (e.type === 'city_event_offered') offered.push([w.day - start, e.kind]);
     }
-    expect(offered.length).toBeGreaterThan(1);                                 // 9.2 Track Q (kept by the balance check, ruling 1855) (ruling 1777): was > 5; the four streams share one letter every 5 to 8 months, so the events are about one in four of them
+    expect(offered.length).toBe(1);   // 9.2 balance (ruling 1868): one in six years in this city that answers no letter (Track Q measured 2; was more than 5 before the gate);                               // 9.2 Track Q (kept by the balance check, ruling 1855) (ruling 1777): was > 5; the four streams share one letter every 5 to 8 months, so the events are about one in four of them
     expect(offered.length).toBeLessThan(16);
     for (let i = 1; i < offered.length; i++) expect(offered[i][0] - offered[i - 1][0] >= CITY_EVENTS.gapMonths[0] * MONTH).toBe(true);
     expect(w.tally.eventsOffered).toBe(offered.length);

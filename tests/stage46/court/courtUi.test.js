@@ -407,6 +407,6 @@ describe('s46 court ui: captions, words and the seam', () => {
   test('has the tip, the first and the achievement worded, with the numbers from the data', () => {
     expect(C.ruleHigh).toContain(`${FAVOUR.high}`);
     expect(C.ruleLow).toContain(`${FAVOUR.low}`);
-    expect(REQUESTS.met[0]).toBe(10);
+    expect(REQUESTS.met[0]).toBe(20);   // 9.2 balance (ruling 1865): was 10
   });
 });

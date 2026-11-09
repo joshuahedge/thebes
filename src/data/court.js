@@ -32,7 +32,9 @@ export const COURT = { from: 'market_town', afterGoal: 'trade_route', fallback: 
 // 2 x min in store, else of a food with at least foodMin), its deadline, favour met and lost, its reward; a city with no stock to ask for is
 // asked gold instead (goldShare of the treasury, goldMax, goldMin).
 export const REQUESTS = {
-  firstYear: 2, gapMonths: [8, 14], deadlineMonths: [6, 12], met: [10, 15], missed: [10, 20], soldiersMonths: 6,
+  // Version 9.2 (the balance check, ruling 1865): met and missed doubled (were [10, 15] and [10, 20]). The court's one gate (src/sim/letters.js) lets about half as many
+  // requests through, so each is worth twice the favour and a city's favour a year is 9.1's again.
+  firstYear: 2, gapMonths: [8, 14], deadlineMonths: [6, 12], met: [20, 30], missed: [20, 40], soldiersMonths: 6,
   amounts: {
     goods: { months: [2, 4], min: 20, step: 5 },
     food: { months: [2, 4], min: 40, step: 10 },

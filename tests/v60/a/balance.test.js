@@ -35,9 +35,7 @@ describe('v60 a balance careless', () => {
     expect(r.yearly[LATE_YEARS].gold).toBeLessThan(0);
     expect(r.yearly[LATE_YEARS].favour).toBeLessThanOrEqual(FAVOUR.low);
     expect(r.dues.length).toBeGreaterThanOrEqual(8);
-    // 9.2 balance (ruling 1860): 8 of its 9 dues doubled (was every one): the court's one gate (Track Q, ruling 1777) sends fewer letters to ignore, so the favour reaches the
-    // low band a year later. Still in debt: -11,463 at year 15 (9.1: -11,437), favour 0.
-    expect([r.dues.length, r.dues.filter((d) => d.band === 'low').length]).toEqual([9, 8]);
+    expect(r.dues.every((d) => d.band === 'low')).toBe(true);                      // every due doubled: the court's favour is gone (9.2 balance, ruling 1866: so again with each letter worth twice the favour)
     expect(r.quotas.filter((q) => q.result === 'met')).toEqual([]);
   });
 });
@@ -79,7 +77,7 @@ describe('v60 a balance great work', () => {
     expect(r.w.reign.won).toBe(r.won.day);
     expect(r.w.reign.seal.won).toBe(true);
     expect(r.w.tally.greatWorkStages).toBe(GREAT_WORK.stages.length);
-    expect(Math.round(r.lowestGold)).toBe(-6413);   // 9.2 balance (ruling 1856): was above 0 (9.1: 8,866; Track S alone 11,454). Q's court gate with S's changes: the New Year dues at lower favour take the treasury under 0 in years 18-20, won on day 5,965
+    expect(r.lowestGold).toBeGreaterThan(0);   // 9.2 balance (ruling 1866): 250 the lowest, won on day 6,388 (9.1: 8,866 and 6,380); before the court's letters were made worth twice the favour (ruling 1865) it went to -6,413
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect(yearOf(r.ranks.seat)).toBe(11);
     expect(r.elapsed).toBeLessThan(60000);
