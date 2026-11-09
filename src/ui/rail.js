@@ -29,6 +29,7 @@ export function createRail({ container, store, world, onPick, layers = null }) {
         },
       });
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
+      b.append(el('span', { class: 'cat-word', 'aria-hidden': 'true', text: CATEGORY_NAMES[c.id] }));   // Version 9.2 (Track A, ruling 1834): a small word under each icon; the button's name is still its aria-label
       container.insertBefore(b, drawer);
       return b;
     });

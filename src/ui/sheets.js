@@ -69,13 +69,21 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 // Version 7.1 (fix batch B): whether the thing happening right now came from the keyboard (a key, or a click with detail 0, which is what Enter and Space on a button send),
 // so a sheet that opens from it can take keyboard focus at its title. The flag lasts until the event's own work is done (the next task), so a sheet the game opens by itself
 // never steals focus. One pair of listeners for the page, however many sheets are made.
-let byKeyboard = false;
+// What a sheet covers while it is open: the bars, rails and dock behind it are inert for a keyboard user (Tab stays inside the sheet); the first tap lifts it, so a touch user is never blocked.
+let keyboardModality = false, behindInert = null;   // behindInert: the page region (the sheet's parent) whose bars are inert now, or null
+const BEHIND = ['topbar', 'under-bar', 'panel', 'rail', 'corners', 'dock'];
+function setBehindInert(scope, on) {
+  behindInert = on ? scope : null;
+  for (const id of BEHIND) { const n = scope && scope.querySelector(`:scope > #${id}`); if (n) { if (on) n.setAttribute('inert', ''); else n.removeAttribute('inert'); } }
+}
+const letGo = () => setBehindInert(behindInert, false);
+let byKeyboard = false, byInput = false;   // Version 9.2 (Track A): byInput is any key or tap, so a sheet the player opened by any means takes focus in (a sheet the game opens by itself still never does)
 if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
   globalThis.__thebesSheetInput = true;
-  const mark = (v) => { byKeyboard = v; if (v) setTimeout(() => { byKeyboard = false; }, 0); };
+  const mark = (v) => { byKeyboard = v; byInput = true; keyboardModality = v; setTimeout(() => { byKeyboard = false; byInput = false; }, 0); };
   document.addEventListener('keydown', () => mark(true), true);
   document.addEventListener('click', (e) => mark(e.detail === 0), true);
-  document.addEventListener('pointerdown', () => mark(false), true);
+  document.addEventListener('pointerdown', () => { mark(false); if (behindInert) letGo(); }, true);
 }
 
 export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
@@ -497,6 +505,16 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
   }
 
+  // Version 9.2 (Track A, ruling 1826): a sheet that closes gives focus back to what opened it, and lifts the inert from what was behind it.
+  let wasOpen = false, sheetOpener = null;
+  function closed() {
+    if (!wasOpen) return;
+    wasOpen = false;
+    setBehindInert(container.parentNode, false);
+    const back = sheetOpener; sheetOpener = null;
+    if (back && back.isConnected && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
+  }
+
   function render() {
     const s = store.get();
     if (anotherNote && anotherNote.sheet !== s.sheet) anotherNote = null;   // Build another's refusal goes with the sheet it was said on
@@ -505,15 +523,16 @@ export function createSheets({ container, store, world, placement, cameraControl
     // An opener in the guidance row (the goal's All goals, a tip's button) already has its focus handed into the sheet by createUI's guidance code, so it is left to that.
     const fromRow = Boolean(document.activeElement && document.activeElement.closest && document.activeElement.closest('#goals, #tip, #cheer, #legend'));
     const opened = store.get().sheet !== scrolledFor;
-    const toTitle = opened && byKeyboard && !fromRow;
+    const toTitle = opened && byKeyboard && !fromRow;   // a tap leaves focus where it is: an open sheet with focus inside is not rebuilt by the daily refresh (createUI refreshDaily), so a touch player's numbers would go stale
+    if (opened && s.sheet && !wasOpen) { const a = document.activeElement; sheetOpener = a && a !== document.body && !container.contains(a) ? a : null; }
     const focusIndex = toTitle ? -1 : buttons.indexOf(document.activeElement);   // a sheet just opened by the keyboard takes focus at its title instead
     const focusClass = focusIndex >= 0 ? buttons[focusIndex].className : null;
     clear(container);
-    if (!s.sheet) { container.hidden = true; return; }
+    if (!s.sheet) { container.hidden = true; closed(); return; }
     let parts;
     if (s.sheet.kind === 'info') {
       const b = world.buildings[s.sheet.id];
-      if (!b) { container.hidden = true; if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
+      if (!b) { container.hidden = true; closed(); if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
       parts = b.type === 'house' ? houseSheet(b) : BUILDINGS[b.type].monument ? monumentSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
@@ -524,13 +543,14 @@ export function createSheets({ container, store, world, placement, cameraControl
       custom[s.sheet.kind](body, { close, setTitle: (t) => { title = t; }, tabs: (node) => { tabs = node; } });   // tabs: a row above the body (the papyrus's Messages | City, ruling 1268)
       parts = tabs ? [head(title), tabs, body] : [head(title), body];
     }
-    else { container.hidden = true; return; }
+    else { container.hidden = true; closed(); return; }
     container.hidden = false;
+    wasOpen = true;
     container.append(...parts);
     // The sheet's own title names it (index.html's "Details" is only the fallback), and a sheet opened from the keyboard puts focus on that title, so a screen reader reads it first.
     const title = container.querySelector('.head h2');
     if (title) container.setAttribute('aria-label', title.textContent); else container.setAttribute('aria-label', 'Details');
-    if (toTitle && title) { title.tabIndex = -1; title.focus(); }
+    if (toTitle && title) { title.tabIndex = -1; title.focus(); if (keyboardModality || byKeyboard) setBehindInert(container.parentNode, true); }
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;

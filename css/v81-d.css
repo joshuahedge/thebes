@@ -2,7 +2,7 @@
 
 /* No page zoom on the interface (ruling 1251): the chrome takes taps, scrolls and nothing else (no pinch, no double-tap zoom); the map (#map: touch-action none) keeps its own pinch. The tray's cards
    keep the scroll their own tray has, so a finger moving the other way is free to carry a card onto the map (ruling 1241). */
-#ui, #topbar, #under-bar, #dock, #panel, #rail, #corners, #sheet, #dialog, #title, #toasts, #confirm { touch-action: pan-x pan-y; }
+#ui, #topbar, #under-bar, #dock, #panel, #rail, #corners, #sheet, #dialog, #title, #toasts, #confirm { touch-action: pan-x pan-y pinch-zoom; }   /* Version 9.2 (Track A, ruling 1829): a deliberate pinch may zoom the page */
 #dock .card { touch-action: pan-x; }
 #panel .card, #rail .card { touch-action: pan-y; }
 .card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -24,7 +24,7 @@ body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-ou
 
 /* Integration: on a phone at the normal text size the first three cards fit the tray's width exactly, so no name ("Police post") sits half under the tray's edge fade and arrow. A card's name
    wraps inside it, and a word too long for its card breaks instead of running out of it (larger text keeps the 124 px card, which scrolls). */
-body:not([data-text-size="125"]):not([data-text-size="150"]) #dock .tray .card { width: clamp(108px, calc((100vw - 40px) / 3), 124px); }
+body:not([data-text-size="125"]):not([data-text-size="150"]):not([data-text-size="200"]) #dock .tray .card { width: clamp(108px, calc((100vw - 40px) / 3), 124px); }
 .card .name { overflow-wrap: anywhere; }
 
 /* A card dragged onto the map (ruling 1245): a clear layer over the page keeps the drag with the finger over the map and the bars; nothing shows on it. */

@@ -176,7 +176,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(
       group('sound', G.sound, switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote })),
       // Version 7.0 (Track S): Day and night on or off.
-      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
+      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%'], [200, '200%']]),
         switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
         // Version 9.2 (Track Q, ruling 1791): Screenshot mode lives here (it left the menu and the City summary); it hides the interface until a tap, Esc or Back.
         typeof onScreenshot === 'function' ? el('div', { class: 'row' }, [button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }), el('p', { class: 'screenshot-note small muted', text: Q92_TEXT.screenshotNote })]) : null),
@@ -258,12 +258,23 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
 
 // The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm, extraLabel?, onExtra? } shows it; null hides it.
 // Cancel gets focus so a stray Enter never confirms; Esc reaches it through modes.back.
+// Version 9.2 (Track A, ruling 1825): it is a real modal. Cancel takes focus once, when the dialog comes up (not on every store change), Tab and Shift+Tab stay among
+// its buttons, and closing it hands focus back to the control that was focused when it opened.
 export function createDialog({ container, store }) {
   container.setAttribute('aria-labelledby', 'dialog-text');
+  let shown = null, opener = null;
   function render() {
     const d = store.get().confirmDialog;
+    if (d && d === shown && !container.hidden) return;   // the same question, still asked: leave its focus alone
     clear(container);
-    if (!d) { container.hidden = true; return; }
+    if (!d) {
+      const back = opener;
+      shown = null; opener = null; container.hidden = true;
+      if (back && back.isConnected && typeof back.focus === 'function' && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
+      return;
+    }
+    if (!shown) { const a = document.activeElement; opener = a && a !== document.body && !container.contains(a) ? a : null; }
+    shown = d;
     const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
     const extra = d.extraLabel ? button(d.extraLabel, { class: 'extra', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onExtra === 'function') d.onExtra(); } }) : null;
     const ok = button(d.confirmLabel || T.confirm, { class: d.destructive === false ? 'ok primary' : 'ok danger', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onConfirm === 'function') d.onConfirm(); } });
@@ -271,6 +282,15 @@ export function createDialog({ container, store }) {
     container.hidden = false;
     cancel.focus();
   }
+  // Tab never leaves the dialog while it is up, wherever focus was (a click on the backdrop leaves it on the page).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !shown || container.hidden || !container.isConnected || e.defaultPrevented) return;
+    const list = [...container.querySelectorAll('button:not([disabled])')];
+    if (!list.length) return;
+    const at = list.indexOf(document.activeElement);
+    e.preventDefault();
+    list[e.shiftKey ? (at <= 0 ? list.length - 1 : at - 1) : (at < 0 || at === list.length - 1 ? 0 : at + 1)].focus();
+  }, true);
   render();
   store.subscribe(render);
   return { render };

@@ -112,13 +112,23 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
 
   // Ruling 9: one announcer (#live, no role="alert" on the rows); a change that brings a new critical is announced at
   // once (assertive), every other change politely.
+  // Version 9.2 (Track A, ruling 1832): two regions, each keeping one politeness for good (a region whose aria-live flips as its words change is announced unreliably): #live is
+  // polite and #live-urgent, made beside it, is assertive; a change says its words in the one that fits and empties the other.
+  let urgentLive = live.parentNode && live.parentNode.querySelector('#live-urgent');
+  if (!urgentLive && live.parentNode) {
+    urgentLive = live.ownerDocument.createElement('p');
+    urgentLive.id = 'live-urgent'; urgentLive.className = 'sr-only'; urgentLive.setAttribute('aria-live', 'assertive');
+    live.after(urgentLive);
+  }
+  live.setAttribute('aria-live', 'polite');
   function announce(urgent) {
     const keys = current.all.map(keyOf).sort().join('|');
     if (keys === lastKeys) return;
     lastKeys = keys;
-    live.setAttribute('aria-live', urgent ? 'assertive' : 'polite');
-    if (!current.all.length) { setText(live, T.noAlerts); return; }
-    setText(live, `${plural(current.all.length, 'alert', 'alerts')}: ${current.all.map((a) => alertText(a, world).title).join('. ')}`);
+    const words = current.all.length ? `${plural(current.all.length, 'alert', 'alerts')}: ${current.all.map((a) => alertText(a, world).title).join('. ')}` : T.noAlerts;
+    const loud = urgent && current.all.length > 0 && urgentLive;
+    setText(live, loud ? '' : words);
+    if (urgentLive) setText(urgentLive, loud ? words : '');
   }
 
   function view(m) {

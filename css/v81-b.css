@@ -9,7 +9,7 @@ body {
 #topbar .stats { display: flex; flex-wrap: nowrap; align-items: center; align-content: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; padding: 0; line-height: 1; position: static; }
 #topbar .stats .stat { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex: none; min-width: var(--tap); min-height: var(--tap); padding: 0 3px; margin: 0;
   background: transparent; border: 0 solid transparent; border-radius: 10px; color: var(--ink); font: 600 var(--stat-num) / 1 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stats .stat { padding: 0 1px; }   /* a phone at 150% text: the room goes to the numbers */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="150"], [data-text-size="200"]) #topbar .stats .stat { padding: 0 1px; }   /* a phone at 150% text: the room goes to the numbers */
 #topbar .stats .stat:hover { background: var(--parchment-2); }
 #topbar .stats .stat[aria-expanded="true"] { background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--ink-line), inset 0 -3px 0 var(--lapis); }   /* open: a lapis underline, not colour alone */
 #topbar .stats .stat .glyph { display: inline-flex; width: var(--stat-icon); height: var(--stat-icon); flex: none; }

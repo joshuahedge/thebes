@@ -4761,6 +4761,11 @@ export const S92_S_TEXT = {
 // Version 9.2, Track D
 
 // Version 9.2, Track A
+export const A92_TEXT = {
+  minimapLabel: 'Minimap',
+  minimapHelp: 'Arrow keys move the view across the city.',
+  showInterface: 'Show interface',
+};
 
 // Version 9.2, Track W
 

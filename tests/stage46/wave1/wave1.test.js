@@ -100,7 +100,7 @@ describe('s46 wave1 court letter in the alert row', () => {
       const w = makeTestWorld({ gold: 1000 });
       let alerts = [], chimes = 0;
       const a = createAlerts({ world: w, banner: root.querySelector('#banner'), live: root.querySelector('#live'), root, onNewCritical: () => { chimes += 1; }, getAlerts: () => alerts });
-      const live = () => root.querySelector('#live').getAttribute('aria-live');
+      const live = () => (root.querySelector('#live-urgent').textContent ? 'assertive' : root.querySelector('#live').getAttribute('aria-live'));   // 9.2 (Track A, ruling 1832): which region said it: #live is always polite, #live-urgent always assertive
       alerts = [letter()];
       a.refresh();
       expect([chimes, live(), root.querySelector('#live').textContent.includes(alertText(letter(), w).title)]).toEqual([0, 'polite', true]);

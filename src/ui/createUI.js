@@ -74,6 +74,7 @@ import { createCardDrag, createDragHost } from './v81/cardDrag.js';
 import { installNoZoom } from './v81/noZoom.js';
 import { palaceOf } from '../sim/palace.js';
 import { el, setText, clear } from './components.js';
+import { A92_TEXT } from './text.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
@@ -231,8 +232,8 @@ export function createUI({
   // rebuild between a press and its click would lose the click. A click from the keyboard has no pointer type and changes nothing.
   const onPress = (ev) => { if (ev.pointerType) store.set({ inputType: ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse' }); };
   root.addEventListener('click', onPress);
-  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
-  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
+  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
 
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
@@ -301,6 +302,11 @@ export function createUI({
   // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
   // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
   const screenshotMode = () => store.set(enterScreenshot(store.get()));
+  // Version 9.2 (Track A, ruling 1833): screenshot mode used to end on a tap, a click or Esc with nothing on screen to say so (a keyboard or switch user had no way to find out). A small
+  // pinned "Show interface" button stays on the page in that mode, in the corner, 44 px, and does what the tap does.
+  const showInterface = el('button', { type: 'button', id: 'show-interface', class: 'show-interface', text: A92_TEXT.showInterface, onClick: () => store.set({ screenshot: false }) });
+  const interfaceHost = $('live') ? $('live').parentNode : null;
+  if (interfaceHost) interfaceHost.append(showInterface);
   // Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source: the map with a bar (src/ui/s47/sourcePick.js); the store sheet's "from" starts it.
   const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }), freeTop: () => Math.max(TOPBAR_PX, freeTop(root, canvas, store.get().layout)) });
   const seamCtx = {
@@ -1318,6 +1324,7 @@ export function createUI({
       root.style.removeProperty('--guidance-max');
       root.style.removeProperty('--toast-low');
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot', 'toast-low');
+      showInterface.remove();
       store.dispose();                                 // last: every component's subscription to this interface's store
     },
   };
