@@ -1,5 +1,7 @@
 // Tweened camera moves for selection and the +/- buttons. Reduced motion makes every move a jump (spec 5.4).
-import { clampZoom, pxPerArt, screenToTile, tileToScreen, zoomAt, panBy, zoomFloor } from '../render/camera.js';
+import { clampZoom, pxPerArt, screenToTile, tileToScreen, zoomAt, panBy, zoomFloor, MIN_ZOOM } from '../render/camera.js';
+import { p, artToTile, ART_SCALE } from '../render/iso.js';
+import { allBuildings } from '../sim/world.js';
 import { CAMERA_PAN_MS, FLING_MIN_PX_S, FLING_MAX_PX_S, FLING_STOP_PX_S, FLING_TAU_MS, SHOW_ME_GLIDE_MS, SHOW_ME_GLIDE_MAX_MS, SHOW_ME_GLIDE_MS_PER_TILE, SHOW_ME_GENTLE_MS } from '../data/ui.js';
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
@@ -34,6 +36,46 @@ function nudgedCentre(cam, v, cx, cy, x, y, insets, margin, extent = null) {
   } else if (sy < minY) dy = minY - sy; else if (sy > maxY) dy = maxY - sy;
   if (dx === 0 && dy === 0) return null;
   return screenToTile(at, v, v.width / 2 - dx, v.height / 2 - dy);
+}
+
+// Version 9.2 (Track V, rulings 1850-1852): frame the city. The built area as tile bounds { x0, y0, x1, y1 } (every building's footprint and every road tile, the corners inclusive), or null when
+// nothing is built; extra tile points ([x, y] pairs, e.g. the start area) are counted in it.
+export function cityBounds(world, extra = []) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y, w = 1, d = 1) => { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x + w - 1 > x1) x1 = x + w - 1; if (y + d - 1 > y1) y1 = y + d - 1; };
+  for (const b of allBuildings(world)) add(b.x, b.y, b.w, b.d);
+  const size = world.size;
+  for (let i = 0; i < world.road.length; i++) if (world.road[i]) add(i % size, Math.floor(i / size));
+  for (const [x, y] of extra) if (Number.isFinite(x) && Number.isFinite(y)) add(Math.floor(x), Math.floor(y));
+  return x0 > x1 ? null : { x0, y0, x1, y1 };
+}
+
+export const FRAME_MAX_ZOOM = 1;      // framing zooms out to fit and never in past the opening zoom: a hamlet is not blown up to fill the screen
+const FRAME_UP_ART = 40, FRAME_DOWN_ART = 8;   // art px a building stands above its footprint, and the least below it
+
+// The camera that holds `bounds` (tile bounds) inside the view minus the insets and a margin: its centre, and the zoom (the largest up to maxZoom that fits, never under `floor`). Where
+// the floor is reached and the city is still bigger, it is centred and overflows evenly. The pure half of frameCity.
+export function fitCamera(view, bounds, { insets = NO_INSETS, margin = FRAME_MARGIN_PX, floor = MIN_ZOOM, maxZoom = FRAME_MAX_ZOOM } = {}) {
+  const corners = [p(bounds.x0, bounds.y0), p(bounds.x1 + 1, bounds.y0), p(bounds.x1 + 1, bounds.y1 + 1), p(bounds.x0, bounds.y1 + 1)];
+  const ax0 = Math.min(...corners.map((c) => c[0])), ax1 = Math.max(...corners.map((c) => c[0]));
+  const ay0 = Math.min(...corners.map((c) => c[1])) - FRAME_UP_ART, ay1 = Math.max(...corners.map((c) => c[1])) + FRAME_DOWN_ART;
+  const freeW = Math.max(1, view.width - insets.left - insets.right - 2 * margin), freeH = Math.max(1, view.height - insets.top - insets.bottom - 2 * margin);
+  const zoom = clampZoom(Math.min(maxZoom, freeW / ((ax1 - ax0) * ART_SCALE), freeH / ((ay1 - ay0) * ART_SCALE)), floor);
+  const k = ART_SCALE * zoom;
+  const midX = insets.left + (view.width - insets.left - insets.right) / 2, midY = insets.top + (view.height - insets.top - insets.bottom) / 2;
+  const t = artToTile((ax0 + ax1) / 2 + (view.width / 2 - midX) / k, (ay0 + ay1) / 2 + (view.height / 2 - midY) / k);
+  return { x: t.x, y: t.y, zoom };
+}
+
+// Whether any corner of the bounds (or the buildings' height over them) is outside the free map at the camera as it is.
+export function boundsOutside(cam, view, bounds, { insets = NO_INSETS, margin = FRAME_MARGIN_PX } = {}) {
+  const k = pxPerArt(cam), c = p(cam.x, cam.y);
+  const minX = insets.left + margin, maxX = view.width - insets.right - margin, minY = insets.top + margin, maxY = view.height - insets.bottom - margin;
+  for (const [tx, ty] of [[bounds.x0, bounds.y0], [bounds.x1 + 1, bounds.y0], [bounds.x1 + 1, bounds.y1 + 1], [bounds.x0, bounds.y1 + 1]]) {
+    const q = p(tx, ty), sx = view.width / 2 + (q[0] - c[0]) * k, sy = view.height / 2 + (q[1] - c[1]) * k;
+    if (sx < minX || sx > maxX || sy - FRAME_UP_ART * k < minY || sy + FRAME_DOWN_ART * k > maxY) return true;
+  }
+  return false;
 }
 
 // Version 5.0 (Task 6, rulings 570-579). motionLevel() is 'full' | 'gentle' | 'still' (without it: reducedMotion() is Still, else Full, as before). Every move is as it was (a
@@ -77,6 +119,14 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, mo
       begin(target.x, target.y, target.zoom, ms, { sx, sy, x: under.x, y: under.y });
     },
     jumpTo(x, y) { tween = null; flinging = null; cam.x = x; cam.y = y; },
+    // Version 9.2 (Track V, ruling 1850): fit the built area (cityBounds) to the free map: pan and, where it is bigger than the screen holds, zoom out to it (never in past FRAME_MAX_ZOOM). The
+    // move follows the Motion level as every other (a jump under Still). Returns whether there was anything to frame.
+    frameCity(bounds, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, maxZoom = FRAME_MAX_ZOOM) {
+      if (!bounds) return false;
+      const fit = fitCamera(view(), bounds, { insets, margin, floor: floor(), maxZoom });
+      begin(fit.x, fit.y, fit.zoom, ms);
+      return true;
+    },
     // Runs fn (a pan, keepVisible, frameKeeping...) as a glide: Show me's way of getting there (see above).
     glide(fn) { const was = gliding; gliding = true; try { return fn(); } finally { gliding = was; } },
     // A swipe lifted at (vx, vy) screen px a second keeps panning, slowing as exp(-t / tau) with tau for the Motion level (Full 350 ms, Gentle 110 ms); nothing under Still or

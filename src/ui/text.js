@@ -4794,3 +4794,5 @@ TITLE_SCORE_TEXT.bestLine = D92_D_TEXT.bestLine;
 // Version 9.2, Track W
 
 // Version 9.2, Track V
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'minimap') + 1, 0, ['frame', 'Fit the city to the screen']);   // ruling 1851: the F key
+T.gesturesHelp += ' Tap the Map button twice, or press F, to fit the whole city on the screen.';

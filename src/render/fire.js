@@ -139,12 +139,44 @@ export function gentleShapes(now, id) {
 // under the footprint with a darker core and a few streaks, its shape from the building's tile, so it never changes frame to
 // frame. Drawn in art px with the camera's origin set, under the sprites (renderFrame's opts.scorch), at every motion level.
 export const SCORCH = { soot: '#2E2420', core: '#1F1814', burning: 0.5, rubble: 0.38 };
+// Version 9.2 (Track V, ruling 1848): a rubble tile is no longer a grey blotch but what a fire leaves: a low charred wall stump (a slab with a broken top, its long face lit a little
+// less than its top and its end darker still, two courses of mortar showing) and a scatter of blackened bricks round it, a few with a lit top. Each tile's shape comes from its own
+// coordinates, so it never changes between frames; the stains go down first, then the bricks, then the stumps, each one batched fill however many tiles are in view.
+export const STUMP = { top: '#5B4A40', long: '#33271F', end: '#241B16', mortar: '#7A6454', brick: '#1D1612', brickLit: '#6B574A', hMin: 3.6, hMax: 6.4 };
+// The building's own sprite (the rubble heap, or a burnt shell) stands over the tile's middle, so the stump and the bricks lie just outside the tile's front edge, where they show: along its
+// lower-left edge or its lower-right one by the tile's hash (the same mirrored drawing, a and b swapped).
+function rubbleParts(b, into) {
+  const c = p(b.x + b.w / 2, b.y + b.d / 2), s = (k) => hs(b.x, b.y, 40 + k), swap = s(6) < 0.5;
+  const at = (a, d, h) => { const [u, v] = swap ? [d, a] : [a, d]; return [c[0] + (u - v) * 16, c[1] + 2 + (u + v) * 8 - h]; };   // a along the stump, d across it (tile units from the middle), h art px up
+  const flip = s(0) < 0.5 ? 1 : -1, u0 = -0.34 + (s(1) - 0.5) * 0.12, u1 = 0.34, v0 = 0.56, v1 = 0.76;
+  const tall = STUMP.hMin + s(2) * (STUMP.hMax - STUMP.hMin), low = tall * (0.4 + s(3) * 0.2);
+  const hL = flip > 0 ? tall : low, hR = flip > 0 ? low : tall;
+  const um = u0 + (u1 - u0) * (0.35 + s(4) * 0.3), hM = Math.min(hL, hR) * (0.45 + s(5) * 0.25);   // the bite out of the top
+  into.top.push([at(u0, v0, hL), at(u1, v0, hR), at(u1, v1, hR), at(um, v1, hM), at(u0, v1, hL)]);
+  into.long.push([at(u0, v1, 0), at(u1, v1, 0), at(u1, v1, hR), at(um, v1, hM), at(u0, v1, hL)]);
+  into.end.push([at(u1, v0, 0), at(u1, v1, 0), at(u1, v1, hR), at(u1, v0, hR)]);
+  for (const hh of [1.5, 3, 4.5]) if (hh < Math.min(hR, hM) - 0.4) into.mortar.push(['M', at(u0 + 0.02, v1, hh)], ['L', at(u1 - 0.02, v1, hh)]);   // the brick courses
+  for (let i = 0; i < 7; i++) {                                                           // blackened bricks, strewn in front and to the sides, kept off the stump itself; each a small box
+    let u = (s(10 + i) - 0.5) * 1.6, v = 0.4 + s(20 + i) * 0.55;
+    if (u > u0 - 0.14 && u < u1 + 0.14 && v > v0 - 0.14 && v < v1 + 0.1) v = v < (v0 + v1) / 2 ? v0 - 0.18 : v1 + 0.16;
+    const bw = 0.14, bd = 0.09, bh = 1.7;
+    into.brick.push([at(u, v + bd, 0), at(u + bw, v + bd, 0), at(u + bw, v + bd, bh), at(u, v + bd, bh)], [at(u + bw, v, 0), at(u + bw, v + bd, 0), at(u + bw, v + bd, bh), at(u + bw, v, bh)]);
+    into.lit.push([at(u, v, bh), at(u + bw, v, bh), at(u + bw, v + bd, bh), at(u, v + bd, bh)]);
+  }
+}
+
 export function drawScorch(g, world, range) {
+  const rub = { stain: [], top: [], long: [], end: [], mortar: [], brick: [], lit: [] };
   for (const id in world.buildings) {
     const b = world.buildings[id];
     const rubble = b.type === 'rubble';
     if (!(b.fire || rubble) || !inRange(b, range)) continue;
     const c = p(b.x + b.w / 2, b.y + b.d / 2), k = (b.w + b.d) / 2, a = rubble ? SCORCH.rubble : SCORCH.burning;
+    if (rubble) {                                                   // a tight scorched patch under the stump, not the broad blotch
+      g.radial([c[0], c[1] + 3], 17 * k, 8.5 * k, SCORCH.soot, a);
+      rub.stain.push(b);
+      continue;
+    }
     g.radial([c[0], c[1] + 3], 25 * k + 5, 12.5 * k + 3, SCORCH.soot, a);
     g.radial([c[0] + (hs(b.x, b.y, 1) - 0.5) * 4, c[1] + 3], 15 * k, 7.5 * k, SCORCH.core, Math.min(1, a * 1.3));
     for (let i = 0; i < 3; i++) {                                   // streaks of soot licking out along the ground
@@ -152,6 +184,14 @@ export function drawScorch(g, world, range) {
       g.ell([c[0] + Math.cos(ang) * d, c[1] + 3 + Math.sin(ang) * d * 0.5], 5 + hs(b.x, b.y, 14 + i) * 4, 2.3, SCORCH.soot, { alpha: a * 0.85 });
     }
   }
+  if (!rub.stain.length) return;
+  for (const b of rub.stain) rubbleParts(b, rub);
+  g.polys(rub.brick, STUMP.brick);
+  g.polys(rub.lit, STUMP.brickLit);
+  g.polys(rub.long, STUMP.long);
+  g.polys(rub.end, STUMP.end);
+  g.polys(rub.top, STUMP.top);
+  if (rub.mortar.length) g.stroke(rub.mortar, STUMP.mortar, 0.6, 0.7);
 }
 
 export function drawFires(g, world, range, now, { reducedMotion = false, motion = null } = {}) {

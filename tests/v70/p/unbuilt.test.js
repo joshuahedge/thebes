@@ -129,7 +129,7 @@ describe('v70 p the marks are drawn in the footprint, at every zoom', () => {
     crowd.ctx.stroke = () => { crowdStrokes++; realStroke(); };
     crowd.ctx.fill = (...a) => { fills++; realFill(...a); };
     drawUnbuilt(crowd.g, big, { x0: 0, y0: 0, x1: 79, y1: 79 });
-    expect([crowdStrokes <= 4, fills]).toEqual([true, 0]);                                         // the strings and stakes only: no board, no picture
+    expect([crowdStrokes <= 4, fills]).toEqual([true, 2]);                                         // Version 9.2 (Track V, ruling 1847): at this far zoom the footprints are two fills (the shadow, the sand square), not strings and stakes (was 0 fills); still no board, no picture
   });
   it('is drawn with the problem markers (drawMarkers), under the road-less plots\' dashed outlines, and is skipped by a stand-in drawing helper', () => {
     const w = city();

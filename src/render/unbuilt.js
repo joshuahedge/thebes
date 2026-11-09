@@ -7,8 +7,8 @@
 // where a plot is about 11 px across. The strings and stakes of every plot in view are one path each (two strokes, whatever the count); the signs are drawn one by one while no more
 // than SIGN_MOST are in view, and a crowd of them is left to the strings and stakes.
 import { housesOf, allBuildings, isSite, buildingsVersion } from '../sim/world.js';
-import { p, quad } from './iso.js';
-import { UI } from './art/palette.js';
+import { p, quad, ART_SCALE } from './iso.js';
+import { UI, SHADOW } from './art/palette.js';
 
 export const UNBUILT = {
   string: '#5E4120',    // the cord: dark brown, 4.9:1 on the pale ground pad
@@ -22,6 +22,13 @@ export const UNBUILT = {
   boardMin: [9, 6], boardPx: [16, 11],   // the board (width, height): art px at the least, CSS px at the least
 };
 export const SIGN_MOST = 250;
+// Version 9.2 (Track V, ruling 1847): from this zoom out (the markers' far zoom, MARKER.farZoom in markers.js, which imports this file) a plot is a sand square with a shadow.
+export const FAR_ZOOM = 0.6;
+Object.assign(UNBUILT, {
+  sand: '#EFDDB0',       // the far zoom's square: a shade lighter than the ground pad under it
+  sandEdge: '#B39466',   // its fine edge (the road pebbles' tone)
+  shadowPx: 2.5,         // CSS px the square's shadow drops, at least one art px
+});
 
 // Whether a monument's site has had any work done (a course begun or a block laid): the art shows the rest.
 const begun = (b) => b.site && (b.site.course > 0 || (b.site.laid && b.site.laid.stone + b.site.laid.bricks > 0));
@@ -69,16 +76,26 @@ export function drawUnbuilt(g, world, range = null) {
   if (!list.length) return;
   const css = g.cssScale || g.scale;
   const per = (px, min) => Math.max(min, px / css);                           // CSS px, floored in art px
-  // The strings: one path for every footprint in view, a white halo and then the cord.
-  const strings = list.map((u) => quad(u.x + UNBUILT.inset, u.y + UNBUILT.inset, u.w - 2 * UNBUILT.inset, u.d - 2 * UNBUILT.inset, 0));
-  g.polys(strings, 'none', { stroke: UI.halo, strokeWidth: UNBUILT.haloPx / css, strokeAlpha: 0.85 });
-  g.polys(strings, 'none', { stroke: UNBUILT.string, strokeWidth: UNBUILT.stringPx / css });
-  // The stakes: a short post at each corner, one path (its halo wider).
-  const h = per(UNBUILT.stakePx, UNBUILT.stakeMin);
-  const posts = [];
-  for (const pts of strings) for (const c of pts) posts.push(['M', c], ['L', [c[0], c[1] - h]]);
-  g.stroke(posts, UI.halo, (UNBUILT.haloPx + 1) / css, 0.85);
-  g.stroke(posts, UNBUILT.stake, (UNBUILT.stringPx + 1) / css);
+  if (css / ART_SCALE <= FAR_ZOOM) {
+    // Version 9.2 (Track V, ruling 1847): at the far zoom the string, halo and stakes read as an interface outline, so the footprint is a sand square with a shadow under its low side (a
+    // shape in the scene, two fills however many there are); the sign stays on it to say "a home goes here".
+    const lift = per(UNBUILT.shadowPx, 1);
+    const sand = list.map((u) => quad(u.x + UNBUILT.inset, u.y + UNBUILT.inset, u.w - 2 * UNBUILT.inset, u.d - 2 * UNBUILT.inset, 0));
+    g.polys(sand.map((pts) => pts.map(([x, y]) => [x, y + lift])), SHADOW, { alpha: 0.34 });
+    g.polys(sand, UNBUILT.sand);
+    g.polys(sand, 'none', { stroke: UNBUILT.sandEdge, strokeWidth: 1 / css, strokeAlpha: 0.7 });
+  } else {
+    // The strings: one path for every footprint in view, a white halo and then the cord.
+    const strings = list.map((u) => quad(u.x + UNBUILT.inset, u.y + UNBUILT.inset, u.w - 2 * UNBUILT.inset, u.d - 2 * UNBUILT.inset, 0));
+    g.polys(strings, 'none', { stroke: UI.halo, strokeWidth: UNBUILT.haloPx / css, strokeAlpha: 0.85 });
+    g.polys(strings, 'none', { stroke: UNBUILT.string, strokeWidth: UNBUILT.stringPx / css });
+    // The stakes: a short post at each corner, one path (its halo wider).
+    const h = per(UNBUILT.stakePx, UNBUILT.stakeMin);
+    const posts = [];
+    for (const pts of strings) for (const c of pts) posts.push(['M', c], ['L', [c[0], c[1] - h]]);
+    g.stroke(posts, UI.halo, (UNBUILT.haloPx + 1) / css, 0.85);
+    g.stroke(posts, UNBUILT.stake, (UNBUILT.stringPx + 1) / css);
+  }
   // The signs, while the crowd is small: a post from the middle of the footprint, a board on top of it, and the picture on the board.
   if (list.length > SIGN_MOST) return;
   const post = per(UNBUILT.postPx, UNBUILT.postMin), bw = per(UNBUILT.boardPx[0], UNBUILT.boardMin[0]), bh = per(UNBUILT.boardPx[1], UNBUILT.boardMin[1]);

@@ -78,11 +78,15 @@ export function floodIcon(season, level = -1) {
   return s;
 }
 
-// Score: a cartouche (the oval ring that held a king's name) with a sun disc inside.
+// Score: a medal (Version 9.2, Track V, review 2.11): two ribbon tails over a round medal with a star on it. It was a cartouche with a sun disc, which read as a jar or a stamp;
+// a medal says "score" (and the Pass sheet's medals are the same idea).
 export function scoreIcon() {
-  const s = svg('score', 'cartouche');
-  add(s, 'rect', { class: 'ring', x: 5, y: 1.6, width: 10, height: 14.6, rx: 5 });
-  add(s, 'path', { class: 'ring', d: 'M4 18.4 H16' });
-  add(s, 'circle', { class: 'disc', cx: 10, cy: 8.9, r: 2.4 });
+  const s = svg('score', 'medal');
+  add(s, 'path', { class: 'ribbon', d: 'M4.6 1.2 H8.6 L11.8 7.6 H7.8 Z' });
+  add(s, 'path', { class: 'ribbon', d: 'M15.4 1.2 H11.4 L8.2 7.6 H12.2 Z' });
+  add(s, 'circle', { class: 'ring', cx: 10, cy: 13, r: 5.6 });
+  const star = [];
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 1.5 : 3.3; star.push(`${(10 + r * Math.cos(a)).toFixed(2)} ${(13.2 + r * Math.sin(a)).toFixed(2)}`); }
+  add(s, 'path', { class: 'star', d: `M${star.join(' L')} Z` });
   return s;
 }
