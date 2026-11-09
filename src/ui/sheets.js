@@ -6,7 +6,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
-import { V84_G_TEXT, Q92_TEXT } from './text.js';
+import { V84_G_TEXT, Q92_TEXT, A92_TEXT } from './text.js';
 import { taxRateOf } from '../sim/palace.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
@@ -86,7 +86,7 @@ if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
   document.addEventListener('pointerdown', () => { mark(false); if (behindInert) letGo(); }, true);
 }
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onFrame = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
   const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
@@ -443,8 +443,11 @@ export function createSheets({ container, store, world, placement, cameraControl
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
     const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? '+' : null, onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
-    const map = [el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut])];
+    // Version 9.2 (fix wave, Track A, rulings 1876 and 1877): "Fit the city" sits beside + and − in both layouts (Track V's frame, the F key's own), where a phone can
+    // find it; on the wide layout the side panel already draws the minimap, so the sheet leaves its own out and keeps the buttons.
+    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? 'F' : null, onClick: () => onFrame() });
     const phone = store.get().layout !== 'wide';
+    const map = [...(phone ? [el('div', { class: 'minimap-wrap' }, [canvas])] : []), el('div', { class: 'actions' }, [zoomIn, zoomOut, fit])];
     const rows = getRows();   // Version 9.2 (Track Q, ruling 1775): one row per cause
     const list = phone ? criticalFirst(rows) : rows;
     const alerts = [];

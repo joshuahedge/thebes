@@ -308,6 +308,22 @@ export function createUI({
   const showInterface = el('button', { type: 'button', id: 'show-interface', class: 'show-interface', text: A92_TEXT.showInterface, onClick: () => store.set({ screenshot: false }) });
   const interfaceHost = $('live') ? $('live').parentNode : null;
   if (interfaceHost) interfaceHost.append(showInterface);
+  // Version 9.2 (fix wave, Track A, ruling 1878): the Screenshot mode button hides itself with the interface, so focus used to drop to the page. Entering puts focus on "Show interface"; leaving
+  // puts it on the Menu button (Options has closed with the interface, and the Menu is what opened it).
+  let screenshotWas = Boolean(store.get().screenshot);
+  const stopScreenshotFocus = store.subscribe(() => {
+    const on = Boolean(store.get().screenshot);
+    if (on === screenshotWas) return;
+    screenshotWas = on;
+    queueMicrotask(() => {
+      if (destroyed || Boolean(store.get().screenshot) !== on) return;
+      const a = document.activeElement;
+      const lost = !a || a === document.body || a === showInterface || !a.isConnected;
+      if (on) { if (showInterface.isConnected && showInterface.getClientRects().length) showInterface.focus({ preventScroll: true }); return; }
+      const menu = $('topbar') && $('topbar').querySelector('.menu');
+      if (menu && lost) menu.focus({ preventScroll: true });
+    });
+  });
   // Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source: the map with a bar (src/ui/s47/sourcePick.js); the store sheet's "from" starts it.
   const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }), freeTop: () => Math.max(TOPBAR_PX, freeTop(root, canvas, store.get().layout)) });
   const seamCtx = {
@@ -367,8 +383,8 @@ export function createUI({
     if (topAdvice.day !== world.day) topAdvice = { day: world.day, list: cityAdvice(world).slice(0, 3) };
     return topAdvice.list;
   };
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
-  createDialog({ container: $('dialog'), store });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onFrame: () => { frameCity(); }, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
+  const dialog = createDialog({ container: $('dialog'), store });
   // Version 8.0 (ruling 1160): the number on the scroll button follows the tray, and an open tray sheet shows a message the moment it arrives (unless focus is inside it: a rebuild would drop it).
   const stopTray = tray.subscribe((why) => {
     hud.render();
@@ -1324,7 +1340,7 @@ export function createUI({
       cardDrag.detach(); noZoom.detach();
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
-      stopGoalsPlace();
+      stopGoalsPlace(); stopScreenshotFocus(); dialog.destroy();   // Version 9.2 (fix wave, rulings 1878, 1879)
       if ($('goals').parentNode === $('panel')) $('under-bar').insertBefore($('goals'), $('tip'));   // Version 9.2 (Track Q): home again for the next UI
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again

@@ -4794,10 +4794,11 @@ export const A92_TEXT = {
   minimapLabel: 'Minimap',
   minimapHelp: 'Arrow keys move the view across the city.',
   showInterface: 'Show interface',
+  fitCity: 'Fit the city',   // fix wave, ruling 1876: the Minimap sheet's button beside + and −
 };
 
 // Version 9.2, Track W
 
 // Version 9.2, Track V
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'minimap') + 1, 0, ['frame', 'Fit the city to the screen']);   // ruling 1851: the F key
-T.gesturesHelp += ' Tap the Map button twice, or press F, to fit the whole city on the screen.';
+T.gesturesHelp += ' Open the Minimap and tap Fit the city, or press F, to fit the whole city on the screen.';   // fix wave, ruling 1876: the button is what a phone has; the double tap on the Map button is a shortcut the words do not promise

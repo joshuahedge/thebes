@@ -99,7 +99,7 @@ describe('v92 q tidies: Options and the menu', () => {
     const r = settingsSheet({ exportCity() {} });
     try {
       const kids = [...r.body.children];
-      expect(kids.slice(0, 5).map((n) => [n.tagName, n.querySelector('summary h3').textContent])).toEqual([['DETAILS', 'Sound'], ['DETAILS', 'Display'], ['DETAILS', 'Controls'], ['DETAILS', 'Help'], ['DETAILS', 'Saves']]);
+      expect(kids.slice(0, 5).map((n) => [n.tagName, n.querySelector('summary').textContent])).toEqual([['DETAILS', 'Sound'], ['DETAILS', 'Display'], ['DETAILS', 'Controls'], ['DETAILS', 'Help'], ['DETAILS', 'Saves']]);   // fix wave (ruling 1879): the words are the summary's own; an h3 inside a summary is flattened by its button role
       expect(kids[5].matches('details.options-about')).toBe(true);
       expect(kids[6].className).toBe('options-version');
       expect(kids.slice(0, 5).every((n) => n.open)).toBe(true);

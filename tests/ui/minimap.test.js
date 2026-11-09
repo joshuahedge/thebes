@@ -46,7 +46,7 @@ describe('ui minimap', () => {
       expect(order()).toEqual(['h3', 'alert-list', 'minimap-wrap', 'actions']);
       expect(titles()).toEqual(criticalFirst(list).map((a) => alertText(a, world).title));
       store.set({ layout: 'wide' });
-      expect(order()).toEqual(['minimap-wrap', 'actions', 'h3', 'alert-list']);
+      expect(order()).toEqual(['actions', 'h3', 'alert-list']);   // fix wave (ruling 1877): the side panel draws the minimap, so the wide sheet keeps its buttons and leaves its own map out
       expect(titles()).toEqual(list.map((a) => alertText(a, world).title));
     } finally { cleanup(); }
   });

@@ -143,6 +143,10 @@ body[data-layout="wide"] .confirm, body[data-layout="compact"] .confirm { paddin
 #panel .tab { min-height: var(--tap); min-width: 0; padding: 0 8px; font-size: calc(12px * var(--ui-scale)); }   /* 8 px: five tabs fit one row at 100% text */
 #panel .tab[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
 #panel .cards { overflow-y: auto; flex: 1; }
+/* Version 9.2 (fix wave, Track A, ruling 1877): with the goals strip and rank bar in the panel (ruling 1778) the card grid kept the leftover height, a sliver at 150% text on 1280x800. It keeps
+   one card row at least (a card's art, name and cost, scaled with the text), and the panel scrolls when the strip, the minimap and that row do not fit. */
+#panel { overflow-x: hidden; overflow-y: auto; }
+#panel .cards { min-height: calc(200px * var(--ui-scale) - 55px); }   /* one card row with its padding: 145 px at 100% text (a card is 129), 245 at 150% (229) */
 #panel .details { border-top: 1px solid var(--parchment-3); padding: 8px 12px; min-height: 64px; }
 body.panel-folded #panel { width: 56px; }
 body.panel-folded #panel > :not(.foldbar) { display: none; }
@@ -1740,7 +1744,7 @@ body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }
 .options-group > summary::-webkit-details-marker { display: none; }
 .options-group > summary::before { content: '▸'; flex: none; width: 1em; text-align: center; color: var(--teal); }
 .options-group[open] > summary::before { content: '▾'; }
-.options-group > summary > h3 { flex: 1 1 auto; margin: 0; padding-bottom: 2px; border-bottom: 2px solid var(--teal); font-family: var(--font); font-size: calc(12px * var(--ui-scale)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); text-align: left; }
+.options-group > summary.options-heading { margin: 0; padding-bottom: 2px; border-bottom: 2px solid var(--teal); font-family: var(--font); font-size: calc(12px * var(--ui-scale)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); text-align: left; }
 /* Version 9.2 (Track Q, ruling 1777): on the wide layout the goals strip and the rank bar (#goals) sit in the side panel above the minimap (createUI placeGoals), so the top
    left keeps one banner and one tip. They fill the panel's width; the strip's buttons wrap under its words. */
 #panel > #goals { max-width: 100%; padding: 8px 8px 0; box-sizing: border-box; align-items: stretch; flex: none; }
