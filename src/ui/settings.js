@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS = {
 const isBool = (v) => typeof v === 'boolean';
 const VALID = {
   sound: isBool, vibration: isBool, leftHanded: isBool, keyboardShortcuts: isBool,
-  textSize: (v) => [100, 125, 150].includes(v),
+  textSize: (v) => [100, 125, 150, 200].includes(v),   // Version 9.2 (Track A, ruling 1828): 200% is the fourth step
   help: (v) => HELP_LEVELS.includes(v),
   seenTips: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   adviceSeen: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),

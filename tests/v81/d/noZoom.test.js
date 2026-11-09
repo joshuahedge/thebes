@@ -13,14 +13,18 @@ const touchEnd = (target, touches = []) => { const e = { target, touches, cancel
 const send = (doc, type, e) => { for (const l of [...(doc.on[type] || [])]) l.fn(e); return e; };
 
 describe('v81 d no zoom: the handlers', () => {
-  it('registers iOS gesturestart, gesturechange and gestureend (not passive, so they can cancel) and each cancels the gesture', () => {
+  it('registers iOS gesturestart, gesturechange and gestureend (not passive, so they can cancel) and each cancels the gesture on the map only (9.2: a pinch on the chrome zooms the page)', () => {
     const doc = fakeDoc();
+    const map = document.createElement('canvas'), chrome = document.createElement('div');
     const nz = installNoZoom({ doc, now: () => 0 });
     for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
       expect([type, (doc.on[type] || []).length, (doc.on[type] || [])[0] && doc.on[type][0].opts.passive]).toEqual([type, 1, false]);
-      const e = { cancelable: true, prevented: false, preventDefault() { this.prevented = true; } };
+      const e = { target: map, cancelable: true, prevented: false, preventDefault() { this.prevented = true; } };
       send(doc, type, e);
       expect([type, e.prevented]).toEqual([type, true]);
+      const c = { target: chrome, cancelable: true, prevented: false, preventDefault() { this.prevented = true; } };
+      send(doc, type, c);
+      expect([type, c.prevented]).toEqual([type, false]);
     }
     nz.detach();
     expect(['gesturestart', 'gesturechange', 'gestureend', 'touchend'].map((t) => (doc.on[t] || []).length)).toEqual([0, 0, 0, 0]);
@@ -54,11 +58,11 @@ describe('v81 d no zoom: the handlers', () => {
 });
 
 describe('v81 d no zoom: the page', () => {
-  it('has the viewport meta that stops page zoom, and the interface says no to a pinch while it runs and stops when it is gone', async () => {
+  it('has a viewport meta that allows page zoom (9.2, Q7), and the interface cancels the pinch gesture on the map while it runs and stops when it is gone', async () => {
     const html = await (await fetch('/index.html')).text();
     const content = new DOMParser().parseFromString(html, 'text/html').querySelector('meta[name="viewport"]').getAttribute('content');
-    expect(['maximum-scale=1', 'user-scalable=no', 'initial-scale=1', 'viewport-fit=cover'].map((k) => content.includes(k))).toEqual([true, true, true, true]);
-    const pinch = () => { const e = new Event('gesturestart', { bubbles: true, cancelable: true }); document.dispatchEvent(e); return e.defaultPrevented; };
+    expect(['maximum-scale', 'user-scalable', 'initial-scale=1', 'viewport-fit=cover'].map((k) => content.includes(k))).toEqual([false, false, true, true]);
+    const pinch = () => { const c = document.createElement('canvas'); document.body.append(c); const e = new Event('gesturestart', { bubbles: true, cancelable: true }); c.dispatchEvent(e); c.remove(); return e.defaultPrevented; };
     const r = await rigUI();
     try { expect(pinch()).toBe(true); } finally { r.cleanup(); }
     expect(pinch()).toBe(false);
@@ -68,14 +72,14 @@ describe('v81 d no zoom: the page', () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       const ta = (sel) => getComputedStyle(r.root.querySelector(sel)).touchAction;
-      for (const sel of ['#topbar', '#dock', '#corners', '#sheet', '#dialog', '#under-bar']) expect([sel, ta(sel)]).toEqual([sel, 'pan-x pan-y']);
+      for (const sel of ['#topbar', '#dock', '#corners', '#sheet', '#dialog', '#under-bar']) expect([sel, ta(sel)]).toEqual([sel, 'manipulation']);   // 9.2: pan-x pan-y pinch-zoom, which the browser reads back as manipulation
       expect(ta('#map')).toBe('none');                                              // the map's pinch and pan are its own (src/ui/input.js)
       r.root.querySelector('#dock .cat[data-category="services"]').click();
       expect(ta('#dock .tray .card')).toBe('pan-x');                                // the tray scrolls sideways; up is free to carry a card
     } finally { r.cleanup(); }
     const w = await rigUI({ width: 1280, height: 800 });
     try {
-      expect([getComputedStyle(w.root.querySelector('#panel .cards .card')).touchAction, getComputedStyle(w.root.querySelector('#panel')).touchAction]).toEqual(['pan-y', 'pan-x pan-y']);
+      expect([getComputedStyle(w.root.querySelector('#panel .cards .card')).touchAction, getComputedStyle(w.root.querySelector('#panel')).touchAction]).toEqual(['pan-y', 'manipulation']);
     } finally { w.cleanup(); }
   });
 });

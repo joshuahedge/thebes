@@ -115,7 +115,7 @@ describe('v60 b2 moment in the alert row', () => {
       const t = B2_TEXT.moment(LOST);
       expect([row.querySelector('strong').textContent, row.querySelector('.small').textContent]).toEqual([t.title, t.detail]);
       expect(rig.root.ownerDocument.body.classList.contains('has-banner')).toBe(true);
-      expect(rig.root.querySelector('#live').textContent).toBe(`${t.title}. ${t.detail}`);
+      expect(rig.root.querySelector('#live').textContent + rig.root.querySelector('#live-urgent').textContent).toBe(`${t.title}. ${t.detail}`);   // 9.2 (Track A, ruling 1832): said in #live-urgent
       const [report, dismiss] = [...row.querySelectorAll('button')];
       expect([report.textContent, report.getAttribute('aria-label')]).toEqual([B2_TEXT.report, B2_TEXT.reportLabel]);
       expect([dismiss.textContent, dismiss.getAttribute('aria-label')]).toEqual(['✕', B2_TEXT.dismissLabel]);                  // an icon with a name

@@ -472,3 +472,98 @@ describe('v50 mobile height budget: the house sheet\'s next-step line', () => {
     });
   }
 });
+
+// Version 9.2 (Track A, T10, ruling 1827): words at large text. No label is hidden at 150% (or 200%): the Layers legend's name and its keys' words, the tip's label and the
+// top bar's stat labels are on screen, inside the frame, big enough to read, on a small and a tall phone. (A label for screen readers only is 1x1 px, clipped.)
+const wordsShown = (n, frameBox, within = null) => {
+  if (!n) return false;
+  const cs = getComputedStyle(n), r = n.getBoundingClientRect();
+  if (cs.display === 'none' || cs.visibility === 'hidden' || (cs.clip && cs.clip !== 'auto') || r.width < 8 || r.height < 8) return false;
+  const edge = within ? within.getBoundingClientRect() : frameBox;
+  return r.left >= frameBox.left - 1 && r.right <= frameBox.right + 1 && r.left >= edge.left - 1 && r.right <= edge.right + 1 && n.textContent.trim().length > 0;
+};
+describe('v92 a mobile budget: words at large text (T10)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  const LARGE = [150, 200];
+  it('keeps the Layers legend name and its keys\' words, within the budget', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of LARGE) {
+        const r = await bootScene('early', width, height, 'skipTitle=1&seed=11&sample=1');
+        const at = `${width}x${height} ${textSize}%`;
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          await devScene(r.api, 'v50-layers', { layer: 'progress', quick: true });
+          await frame(); await frame();
+          const box = r.root.getBoundingClientRect(), strip = r.root.querySelector('#legend .strip.layer');
+          if (!strip) { wrong.push(`${at}: no legend`); continue; }
+          if (!wordsShown(strip.querySelector(':scope > strong.text'), box)) wrong.push(`${at}: the legend's name is hidden`);
+          const keys = [...strip.querySelectorAll('.key .text')];
+          if (!keys.length || keys.some((k) => !wordsShown(k, box))) wrong.push(`${at}: a key's words are hidden (${keys.length} keys)`);
+          const m = measureRows(r.root), limit = textSize >= 200 ? 0.5 : 0.4;   // 200% on the shortest phone: the legend wraps and the budget is half the height
+          if (m.rowsEnd / m.height > limit + 0.005) wrong.push(`${at}: the rows end at ${Math.round(100 * m.rowsEnd / m.height)}%, limit ${Math.round(limit * 100)}%`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+  it('keeps the tip\'s label, and every number in the top bar keeps its picture and its word (as the button\'s name: 8.1 ruling 1223 put a picture where a label was, so no stat label is hidden)', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of LARGE) {
+        const r = await bootScene('plots', width, height);
+        const at = `${width}x${height} ${textSize}%`;
+        try {
+          const g = r.api.game();
+          g.ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          await devScene(r.api, 'plots', { quick: true });
+          await frame(); await frame();
+          const box = r.root.getBoundingClientRect(), bar = r.root.querySelector('#topbar');
+          if (!wordsShown(r.root.querySelector('#tip .tip-row .label'), box)) wrong.push(`${at}: the tip's label is hidden`);
+          const stats = [...r.root.querySelectorAll('#topbar .stat')].filter((n) => !n.hidden && getComputedStyle(n).display !== 'none');
+          if (stats.length < 3) wrong.push(`${at}: only ${stats.length} stats`);
+          for (const st of stats) {
+            const pic = st.querySelector('.glyph svg');
+            if (!pic || pic.getBoundingClientRect().width < 8 || !st.getAttribute('aria-label')) wrong.push(`${at}: the ${st.className} stat has no picture or no name`);
+            if (st.querySelector('.label')) wrong.push(`${at}: the ${st.className} stat has a .label (a hiding rule would clip it)`);
+            const b = st.getBoundingClientRect(), bb = bar.getBoundingClientRect();
+            if (b.right > bb.right + 1 || b.left < bb.left - 1) wrong.push(`${at}: the ${st.className} stat runs out of the bar`);
+          }
+          const m = measureRows(r.root);
+          const limit = textSize >= 200 ? 0.5 : 0.4;
+          if (m.rowsEnd / m.height > limit + 0.005) wrong.push(`${at}: the rows end at ${Math.round(100 * m.rowsEnd / m.height)}%, limit ${Math.round(limit * 100)}%`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+// Version 9.2 (Track A, ruling 1828): the budget scenes at 200% text too, on the two portrait phones. Nothing hides at 200%; the rows may reach further than at 150% (limit: half the height
+// in portrait, and an open sheet or a banner may take more) but no row is lost, so the width of the words wraps and the height scrolls.
+describe('v92 a mobile budget at 200% text', () => {
+  for (const name of MOBILE_SCENES) {
+    it(`holds a 200% budget in the ${name} scene on the portrait phones`, async () => {
+      const wrong = [];
+      for (const [width, height] of [[375, 667], [390, 844]]) {
+        const r = await bootScene(name, width, height);
+        try {
+          const g = r.api.game();
+          g.ui.settings.set({ textSize: 200, reducedMotion: 'on' });
+          await frame();
+          if (name === 'early' || name === 'expanded') r.skip(TIP_FIRST_DELAY_MS);
+          await devScene(r.api, name, { quick: true });
+          await frame(); await frame();
+          const m = measureRows(r.root);
+          expect([m.width, m.height, m.textSize]).toEqual([width, height, 200]);
+          const end = m.rowsEnd / m.height, limit = m.height < 700 ? 0.7 : m.sheet !== null ? 0.5 : 0.55;   // 200% on a 667 px phone: the rows may take 70% of the height (the map keeps a third), a taller phone half
+          if (end > limit + 0.005) wrong.push(`${name} ${width}x${height}: the rows end at ${Math.round(end * 100)}%, limit ${Math.round(limit * 100)}%`);
+          if (m.rows > 2) wrong.push(`${name} ${width}x${height}: ${m.rows} rows (${Object.keys(m.layers).join('+')}), limit 2`);
+        } finally { r.cleanup(); }
+      }
+      expect(wrong).toEqual([]);
+    });
+  }
+});

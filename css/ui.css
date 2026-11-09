@@ -3,7 +3,7 @@
 :root {
   --parchment: #F3E7CB; --parchment-2: #EADBB9; --parchment-3: #DCC9A0;
   --ink: #2B1F0E; --ink-soft: #5A4832;
-  --teal: #1F6F66; --teal-ink: #FFFFFF; --teal-soft: #CFE6E2;
+  --teal: #1A5F57; --teal-ink: #FFFFFF; --teal-soft: #CFE6E2;
   --coral: #E2604C; --coral-text: #A33624; --coral-soft: #F6D5CE;
   --amber: #E0A030; --amber-text: #7A5200; --amber-soft: #F6E7C2;
   --blue: #2F6FA8; --gold: #E2B13C;
@@ -24,11 +24,12 @@
 }
 [data-text-size="125"] { --ui-scale: 1.25; }
 [data-text-size="150"] { --ui-scale: 1.5; }
+[data-text-size="200"] { --ui-scale: 2; }
 /* Derived sizes live on body, where --ui-scale is set, so they scale with the text-size setting. */
 body { --topbar-h: calc(48px * var(--ui-scale) + var(--band-foot)); --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); }
 /* Version 8.0 (ruling 1143): the gap under the top bar is the old 6 px less the band's 3 px foot at 100% text, so the rows under the bar sit where they did and every height budget holds; at larger text the bar is taller than its token (its content sets it), so the full 6 px stays. */
 body { --under-gap: calc(6px - var(--band-foot)); }
-body[data-text-size="125"], body[data-text-size="150"] { --under-gap: 6px; }
+body[data-text-size="125"], body:is([data-text-size="150"], [data-text-size="200"]) { --under-gap: 6px; }
 
 html, body { margin: 0; height: 100%; background: var(--parchment-3); color: var(--ink); overflow: hidden; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
 body { font: calc(16px * var(--ui-scale)) / 1.4 var(--font); }
@@ -98,7 +99,7 @@ body[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock
 body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #corners.over-half { visibility: hidden; }   /* the portrait tray is open and tall: the corners would sit in the middle of the map (corners.js) */
 .has-badge { position: relative; }
-.badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--coral-text); color: #FFFFFF; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
+.badge { --badge-s: min(var(--ui-scale), 1.25); position: absolute; top: calc(-6px * var(--badge-s)); right: calc(-6px * var(--badge-s)); min-width: calc(20px * var(--badge-s)); height: calc(20px * var(--badge-s)); border-radius: calc(10px * var(--badge-s)); background: var(--coral-text); color: #FFFFFF; font-size: calc(12px * var(--badge-s)); line-height: calc(20px * var(--badge-s)); text-align: center; padding: 0 5px; }   /* Version 9.2 (Track A, ruling 1830): scales with the text setting, to 125% of its size (more would cover the icon it sits on) */
 
 /* Portrait build dock: slim bar, tray, or tucked to a pill (spec 6.3). */
 #dock { position: fixed; left: 0; right: 0; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
@@ -148,7 +149,10 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 
 /* Compact landscape: a slim rail on the right, trays as a drawer beside it. */
 #rail { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: 0; bottom: 0; width: calc(var(--rail-w) + var(--safe-right)); padding: 6px var(--safe-right) calc(6px + var(--safe-bottom)) 0; background: var(--parchment); border-left: 1px solid var(--parchment-3); display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; }
-#rail .cat { min-width: var(--tap); padding: 0; font-size: calc(18px * var(--ui-scale)); }
+#rail .cat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: var(--tap); padding: 0; font-size: calc(18px * var(--ui-scale)); line-height: 1; }
+/* Version 9.2 (Track A, ruling 1834): the compact rail names each icon in a small word under it (12 px, the floor), still inside the 44 px button; the button takes the rail's whole width (the rail stays 56 px: a wider one narrowed the legend beside it and broke the fire legend's budget) and the word is set slightly tight so Monuments fits. */
+#rail .cat .cat-word { font-size: 12px; line-height: 1.1; letter-spacing: -0.05em; white-space: nowrap; }
+body[data-layout="compact"] #rail .cat { align-self: stretch; margin: 0 2px; }   /* the button takes the rail's width, so the longest word has all of it */
 #rail .drawer { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); background: var(--parchment-2); border-left: 1px solid var(--parchment-3); overflow-y: auto; }
 
 /* Sheets: a bottom sheet in portrait, a drawer in compact, the lower part of the panel column in wide. */
@@ -196,7 +200,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-even
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
 .toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
 .toast button:focus-visible { outline-color: var(--gold); }
-#dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
+#dialog { position: fixed; inset: 0; z-index: 100; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 /* Motion (spec 5.4, ruling 247): the interface follows the Motion setting, not the device. settings.js writes data-motion
@@ -279,7 +283,7 @@ body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
    the title (1.4em) plus the cost and the reason or effect (12px at the body size is .75em, so 1.05em each). */
 body[data-layout="portrait"] .confirm .info { min-height: 3.5em; }
 /* At 125% and 150% text the words column is only about 150px wide, so a reason or an effect wraps to two lines: keep both (4.55em). */
-body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"][data-text-size="150"] .confirm .info { min-height: 4.55em; }
+body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 4.55em; }
 
 /* Conditions in the confirm bar (placement review P9): a row of chips under the words and the buttons, full width. Each chip has its
    mark and its words (met teal, later amber, can't coral), 14 px at the body size and at least 24 px tall. The row is there for
@@ -288,7 +292,7 @@ body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-lay
 .confirm.has-conds { flex-wrap: wrap; row-gap: 6px; }
 .confirm .conds { --chip-h: max(24px, calc(14px * var(--ui-scale) * 1.2 + 4px)); flex: 1 0 100%; order: 9; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 6px; min-height: var(--chip-h); }
 .confirm .conds.tall { min-height: calc(2 * var(--chip-h) + 4px); }
-body[data-text-size="150"] .confirm .conds.tall.narrow { min-height: calc(3 * var(--chip-h) + 8px); }   /* a 360 px phone at 150% text fits one chip a row at worst (confirmBar.js) */
+body:is([data-text-size="150"], [data-text-size="200"]) .confirm .conds.tall.narrow { min-height: calc(3 * var(--chip-h) + 8px); }   /* a 360 px phone at 150% text fits one chip a row at worst (confirmBar.js) */
 .cond { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-height: 24px; padding: 1px 8px; border: 1px solid transparent; border-radius: 12px; font-size: calc(14px * var(--ui-scale)); line-height: 1.2; }
 .cond .mark { font-weight: 700; }
 .cond.met { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); }
@@ -326,7 +330,7 @@ body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: c
 /* A phone held sideways under 700 px wide (body.narrow, set by layout.js) at 125% or 150% text has too little map beside
    the drawer for both corner groups with their words: Map and Layers keep their icons and drop the word from sight. Each
    button's accessible name still starts with its word. */
-body.narrow[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .labelled .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.narrow[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #corners .labelled .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* The house sheet (early-game pass 2.10): each need on its own row with a mark, its name and a status in
    words; a missing one adds its cause, its fix and Show me. Residents carry a small meter. */
@@ -370,10 +374,10 @@ body.narrow[data-layout="compact"]:is([data-text-size="125"], [data-text-size="1
 /* A phone at larger text keeps the caption to the head and the gold, so it stays clear of the middle of the map; the
    why stays in the live region for screen readers. There the caption is one flow of words (the star, the head, then
    the gold), so it wraps as a sentence in two lines at most rather than a column beside the gold. */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: block; padding: 4px 10px; font-size: calc(14px * var(--ui-scale)); line-height: 1.25; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .icon { margin-right: 4px; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .reward { margin-left: 6px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer .why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* Version 9.2 (Track A): the why is a second sentence, not a label, and stays cut at large text (tests/ui/celebrate.test.js); the caption keeps its More */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer { display: block; padding: 4px 10px; font-size: calc(14px * var(--ui-scale)); line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer .icon { margin-right: 4px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer .reward { margin-left: 6px; }
 #cheer .cheer.milestone { background: var(--amber-soft); border-color: var(--amber-text); }
 body[data-layout="wide"] #cheer { max-width: 440px; }
 @keyframes cheer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -395,10 +399,10 @@ body[data-layout="wide"] #tip { max-width: 440px; }
    scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
    why is. On every phone, at any text size, createUI also closes a tip after TIP_AUTO_CLOSE_MS of unpaused play with it on
    screen (ruling 171; it stays seen, and How to play lists it). */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #tip .tip-row .label { font-size: calc(12px * min(var(--ui-scale), 1.25)); line-height: 1.2; font-weight: 600; }   /* Version 9.2 (Track A, ruling 1827): the word stays, smaller, instead of hiding */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 
 /* The guidance row on a phone (spec 6.3, rulings 163 and 164): under the alert row one of the overlay legend, a tip, a
    caption or the goal shows, the one createUI names in data-guidance ('none' while a sheet is open, and on a landscape
@@ -421,8 +425,8 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer.led .le
    live region reads it whole, and the Goals sheet's Recent list has it in full. */
 body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .why { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .text { display: inline; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer .text { display: inline; }
 #sheet .recent .why { display: block; }
 /* A tip in the guidance row is two lines at most too; How to play lists every tip in full, and the live region reads it whole. */
 body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
@@ -446,7 +450,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text {
 #tip .more::before, #cheer .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
 /* At larger text a caption is one flow of head and gold, its why hidden from sight: "More ▾" has a place of its own at the end
    of the row, so it never sits over the head. */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer:not(.open):has(.more:not([hidden])) { padding-right: calc(28px + 46px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer:not(.open):has(.more:not([hidden])) { padding-right: calc(28px + 46px * var(--ui-scale)); }
 /* Open: the goal's words in full, its reward, then Show me, All goals and Skip guide on a row of their own. */
 .goal-strip.one-row.open { display: flex; flex-wrap: wrap; align-self: stretch; max-height: var(--guidance-max, 40vh); overflow-y: auto; padding: 0 4px 4px 0; }
 .goal-strip.one-row.open .main { flex: 1 1 100%; }
@@ -466,10 +470,10 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 #cheer .cheer.open .text { display: block !important; overflow: visible !important; }
 #cheer .cheer.open .why { position: static !important; display: block !important; width: auto !important; height: auto !important; clip: auto !important; overflow: visible !important; white-space: normal !important; }
 #cheer .cheer.open .more { position: sticky; bottom: 0; grid-column: 2 / 4; grid-row: 4; justify-self: end; padding: 0 0 0 8px; background: var(--row-bg); box-shadow: 0 -8px 8px -2px var(--row-bg); }   /* last: row 4 stays empty-height where the why is row 2 */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .reward { grid-column: 2; grid-row: 2; justify-self: start; margin-left: 0; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open { grid-template-columns: auto minmax(0, 1fr); }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .why { grid-column: 2; grid-row: 3; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .more { grid-column: 2; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer.open .reward { grid-column: 2; grid-row: 2; justify-self: start; margin-left: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer.open { grid-template-columns: auto minmax(0, 1fr); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer.open .why { grid-column: 2; grid-row: 3; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #cheer .cheer.open .more { grid-column: 2; }
 @keyframes guidance-open { from { clip-path: inset(0 0 55% 0); } to { clip-path: inset(0); } }
 .goal-strip.one-row.open, #tip .tip-row.open, #cheer .cheer.open { animation: guidance-open 150ms ease-out; }
 body.reduce-motion .goal-strip.one-row.open, body.reduce-motion #tip .tip-row.open, body.reduce-motion #cheer .cheer.open { animation: none; }
@@ -499,16 +503,15 @@ body[data-layout="compact"] #legend .fire-keys .never-burn { position: absolute;
 /* The top bar on a phone at 150% text (section 4 item 8): each number wears its small picture (hud.js) in place of its
    word, which stays for screen readers, and the gaps tighten, so a real city's numbers keep to one row. */
 #topbar .stat .glyph { display: none; }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat { gap: 2px; }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stats { column-gap: 6px; }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
-body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="150"], [data-text-size="200"]) #topbar .stat { gap: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="150"], [data-text-size="200"]) #topbar .stats { column-gap: 6px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="150"], [data-text-size="200"]) #topbar .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="150"], [data-text-size="200"]) #topbar .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
 /* The score chip (section 4 item 9) joins the numbers' flow, right after the date, on a landscape phone (where the bar's
    far end is under ☰ and the rail) and on a portrait phone at 150% text (where one row of numbers leaves it no corner):
    on the numbers' row where it fits, else at the start of the next. */
-body[data-layout="compact"] #topbar .stats, body[data-layout="portrait"][data-text-size="150"] #topbar .stats { padding-bottom: 0; }
-body[data-layout="compact"] #topbar .score-chip, body[data-layout="portrait"][data-text-size="150"] #topbar .score-chip { position: static; line-height: 1.2; }
+body[data-layout="compact"] #topbar .stats, body[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) #topbar .stats { padding-bottom: 0; }
+body[data-layout="compact"] #topbar .score-chip, body[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) #topbar .score-chip { position: static; line-height: 1.2; }
 
 /* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
    gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
@@ -601,9 +604,10 @@ body[data-layout="compact"] #legend .strip.ground > strong.text { flex: 0 0 auto
 body[data-layout="compact"] #legend .strip.ground > .close { order: 3; margin-left: auto; flex: 0 0 auto; }
 body[data-layout="compact"] #legend .strip.ground .ground-keys { flex: 1 1 0; min-width: 0; padding-bottom: 0; }
 body[data-layout="compact"] #legend .strip.ground .ground-keys .room { flex-basis: auto; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground .ground-keys .room { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* Large text on a phone: the Ground title and the hills key's rule are for screen readers only (the strip's aria-label still says Ground), so the legend fits the budget under a banner (tests/ui/mobileBudget.test.js). */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground > strong.text, body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground .hills-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Large text on a phone: the Ground title, the room key and the hills key's rule stay for screen readers only (the strip's aria-label still says Ground): the Ground legend shows while a farm is placed, and with its words the ghost's frame and the budget fail (Version 9.2, Track A, ruling 1827; tests/ui/mobileBudget.test.js, tests/v70/p/review.test.js). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground > strong.text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .hills-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-layout="wide"] #legend .strip.ground { display: inline-flex; flex-wrap: wrap; gap: 0 12px; }
 body[data-layout="wide"] #legend .strip.ground > .close { order: 3; }
 body[data-layout="wide"] #legend .strip.ground .ground-keys { padding-bottom: 0; }
@@ -625,21 +629,21 @@ body[data-layout="wide"] #legend .strip.ground .ground-keys .room { flex-basis: 
 .layers-picker .layer.off { grid-column: 1 / -1; justify-content: center; }
 /* Version 6.0 (Track C): a layer the city has not reached yet is greyed (flat, dashed edge, soft ink) and says the rank that unlocks it under its name; the words carry it, not the grey */
 .layers-picker .layer .words { display: flex; flex-direction: column; }
-.layers-picker .layer .lock { font-size: calc(11px * var(--ui-scale)); line-height: 1.1; }
+.layers-picker .layer .lock { font-size: calc(12px * var(--ui-scale)); line-height: 1.1; }   /* Version 9.2 (Track A, ruling 1830): 12 px is the floor (was 11) */
 .layers-picker .layer.locked { background: var(--parchment-2); color: var(--ink-soft); border-style: dashed; box-shadow: none; cursor: default; }
 .layers-picker .layer.locked .hue { opacity: 0.35; }
-.layers-picker .layer.locked .name { font-size: 0.85em; white-space: nowrap; }   /* one line for the name and one for its rank: a locked button is no taller than the others, so the popover stays inside the screen */
-body:is([data-text-size="125"], [data-text-size="150"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.layers-picker .layer.locked .name { font-size: calc(12px * var(--ui-scale)); white-space: nowrap; }   /* one line for the name and one for its rank: a locked button is no taller than the others, so the popover stays inside the screen */
+body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #corners .layers-picker { bottom: calc(100% + 8px); right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
 body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }
 /* The popover stays on the screen: it hangs from the corner row itself (fixed, and as wide as the room the row has: in compact it stops left of the confirm bar
    or the card drawer while one shows), so a tool in compact never pushes it off the screen. On a phone at 125% text or more Off
    takes the last cell beside Ground (nine overlays and Off make five rows of two, not six); held sideways it is as tall as the
    top bar and the corner row leave (five tight rows fit even at 150% text), and the open popover scrolls the current choice into view (layersPicker.js). */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .layers-picker .layer.off { grid-column: auto; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .layers-picker .layer.off { grid-column: auto; }
 body[data-layout="compact"] #corners .layers-picker { gap: 2px; padding: 4px; max-height: calc(100vh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); max-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); overscroll-behavior: contain; }
 /* Stage 4.5 (Health and Crime): twelve choices at 125% or 150% text would need six rows of two, taller than the short screen leaves; a wider popover (it grows leftwards, away from the confirm bar) holds them in four rows of three. */
-body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .layers-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(540px, calc(100% - 16px)); }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #corners .layers-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(540px, calc(100% - 16px)); }
 #panel .layers-row { position: relative; flex: none; padding: 0 8px 8px; }
 #panel .layers-button { width: 100%; font-size: calc(14px * var(--ui-scale)); }
 #panel .layers-button[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
@@ -648,7 +652,7 @@ body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #
 /* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
 body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }
-body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.desire .info { min-height: 5.6em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm.desire .info { min-height: 5.6em; }
 
 /* Difficulty under New city (spec 4.18): three choices on one row where they fit, the chosen level's line beneath. The
    card scrolls rather than clip if a small phone at 150% text cannot hold it all. */
@@ -673,7 +677,11 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
 
 /* ── s3 contract (Track 0) ── Track 0's styles for the contract. Add new rules just above the end marker. */
 /* Screenshot mode (spec 4.19, 6.4): nothing of the interface shows over the map; the screen-reader lines stay. */
-body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; }
+body.screenshot #ui > :not(#live):not(#live-urgent):not(#map-summary):not(#show-interface) { display: none !important; }
+/* Version 9.2 (Track A, ruling 1833): the one thing that stays in screenshot mode, a small pinned "Show interface" button (createUI.js) in the corner, a 44 px target, so the way back is on the page. */
+#show-interface { display: none; }
+body.screenshot #show-interface { display: block; position: fixed; z-index: 40; right: calc(8px + var(--safe-right)); bottom: calc(8px + var(--safe-bottom)); padding: 0 12px; background: var(--parchment); color: var(--ink); border: 1px solid var(--ink-line); border-radius: var(--radius); box-shadow: var(--shadow); font-size: calc(14px * var(--ui-scale)); opacity: 0.85; }
+#show-interface:hover, #show-interface:focus-visible { opacity: 1; }
 /* ── end s3 contract ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
@@ -1013,7 +1021,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
    element's own (expanded or not), not colour. */
 #sheet .help-section > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; }
 #sheet .help-section > summary::-webkit-details-marker { display: none; }
-#sheet .help-section > summary::before { content: '▸'; flex: none; width: 1em; text-align: center; }
+#sheet .help-section > summary::before { content: '▸'; flex: none; width: 1em; text-align: center; font-size: calc(16px * var(--ui-scale)); }   /* Version 9.2 (Track A, ruling 1830): the chevron grows with the text */
 #sheet .help-section[open] > summary::before { content: '▾'; }
 #sheet .help-section > summary h3 { flex: 1 1 auto; margin: 0; }
 /* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
@@ -1059,16 +1067,16 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .forecast .sh
 /* The upkeep line is up to two lines on a 124 px card (a farm's has the ground line besides), so a card gives back a few px to keep every tray inside --dock-tray. */
 .card { gap: 2px; padding: 5px 8px; }
 /* At 125% text and more the card keeps "Costs 46 a month" and leaves "· 10 workers" to screen readers and the tip (a wrapped third line would push the tray past its height). */
-body:is([data-text-size="125"], [data-text-size="150"]) .card .upkeep .crew { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .card .upkeep .crew { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .card .thumb { height: 47px; }
 #confirm .balance { white-space: normal; }
 /* A building with a monthly bill has one more line (its balance): the portrait bar's info keeps its room for it. */
 body[data-layout="portrait"] .confirm.bal .info { min-height: 4.65em; }
-body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.bal .info { min-height: 5.7em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm.bal .info { min-height: 5.7em; }
 body[data-layout="portrait"] .confirm.desire.bal .info { min-height: 5.7em; }
-body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.desire.bal .info { min-height: 6.75em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm.desire.bal .info { min-height: 6.75em; }
 #tip .tip-row .tip-show-me { flex: none; white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .tip-show-me { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #tip .tip-row .tip-show-me { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 /* ── end s45 ── */
 
 /* ── s46 map (Map track) ── the Map track's styles. Add new rules just above the end marker. */
@@ -1143,7 +1151,7 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
 #banner .critical.moment.line .text { overflow: hidden; }
 #banner .critical.moment.line strong { display: block; -webkit-line-clamp: unset; line-clamp: unset; }   /* the headline on its own line, the report's words under it */
 #banner .critical.moment.line .small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* one line of them: Report opens the rest */
-body[data-text-size="150"] #banner .critical.moment.line .small, body[data-layout="compact"] #banner .critical.moment.line .small { display: none; }   /* at the largest text, and on a landscape phone, the headline alone: the height budget */
+body:is([data-text-size="150"], [data-text-size="200"]) #banner .critical.moment.line .small, body[data-layout="compact"] #banner .critical.moment.line .small { display: none; }   /* at the largest text, and on a landscape phone, the headline alone: the height budget */
 #banner.moment-up .critical[data-code="court_letter"] { display: none; }   /* on a phone a letter waits behind the result for the one-line row */
 @keyframes moment-in { from { opacity: 0; } to { opacity: 1; } }
 #banner .critical.moment { animation: moment-in 0.3s ease-out; }
@@ -1215,10 +1223,10 @@ body[data-layout="wide"] .confirm .info { flex: 1 1 100%; }
 
 /* Ruling 407, finding F2: at 125% and 150% text seven category labels do not fit a phone's width ("Monuments" ran off the edge and the words touched).
    The row scrolls sideways instead, from the left, and a fade at the right edge shows there is more; the icons keep their size. */
-body[data-text-size="125"] #dock .cats, body[data-text-size="150"] #dock .cats { justify-content: flex-start; gap: 2px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
-body[data-text-size="125"] #dock .cats::-webkit-scrollbar, body[data-text-size="150"] #dock .cats::-webkit-scrollbar { display: none; }
-body[data-text-size="125"] #dock .cat, body[data-text-size="150"] #dock .cat { flex: 0 0 auto; scroll-snap-align: start; padding: 2px 6px; }
-body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+body[data-text-size="125"] #dock .cats, body:is([data-text-size="150"], [data-text-size="200"]) #dock .cats { justify-content: flex-start; gap: 2px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+body[data-text-size="125"] #dock .cats::-webkit-scrollbar, body:is([data-text-size="150"], [data-text-size="200"]) #dock .cats::-webkit-scrollbar { display: none; }
+body[data-text-size="125"] #dock .cat, body:is([data-text-size="150"], [data-text-size="200"]) #dock .cat { flex: 0 0 auto; scroll-snap-align: start; padding: 2px 6px; }
+body:is([data-text-size="150"], [data-text-size="200"])[data-layout="portrait"] #dock .cats { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
 
 /* Ruling 407, finding F5: the score chip sat on the frieze under the bar; lifted clear of it. */
 #topbar .score-chip { bottom: 6px; }   /* Version 8.0: unchanged (the bar grew by the band's foot, so the chip sits 3 px lower against the numbers and still clears the 6 px band by 1 px) */
@@ -1377,16 +1385,22 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stat { gap: 
 #legend .strip.layer .goods-pick { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0 0 4px; }
 #legend .strip.layer .goods-pick .good { min-width: var(--tap); min-height: var(--tap); padding: 2px 10px; font-size: calc(13px * var(--ui-scale)); line-height: 1.15; }
 #legend .strip.layer .goods-pick .good[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.layer > strong.text,
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.layer .key .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* Goods supply on a phone: the picker is the strip's second row with the x at its end (the name is for screen readers: the Layers button says it and the picked good is pressed),
+/* Version 9.2 (Track A, ruling 1827): at large text the name and each key's words stay, smaller, and wrap; they used to hide for screen readers only. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer > strong.text, body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer .key .text { font-size: calc(12px * min(var(--ui-scale), 1.25)); line-height: 1.2; overflow-wrap: anywhere; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer { row-gap: 0; column-gap: 8px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer .layer-keys { gap: 0 8px; }
+/* Goods supply on a phone: the picker is the strip's second row with the x at its end (Version 9.2, Track A: the name shows, small, ahead of the keys on their row),
    so the strip is the keys' row and the picker's row, nothing taller (tests/v50/layers/budget.test.js: 375x667 under the court banner). */
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply > strong.text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer.supply > strong.text { position: static; width: auto; height: auto; clip: auto; overflow: visible; order: 0; flex: 0 0 auto; font-size: calc(12px * min(var(--ui-scale), 1.25)); line-height: 1.2; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply { padding-top: 2px; padding-bottom: 2px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .layer-keys { order: 1; flex: 1 1 100%; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer.supply .layer-keys { flex: 1 1 0; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick { order: 2; flex: 1 1 0; min-width: 0; padding-bottom: 0; gap: 3px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer.supply .goods-pick { order: 3; flex: 1 1 100%; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick .good { padding: 2px 4px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .close { order: 3; flex: 0 0 auto; margin-left: 0; align-self: flex-start; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.layer.supply .close { order: 2; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick .good { font-size: calc(13px * min(var(--ui-scale), 1.15)); }   /* at 150% the five goods stay one row beside the x (as the Done button's cap) */
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply { column-gap: 2px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .close { padding: 0; min-width: var(--tap); width: var(--tap); }
@@ -1441,12 +1455,12 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .why { displa
 body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .body { display: block; overflow: visible; padding-bottom: 14px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .why { display: block; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open { max-height: calc(var(--guidance-max, 40vh)); overflow-y: auto; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson { padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .text { font-size: calc(14px * var(--ui-scale)); }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .body { padding: 2px 0; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson button { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
-body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).has-banner:not(.lesson-names-alert) #lesson { display: none; }   /* ruling 172: the alert has the one row... */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson { padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson .body { padding: 2px 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson .label { font-size: calc(12px * min(var(--ui-scale), 1.25)); line-height: 1.2; }   /* Version 9.2 (Track A, ruling 1827): the word stays */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson button { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]).has-banner:not(.lesson-names-alert) #lesson { display: none; }   /* ruling 172: the alert has the one row... */
 /* ...unless the step is the alert's own (the fire, the raid warning, the raid): the row carries what the alert says (who, how many, how long, what to build), so the alert's
    line goes, on every screen, and the row stays: one guidance panel at a time, never the row hidden in the steps that matter most (src/ui/v60/lesson.js NAMES_ALERT). */
 body.lesson-names-alert #banner > .critical:is([data-code="fire"], [data-code="raid_warning"], [data-code="raid"]) { display: none; }
@@ -1532,13 +1546,12 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 #topbar .stat.date { display: grid; grid-auto-flow: column; justify-content: start; align-items: center; column-gap: 3px; }
 #topbar .stat.date .season { grid-column: 1 / span 2; grid-row: 2; width: 0; overflow: visible; justify-self: end; direction: rtl; font-size: calc(12px * var(--ui-scale)); line-height: 1.2; color: var(--ink-soft); white-space: nowrap; }
 /* A portrait phone at 100% or 125% text keeps the score chip at the lower right, absolute (line 743), under the date: the season stands on that line to the chip's left. */
-body[data-layout="portrait"]:not([data-text-size="150"]) #topbar .stats:not(.tight) .stat.date .season { position: absolute; right: calc(4px + var(--chip-w, 0px) + 8px); bottom: 6px; grid-area: auto; width: auto; direction: ltr; line-height: 1; }
+body[data-layout="portrait"]:not(:is([data-text-size="150"], [data-text-size="200"])) #topbar .stats:not(.tight) .stat.date .season { position: absolute; right: calc(4px + var(--chip-w, 0px) + 8px); bottom: 6px; grid-area: auto; width: auto; direction: ltr; line-height: 1; }
 #topbar .stats.tight .stat.date .season { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 /* Wave 3 (ruling 994): a phone's numbers that overflow the bar at 100% or 125% text (a five-digit treasury; hud.js sets .iconic) use the 150% text's small pictures in place of their words, which stay for screen readers. */
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat { gap: 2px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
-body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* Settings: the Sound switch's note and the Day and night note sit under their rows like the other notes; the Effects volume is the Music volume's row. */
 #sheet .sound-note, #sheet .daynight-note { margin: 2px 0 6px; }
 /* While Sound is Off the Music and Effects rows are dimmed (menu.js); they stay real controls, and the note says why. Wave 3 (ruling 998): in ink-soft words with a dashed edge, not opacity, which left live controls at 3.5:1. */
@@ -1578,18 +1591,18 @@ body[data-layout="compact"] .lesson-card .lc-actions { grid-column: 2; grid-row:
 body[data-layout="compact"] .lesson-card .lc-pic { display: none; }
 body[data-layout="compact"] .lesson-card :is(.lc-words, .lc-beat) { font-size: calc(16px * var(--ui-scale)); }
 body[data-layout="wide"] .lesson-card { width: min(100%, 460px); padding: 18px 20px; }
-body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .lesson-card :is(.lc-words, .lc-beat) { font-size: calc(16px * var(--ui-scale)); }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .lesson-card :is(.lc-words, .lc-beat) { font-size: calc(16px * var(--ui-scale)); }
 /* The placing bar's reason line (ruling 1008, src/ui/placementWhy.js): every rule that fails with its counts, or what a building needs; two lines on a phone (the chips under it
    say the rest), the whole sentence on a wide screen, and the room for two lines kept in portrait so the bar never bobs as the ghost moves. */
 .confirm .info .why { font-size: calc(12px * var(--ui-scale)); }
 body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .info .why { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 body[data-layout="portrait"] .confirm .info .why { min-height: calc(2 * 1.4 * 12px * var(--ui-scale)); }
 /* At large text a phone's bar has no line to spare (UX rule 2): one line, and the chips under it name each rule that fails. */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { -webkit-line-clamp: 1; line-clamp: 1; }
-body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { min-height: calc(1.4 * 12px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm .info .why { -webkit-line-clamp: 1; line-clamp: 1; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm .info .why { min-height: calc(1.4 * 12px * var(--ui-scale)); }
 /* A phone held sideways at large text has no room for it at all: the drawer is as tall as the screen's column, and the name and cost line were cut off above it in the coral and
    amber states (667x375 at 150%). The line stays in the page, hidden, as the older reason line does when a chip repeats it; the chips under the words name each rule that fails. */
-body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { display: none; }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .confirm .info .why { display: none; }
 /* And the drawer never grows past its column (the same room the card drawer and a sheet have, from under the top bar down): a refused farm at 150% text (a three-line chip, two more
    chips, Show me) is 428 px at 667x375, so the drawer's own body scrolls from its top, where the name, the cost and the buttons are. #confirm spans the column (its empty part
    lets the map's taps through) and the bar sits at its foot, as tall as its words need up to that. */

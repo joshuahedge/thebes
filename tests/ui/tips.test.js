@@ -559,7 +559,7 @@ describe('ui tips', () => {
       expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     } finally { r.cleanup(); }
   });
-  it('in the game: on a phone every tip is two lines at most on screen, whole in the live region, with the Tip label kept for screen readers only at larger text', async () => {
+  it('in the game: on a phone every tip is two lines at most on screen, whole in the live region, with the Tip label kept on screen, small, at larger text (9.2, Track A)', async () => {
     const worst = [];
     for (const [w, h] of [[360, 640], [390, 844], [740, 360]]) {
       for (const size of [100, 125, 150]) {
@@ -582,7 +582,8 @@ describe('ui tips', () => {
             if (size > 100) {
               expect(parseFloat(getComputedStyle(text).fontSize)).toBeLessThan(16 * size / 100);   // 14 px scaled, not the body size
               expect(label.textContent).toBe(T.tip);                           // still in the live region
-              expect(label.getBoundingClientRect().width).toBeLessThan(2);     // but not on screen
+              expect(label.getBoundingClientRect().width).toBeGreaterThan(8);   // 9.2 (Track A, ruling 1827): and on screen too, at 12 px or more
+              expect(parseFloat(getComputedStyle(label).fontSize)).toBeGreaterThanOrEqual(12);
             }
             expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(w);
             expect(row.querySelector('.got-it').getBoundingClientRect().height).toBeGreaterThanOrEqual(44);

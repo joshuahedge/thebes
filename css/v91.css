@@ -14,7 +14,7 @@ body[data-layout="compact"] .v91-error { left: auto; top: 0; right: 0; bottom: 0
 .v91-why { margin: 4px 0 0; color: var(--ink-soft); }
 .v91-status { min-height: 1.4em; margin: 4px 0; }
 .v91-details summary { display: flex; align-items: center; min-height: var(--tap); cursor: pointer; }
-.v91-details-text { margin: 0 0 4px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px / 1.4 ui-monospace, Menlo, Consolas, monospace; background: var(--parchment-2); border-radius: 8px; user-select: text; -webkit-user-select: text; }
+.v91-details-text { margin: 0 0 4px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: calc(12px * var(--ui-scale, 1)) / 1.4 ui-monospace, Menlo, Consolas, monospace; background: var(--parchment-2); border-radius: 8px; user-select: text; -webkit-user-select: text; }
 
 /* Back to gold (Track R, design 3c): the figures, the three costliest buildings each with Pause, the months, the limit and the levers each with Show me. A row's words take
    the room and its one button keeps its 44 px; at 150% text on a narrow phone the button drops under the words. */

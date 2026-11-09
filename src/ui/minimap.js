@@ -6,6 +6,7 @@ import { TERRAIN, UI, INK } from '../render/art/palette.js';
 import { hasNewLand } from '../data/s47.js';
 import { allBuildings, isMonument } from '../sim/world.js';
 import { screenToTile } from '../render/camera.js';
+import { A92_TEXT } from './text.js';
 import * as monumentArt from '../render/monuments.js';   // Track B's minimapGlyph, once it is there (a namespace import never fails)
 
 // Stage 4 (Track C, spec 5.7): a monument on the minimap is Track B's glyph (render/monuments.js minimapGlyph(ctx, b, scale), drawn
@@ -66,7 +67,7 @@ export function minimapPins(world, alerts = []) {
 const shownBy = new WeakMap();   // world -> { cam, view }
 export const cameraOf = (world) => (world && shownBy.get(world)) || null;
 
-export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
+export function createMinimap({ world, cam, view, size = 160, dpr = 1, onMove = null }) {
   if (cam && view) shownBy.set(world, { cam, view });
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(size * dpr);
@@ -74,6 +75,20 @@ export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
   canvas.style.width = `${size}px`;
   canvas.style.height = `${size}px`;
   canvas.className = 'minimap-canvas';
+  // Version 9.2 (Track A, ruling 1831): the minimap is a control, not a picture: a role, a name, a way in with Tab and the arrow keys (each step is a sixteenth of the city; onMove(x, y) pans the view there).
+  canvas.setAttribute('role', 'application');
+  canvas.setAttribute('aria-label', A92_TEXT.minimapLabel);
+  canvas.setAttribute('aria-description', A92_TEXT.minimapHelp);
+  canvas.tabIndex = 0;
+  const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  canvas.addEventListener('keydown', (e) => {
+    const d = ARROWS[e.key];
+    if (!d || typeof onMove !== 'function' || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault(); e.stopPropagation();
+    const step = Math.max(2, Math.round(world.size / 16));
+    const clamp = (v) => Math.max(0, Math.min(world.size - 1, v));
+    onMove(clamp(cam.x + d[0] * step) + 0.5, clamp(cam.y + d[1] * step) + 0.5);
+  });
   const ctx = canvas.getContext('2d');
   const scale = (size * dpr) / world.size;
 

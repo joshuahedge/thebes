@@ -92,11 +92,11 @@ describe('v80 n placing: one primary in every bar', () => {
       const neutral = ['.flip', '.undo', '.cancel', '.route-pick[aria-pressed="true"]'].map((sel) => r.root.querySelector(`#confirm ${sel}`));
       expect(neutral.every(Boolean)).toBe(true);
       for (const b of neutral) {
-        expect([b.className, b.classList.contains('primary'), b.classList.contains('danger'), rgb(b) === lapis, rgb(b) === 'rgb(31, 111, 102)']).toEqual([b.className, false, false, false, false]);
+        expect([b.className, b.classList.contains('primary'), b.classList.contains('danger'), rgb(b) === lapis, rgb(b) === 'rgb(26, 95, 87)']).toEqual([b.className, false, false, false, false]);
       }
       const straight = r.root.querySelector('#confirm .route-pick[aria-pressed="true"]');
       expect([straight.dataset.shape, straight.textContent.startsWith('✓')]).toEqual(['straight', true]);   // the tick in its words and its outline: the cue is never colour alone
-      expect([rgb(straight), rgb(straight, 'boxShadow').includes('rgb(31, 111, 102)')]).toEqual([PARCHMENT, true]);   // the quiet teal ring (8.0 integration, ruling 1175)
+      expect([rgb(straight), rgb(straight, 'boxShadow').includes('rgb(26, 95, 87)')]).toEqual([PARCHMENT, true]);   // the quiet teal ring (8.0 integration, ruling 1175)
       for (const b of [...neutral, ok]) { const q = b.getBoundingClientRect(); expect([b.className, q.width >= 44 - 0.5, q.height >= 44 - 0.5]).toEqual([b.className, true, true]); }
       expect(r.root.querySelector('#confirm .flip').getAttribute('aria-label')).toBe(T.flip);
     } finally { r.cleanup(); }
@@ -111,7 +111,7 @@ describe('v80 n placing: one primary in every bar', () => {
       r.frame(0);
       const picked = [...r.root.querySelectorAll('#confirm [aria-pressed="true"]')];
       expect(picked.length).toBeGreaterThan(0);
-      for (const b of picked) expect([b.className, rgb(b) === 'rgb(31, 111, 102)']).toEqual([b.className, false]);
+      for (const b of picked) expect([b.className, rgb(b) === 'rgb(26, 95, 87)']).toEqual([b.className, false]);
     } finally { r.cleanup(); }
   });
 

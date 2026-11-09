@@ -5,6 +5,7 @@ import { alertText, T } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
+const said = (live) => live.textContent + ((live.parentNode && live.parentNode.querySelector('#live-urgent')) || { textContent: '' }).textContent;   // Version 9.2 (Track A, ruling 1832): a critical is said in #live-urgent, the rest in #live
 function rig() {
   const { root, cleanup } = mount('<div id="banner"></div><p id="live"></p>');
   const world = makeTestWorld({ gold: 1000 });
@@ -38,7 +39,7 @@ describe('ui alerts', () => {
     expect(a.count()).toBe(1);
     expect(a.critical().length).toBe(0);
     expect(r.root.classList.contains('has-banner')).toBe(false);
-    expect(r.live.textContent).toContain(alertText(alerts[0], r.world).title);
+    expect(said(r.live)).toContain(alertText(alerts[0], r.world).title);
     r.live.textContent = 'unchanged';
     a.refresh();
     expect(r.live.textContent).toBe('unchanged');           // same alerts: nothing new to announce
@@ -49,7 +50,7 @@ describe('ui alerts', () => {
     expect(row.textContent).toContain(alertText({ code: 'debt' }, r.world).title);
     expect(a.count()).toBe(1);
     expect(a.list().length).toBe(2);
-    expect(r.live.textContent).toContain('2 alerts');
+    expect(said(r.live)).toContain('2 alerts');
     expect(row.querySelector('.view').getAttribute('aria-label')).toBe(`${T.view}: ${alertText({ code: 'debt' }, r.world).title}`);
     fire(row.querySelector('.view'), 'click');
     expect(seen).toEqual(['debt']);
@@ -66,7 +67,7 @@ describe('ui alerts', () => {
     a.refresh();
     expect(r.root.classList.contains('has-banner')).toBe(false);
     expect(r.banner.children.length).toBe(0);
-    expect(r.live.textContent).toBe(T.noAlerts);
+    expect(said(r.live)).toBe(T.noAlerts);
     r.cleanup();
   });
   it('keeps "N plots have no road" in the warning tier: it counts in the Map badge and never takes the banner (placement review P13)', () => {
@@ -84,12 +85,12 @@ describe('ui alerts', () => {
     phone = true;
     ui.refresh();
     expect(ui.count()).toBe(2);
-    expect(r.live.textContent).toContain('2 plots have no road');
+    expect(said(r.live)).toContain('2 plots have no road');
     r.live.textContent = 'unchanged';
     const c = addRaw(r.world, 'house', 24, 20);
     alerts = alertsFor(r.world);                                                       // one more plot: "3 plots", announced again
     ui.refresh();
-    expect(r.live.textContent).toContain('3 plots have no road');
+    expect(said(r.live)).toContain('3 plots have no road');
     expect(c.id).toBeGreaterThan(b.id);
     r.cleanup();
   });
