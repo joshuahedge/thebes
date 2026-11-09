@@ -27,8 +27,9 @@ describe('v80 u options: four groups, smaller rows, the version at the foot', ()
     const r = sheet({ exportCity() {} });
     try {
       const groups = [...r.body.querySelectorAll('.options-group')];
-      expect(groups.map((g) => g.querySelector('h3').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Help', 'Saves']);
-      for (const g of groups) expect([g.className, document.getElementById(g.getAttribute('aria-labelledby')) === g.querySelector('h3')]).toEqual([g.className, true]);
+      // fix wave (ruling 1879): the words are the summary's own (a summary flattens an h3 inside it), and the details is a group labelled by it
+      expect(groups.map((g) => g.querySelector('summary').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Help', 'Saves']);
+      for (const g of groups) expect([g.className, document.getElementById(g.getAttribute('aria-labelledby')) === g.querySelector('summary')]).toEqual([g.className, true]);
       const has = (g, sel) => Boolean(groups[g].querySelector(sel));
       expect([has(0, '.switch.sound'), has(0, '.switch.music'), has(0, '.music-volume:not(.effects-volume)'), has(0, '.effects-volume')]).toEqual([true, true, true, true]);
       expect([has(1, '.choice.textSize'), has(1, '.switch.dayNight')]).toEqual([true, true]);

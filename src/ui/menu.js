@@ -147,7 +147,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     // Version 8.0 (Track U, ruling 1149): the rows sit under four small headings, Sound, Display, Controls and Saves (each a labelled group), so the sheet reads as
     // four short lists instead of one long one.
     // Version 9.2 (Track Q, ruling 1792): each is a collapsible section (a details, its heading in the summary), open to begin with; Help has its own, and About is last.
-    const group = (key, name, ...rows) => el('details', { class: `options-group ${key}`, open: true, 'aria-labelledby': `options-${key}` }, [el('summary', {}, [el('h3', { id: `options-${key}`, text: name })]), ...rows]);
+    const group = (key, name, ...rows) => el('details', { class: `options-group ${key}`, open: true, role: 'group', 'aria-labelledby': `options-${key}` }, [el('summary', { class: 'options-heading', id: `options-${key}`, text: name }), ...rows]);   // Version 9.2 (fix wave, ruling 1879): a summary's button role flattens an h3 inside it, so the plain words sit in the summary and the section is a labelled group
     // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
     // is back on); the note under them says why in words.
     const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
@@ -263,17 +263,27 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
 export function createDialog({ container, store }) {
   container.setAttribute('aria-labelledby', 'dialog-text');
   let shown = null, opener = null;
+  // Version 9.2 (fix wave, Track A, ruling 1875): a confirm opened from a sheet re-renders that sheet, so the opener is a node that is gone by the time the dialog closes. The opener is kept
+  // with where it sat (its nearest container with an id), its class and its words, and a dead one is found again by those.
+  const describe = (a) => { const scope = a.closest ? a.closest('[id]') : null; return { node: a, scope: scope ? scope.id : null, cls: a.className, text: a.textContent }; };
+  const successor = (o) => {
+    if (o.node.isConnected) return o.node;
+    const within = o.scope ? document.getElementById(o.scope) : null;
+    if (!within || container.contains(within)) return null;
+    const live = [...within.querySelectorAll('button')].filter((b) => !b.disabled);
+    return live.find((b) => b.className === o.cls && b.textContent === o.text) || live.find((b) => b.className === o.cls) || null;
+  };
   function render() {
     const d = store.get().confirmDialog;
     if (d && d === shown && !container.hidden) return;   // the same question, still asked: leave its focus alone
     clear(container);
     if (!d) {
-      const back = opener;
+      const back = opener ? successor(opener) : null;
       shown = null; opener = null; container.hidden = true;
-      if (back && back.isConnected && typeof back.focus === 'function' && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
+      if (back && typeof back.focus === 'function' && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
       return;
     }
-    if (!shown) { const a = document.activeElement; opener = a && a !== document.body && !container.contains(a) ? a : null; }
+    if (!shown) { const a = document.activeElement; opener = a && a !== document.body && !container.contains(a) ? describe(a) : null; }
     shown = d;
     const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
     const extra = d.extraLabel ? button(d.extraLabel, { class: 'extra', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onExtra === 'function') d.onExtra(); } }) : null;
@@ -283,15 +293,18 @@ export function createDialog({ container, store }) {
     cancel.focus();
   }
   // Tab never leaves the dialog while it is up, wherever focus was (a click on the backdrop leaves it on the page).
-  document.addEventListener('keydown', (e) => {
+  const trap = (e) => {
     if (e.key !== 'Tab' || !shown || container.hidden || !container.isConnected || e.defaultPrevented) return;
     const list = [...container.querySelectorAll('button:not([disabled])')];
     if (!list.length) return;
     const at = list.indexOf(document.activeElement);
     e.preventDefault();
     list[e.shiftKey ? (at <= 0 ? list.length - 1 : at - 1) : (at < 0 || at === list.length - 1 ? 0 : at + 1)].focus();
-  }, true);
+  };
+  document.addEventListener('keydown', trap, true);
   render();
-  store.subscribe(render);
-  return { render };
+  const unsubscribe = store.subscribe(render);
+  // Version 9.2 (fix wave, Track A, ruling 1879): the interface that made the dialog takes its document listener (and its store subscription) away when it is destroyed.
+  const destroy = () => { document.removeEventListener('keydown', trap, true); if (typeof unsubscribe === 'function') unsubscribe(); };
+  return { render, destroy };
 }
