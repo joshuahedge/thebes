@@ -40,9 +40,9 @@ export const MARKER = {
                   // count badge, as a cluster of identical warnings says no more than its count (art-direction review 3)
   ring: 2,        // the footprint ring's width, CSS px (a problem's; a warning's is half as wide and has no halo)
   wash: 0.12,     // the footprint wash's strength (a problem's; a warning's is half as strong)
-  haloAlpha: 0.4, // Version 9.2 (Track Q, ruling 1778): the ring's white halo, lighter at every zoom (it was 0.75: a red tide of white-edged rings in a big city)
+  haloAlpha: 0.4, // Version 9.2 (Track Q, ruling 1780): the ring's white halo, lighter at every zoom (it was 0.75: a red tide of white-edged rings in a big city)
   halo: 1.0,      // and its extra width, CSS px (it was 1.6)
-  // Version 9.2 (Track Q, ruling 1778): from this zoom out (the plots' own far zoom, CROWD.zoom) a tile is 38 px or less across and a badge with its halo and gap 29, so badges of one cause
+  // Version 9.2 (Track Q, ruling 1779): from this zoom out (the plots' own far zoom, CROWD.zoom) a tile is 38 px or less across and a badge with its halo and gap 29, so badges of one cause
   // run into one another along a street: there is one badge per rolled-up row (src/sim/alerts.js rollUpAlerts), on that row's frontmost building in view, and no footprint rings.
   // (The design's "a badge wider than a tile" never holds inside the camera's 0.5 to 2: a tile is 32 to 128 px, a badge 22.)
   farZoom: 0.6,

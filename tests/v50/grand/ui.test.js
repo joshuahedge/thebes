@@ -24,7 +24,7 @@ describe('v50 grand ui: the next step names the decoration and its tile', () => 
     const step = nextStep(w, home);
     const f = step.fix;
     const words = stepWords(w, home, step);
-    expect(words.text).toBe(`${STEP_LABELS.next} a ${buildingName(f.item).toLowerCase()} ${STEP_TEXT.spot(f.dist)} (${costOf(w, f.item)} gold) raises its desirability from ${houseDesirability(w, home)} to ${f.to} (it needs ${TIERS[8].desirability.rise})`);
+    expect(words.text).toBe(`${STEP_LABELS.next} a ${buildingName(f.item).toLowerCase()} ${STEP_TEXT.spot(f.dist)} (${costOf(w, f.item)} gold) raises its pleasantness from ${houseDesirability(w, home)} to ${f.to} (it needs ${TIERS[8].desirability.rise})`);
     expect(words.action.build).toEqual({ category: 'homes', item: f.item, x: f.target.x, y: f.target.y });
     const item = cityAdvice(w).find((a) => a.kind === 'home_need' && a.data.need === 'desirability');
     expect(adviceWords(item, w).fix).toBe(ADVICE_TEXT.decor(f, 1));
@@ -67,8 +67,8 @@ describe('v50 grand ui: the next step names the decoration and its tile', () => 
       await flush();
       expect(r.root.querySelector('#sheet .checklist li[data-need="desirability"] .fix .small').textContent).toContain(`more than the ${w.gold} you have`);
     } finally { r.cleanup(); }
-    expect(STEP_TEXT.lifts(-5, 3.2, 35)).toBe('raises its desirability from −5 to 3 (it needs 35)');
-    expect(ADVICE_TEXT.decor({ item: 'statue', dist: 2, from: -12, to: -4, needs: 35 }, 1)).toBe('Place a statue 2 tiles from it: it raises its desirability from −12 to −4 (it needs 35)');
+    expect(STEP_TEXT.lifts(-5, 3.2, 35)).toBe('raises its pleasantness from −5 to 3 (it needs 35)');
+    expect(ADVICE_TEXT.decor({ item: 'statue', dist: 2, from: -12, to: -4, needs: 35 }, 1)).toBe('Place a statue 2 tiles from it: it raises its pleasantness from −12 to −4 (it needs 35)');
   });
 
   it('names a hunting lodge by the nearest herd for a third food, and the tip says what a Villa and an Estate want', () => {

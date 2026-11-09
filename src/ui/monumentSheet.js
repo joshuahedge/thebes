@@ -507,14 +507,18 @@ export function createMonumentUi(ctx) {
   if (store && typeof store.subscribe === 'function') store.subscribe((s) => openSite(s.selectedId));
   function quietSites() {
     if (store) openSite(store.get().selectedId);
+    const due = [];
     for (const b of allBuildings(world)) {
       if (!isSite(b)) { quiet.delete(b.id); continue; }
       const q = quiet.get(b.id);
       if (!q) { quiet.set(b.id, { seen: world.day, told: false }); continue; }
       if (q.told || world.day - q.seen < DAYS_PER_MONTH || !ctx.celebrations) continue;
       q.told = true;
-      ctx.celebrations.show({ tier: 'first', text: S92_S_TEXT.siteQuiet(b.type, Math.floor(monumentsSim.siteProgress(b).done * 100)), why: S92_S_TEXT.siteQuietWhy });
+      due.push(b);
     }
+    // Ruling 1881: several sites due at one month end get one caption naming the count, not one caption each.
+    if (due.length === 1) ctx.celebrations.show({ tier: 'first', text: S92_S_TEXT.siteQuiet(due[0].type, Math.floor(monumentsSim.siteProgress(due[0]).done * 100)), why: S92_S_TEXT.siteQuietWhy });
+    else if (due.length > 1) ctx.celebrations.show({ tier: 'first', text: S92_S_TEXT.siteQuietMany(due.length), why: S92_S_TEXT.siteQuietWhy });
   }
 
   return {
