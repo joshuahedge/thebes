@@ -504,8 +504,24 @@ function drawHomeRisk(g, world, range, kind) {
   byBand.forEach((polys, k) => g.polys(polys, hue, { alpha: FIRE_ALPHA[k] }));
   g.hatchPolys(byBand[2], hue, { fill: 0, line: 0.6, gap: 5 });
   if (byBand[3].length) g.polys(byBand[3], crossHatch(g, hue, 3));
+  if (kind === 'health') {
+    // Version 9.2 (Track V, ruling 1849): the Health layer speaks the line language of the layers beside it (the band's tint and hatching, Workers' and Supply's edges) instead of a ring or dot on
+    // every home: a home a staffed physician reaches has its footprint edged in a solid line, a home none reaches in a dashed one, so the cover reads from the shape and not the colour. (Hatching
+    // stays the band's: High and above, as the legend says; a hatch for "no cover" would have hatched every home of a young city.)
+    const edged = [], bare = [];
+    for (const m of marks) (m.has ? edged : bare).push(...foot(m));
+    g.polys(edged, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.7 });
+    g.polys(edged, 'none', { stroke: hue, strokeWidth: 1.4 });
+    if (bare.length) {
+      g.polys(bare, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.7 });
+      g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+      g.polys(bare, 'none', { stroke: hue, strokeWidth: 1.4 });
+      g.ctx.setLineDash([]);
+    }
+    drawPlague(g, world, range);   // Version 6.0 (Track B1, ruling 686): a sick home's heavy ring, a quarantined district's dashed edge
+    return;
+  }
   for (const m of marks) mark(g, m, hue);
-  if (kind === 'health') drawPlague(g, world, range);   // Version 6.0 (Track B1, ruling 686): a sick home's heavy ring, a quarantined district's dashed edge
 }
 
 // The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on

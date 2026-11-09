@@ -78,6 +78,7 @@ export const KEYS = {
   panDown: ['ArrowDown', 's', 'S'],
   rotate: ['r', 'R'],
   minimap: ['m', 'M'],
+  frame: ['f', 'F'],   // Version 9.2 (Track V, ruling 1851): fit the built area to the screen (the Map button's double tap does the same)
   overlay: ['o', 'O'],
   confirm: ['Enter'],
   back: ['Escape'],

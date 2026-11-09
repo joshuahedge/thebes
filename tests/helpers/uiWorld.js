@@ -95,10 +95,10 @@ export function fakeDoc() {
 // The whole interface on the mounted shell, with the window-facing parts injected: size, resize source,
 // history, keyboard target and storage. `root` is document.body so the stylesheet's body[data-...] rules apply.
 // `world` (default uiWorld()) and `settings` (default: the interface makes its own) can be handed in.
-export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null, sfx = null, clock = undefined, now = () => 0, world = uiWorld(), settings = null } = {}) {
+export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null, sfx = null, clock = undefined, now = () => 0, world = uiWorld(), settings = null, cam: givenCam = null } = {}) {
   const shell = await mountShell(width, height);
   const canvas = shell.root.querySelector('#map');
-  const cam = createCamera({ x: 12, y: 10, zoom: 1 });
+  const cam = givenCam || createCamera({ x: 12, y: 10, zoom: 1 });   // Version 9.2 (Track V): a test may start the camera elsewhere (on the world's focus, to see a city open framed)
   const renderer = createRenderer({ canvas, dpr: 1 });
   let size = { width, height };
   const resizeListeners = [];

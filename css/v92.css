@@ -20,3 +20,10 @@
 .sealed-card p { margin: 0; }
 .ruler-row .cartouche { grid-column: 1 / -1; }
 .ruler-row .cartouche-ruler { font-size: calc(16px * var(--ui-scale)); }
+
+/* Version 9.2, Track V (rulings 1845-1854): the score chip's medal (src/ui/v81/statIcons.js scoreIcon): ribbon tails over a round medal with a gold star. */
+.stat-icon.score .ribbon { fill: var(--terracotta); stroke: var(--ink); stroke-width: 1; }
+.stat-icon.score .star { fill: var(--gold); stroke: var(--ink); stroke-width: 0.8; }
+/* Ruling 1854: a long ruler name and its number wrap, balanced over two lines, instead of ending in an ellipsis that hid the end of the name and the number (seen at 375x667 and 150% text on the
+   sealed-ruler card: "Neferkaure Amen..."). A name of one long word breaks where it must; the full name is still the heading's title. */
+.cartouche-ruler { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; text-wrap: balance; }

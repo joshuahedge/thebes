@@ -30,7 +30,7 @@ import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_
 import { createBackStack } from './backstack.js';
 import { createSettings, gentleTipDue } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
-import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
+import { createCameraControl, FRAME_MARGIN_PX, cityBounds, boundsOutside } from './cameraControl.js';
 import { ART } from '../render/art/registry.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
@@ -204,6 +204,7 @@ export function createUI({
   // whenever the start area lies east of the road: the Great oasis and seven river layouts, by seed). A view that already holds both does not move. The margin keeps the
   // whole ringed tile and a little of the road in sight (a tile is 64 px wide at the opening zoom).
   const OPEN_ROAD_MARGIN_PX = 96;
+  const openedAtFocus = Boolean(world.focus) && !hooks.lessonRun && cam.x === world.focus.x && cam.y === world.focus.y;   // Version 9.2 (Track V): a camera a test or a caller placed elsewhere is never reframed, nor the lesson's (it frames each step's own target)
   if (world.focus && Array.isArray(world.startRoad) && world.startRoad.length && cam.x === world.focus.x && cam.y === world.focus.y) {
     const f = world.focus, end = world.startRoad.reduce((a, t) => (Math.hypot(t[0] - f.x, t[1] - f.y) < Math.hypot(a[0] - f.x, a[1] - f.y) ? t : a));
     cameraControl.keepVisible(end[0] + 0.5, end[1] + 0.5, undefined, OPEN_ROAD_MARGIN_PX, 0);
@@ -276,7 +277,7 @@ export function createUI({
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, layers: trayLayers });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });
-  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, onFrame: () => frameCity(), pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
   // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
   const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', 'M'); else b.removeAttribute('aria-keyshortcuts'); } };
   mapKeyHint();
@@ -917,7 +918,15 @@ export function createUI({
     },
   };
 
+  // Version 9.2 (Track V, ruling 1850): frame the city: the built area fitted to the map the panel, bars and tray leave free (zooming out to it where it is bigger, never in past the opening zoom).
+  const frameInsets = (s) => (s.layout === 'portrait' ? phoneInsets(s, { right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 }) : sheetInsets(s));
+  function frameCity(extra = [], ms = undefined) {
+    const bounds = cityBounds(world, extra);
+    if (!bounds) return false;
+    return cameraControl.frameCity(bounds, frameInsets(store.get()), FRAME_MARGIN_PX, ms);
+  }
   const keyActions = {
+    frame: () => { frameCity(); },
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
     category: (i) => {                                 // keys 1-7 keep their categories; one with no card to show does nothing (early-game pass 2.5, spec 4.14)
       const c = CATEGORIES[i];
@@ -1284,6 +1293,12 @@ export function createUI({
     nudgeLine.hidden = !text;
   }
 
+  // Version 9.2 (Track V, ruling 1852): a city opens framed on itself. When the built area and the start area do not all show at the opening zoom (an heir's first screen, a saved city whose
+  // streets reach past the screen), the camera fits them at once instead of opening on sand; a view that already holds them does not move (the start-road nudge above stands).
+  if (openedAtFocus && view().width > 0 && view().height > 0) {
+    const extra = [[world.focus.x, world.focus.y]], opening = cityBounds(world, extra), ins = frameInsets(store.get());
+    if (opening && boundsOutside(cam, view(), opening, { insets: ins, margin: FRAME_MARGIN_PX })) frameCity(extra, 0);
+  }
   syncDaily();
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));

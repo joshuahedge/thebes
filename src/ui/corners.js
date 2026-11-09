@@ -5,6 +5,7 @@
 import { el, iconButton, setText } from './components.js';
 import { T, plural, layersText, OVERLAY_NAMES } from './text.js';
 import { isToolMode } from './modes.js';
+import { DOUBLE_TAP_MS } from '../data/ui.js';
 
 // An icon button with its word underneath. The aria-label leads with the same word, so the name matches the label.
 function labelled(label, glyph, props) {
@@ -19,10 +20,19 @@ function labelled(label, glyph, props) {
 // 125% text and more that edge is above the middle of the map, where nothing may float (spec 6.3, ruling 173), so then
 // they step out of sight (the class "over-half": visibility hidden, which keeps their place so they can be measured again)
 // until the tray closes. A tool, a wide screen or a compact one never hides them this way.
-export function createCorners({ container, store, speedControl, onMinimap, onOverlay, pickerNode = null, alertCount = () => 0, viewHeight = () => 0 }) {
+export function createCorners({ container, store, speedControl, onMinimap, onOverlay, onFrame = null, pickerNode = null, alertCount = () => 0, viewHeight = () => 0 }) {
   const left = el('div', { class: 'group left' });
   speedControl.mountCorner(left);
-  const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', 'data-lock': 'minimap', onClick: onMinimap });
+  // Version 9.2 (Track V, ruling 1850): a second tap on the Map button within DOUBLE_TAP_MS frames the city (onFrame). The first tap has opened the Minimap, so the second closes it again
+  // (the sheet is as it was) and then frames. The F key does the same without a double tap (keyboard.js).
+  let lastTap = -Infinity;
+  const tapMap = (ev) => {
+    const t = ev && Number.isFinite(ev.timeStamp) ? ev.timeStamp : 0;
+    if (onFrame && t > 0 && t - lastTap <= DOUBLE_TAP_MS) { lastTap = -Infinity; onMinimap(); onFrame(); return; }
+    lastTap = t;
+    onMinimap();
+  };
+  const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', 'data-lock': 'minimap', onClick: tapMap });
   const badge = el('span', { class: 'badge', hidden: true });
   map.b.append(badge);
   const layers = labelled(T.layers, '◑', { class: 'overlay-button', 'aria-pressed': 'false', 'data-lock': 'layers', onClick: onOverlay });
