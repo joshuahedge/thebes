@@ -25,11 +25,13 @@ function sun() {
   return svg;
 }
 
+// null when the row holds no readable map square (nothing blank is drawn).
 function mapCanvas(map) {
   const c = el('canvas', { class: 'cartouche-map', width: MAP_SQUARE, height: MAP_SQUARE, 'aria-hidden': 'true' });
   const g = c.getContext && c.getContext('2d');
-  if (g) { g.fillStyle = '#EBD6A8'; g.fillRect(0, 0, MAP_SQUARE, MAP_SQUARE); if (map) drawMapString(g, map, 0, 0, MAP_SQUARE); }
-  return c;
+  if (!g) return c;
+  g.fillStyle = '#EBD6A8'; g.fillRect(0, 0, MAP_SQUARE, MAP_SQUARE);
+  return map && drawMapString(g, map, 0, 0, MAP_SQUARE) ? c : null;
 }
 
 export const rulerLine = (row) => V90_D_TEXT.regnal(row.name, row.n);
@@ -53,7 +55,7 @@ export function rulerCartouche(row, { full = false } = {}) {
         el('span', { class: 'cartouche-fact', text: D92_D_TEXT.factsLine(row) }),
         el('strong', { class: 'cartouche-fact cartouche-score', text: D92_D_TEXT.scoreLine(row) }),
       ]),
-      el('span', { class: 'cartouche-map-box' }, [mapCanvas(row.map), el('span', { class: 'cartouche-map-caption small muted', text: D92_D_TEXT.mapCaption })]),
+      (() => { const m = mapCanvas(row.map); return m ? el('span', { class: 'cartouche-map-box' }, [m, el('span', { class: 'cartouche-map-caption small muted', text: D92_D_TEXT.mapCaption })]) : null; })(),
     ]));
   }
   return el('span', { class: `cartouche${full ? ' full' : ''}${long ? ' long' : ''}`, role: full ? 'group' : null, 'aria-label': full ? D92_D_TEXT.cartoucheLabel(row) : null }, kids);

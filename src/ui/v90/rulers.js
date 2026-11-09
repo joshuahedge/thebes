@@ -11,12 +11,14 @@ import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T } from '../text.js';
 import { sideBySide } from './sideBySide.js';
 import { rulerCartouche } from '../v92/cartouche.js';
 
-// The row's picture: the map square on a 32 x 32 canvas the stylesheet scales; a row without one (a ruler brought from a file that had none) gets a blank square.
+// The row's picture: the map square on a 32 x 32 canvas the stylesheet scales. Version 9.2 (Track D): a row without a readable one (a ruler brought from a file that
+// had none) has no square at all, not a blank tan one.
 function mapCanvas(row) {
   const c = el('canvas', { class: 'ruler-map', width: MAP_SQUARE, height: MAP_SQUARE, 'aria-hidden': 'true' });
   const g = c.getContext && c.getContext('2d');
-  if (g) { g.fillStyle = '#EBD6A8'; g.fillRect(0, 0, MAP_SQUARE, MAP_SQUARE); if (row.map) drawMapString(g, row.map, 0, 0, MAP_SQUARE); }
-  return c;
+  if (!g) return c;
+  g.fillStyle = '#EBD6A8'; g.fillRect(0, 0, MAP_SQUARE, MAP_SQUARE);
+  return row.map && drawMapString(g, row.map, 0, 0, MAP_SQUARE) ? c : null;
 }
 
 const featName = (id) => (FEAT_TEXT[id] ? FEAT_TEXT[id].name : id);

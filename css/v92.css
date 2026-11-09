@@ -1,0 +1,22 @@
+/* Version 9.2, Track D (rulings 1815-1824): the cartouche, drawn once (src/ui/v92/cartouche.js) and used whole on the sealed-ruler card and as the heading of every
+   Rulers row. A rounded oval of two lines (an ink line, a gold line inside it) with the tie bar at its right end; the name and its number on one line, the title
+   under it. A long name takes the full row (.long): the facts go under it instead of beside it. */
+.cartouche { position: relative; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; min-width: 0; padding: 6px 22px 6px 12px; border-radius: 22px 8px 8px 22px; background: var(--parchment); box-shadow: inset 0 0 0 1.5px var(--ink-line), inset 0 0 0 4px var(--parchment), inset 0 0 0 5.5px var(--gold); }
+.cartouche::after { content: ''; position: absolute; right: 7px; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--ink-line); }
+.cartouche-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cartouche-sun-wrap { flex: none; display: inline-flex; }
+.cartouche-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.cartouche-ruler { font-family: var(--serif); font-size: calc(17px * var(--ui-scale)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cartouche-title { font-size: calc(14px * var(--ui-scale)); color: var(--ink-soft); white-space: normal; overflow-wrap: anywhere; }
+.cartouche.full { padding: 10px 24px 10px 14px; gap: 8px; }
+.cartouche.full .cartouche-ruler { font-size: calc(20px * var(--ui-scale)); }
+.cartouche-facts { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.cartouche-facts-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 11em; }
+.cartouche-map-box { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.cartouche-map { width: 64px; height: 64px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--ink-line); }
+.cartouche-map-caption { margin: 0; max-width: 8em; text-align: center; }
+.cartouche.full.long .cartouche-facts { flex-direction: column; align-items: flex-start; }
+.sealed-card { display: flex; flex-direction: column; gap: 10px; }
+.sealed-card p { margin: 0; }
+.ruler-row .cartouche { grid-column: 1 / -1; }
+.ruler-row .cartouche-ruler { font-size: calc(16px * var(--ui-scale)); }

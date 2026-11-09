@@ -4,6 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { RECORDS_KEY } from '../../../src/data/scoring.js';
 import { INSTALL_ASK_KEY } from '../../../src/save/installFlow.js';
 import { createWorld } from '../../../src/sim/world.js';
+import { mapSquareOf } from '../../../src/save/records.js';
 import { serialize } from '../../../src/save/serialize.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
 import { createSaveStore } from '../../../src/save/store.js';
@@ -170,8 +171,19 @@ describe('v92 d the Rulers list', () => {
     try {
       const c = rulerCartouche({ name: 'Ana', n: 2, title: 'merchant', rank: 'town', day: 720, score: 150, medal: null, map: '' }, { full: true });
       root.querySelector('#x').append(c);
-      expect([c.classList.contains('full'), c.classList.contains('long'), c.getAttribute('aria-label')]).toEqual([true, false, 'Ana II the Merchant, Town, 2.0 years, score 150, No medal']);
+      expect([c.classList.contains('full'), c.classList.contains('long'), c.getAttribute('aria-label')]).toEqual([true, false, 'Ana II the Merchant, Town, 2 years, score 150, No medal']);
     } finally { cleanup(); }
+  });
+  it('says the reign in whole years and months, from its days (a month 30 days, a year 12 months)', () => {
+    const y = (d) => V90_L_TEXT.years(d);
+    expect([y(0), y(29), y(30), y(360), y(600), y(720), y(10800), y(4500), y(361)]).toEqual(['Under a month', 'Under a month', '1 month', '1 year', '1 year, 8 months', '2 years', '30 years', '12 years, 6 months', '1 year']);
+  });
+  it('draws no map square for a row or card whose map is empty or unreadable, and one for a real map', () => {
+    const base = { name: 'Ana', n: 1, title: 'merchant', rank: 'town', day: 720, score: 150, medal: null };
+    const w = createWorld({ seed: 3 }); buildSampleCity(w);
+    const good = mapSquareOf(w);
+    expect([rulerCartouche({ ...base, map: '' }, { full: true }).querySelector('canvas'), rulerCartouche({ ...base, map: 'zz' }, { full: true }).querySelector('.cartouche-map-box')]).toEqual([null, null]);
+    expect(rulerCartouche({ ...base, map: good }, { full: true }).querySelector('canvas.cartouche-map') !== null).toBe(true);
   });
 });
 

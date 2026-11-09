@@ -74,7 +74,7 @@ describe('v90 w0 seams: the interface and the frame, each a stub', () => {
   it('links css/v90.css after every other stylesheet but 9.1\'s', async () => {
     const page = new DOMParser().parseFromString(await source('/index.html'), 'text/html');
     const hrefs = [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.getAttribute('href')).filter((h) => /css\//.test(h));
-    expect(hrefs.slice(-2)).toEqual(['./css/v90.css', './css/v91.css']);
+    expect(hrefs.slice(-3)).toEqual(['./css/v90.css', './css/v91.css', './css/v92.css']);   // Version 9.2 (Track D): css/v92.css comes after 9.1's
     expect(hrefs.filter((h) => h === './css/v90.css').length).toBe(1);
   });
 });

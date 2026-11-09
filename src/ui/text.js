@@ -4514,7 +4514,12 @@ export const V90_L_TEXT = {
   // A ruler's name with its regnal number and title: "Ramesses II the Builder" (Track D's titleNames and regnal; ruling 1575).
   rulerName: (r) => `${V90_D_TEXT.regnal(r.name, r.n)} ${V90_D_TEXT.titleNames[r.title] || V90_D_TEXT.titleNames.steady}`,
   heirOfLower: (id) => V90_D_TEXT.heirOf(id).replace(/^./, (c) => c.toLowerCase()),
-  years: (day) => `${(day / 360).toFixed(1)} years`,
+  // Version 9.2 (Track D): whole years and months in words, from the reign's days (a month is 30 days, a year 12): "1 year, 8 months", "30 years", "Under a month".
+  years: (day) => {
+    const months = Math.max(0, Math.floor(day / 30)), y = Math.floor(months / 12), m = months % 12;
+    if (!y && !m) return 'Under a month';
+    return [y ? plural(y, 'year', 'years') : '', m ? plural(m, 'month', 'months') : ''].filter(Boolean).join(', ');
+  },
   rankWords: (rank) => (MILESTONES.find((m) => m.id === rank) || { name: 'Village' }).name,
   medalWords: (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
   rowName: (r) => `${V90_L_TEXT.rulerName(r)}, ${V90_L_TEXT.rankWords(r.rank)}, ${V90_L_TEXT.years(r.day)}, score ${r.score}, ${V90_L_TEXT.medalWords(r.medal)}`,

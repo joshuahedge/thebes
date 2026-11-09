@@ -52,10 +52,10 @@ describe('v90 l rulers: the list', () => {
       const [newest, older] = [...body.querySelectorAll('.ruler-row')];
       // 9.2 (Track D, ruling 1818): was one string "Ramesses IV the Steady"; the name and number are one line, the title under it
       expect([newest.querySelector('.cartouche-ruler').textContent, newest.querySelector('.cartouche-title').textContent]).toEqual(['Ramesses IV', 'the Steady']);
-      expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1.0 years');
-      expect([`${older.querySelector('.cartouche-ruler').textContent} ${older.querySelector('.cartouche-title').textContent}`, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
+      expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1 year');
+      expect([`${older.querySelector('.cartouche-ruler').textContent} ${older.querySelector('.cartouche-title').textContent}`, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12 years, 6 months', '312', 'Gold medal']);
       expect(newest.querySelector('.ruler-medal').textContent).toBe('No medal');
-      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12.5 years, score 312, Gold medal');
+      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12 years, 6 months, score 312, Gold medal');
       expect([1, 4, 9, 14, 49].map((n) => V90_D_TEXT.regnal('Ra', n))).toEqual(['Ra I', 'Ra IV', 'Ra IX', 'Ra XIV', 'Ra XLIX']);
       const c = older.querySelector('canvas.ruler-map');
       expect([c.width, c.height, c.getAttribute('aria-hidden')]).toEqual([32, 32, 'true']);
@@ -141,9 +141,10 @@ describe('v90 l rulers: the list', () => {
       expect(body.querySelector('.rulers-install')).toBe(null);
     } finally { cleanup(); }
   });
-  it('builds a row for one ruler on its own, an unreadable map string leaving a blank square', () => {
+  it('builds a row for one ruler on its own, an unreadable map string leaving no square at all (9.2 Track D: was a blank one)', () => {
     const row = rulerRow({ ...ruler(1), map: '' }, {});
-    expect(row.querySelector('canvas').width).toBe(32);
+    expect(row.querySelector('canvas')).toBe(null);   // Version 9.2 (Track D): a row with no readable map draws no blank tan square
+    expect(rulerRow(ruler(1), {}).querySelector('canvas.ruler-map').width).toBe(32);
     expect(row.querySelector('.ruler-row').getAttribute('aria-expanded')).toBe('false');
   });
 });
