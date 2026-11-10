@@ -7,8 +7,8 @@
 //
 // The house style: white-washed dressed stone with lavender shadows, weathered planks and rope; the Industry category's pennant. A trade boat
 // is told from a fishing skiff by its shape (a long hull with a raised stern, a tall mast and a broad sail, bales on deck), never by colour.
-import { box, crs, p, U, quad } from './primitives.js';
-import { pennant, styled, lookSlot, planks, isShut, isBusy } from './services.js';
+import { box, crs, p, U, quad, shadeWall, contactLine } from './primitives.js';
+import { pennant, styled, lookSlot, isShut, isBusy, shutFront } from './services.js';
 import { fig } from './figures.js';
 import { wharfSide } from './river.js';
 import { STONE, MUD2, WASH, WOOD, SHADOW, TERRAIN, TEAL, GOLD, RED, BLUE, INDUSTRY_TINT } from './palette.js';
@@ -40,6 +40,9 @@ export function quay(g, X, Y, side = 's') {
   for (let k = 0; k < 3; k++) bx(0.7, 1.0 + k * 0.15, 0.6, 0.15, 2 - k * 0.6, 0, STONE, 0);
   const L = bx(0.02, 0.04, 1.96, 0.96, 2.4, 0, STONE);
   crs(g, L, 2.4, '#B9AEBF', 1.2);
+  shadeWall(g, [L.L(0, 0), L.L(1, 0), L.L(1, 2.4), L.L(0, 2.4)], 2.4);   // 9.3 fix wave: the bar, as every wall has it: a soft shade and the contact line
+  shadeWall(g, [L.R(0, 0), L.R(1, 0), L.R(1, 2.4), L.R(0, 2.4)], 2.4);
+  contactLine(g, rect(0.02, 0.04, 1.96, 0.96));
   g.poly(quad(...rect(0.08, 0.1, 1.84, 0.84), 2.4), '#EFE6D6', { alpha: 0.6 });
   // the mooring posts at the water's edge, rope looped between them
   const posts = [[0.18, 0.92], [1.82, 0.92]];
@@ -48,7 +51,9 @@ export function quay(g, X, Y, side = 's') {
   // the customs shed on the land side, at one end: mud brick under a striped awning on poles
   const H = bx(0.1, 0.08, 0.62, 0.5, 6.2, 2.4, MUD2);
   crs(g, H, 6.2, '#9A7A5A', 2);
-  if (isShut()) planks(g, H.L, 0.28, 0.72, 0, 5);   // Version 9.3: a shut customs shed has its door barred
+  shadeWall(g, [H.L(0, 0), H.L(1, 0), H.L(1, 6.2), H.L(0, 6.2)], 6.2);
+  shadeWall(g, [H.R(0, 0), H.R(1, 0), H.R(1, 6.2), H.R(0, 6.2)], 6.2);
+  if (isShut()) shutFront(g, H.L, 6.2, [[0.28, 0.72, 4.6]], WOOD);   // Version 9.3: a shut customs shed has its door barred, a wide door and closed shutters
   g.poly(quad(...rect(0.04, 0.02, 0.74, 0.62), 8.6), WASH[0], { outline: true });
   for (const [u, v] of [[0.86, 0.12], [0.86, 0.58]]) { const q = U(pt(u, v), 2.4); g.line(q, U(q, 6.8), WOOD, 0.7); }
   g.poly([U(pt(0.72, 0.1), 9.2), U(pt(1.08, 0.1), 9.2), U(pt(1.08, 0.6), 9.2), U(pt(0.72, 0.6), 9.2)], RED, { alpha: 0.9, outline: true });

@@ -30,16 +30,9 @@ const EXEMPT = [
 // Ruling 1939: buildings with walls that reach none of the three primitives yet. All Track B's (services.js, industry.js, supply.js, defence.js,
 // trade.js): the plain keys kept for cards (ui/thumbs.js) are the 9.2 drawings; a shut building's barred door replaces its inset doorway, and
 // nothing else in it calls the bar; the trading post, the Quay, the brickworks and the gem mine never call it.
-const OWED = [
-  'granary', 'granary.s#', 'bazaar', 'bazaar.s#', 'temple', 'physician', 'police_post', 'potter', 'brewery', 'weaver', 'jeweller', 'storehouse',
-  'storehouse.s#', 'trading_post', 'firehouse', 'tower', 'barracks', 'wall', 'gate', 'builders_guild', 'builders_guild.idle', 'quarry.idle',
-  'brickworks', 'brickworks.idle', 'brickworks.s#', 'gem_mine', 'quay', 'quay.s', 'quay.n', 'quay.e', 'quay.w',
-  'temple.l#.shut', 'physician.l#.shut', 'police_post.l#.shut', 'brewery.l#.shut', 'weaver.l#.shut', 'jeweller.l#.shut', 'storehouse.s#.l#.shut',
-  'firehouse.l#.shut', 'tower.l#.shut', 'barracks.l#.shut', 'builders_guild.l#.shut',
-  'gem_mine.l#.work', 'gem_mine.l#.short', 'gem_mine.l#.shut', 'trading_post.l#.work', 'trading_post.l#.short', 'trading_post.l#.shut',
-  'brickworks.s#.l#.work', 'brickworks.s#.l#.short', 'brickworks.s#.l#.shut',
-  ...['s', 'n', 'e', 'w'].flatMap((side) => ['work', 'short', 'shut'].map((st) => `quay.${side}.l#.${st}`)),
-];
+// 9.3 fix wave, group xb (ruling 2005): the list is paid off. Every shut state, the plain card keys, the trading post, the Quay, the brickworks, the gem mine
+// and the wall and gate cards now draw through the bar, so OWED is empty and stays empty (a new slot without the bar fails the test below).
+const OWED = [];
 
 export function slotsWithoutTheBar(registry = ART) {
   const none = [];

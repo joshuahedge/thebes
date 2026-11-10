@@ -109,6 +109,7 @@ describe('v93 b landmarks: the eight change shape at City and at Capital', () =>
     for (const base of LANDMARKS) {
       const town = paint(keys(base, 1, 'work'));
       for (const look of [2, 3]) {
+        if (base === 'granary.s3' && look === 2) continue;   // 9.3 fix wave (B1, ruling 2007): the granary keeps its shape at City (no drums, no porch); the Capital still adds finials
         const a = paint(keys(base, look, 'work'));
         const [t0, t1, t2, t3] = inkBox(town), [a0, a1, a2, a3] = inkBox(a);
         const boxDiffers = Math.abs(t0 - a0) + Math.abs(t1 - a1) + Math.abs(t2 - a2) + Math.abs(t3 - a3) >= 3;

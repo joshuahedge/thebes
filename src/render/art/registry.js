@@ -116,6 +116,18 @@ export function serviceState(b) {
 // 'storehouse.s1', 'potter', ...) stay as they were for cards and older callers; '<type>.idle' now resolves to the Town look shut.
 for (const table of [SERVICE_LOOKS, INDUSTRY_LOOKS, DEFENCE_LOOKS, SUPPLY_LOOKS, TRADE_LOOKS, FERRY_LOOKS]) Object.assign(ART, withLooks(table, { states: true }));
 for (const type of SUPPLY_TYPES) ART[`${type}.idle`] = ART[type === 'brickworks' ? 'brickworks.s1.l1.shut' : `${type}.l1.shut`];
+// 9.3 fix wave (known item 2, ruling 2005): the plain keys the cards and older callers use (ui/thumbs.js) are the Town look working, so they reach the bar
+// as every slot the map shows does. A plain key keeps its name, and now takes its entry (bounds, shadows, draw) from '<base>.l1.work'.
+const PLAIN_LOOK = {
+  granary: 'granary.s3', bazaar: 'bazaar.s2', storehouse: 'storehouse.s3', brickworks: 'brickworks.s3',
+  // (the Quay's plain keys stay Track T's own entries, which the v70 contract test pins by identity; its drawing, quay() in trade.js, has the bar in every state)
+  ...Object.fromEntries(['temple', 'physician', 'police_post', 'potter', 'brewery', 'weaver', 'jeweller', 'trading_post', 'firehouse', 'tower', 'barracks',
+    'builders_guild', 'gem_mine'].map((k) => [k, k])),
+  ...Object.fromEntries([['granary', 4], ['storehouse', 4]].flatMap(([k, n]) => Array.from({ length: n }, (_, s) => [`${k}.s${s}`, `${k}.s${s}`]))),
+  ...Object.fromEntries(Array.from({ length: 3 }, (_, s) => [`bazaar.s${s}`, `bazaar.s${s}`])),
+  ...Object.fromEntries(Array.from({ length: 3 }, (_, s) => [`brickworks.s${s + 1}`, `brickworks.s${s + 1}`])),
+};
+for (const [plain, base] of Object.entries(PLAIN_LOOK)) if (ART[`${base}.l1.work`]) ART[plain] = ART[`${base}.l1.work`];
 
 // ---- Version 9.3, Track H: homes in four looks and three variants (rulings 1890-1899) ----
 // housing.js exports HOUSE_LOOKS (draws take opt = { look, variant }) and expanded here the same way (Track B's fix for the import cycle) into

@@ -506,6 +506,42 @@ export const planks = (g, F, u0, u1, s0, s1) => {
   g.line(F(u0, s0 + (s1 - s0) * 0.7), F(u1, s0 + (s1 - s0) * 0.3), '#B08A5A', 0.8, 0.95);
 };
 
+// Version 9.3 (fix wave, group xb): a shut front at the bar. Every shut workshop shows a wide barred door and closed, barred shutters across its lit face
+// (spec 4: told apart from a short one by shape, not only by what is missing). F is a face mapper F(u, s), h the wall's height, doors [[u0, u1, height]...]
+// the working doors (each is widened to at least doorW of the face and framed through insetOpening). The shutters fill the gaps between the doors.
+export function shutFront(g, F, h, doors, trim, { shutters = true, doorW = 0.24 } = {}) {
+  const taken = [];
+  for (const [u0, u1, dh] of doors) {
+    const c = (u0 + u1) / 2, w = Math.max(u1 - u0, doorW);
+    const a = Math.max(0.03, Math.min(c - w / 2, 0.97 - w)), b = a + w, top = Math.min(h - 1.6, dh + 0.8);
+    insetOpening(g, { F, u: a, s: 0 }, w, top, { lintel: trim, fill: '#6A4A38' });
+    planks(g, F, a + 0.012, b - 0.012, 0, top - 0.2);
+    g.line(F(a, top * 0.5), F(b, top * 0.5), '#2E2018', 1.3, 0.9);     // the bar across
+    taken.push([a, b]);
+  }
+  if (!shutters) return;
+  const s0 = h * 0.42, sh = Math.max(2.2, h * 0.3);
+  for (const u of [0.06, 0.26, 0.58, 0.78]) {
+    if (taken.some(([a, b]) => u < b + 0.03 && u + 0.16 > a - 0.03)) continue;
+    insetOpening(g, { F, u, s: s0 }, 0.16, sh, { lintel: trim, fill: '#6A4A38' });
+    planks(g, F, u + 0.012, u + 0.148, s0, s0 + sh);
+  }
+}
+
+// A tapered block's face mappers (the same maths as tb(): i is the inset at the top), so details and the bar can be placed on a block a drawing built itself.
+export const taperF = (x, y, w, d, h, i = 0, z = 0) => ({
+  L: (u, s) => { const k = (i * s) / h; return U(p(x + k + (w - 2 * k) * u, y + d - k), z + s); },
+  R: (u, s) => { const k = (i * s) / h; return U(p(x + w - k, y + k + (d - 2 * k) * u), z + s); },
+});
+
+// The bar on a wall block a drawing built itself: a soft shade down both faces and the contact line where it meets the ground (z = 0). x, y absolute tiles.
+export function barBlock(g, x, y, w, d, h, z = 0, i = 0) {
+  const F = taperF(x, y, w, d, h, i, z);
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, h), F.L(0, h)], h);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, h), F.R(0, h)], h);
+  if (z === 0) contactLine(g, [x, y, w, d]);
+}
+
 // A puff of kiln smoke (none when shut: the callers check isShut()).
 export const smokePuff = (g, q, r, a) => { g.circ(q, r, '#FFFFFF', { alpha: a }); g.circ([q[0] - r * 0.3, q[1] - r * 0.25], r * 0.65, '#FFFFFF', { alpha: a * 0.6 }); };
 
@@ -582,6 +618,10 @@ export function recolour(g, look, mud = false) {
 
 function dress(g, x, y, cfg, look, state) {
   const m = M[look], trim = look === 0 ? WOOD : m.trim;
+  // 9.3 fix wave (xb): the bar on the walls. A shut building's own door and window drawing no longer reaches it, so the body is shaded and grounded here; a
+  // drawing with no body block names its walls in cfg.bar (blocks [dx, dy, w, d, h, z, inset]) and gets the bar in every state.
+  const bars = cfg.bar || (cfg.body ? [cfg.body] : []);
+  if (state === 'shut' || !cfg.body) for (const b of bars) barBlock(g, x + b[0], y + b[1], b[2], b[3], b[4], b[5] || 0, b[6] || 0);
   if (cfg.body) {
     const [bx, by, bw, bd, bh] = cfg.body, F = bodyF(x + bx, y + by, bw, bd);
     if (look >= 2 && cfg.band !== null) {                                      // the painted bands of a City and a Capital
@@ -589,11 +629,15 @@ function dress(g, x, y, cfg, look, state) {
       band(g, F, s, m.band, 1.1);
       if (look === 2) band(g, F, s - 1.7, BAND2[2], 0.7);
     }
-    for (const [u0, u1, h] of cfg.doors || []) {
-      if (state === 'shut') { qd(g, F.L, u0 - 0.03, u1 + 0.03, 0, h + 0.5, trim); planks(g, F.L, u0, u1, 0, h); }   // a plank door, barred
-      else insetOpening(g, { F: F.L, u: u0, s: 0 }, u1 - u0, h, { lintel: trim, lit: true });                  // a warm-lit doorway
+    if (state === 'shut') {
+      shutFront(g, F.L, bh, cfg.doors || [], trim, { shutters: cfg.shutters !== false });                       // a wide barred door and closed shutters across the front
+      if (cfg.shutters !== false) {                                                                              // and a shutter on the side face
+        insetOpening(g, { F: F.R, u: 0.28, s: bh * 0.4 }, 0.22, bh * 0.3, { lintel: trim, fill: '#6A4A38' });
+        planks(g, F.R, 0.29, 0.49, bh * 0.4, bh * 0.7);
+      }
+    } else {
+      for (const [u0, u1, h] of cfg.doors || []) insetOpening(g, { F: F.L, u: u0, s: 0 }, u1 - u0, h, { lintel: trim, lit: true });   // a warm-lit doorway
     }
-    if (state === 'shut' && cfg.shutters !== false) planks(g, F.R, 0.28, 0.5, bh * 0.4, bh * 0.72);             // a closed, barred shutter
   }
   if (state === 'shut' && cfg.cover) cfg.cover(g, x, y, look);
   if (state !== 'shut' && cfg.open) cfg.open(g, x, y, look);
@@ -633,7 +677,6 @@ function granaryNew(g, x, y, look, state, stage) {
   const WALL = [MUD, WASH, SST, LIME][look];
   const DOME = [['#E0BC88', '#A68A78'], ['#FFFAEE', '#CDBFC4'], ['#F1E2BC', '#B8A892'], ['#FBF6E8', '#CFC2C6']][look];
   const band1 = [TRUNK, TEAL, BLUE, TEAL][look];
-  const lift = [0, 0, 2.6, 4.2][look];
   const F = block(g, x + 0.1, y + 0.1, 1.8, 1.8, 10, 0, WALL);
   if (look === 0) crs(g, F, 10, '#9C7A54', 2.6);
   if (look === 3) cornice(g, { x: x + 0.1, y: y + 0.1, w: 1.8, d: 1.8, z: 10 }, [TEAL, TEAL, TEAL_DARK]);
@@ -642,15 +685,12 @@ function granaryNew(g, x, y, look, state, stage) {
   const trim = look === 0 ? WOOD : m.trim;
   if (!shut) insetOpening(g, { F: F.L, u: 0.42, s: 0 }, 0.18, 6.4, { lintel: trim, lit: true });
   else { qd(g, F.L, 0.4, 0.62, 0, 6.8, trim); planks(g, F.L, 0.43, 0.59, 0, 6.2); g.line(F.L(0.42, 3.1), F.L(0.6, 3.1), INK, 1, 0.8); }
-  if (look >= 2) {   // the loading porch over the door
-    const at = F.L(0.37, 0);
-    porch(g, at, 16, look === 2 ? 7.4 : 8.6, look === 2 ? [m.roof[0], m.roof[1], m.roof[2]] : undefined);
-  }
+  // 9.3 fix wave (B1): no drums and no porch. Josh's look sheet keeps the granary's shape in every look; the City and the Capital change the material, the
+  // bands, the cornice and the finials only (this retires ruling 1903's drums and loading porch).
   const top = 10;
   [[0.6, 0.6], [1.4, 0.6], [0.6, 1.4], [1.4, 1.4]].forEach(([u, v], i) => {
     const base = U(p(x + u, y + v), top);
-    if (lift) drum(g, base, 8.2, lift, [WALL[0], WALL[1], WALL[2]], false);
-    const c = U(base, lift);
+    const c = base;
     domeC(g, c, 8.2, 8.6, 4, DOME);
     const t = [c[0], c[1] - 8.4];
     const filled = !shut && SILO_RANK[i] < SILOS_FILLED[stage];
@@ -663,7 +703,7 @@ function granaryNew(g, x, y, look, state, stage) {
     SACK_SPOTS.slice(0, SACKS_AT[stage]).forEach((sx, i) => sack(g, p(x + sx, y + 2.06), SACKS[i % 2]));
     if (YARD_HEAP[stage]) grainHeap(g, p(x + 1, y + 2.16), ...YARD_HEAP[stage]);
   }
-  pennant(g, U(p(x + 1.9, y + 0.12), 10 + lift), 7, SERVICE_EMBLEM.granary);
+  pennant(g, U(p(x + 1.9, y + 0.12), 10), 7, SERVICE_EMBLEM.granary);
 }
 
 // ---- the bazaar: four stalls in every look (awnings keep their red, gold, blue and green); the City roofs the middle as a covered market, the Capital
@@ -759,7 +799,7 @@ function wellFront(g, x, y, look) {
 }
 
 // ---- the table: every service in four looks and three states (registry.js runs it through withLooks) -----------------------------------------------------
-const GRANARY_H = [22, 22, 26, 30], BAZAAR_H = [16, 16, 19, 22];
+const GRANARY_H = [22, 22, 22, 26], BAZAAR_H = [16, 16, 19, 22];
 export const SERVICE_LOOKS = {
   well: lookSlot(1, 1, [18, 18, 22, 26], [[0.28, 0.28, 0.44, 0.44, 6]], styled((g, x, y) => well(g, x, y), {
     behind: wellBehind, front: wellFront, body: null, by: [0.86, 0.9], noPalm: true,
@@ -772,6 +812,7 @@ export const SERVICE_LOOKS = {
   })),
   temple: lookSlot(2, 2, [40, 40, 40, 44], [[0.25, 0.2, 1.5, 1, 15], [0.1, 1.2, 1.8, 0.7, 23]], styled((g, x, y) => temple(g, x, y), {
     front: templeFront, by: [1.4, 1.98], noPalm: true,
+    bar: [[0.05, 0.05, 1.9, 1.9, 2], [0.1, 1.2, 0.75, 0.7, 21, 2, 0.1], [1.15, 1.2, 0.75, 0.7, 21, 2, 0.1]],   // the platform, grounded, and the two pylons, shaded
     open: (g, x, y, look) => insetOpening(g, { F: bodyF(x + 0.85, y + 1.35, 0.3, 0.45).L, u: 0.14, s: 2 }, 0.72, 8.4, { lintel: GOLD, lit: true }),   // the gateway open and lit
     cover: (g, x, y, look) => {                                                                                                                      // shut: the gateway barred
       const F = bodyF(x + 0.85, y + 1.35, 0.3, 0.45).L;
