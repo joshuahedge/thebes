@@ -1,3 +1,4 @@
+import { decreeEnded, endedFail, ruleForbids } from './rules.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
@@ -50,6 +51,7 @@ function typeReason(world, type, x, y) {
     if (!largePlotUnlocked(world)) return 'locked';
     return isTile(x, y) ? null : 'out_of_bounds';
   }
+  if (ruleForbids(world, type)) return 'decree';   // Version 9.3 (Track R, ruling 1962): a type the week's decree forbids (Open city: walls and gates)
   if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
   if (def.riverMap && !hasRiver(world.mapVariant)) return 'no_river';   // Version 8.2 (Track G, ruling 1306): the Quay on a map with no river (the Great oasis)
   if (!isUnlocked(world, type)) return 'locked';
@@ -270,6 +272,7 @@ function roadJoins(world, b) {
 // site (makeBuilding gives it an empty b.site); its undo entry is the same 'place' entry, which undo refuses once work has
 // begun on it (src/sim/undo.js, ruling 236).
 export function place(world, type, x, y, { roadLater = false, rot = 0, style = null } = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const check = canPlace(world, type, x, y, { roadLater, rot, style });
   if (!check.ok) return check;
   const cost = costOf(world, type, { style });
@@ -307,6 +310,7 @@ export const demolishRefundFor = (world, b) => {
 // nothing. Undo entries: { kind: 'demolish', buildings: [snapshots], roads: [tile index], walls: [[tile index, value]],
 // refund } (src/sim/undo.js).
 export function demolishAt(world, x, y) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return fail('out_of_bounds', { refund: 0 });
   const b = buildingAt(world, x, y);
   if (b) {
@@ -346,6 +350,7 @@ export function demolishAt(world, x, y) {
 }
 
 export function setPaused(world, id, paused) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
   // Pausing stops staffing and upkeep, so a building with neither (a housing plot) has nothing to pause. Stage 4 (ruling 235):
@@ -399,6 +404,7 @@ function releaseHolds(world, id) {
 }
 
 export function setSpeed(world, speed) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   if (![0, 1, 2, 3].includes(speed)) return fail('bad_speed');
   world.speed = speed;
   return { ok: true, warnings: [] };
@@ -414,6 +420,7 @@ export function setGuide(world, on) {
 // no_storage; what the storehouse already holds stays and can still be drawn on. Only a storehouse has the switches,
 // and only for the goods it stores. Accepting deletes the entry, so a storehouse that takes everything has accepts {}.
 export function setAccept(world, id, good, accept) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
   if (b.type !== 'storehouse' || !(BUILDINGS[b.type].stores || []).includes(good)) return fail('not_storage');
@@ -533,6 +540,7 @@ export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = 
 // preview with ids: the landings laid, two per ferry in its order. Ruling 1406: a landing on a plain road takes that road tile up first (the entry's
 // lifted), and undo puts it back once the landing is gone.
 export function drawRoadTiles(world, list, options = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewRoadTiles(world, list, options);
   if (!p.ok || (p.tiles.length === 0 && !p.ferries.length)) return p;
   const gates = new Set(p.gates);
@@ -605,6 +613,7 @@ export function previewHouseTiles(world, list) {
 
 // Paints the preview's plots, charges once and pushes one undo entry for them all.
 export function paintHouseTiles(world, list) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewHouseTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
   const good = p.positions.map(([x, y]) => onGoodSpot(world, x, y));   // each judged before any plot of this drawing is laid
@@ -645,6 +654,7 @@ export function previewPlazaTiles(world, list) {
 
 // Paints the preview's plazas, charges once and pushes one undo entry for them all ({ kind: 'place', ids, cost }).
 export function paintPlazaTiles(world, list) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewPlazaTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
   const ids = p.positions.map(([x, y]) => { const b = insertBuilding(world, makeBuilding(world, 'plaza', x, y)); noteBuilt(world, b); return b.id; });
@@ -678,6 +688,7 @@ export function previewDemolishTiles(world, list) {
 
 // Clears the preview's buildings, roads and walls, with one undo entry that puts them all back.
 export function demolishTiles(world, list) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewDemolishTiles(world, list);
   const count = p.buildingIds.length + p.roadTiles.length + p.wallTiles.length;
   if (!count) return fail('nothing_here', { count: 0, refund: 0 });
@@ -704,6 +715,7 @@ export const demolishArea = (world, x0, y0, x1, y1) => demolishTiles(world, rect
 // 'no_rubble' or 'no_gold' (below the debt floor). The Demolish tool clears rubble through demolishAt and demolishArea,
 // which charge the same price.
 export function clearRubble(world, x0, y0, x1 = x0, y1 = y0) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const ids = [];
   for (const [x, y] of rectTiles(x0, y0, x1, y1, world.size)) {
     const b = buildingAt(world, x, y);

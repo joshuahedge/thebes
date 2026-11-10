@@ -22,6 +22,7 @@
 // went unfed (world.army.fed false).
 // Fields Track B adds to raid.active (raids.js): blocked (the tile index of the standing wall in the band's way, or
 // null) and towerIds (the towers that have shot during this raid, for the report's tower count).
+import { decreeEnded, endedFail } from './rules.js';
 import { DEFENCE } from '../data/raids.js';
 import { CHIEFTAIN } from '../data/hazards.js';
 import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, SHUNS, matchup, towerVs } from '../data/armies.js';
@@ -181,6 +182,7 @@ export function soldiersHome(world) {
 // building gathers no progress; a wounded unit's place is trained again. Units of a building that no longer stands (or is no longer
 // its kind's) leave service first; units away at the capital keep their place (they come back to it).
 export function trainSoldiers(world, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const own = (s) => world.buildings[s.barracks] && world.buildings[s.barracks].type === unitDef(s).building;
   if (world.soldiers.some((s) => !own(s))) world.soldiers = world.soldiers.filter(own);
   const away = (world.army && world.army.away) || [];

@@ -14,6 +14,7 @@
 //
 // Events (pushed into the events array; never saved): { type: 'demand_offered', demand }, { type: 'demand_accepted', demand },
 // { type: 'demand_settled', result: 'met' | 'failed' | 'refused', demand, favour, gold }, { type: 'reign_won', day, seal }.
+import { decreeEnded, endedFail } from './rules.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { DEMANDS, DEMAND_KINDS, REIGN_SALT, GREAT_WORK, COURT_DUE } from '../data/reign.js';
 import { GOOD_VALUE } from '../data/court.js';
@@ -158,6 +159,7 @@ function met(world, d, events) {
 // ── The commands (the court sheet's buttons) ──
 // Accept: the deadline starts (DEMANDS.deadlineMonths drawn when it was offered); a building's count is noted. Fails: 'none', 'accepted'.
 export function acceptDemand(world, id, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const d = findOpen(world, id);
   if (!d) return fail('none');
   if (d.accepted) return fail('accepted');
@@ -169,6 +171,7 @@ export function acceptDemand(world, id, events = null) {
 }
 // Decline an offer (or give up an accepted demand: then it fails, with its own favour): favour falls by the number the sheet named.
 export function declineDemand(world, id, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const d = findOpen(world, id);
   if (!d) return fail('none');
   const favour = addFavour(world, -(d.accepted ? d.failed : d.declined));

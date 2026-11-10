@@ -31,7 +31,7 @@ import { storeAccepts, hasSpace } from './production.js';
 import { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart } from './prestige.js';
 import { GREAT_WORK } from '../data/reign.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
-import { heirFactor } from './dynasty.js';
+import { ruleFactor, decreeEnded, endedFail } from './rules.js';
 
 export { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart };
 
@@ -285,7 +285,7 @@ export function crewDayUnits(world, g, site = undefined) {
 // The same without the rush: what the crew lays on that site at its own pace (Rush's quote compares the two).
 // Version 9.0 (Track D, ruling 1567): times the heir of the Builder's crews factor (heirFactor 'crews', 1 for any other city), so every quote that counts
 // days from a crew's units (the site's days left, Rush's) says the heir's pace.
-const baseDayUnits = (world, g, s) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, s) * heirFactor(world, 'crews');
+const baseDayUnits = (world, g, s) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, s) * ruleFactor(world, 'crews');
 // MONUMENT.rushPace on a site under way whose course is rushed (site.rush), else 1.
 export const rushPaceOf = (s) => (isSite(s) && s.site.rush ? MONUMENT.rushPace : 1);
 
@@ -373,6 +373,7 @@ export function campQuote(world, id) {
 // (commitCrew clears it). Not undoable; and, as enlarging the palace does, it drops the site's own 'place' entry from the undo stack, so Undo cannot take
 // the site away with the camp's gold. { ok: true, price } or { ok: false, reason } (campQuote's).
 export function setCamp(world, id) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const q = campQuote(world, id);
   if (!q.ok) return { ok: false, reason: q.reason, price: q.price };
   const stack = world.undo || [];
@@ -421,6 +422,7 @@ export function rushQuote(world, id) {
 // The setRush command: on rushes the course under way (rushQuote must allow it); off cancels at any time, with nothing refunded and nothing owed. Not
 // undoable, needs no gold now (it is paid day by day). { ok: true, warnings: [], rush } or { ok: false, reason } (rushQuote's; off: 'not_site', 'finished').
 export function setRush(world, id, on) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (on) {
     const q = rushQuote(world, id);
@@ -727,7 +729,7 @@ export function supplyNeeded(world, b) {
   const good = materialOf(b);
   if (!good) return true;
   if (deliverySites(world, b).length) return true;
-  const stores = buildingsInReach(world, b, BUILDINGS[b.type].producerReach, (o) => storeAccepts(o, good) && hasSpace(o));
+  const stores = buildingsInReach(world, b, BUILDINGS[b.type].producerReach, (o) => storeAccepts(o, good) && hasSpace(o, world));
   return stores.some(({ b: s }) => buildingsInReach(world, s, MONUMENT.supplyReach, (o) => wantsGood(world, o, good)).length > 0);
 }
 

@@ -55,6 +55,7 @@ import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
 import { isLargePlot, makeLargePlot } from './largePlots.js';   // Version 6.0 (ruling 792); largePlots.js reads commands.js, both only at call time
 import { footprint, ring, idx, inBounds } from './grid.js';
+import { ruleFactor, ruleReach } from './rules.js';   // Version 9.3 (Track R)
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
 export { clearRubble } from './commands.js';   // the clearRubble command (spec 7.3) lives with demolish in commands.js
@@ -109,7 +110,7 @@ export function fireCoverage(world) {
   for (const f of allBuildings(world)) {
     if (f.type !== 'firehouse' || !isWorking(world, f)) continue;
     const ratio = staffRatio(world, f);
-    for (const t of roadReach(world, f, FIRE.reach).keys()) if (ratio > (best.get(t) || 0)) best.set(t, ratio);
+    for (const t of roadReach(world, f, ruleReach(world, 'firehouse', FIRE.reach)).keys()) if (ratio > (best.get(t) || 0)) best.set(t, ratio);
   }
   const map = new Map();
   if (best.size) {
@@ -173,7 +174,7 @@ export function fireDay(world, events = null) {
   for (const b of list) {
     if (b.fire || lit.includes(b) || !canBurn(b) || world.buildings[b.id] !== b) continue;   // put out today: risk stays 0
     b.risk = (b.risk || 0) + riskToday(world, b, cover);
-    if (b.risk >= FIRE.threshold && draw(world, b.id, day, 'ignite') < FIRE.ignitionChance) igniteBuilding(world, b.id, events, 'ignite');
+    if (b.risk >= FIRE.threshold && draw(world, b.id, day, 'ignite') < FIRE.ignitionChance * ruleFactor(world, 'fireStart'))   /* Version 9.3 (Track R, ruling 1960): a decree's fire-start factor (1 with none) */ igniteBuilding(world, b.id, events, 'ignite');
   }
   forgetBurnDays(world);
 }
@@ -307,7 +308,7 @@ export function fireCause(world, b) {
   if (roads.length) {
     for (const f of allBuildings(world)) {
       if (f.type !== 'firehouse') continue;
-      const reach = roadReach(world, f, FIRE.reach);
+      const reach = roadReach(world, f, ruleReach(world, 'firehouse', FIRE.reach));
       if (!roads.some((t) => reach.has(t))) continue;
       const r = inFireStage(f) ? 1 : f.paused ? 0 : 2 + staffRatio(world, f);   // a burning one counts as burning, paused or not
       if (r > rank) { rank = r; pick = f; }

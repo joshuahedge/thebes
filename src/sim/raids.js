@@ -99,7 +99,8 @@ import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
 import { raidSpoils, spoilsMonth } from './spoils.js';
 import { scoutsAt } from './scouts.js';
-import { firstWarnAfterOf, warnSoonerOf } from './dynasty.js';
+import { warnSoonerOf } from './dynasty.js';
+import { ruleFactor, decreeEnded, endedFail } from './rules.js';
 import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -145,7 +146,10 @@ export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
   // Version 6.0 (Track B1, ruling 683): and the years since the grace ended add raiders (bandGrowth: 0 until then).
-  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world) + bandGrowth(world);
+  const size = favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world) + bandGrowth(world);
+  // Version 9.3 (Track R, ruling 1958): a decree's band-size factor (Sea Peoples 1.5), rounded and kept to RAIDS.maxSize; 1 leaves the size as it was.
+  const f = ruleFactor(world, 'raidSize');
+  return f === 1 ? size : Math.min(RAIDS.maxSize, Math.round(size * f));
 }
 
 // The game year a day falls in (1 from the first day).
@@ -238,8 +242,10 @@ export const tributeFor = (world, size) => Math.round(favourTributeFactor(world)
 // Version 8.4 (ruling 1486): the low-Nile lean. When the raid would arrive (the warning's day + RAIDS.warningDays) within RAIDS.leanDays before
 // Shemu's first day, the warning waits so it arrives on that day: never earlier than drawn, no new draw. The first warning (raidDay) never leans.
 export function laterWarnDay(world, fromDay) {
-  const span = RAIDS.laterMax - RAIDS.laterMin + 1;
-  const warn = fromDay + RAIDS.laterMin + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
+  // Version 9.3 (Track R, ruling 1958): a decree's gap factor (Sea Peoples 0.5) scales the gap's two ends; the heir's days come off after.
+  const gap = ruleFactor(world, 'raidGap'), lo = Math.round(RAIDS.laterMin * gap), hi = Math.round(RAIDS.laterMax * gap);
+  const span = hi - lo + 1;
+  const warn = fromDay + lo + Math.floor(hash2(world.seed, world.raid.index, RAID_SALT.gap) * span);
   return warn + leanWait(warn + RAIDS.warningDays) - warnSoonerOf(world);   // Version 9.2 (Track S, ruling 1802): the Unconquered's every warning comes sooner, whatever the lean wait gave
 }
 
@@ -274,6 +280,7 @@ export function tributeQuote(world) {
 // would have arrived. { ok: true, cost, warnings: [] }, or fails with 'no_warning' (none up: raiders that have arrived
 // are no longer a warning), 'first_raid' (it cannot be paid off) or 'below_zero' (the treasury would go below 0).
 export function payTribute(world) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const w = world.raid.warning;
   if (!w) return fail('no_warning');
   if (w.first) return fail('first_raid');
@@ -364,7 +371,7 @@ export function raidDay(world, events = null) {
   const r = world.raid, day = world.day;
   if (raidsOn(world) && r.clockDay === null && Math.max(world.tally.peakPeople, population(world)) >= RAIDS.clockPeople) {
     r.clockDay = day;
-    r.nextWarnDay = day + firstWarnAfterOf(world);   // Version 9.0 (Track D): RAIDS.firstWarnAfter, 100 days less for the heir of the Unconquered
+    r.nextWarnDay = day + Math.round(RAIDS.firstWarnAfter * ruleFactor(world, 'raidGap')) - warnSoonerOf(world);   // Version 9.0 (Track D): RAIDS.firstWarnAfter, 100 days less for the heir of the Unconquered
   }
   trackFires(world, r.active);
   trackFires(world, r.last);

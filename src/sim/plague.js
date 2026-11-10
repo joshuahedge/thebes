@@ -11,6 +11,7 @@
 // A sick home is a home with illness.plague (src/sim/health.js isPlagueHome): its record { start, days, left, lost, cap, plague: true }, so the
 // Health layer, the sheet's health row, the mood row and the court's remedies see it as an ill home, and the state is in the buildings (a remedy
 // that cures a home changes it with no bookkeeping here). Draws are hash2(id, day, seed + HAZARD_SALT.x).
+import { decreeEnded, endedFail } from './rules.js';
 import { PLAGUE, HAZARD_SALT } from '../data/hazards.js';
 import { HEALTH } from '../data/health.js';
 import { CRIME } from '../data/crime.js';
@@ -242,6 +243,7 @@ export function quarantineQuote(world, home) {
 
 // The quarantine command: pays the fee and shuts the district for PLAGUE.quarantine.months months. { ok, reason, ... } as the quote.
 export function quarantineDistrict(world, id) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const home = world.buildings[id];
   if (!home) return fail('no_building');
   const quote = quarantineQuote(world, home);

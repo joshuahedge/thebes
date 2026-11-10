@@ -10,6 +10,7 @@
 // right land; a farm's tiles count one by one), the reason being the sim's own tile reason; unit: the price of one; cost: n x unit; afford: how many
 // the treasury can pay for (the debt floor, the rule every purchase follows). Refused: 'unknown' (not an area building), 'locked', 'nothing_to_place'
 // (nothing fits) and 'no_gold' (the whole area crosses the debt floor: nothing is laid, as plots; afford says how many would have gone through).
+import { decreeEnded, endedFail } from './rules.js';
 import { dimsOf } from '../data/buildings.js';
 import { AREA_SPACING_DEFAULT, AREA_SPACINGS, areaKindOf } from '../data/areas.js';
 import { checkTiles, tileReason, placementWarnings } from './commands.js';
@@ -100,6 +101,7 @@ export function previewAreaTiles(world, type, list, { spacing = AREA_SPACING_DEF
 
 // Lays the preview's buildings: charged once, one undo entry for them all. { ok, ids, cost, warnings, skipped }, or the preview's refusal with ids [].
 export function paintAreaTiles(world, type, list, options = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewAreaTiles(world, type, list, options);
   if (!p.ok) return { ...p, ids: [] };
   const ids = p.positions.map(([x, y]) => { const b = insertBuilding(world, makeBuilding(world, type, x, y)); noteBuilt(world, b); return b.id; });
