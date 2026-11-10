@@ -3,14 +3,14 @@
 // the new primitives (src/render/art/primitives.js) and the materials of the four looks (src/render/art/materials.js). look is 0 village, 1 town,
 // 2 city, 3 capital. Each function draws one tile footprint (or a 2x2) at tile (x, y) of the art's own space.
 import {
-  box, tb, qd, crs, pots, p, U, quad, hs, groundShadow, shadeWall, silhouette, contactLine, insetOpening, parapetSteps, awning, cornice, band,
+  box, tb, qd, crs, pots, stairs, p, U, quad, hs, groundShadow, shadeWall, silhouette, contactLine, insetOpening, parapetSteps, awning, cornice, band,
   porch, gildedCap, col, mat, bed, pool,
 } from '../render/art/primitives.js';
 import { MATERIALS, BAND2 } from '../render/art/materials.js';
 import { palmAt } from '../render/art/nature.js';
 import {
   MUD, THATCH, TEAL, TEAL_DARK, BLUE, RED, GOLD, GOLDC, PINK, PURP, ORANGE, WOOD, TRUNK, TRUNK_RING, LEAF, LEAF2, LEAF3, SHADOW, INK, DOOR, WINDOW,
-  PARAPET, POT, POT_LIGHT, OUTLINE, TERRAIN, STONE, WASH,
+  PARAPET, POT, POT_LIGHT, OUTLINE, TERRAIN, STONE, WASH, GREEN, GREEN_DARK, LIME, SST,
 } from '../render/art/palette.js';
 
 const M = MATERIALS;
@@ -138,49 +138,81 @@ function linen(g, x, y, z) {
   });
 }
 
-// Tier 3: a cottage of two blocks; v is the variant (0 door on the annex and jars on the roof; 1 door on the main block and linen; 2 a dovecote and a palm).
-export function cottage(g, x, y, look, v = 0) {
+// The look's finish on a wall block: mud courses in the Village, a painted foot in the Town, bands in the City and the Capital.
+function skin(g, F, h, look) {
   const m = M[look];
-  const hA = 9 + (look >= 2 ? 1.5 : 0) + (look === 3 ? 1 : 0), hB = 6 + (look >= 2 ? 1 : 0);
-  const A0 = [x + 0.1, y + 0.1, 0.65, 0.6], B0 = [x + 0.5, y + 0.52, 0.42, 0.4];
-  groundShadow(g, ...A0, hA + 3); groundShadow(g, ...B0, hB + 2);
-  const A = block(g, ...A0, hA, 0, m.wall);
-  const B = block(g, ...B0, hB, 0, look === 3 ? M[3].wall : look === 0 ? [MUD[0], MUD[1], MUD[2]] : m.wall);
-  if (look === 0) { crs(g, A, hA, '#9C7A54', 2.4); crs(g, B, hB, '#9C7A54', 2.4); }
-  const trim = look === 0 ? WOOD : m.trim;
-  const doorFill = look <= 1 ? DOORS[v] : DOOR;
-  // windows and door by variant
-  insetOpening(g, { F: A.R, u: 0.3, s: 4.6 }, 0.22, 2.6, { lintel: trim, fill: WINDOW });
-  if (v !== 2) insetOpening(g, { F: A.L, u: 0.1, s: 4.6 }, 0.2, 2.6, { lintel: trim, fill: WINDOW });
-  if (v === 1) {
-    insetOpening(g, { F: A.L, u: 0.56, s: 0 }, 0.26, 4.6, { lintel: trim, fill: doorFill });
-    insetOpening(g, { F: B.L, u: 0.3, s: 2.2 }, 0.28, 2.2, { lintel: trim, fill: WINDOW });
+  if (look === 0) crs(g, F, h, '#9C7A54', 2.4);
+  if (look === 1) band(g, F, 0.9, m.band, 1.0);
+  if (look === 2) { band(g, F, h - 3.4, m.band, 1.3); band(g, F, h - 5, BAND2[2], 0.8); }
+  if (look === 3) { band(g, F, h - 3.8, m.band, 1.0); band(g, F, h - 5.2, GOLD, 0.6); }
+}
+const DOORC = [TEAL_DARK, '#9A3A30', '#245A88'];   // a painted door by variant, in every look: colour is part of every look
+const CANOPY = [RED, TEAL, BLUE, GOLD];
+
+// Tier 3 has three variants that differ in SHAPE, so they tell apart at map zoom (spec section 4):
+//   v0 a wide single block, a flat roof with a parapet and a striped canopy on posts over it;
+//   v1 a stepped two-storey house: a tall back block, a low front block, and an outside stair up to the low roof;
+//   v2 a low block with a wind-catcher tower on its roof and a walled courtyard in front, with a palm in it.
+export function cottage(g, x, y, look, v = 0) {
+  const m = M[look], trim = look === 0 ? WOOD : m.trim, dc = DOORC[v];
+  const up = look >= 2 ? 1.5 : 0;
+  if (v === 0) {
+    const R = [x + 0.08, y + 0.14, 0.82, 0.68], h = 9 + up;
+    groundShadow(g, ...R, h + 6);
+    const A = block(g, ...R, h, 0, m.wall);
+    skin(g, A, h, look);
+    insetOpening(g, { F: A.L, u: 0.42, s: 0 }, 0.2, 4.6, { lintel: trim, fill: dc });
+    insetOpening(g, { F: A.L, u: 0.12, s: 3.6 }, 0.16, 2.8, { lintel: trim, fill: WINDOW });
+    insetOpening(g, { F: A.L, u: 0.72, s: 3.6 }, 0.16, 2.8, { lintel: trim, fill: WINDOW });
+    insetOpening(g, { F: A.R, u: 0.35, s: 3.6 }, 0.26, 2.8, { lintel: trim, fill: WINDOW });
+    roofTop(g, ...R, h, look, 4);
+    // the canopy: four posts, a striped cloth
+    const z0 = h + (look <= 1 ? 0.9 : 0.2), cx0 = x + 0.26, cy0 = y + 0.3, cw = 0.46, cd = 0.34;
+    for (const [a, b] of [[cx0, cy0 + cd], [cx0 + cw, cy0 + cd], [cx0 + cw, cy0]]) g.line(U(p(a, b), z0), U(p(a, b), z0 + 5.4), WOOD, 0.7);
+    g.poly(quad(cx0 - 0.04, cy0 - 0.04, cw + 0.08, cd + 0.08, z0 + 5.6), CANOPY[look], { outline: true });
+    for (let u = 0.08; u < 0.95; u += 0.22) g.poly(quad(cx0 - 0.04 + (cw + 0.08) * u, cy0 - 0.04, (cw + 0.08) * 0.11, cd + 0.08, z0 + 5.6), '#F6ECD6', { alpha: 0.9 });
+    if (look === 1) awning(g, { F: A.L, u: 0.34, s: 5.6 }, 0.36, CANOPY[look]);
+    jar(g, p(x + 0.14, y + 0.95), look === 0 ? POT : '#E9C08A', 0.85);
+  } else if (v === 1) {
+    const hA = 13 + up, hB = 6.5 + up * 0.5;
+    const A0 = [x + 0.1, y + 0.1, 0.5, 0.48], B0 = [x + 0.34, y + 0.52, 0.58, 0.4];
+    groundShadow(g, ...A0, hA + 4); groundShadow(g, ...B0, hB + 2);
+    const A = block(g, ...A0, hA, 0, m.wall), B = block(g, ...B0, hB, 0, m.wall);
+    skin(g, A, hA, look); skin(g, B, hB, look);
+    insetOpening(g, { F: A.L, u: 0.12, s: 6 }, 0.2, 3.4, { lintel: trim, fill: WINDOW });
+    insetOpening(g, { F: A.R, u: 0.3, s: 6 }, 0.3, 3.4, { lintel: trim, fill: WINDOW });
+    insetOpening(g, { F: B.L, u: 0.62, s: 0 }, 0.22, 4.2, { lintel: trim, fill: dc });
+    insetOpening(g, { F: B.R, u: 0.35, s: 2.6 }, 0.3, 2.2, { lintel: trim, fill: WINDOW });
+    roofTop(g, ...A0, hA, look, 3); roofTop(g, ...B0, hB, look, 3);
+    // the outside stair up the front of the low block, to its roof
+    stairs(g, x + 0.36, y + 0.93, 0.26, 0.09, hB + 0.9, 5, ['#E7DDCC', '#D9CFBE', '#B6AAB8']);
+    g.line(U(p(x + 0.36, y + 0.93), 1), U(p(x + 0.62, y + 0.93), hB + 3), WOOD, 0.6, 0.9);
+    linen(g, x + 0.72, y + 0.62, hB + 0.9);
+    if (look === 1) awning(g, { F: B.L, u: 0.54, s: 5 }, 0.36, TEAL);
+    pots(g, U(p(x + 0.2, y + 0.3), hA + 0.9), 1);
   } else {
-    insetOpening(g, { F: B.L, u: v === 2 ? 0.58 : 0.3, s: 0 }, 0.28, 4.4, { lintel: trim, fill: doorFill });
-    if (v === 2) insetOpening(g, { F: A.L, u: 0.3, s: 3.8 }, 0.3, 3, { lintel: trim, fill: WINDOW });
+    const R = [x + 0.12, y + 0.08, 0.62, 0.5], h = 8 + up * 0.7;
+    groundShadow(g, ...R, h + 4);
+    // the court's back and sides first, the palm in it, then the front wall
+    const wallC = look === 0 ? [MUD[0], MUD[1], MUD[2]] : m.wall;
+    box(g, x + 0.1, y + 0.58, 0.07, 0.34, 3.2, 0, wallC, 0);
+    box(g, x + 0.83, y + 0.5, 0.07, 0.42, 3.2, 0, wallC, 0);
+    const A = block(g, ...R, h, 0, m.wall);
+    skin(g, A, h, look);
+    insetOpening(g, { F: A.L, u: 0.4, s: 0 }, 0.22, 4.4, { lintel: trim, fill: dc });
+    insetOpening(g, { F: A.L, u: 0.1, s: 3.4 }, 0.16, 2.6, { lintel: trim, fill: WINDOW });
+    insetOpening(g, { F: A.R, u: 0.35, s: 3.2 }, 0.3, 2.6, { lintel: trim, fill: WINDOW });
+    roofTop(g, ...R, h, look, 3);
+    // the wind-catcher: a narrow tower with a dark slot, a cap above
+    const T = block(g, x + 0.2, y + 0.14, 0.17, 0.17, 7, h + 0.9, m.wall);
+    qd(g, T.L, 0.2, 0.8, 2.2, 6, INK, { alpha: 0.85 });
+    box(g, x + 0.18, y + 0.12, 0.21, 0.21, 0.8, h + 7.9, look === 3 ? [GOLDC[0], GOLDC[1], GOLDC[2]] : [PARAPET, '#ECE2D2', '#C6BACB'], 0);
+    palmAt(g, x + 0.46, y + 0.78, 0.55);
+    const F = box(g, x + 0.1, y + 0.88, 0.82, 0.07, 3.2, 0, wallC, 0);
+    qd(g, F.L, 0.34, 0.54, 0, 2.6, dc);   // the gate
+    if (look >= 1) g.line(F.L(0, 3.2), F.L(1, 3.2), m.band, 0.9, 0.9);
+    jar(g, p(x + 0.9, y + 1.0), '#E9C08A', 0.8);
   }
-  // the look's walls and top
-  if (look === 1) band(g, A, 0.9, m.band, 1.0);
-  if (look === 2) { band(g, A, hA - 3.4, m.band, 1.3); band(g, A, hA - 5.2, BAND2[look], 0.8); band(g, B, hB - 2.6, BAND2[look], 1.2); }
-  if (look === 3) { band(g, A, hA - 4, m.band, 1.0); band(g, B, hB - 2.8, m.band, 0.9); }
-  roofTop(g, ...A0, hA, look, 3);
-  roofTop(g, ...B0, hB, look, 2);
-  if (look <= 1) mat(g, x + 0.22, y + 0.2, 0.34, 0.28, hA + 0.9, MATS[v][0], MATS[v][1]);
-  if (look === 3 && v === 1) gildedCap(g, U(p(x + 0.42, y + 0.4), hA + 2.8), 2);
-  // door furniture
-  const doorF = v === 1 ? { F: A.L, u: 0.5 } : { F: B.L, u: v === 2 ? 0.5 : 0.24 };
-  if (look === 1) awning(g, { F: doorF.F, u: doorF.u, s: v === 1 ? 5.6 : 5.4 }, 0.42, v === 1 ? RED : TEAL);
-  if (look === 2) {   // a timber balcony on the shaded face
-    box(g, x + 0.75, y + 0.18, 0.13, 0.34, 0.7, 4.2, ['#9A7448', '#8A6A4A', '#6B4A3A'], 0);
-    for (let u = 0.1; u < 1; u += 0.22) g.line(U(p(x + 0.88, y + 0.18 + 0.34 * u), 4.9), U(p(x + 0.88, y + 0.18 + 0.34 * u), 7.2), WOOD, 0.35, 0.9);
-    g.line(U(p(x + 0.88, y + 0.18), 7.2), U(p(x + 0.88, y + 0.52), 7.2), WOOD, 0.6);
-  }
-  // clutter
-  if (v === 0) { pots(g, U(p(x + 0.64, y + 0.7), hB + 0.9), 2); }
-  if (v === 1) linen(g, x + 0.2, y + 0.18, hA + 0.9);
-  if (v === 2) { dovecote(g, x + 0.3, y + 0.24, hA + 0.9, look >= 2 ? [m.wall[0], m.wall[1], m.wall[2]] : [PARAPET, '#ECE2D2', '#C6BACB']); palmAt(g, x + 0.88, y + 0.88, 0.6); }
-  if (look >= 1 && v !== 2) jar(g, p(x + 0.22, y + 0.92), look === 1 ? POT : '#E9C08A', 0.85);
-  if (look === 1 && v === 0) box(g, x + 0.08, y + 0.8, 0.3, 0.1, 1.6, 0, ['#DDB872', '#CCA463', '#A48474'], 0);   // a bench
 }
 
 // Draws fn with everything raised z art px (the primitives that draw flat on the ground, put on a roof).
@@ -212,9 +244,9 @@ export function manor(g, x, y, look, tier) {
     if (!top && s < hA * 0.2 && u > 0.5) continue;
     insetOpening(g, { F: A.L, u, s: Math.max(s, 2.6) }, 0.15, top ? 4 : 3.2, { lintel: trim, fill: WINDOW, lit: look >= 2 && u > 0.5 && s > 5 });
   }
-  insetOpening(g, { F: A.L, u: 0.4, s: 0 }, 0.2, 5, { lintel: trim, fill: look <= 1 ? TEAL_DARK : DOOR });
+  insetOpening(g, { F: A.L, u: 0.4, s: 0 }, 0.2, 5, { lintel: trim, fill: TEAL_DARK });
   for (const u of [0.2, 0.55]) insetOpening(g, { F: A.R, u, s: hA * 0.45 }, 0.18, 3.6, { lintel: trim, fill: WINDOW });
-  insetOpening(g, { F: B.L, u: 0.38, s: 0 }, 0.24, 5, { lintel: trim, fill: look <= 1 ? '#9A3A30' : DOOR });
+  insetOpening(g, { F: B.L, u: 0.38, s: 0 }, 0.24, 5, { lintel: trim, fill: '#9A3A30' });
   insetOpening(g, { F: B.R, u: 0.3, s: hB * 0.35 }, 0.2, 3, { lintel: trim, fill: WINDOW });
   // walls by look
   if (look === 1) { band(g, A, 1, m.band, 1); band(g, B, 1, m.band, 1); }
@@ -236,7 +268,8 @@ export function manor(g, x, y, look, tier) {
     lift(g, hB + 0.9, () => { bed(g, B0[0] + 0.1, B0[1] + 0.1, 0.32, 0.32); pool(g, B0[0] + 0.42, B0[1] + 0.5, 0.3, 0.34); });
   }
   // the look's extras and the tier's crown
-  if (look <= 1) { awning(g, { F: B.L, u: 0.2, s: 5.8 }, 0.55, look === 0 ? ORANGE : TEAL); if (look === 1) awning(g, { F: A.L, u: 0.3, s: 5.8 }, 0.4, RED); }
+  awning(g, { F: B.L, u: 0.2, s: 5.8 }, 0.55, [ORANGE, TEAL, BLUE, RED][look]);
+  if (look >= 1) awning(g, { F: A.L, u: 0.3, s: 5.8 }, 0.4, [ORANGE, RED, GOLD, TEAL][look]);
   if (look === 2) {
     box(g, x + 1.9, y + 0.9, 0.13, 0.62, 0.8, hB - 5, ['#9A7448', '#8A6A4A', '#6B4A3A'], 0);   // a timber balcony on the wing's shaded face
     for (let u = 0.08; u < 1; u += 0.12) g.line(U(p(x + 2.03, y + 0.9 + 0.62 * u), hB - 4.2), U(p(x + 2.03, y + 0.9 + 0.62 * u), hB - 1.6), WOOD, 0.35, 0.9);
@@ -279,42 +312,55 @@ function drum(g, c, r, h, C, cap = true) {
   if (cap) { g.ell([c[0], c[1] - h], r, ry, C[0], { stroke: OUTLINE, strokeWidth: 1, strokeAlpha: 0.55 }); }
 }
 
-// The granary: a big silo with its yard. work: the door open on a warm lit doorway, sacks and a heap of grain in the yard. shut: the plank door barred, no sacks.
+// A dome in the look's stone: a lit shoulder fading to the shaded side. c is its base centre, C = [lit, shade].
+function domeC(g, c, rx, ryT, ryB, C) {
+  const { ctx, scale: s } = g;
+  ctx.beginPath();
+  ctx.ellipse(c[0] * s, c[1] * s, rx * s, ryT * s, 0, Math.PI, Math.PI * 2);
+  ctx.ellipse(c[0] * s, c[1] * s, rx * s, ryB * s, 0, 0, Math.PI);
+  ctx.closePath();
+  const gr = ctx.createRadialGradient((c[0] - rx * 0.3) * s, (c[1] - ryT * 0.4) * s, 0, c[0] * s, c[1] * s, rx * 1.7 * s);
+  gr.addColorStop(0, C[0]); gr.addColorStop(1, C[1]);
+  ctx.fillStyle = gr; ctx.fill();
+  ctx.globalAlpha = 0.55; ctx.strokeStyle = OUTLINE; ctx.lineWidth = s; ctx.lineJoin = 'round'; ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+// The granary, 2x2, keeps its identity in every look: four domes on a walled base. The look changes the material and the trim: Village mud-brick domes and
+// wall; Town whitewash; City sandstone with a painted band; Capital pale dressed stone with a teal cornice and a gilded cap on every dome.
+// work: the door open on a warm doorway, grain heaped in the hatches and spilling to sacks in the yard, the flag up. shut: a closed plank door, the hatches
+// capped and dark, no sacks or spill, the flag hanging down.
 export function granaryRef(g, x, y, look, state = 'work') {
-  const m = M[look], c = p(x + 1, y + 0.9);
-  groundShadow(g, x + 0.3, y + 0.2, 1.4, 1.2, 14);
-  // a low walled base on the lit side, with the door
-  const baseC = look === 0 ? [MUD[0], MUD[1], MUD[2]] : m.wall;
-  const Bs = block(g, x + 0.22, y + 0.95, 1.5, 0.8, 5, 0, baseC);
-  if (look === 0) crs(g, Bs, 5, '#9C7A54', 2.5);
-  const doorFill = state === 'work' ? '#F6D46A' : '#6A4A38';
-  if (state === 'work') insetOpening(g, { F: Bs.L, u: 0.38, s: 0 }, 0.24, 4, { lintel: look === 0 ? WOOD : m.trim, lit: true });
-  else { qd(g, Bs.L, 0.35, 0.65, 0, 4.2, look === 0 ? WOOD : m.trim); planks(g, Bs.L, 0.38, 0.62, 0, 3.8); }
-  void doorFill;
-  if (look >= 1) band(g, Bs, 3.4, m.band, 0.9);
-  // two smaller silos behind the big one
-  { const SC = look === 0 ? [MUD[0], MUD[1], MUD[2]] : m.wall; drum(g, [c[0] - 16, c[1] - 11], 5.4, 11, SC); drum(g, [c[0] + 13, c[1] - 11], 5.4, 12, SC);
-    for (const dx of [-16, 13]) { const t = [c[0] + dx, c[1] - 22]; if (look <= 1) g.path([['M', [t[0] - 6.2, t[1] + 0.6]], ['L', [t[0], t[1] - 6]], ['L', [t[0] + 6.2, t[1] + 0.6]], ['Q', [t[0], t[1] + 6.4], [t[0] - 6.2, t[1] + 0.6]], ['Z']], THATCH, { outline: true }); else g.dome([t[0], t[1] + 1], 5.8, 5, 2, { outline: true }); } }
-  // the silo
-  const C = look === 0 ? [MUD[0], MUD[1], MUD[2]] : m.wall;
-  const r = look === 3 ? 9.5 : 9;
-  drum(g, [c[0] - 2, c[1] - 7], r, look === 3 ? 17 : 15, C);
-  if (look >= 1) { const bandC = look === 1 ? TEAL : look === 2 ? m.band : m.band; g.path([['M', [c[0] - 2 - r, c[1] - 7 - 6]], ['Q', [c[0] - 2, c[1] - 7 - 6 + r], [c[0] - 2 + r, c[1] - 7 - 6]]], 'none', { stroke: bandC, strokeWidth: 1.6, strokeAlpha: 0.95 }); }
-  const topC = [c[0] - 2, c[1] - 7 - (look === 3 ? 17 : 15)];
-  if (look === 0) { g.path([['M', [topC[0] - r - 1, topC[1] + 1]], ['L', [topC[0], topC[1] - 9]], ['L', [topC[0] + r + 1, topC[1] + 1]], ['Q', [topC[0], topC[1] + r + 1], [topC[0] - r - 1, topC[1] + 1]], ['Z']], THATCH, { outline: true }); }
-  else if (look === 1) { g.path([['M', [topC[0] - r - 1, topC[1] + 1]], ['L', [topC[0], topC[1] - 8]], ['L', [topC[0] + r + 1, topC[1] + 1]], ['Q', [topC[0], topC[1] + r + 1], [topC[0] - r - 1, topC[1] + 1]], ['Z']], THATCH, { outline: true }); g.line(topC, [topC[0], topC[1] - 8], '#AC8840', 0.5); }
-  else if (look === 2) { g.dome([topC[0], topC[1] + 1], r + 0.5, 8, 3, { outline: true }); }
-  else { g.dome([topC[0], topC[1] + 1], r + 0.5, 7, 3, { outline: true }); gildedCap(g, [topC[0], topC[1] - 5], 3.2); }
-  if (look >= 2) {   // a stair up the lit side
-    for (let i = 0; i < 4; i++) box(g, x + 0.04 + i * 0.1, y + 1.1, 0.1, 0.5, 1.2 * (i + 1), 0, ['#F4EDDF', '#E7DDCC', '#C3B8C6'], 0);
+  const m = M[look], work = state === 'work';
+  const WALL = [MUD, WASH, SST, LIME][look];
+  const DOME = [['#E0BC88', '#A68A78'], ['#FFFAEE', '#CDBFC4'], ['#F1E2BC', '#B8A892'], ['#FBF6E8', '#CFC2C6']][look];
+  const band1 = [TRUNK, TEAL, BLUE, TEAL][look];
+  groundShadow(g, x + 0.1, y + 0.1, 1.8, 1.8, 16);
+  const F = block(g, x + 0.1, y + 0.1, 1.8, 1.8, 10, 0, WALL);
+  if (look === 0) crs(g, F, 10, '#9C7A54', 2.6);
+  if (look === 3) cornice(g, { x: x + 0.1, y: y + 0.1, w: 1.8, d: 1.8, z: 10 }, [TEAL, TEAL, TEAL_DARK]);
+  else { qd(g, F.L, 0, 1, 8.2, 9.4, band1); qd(g, F.R, 0, 1, 8.2, 9.4, band1); qd(g, F.R, 0, 1, 8.2, 9.4, INK, { alpha: 0.18 }); }
+  if (look === 2) { qd(g, F.L, 0, 1, 6.9, 7.5, GOLD); qd(g, F.R, 0, 1, 6.9, 7.5, GOLD); }
+  // the door
+  if (work) insetOpening(g, { F: F.L, u: 0.42, s: 0 }, 0.18, 6.4, { lintel: look === 0 ? WOOD : m.trim, lit: true });
+  else { qd(g, F.L, 0.4, 0.62, 0, 6.8, look === 0 ? WOOD : m.trim); planks(g, F.L, 0.43, 0.59, 0, 6.2); g.line(F.L(0.42, 3.1), F.L(0.6, 3.1), INK, 1, 0.8); }
+  // four domes, back to front
+  const top = 10;
+  [[0.6, 0.6], [1.4, 0.6], [0.6, 1.4], [1.4, 1.4]].forEach(([u, v]) => {
+    const c = U(p(x + u, y + v), top);
+    domeC(g, c, 8.2, 8.6, 4, DOME);
+    const t = [c[0], c[1] - 8.4];
+    if (look === 3) { gildedCap(g, [t[0], t[1] + 2.6], 2.4); return; }
+    if (work) { g.ell(t, 4.4, 2.2, '#8A7A3A', { outline: true }); g.ell([t[0], t[1] - 0.3], 3.8, 1.8, '#E6C45A'); g.ell([t[0] - 1.2, t[1] - 0.8], 1.8, 0.7, '#FFF0B0', { alpha: 0.9 }); }
+    else { g.ell(t, 3.4, 1.7, '#5A4A5A'); g.line([t[0] - 3.4, t[1]], [t[0] + 3.4, t[1]], INK, 0.5, 0.6); }
+  });
+  // the yard and the flag
+  if (work) {
+    [[0.34, 2.12], [0.58, 2.18], [0.46, 2.06]].forEach(([u, v], i) => sack(g, p(x + u, y + v), i === 1 ? '#E9D6A4' : '#D9C495'));
+    g.ell(p(x + 1.0, y + 2.16), 5, 2.2, '#E6C45A', { outline: true }); g.ell(U(p(x + 1.0, y + 2.16), 1.8), 3.4, 1.5, '#F3D775');
   }
-  // the yard
-  if (state === 'work') {
-    [[0.35, 1.95], [0.6, 2.0], [0.48, 1.88]].forEach(([u, v], i) => sack(g, p(x + u, y + v), i === 1 ? '#E9D6A4' : '#D9C495'));
-    g.ell(p(x + 1.5, y + 1.95), 4.6, 2.1, '#E6C45A', { outline: true });
-    g.ell(U(p(x + 1.5, y + 1.95), 1.6), 3.2, 1.5, '#F3D775');
-    g.ell(U(p(x + 1.4, y + 1.9), 2.2), 1.4, 0.6, '#FFF0B0', { alpha: 0.8 });
-  }
+  const fp = U(p(x + 1.9, y + 0.12), 10);
+  if (work) { g.line(fp, U(fp, 8), WOOD, 0.7); g.poly([U(fp, 8), [fp[0] + 5, fp[1] - 6.6], U(fp, 4.6)], GREEN); }
+  else { g.line(fp, U(fp, 5), WOOD, 0.7); g.poly([U(fp, 5), [fp[0] + 0.4, fp[1] - 4.6], [fp[0] + 1.6, fp[1] - 1.2]], GREEN, { alpha: 0.9 }); }
 }
 
 // A potter's workshop with its kiln. work: the kiln glows and smokes, the awning is out over the wheel, finished pots stand in the yard. shut: no smoke, the
@@ -353,71 +399,41 @@ export function kilnRef(g, x, y, look, state = 'work') {
   }
 }
 
-// The bazaar, 2x2. Village: four reed-shaded stalls. Town: striped awnings and whitewashed counters. City: a covered market under one roof. Capital: a colonnaded hall.
-// work: open, with goods heaped and a figure at the counter. shut: the awnings drawn in, the counters barred with planks, the yard empty.
+// The bazaar, 2x2: four stalls, as today. The awnings keep their red, gold, blue and green in every look; the look changes the stall frames, the counters, the
+// trim and the paving. Village: wooden posts, mud-brick counters. Town: whitewashed counters. City: stone counters with a painted band and slim stone posts.
+// Capital: dressed counters with a gilded band, gilded posts and a gilded finial on a pole. work: goods heaped, baskets out, a figure at the counter.
+// shut: the awnings furled to a roll (their colours kept), the counters barred with planks, no goods, no baskets.
 export function bazaarRef(g, x, y, look, state = 'work') {
   const m = M[look], work = state === 'work';
   const GOODS = ['#C9552F', GOLD, '#6E9E3A'];
-  const cs = [[RED, '#933E2B'], [GOLD, '#B08436'], [BLUE, '#245A88'], [TEAL, TEAL_DARK]];
+  const cs = [[RED, '#933E2B'], [GOLD, '#B08436'], [BLUE, '#245A88'], [GREEN, GREEN_DARK]];
   groundShadow(g, x + 0.1, y + 0.1, 1.8, 1.8, 9);
-  const counter = (cx, cy, k) => {
+  [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j], k) => {
+    const cx = x + i, cy = y + j;
     const C = look === 0 ? ['#D9B47A', '#C49E66', '#A08478'] : m.wall;
     const F = block(g, cx + 0.24, cy + 0.3, 0.52, 0.4, 3.2, 0, C);
-    if (work) { GOODS.forEach((c, i) => g.ell(U(p(cx + 0.28 + 0.44 * (i / 2.4), cy + 0.55), 3.5), 1.35, 0.9, GOODS[(i + k) % 3], { outline: true })); }
-    else planks(g, F.L, 0.1, 0.9, 0.3, 2.9);
-    return F;
-  };
-  if (look <= 1) {
-    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j], k) => {
-      const cx = x + i, cy = y + j;
-      counter(cx, cy, k);
-      const colr = look === 0 ? cs[k] : [cs[k][0], cs[k][1]];
-      if (work) { awningStall(g, cx, cy, colr, look === 1); }
-      else awningStall(g, cx, cy, ['#D9B060', '#B08436'], look === 1, true);
-      if (work) { g.ell(p(cx + 0.5, cy + 0.9), 2.3, 1.1, '#B08436', { outline: true }); g.ell(U(p(cx + 0.5, cy + 0.9), 1.2), 1.7, 0.8, GOODS[k % 3]); }
-    });
-  } else if (look === 2) {
-    // a covered market: a hall along the back with open doorways, and two striped stalls in front of it
-    const hall = block(g, x + 0.1, y + 0.1, 1.8, 0.8, 9, 0, m.wall);
-    band(g, hall, 6.2, m.band, 1.2); band(g, hall, 7.8, BAND2[2], 0.7);
-    for (const u of [0.1, 0.42, 0.74]) {
-      if (work) insetOpening(g, { F: hall.L, u, s: 0 }, 0.16, 5, { lintel: BLUE, lit: true });
-      else { qd(g, hall.L, u - 0.02, u + 0.18, 0, 5.4, BLUE); planks(g, hall.L, u, u + 0.16, 0, 5); }
-    }
-    roofTop(g, x + 0.1, y + 0.1, 1.8, 0.8, 9, 2, 5);
-    [0, 1].forEach((k) => {
-      counter(x + k * 0.9 - 0.1, y + 1.02, k);
-      awningStall(g, x + k * 0.9 - 0.1, y + 1.02, k ? [GOLD, '#B08436'] : [BLUE, '#245A88'], true, !work);
-      if (work) { g.ell(p(x + k * 0.9 + 0.4, y + 1.95), 2.3, 1.1, '#B08436', { outline: true }); g.ell(U(p(x + k * 0.9 + 0.4, y + 1.95), 1.2), 1.7, 0.8, GOODS[k]); }
-    });
-  } else {
-    // a colonnaded hall: a stepped podium, a pale hall with a painted frieze and a gilded cap, columns across its front with the stalls between
-    block(g, x + 0.08, y + 0.1, 1.84, 1.0, 1.4, 0, [m.roof[0], m.roof[1], m.roof[2]]);
-    const hall = block(g, x + 0.2, y + 0.2, 1.6, 0.7, 10, 1.4, m.wall);
-    band(g, hall, 7, m.band, 1.0); band(g, hall, 8.4, GOLD, 0.6);
-    for (const u of [0.14, 0.46, 0.78]) {
-      if (work) insetOpening(g, { F: hall.L, u, s: 1.4 }, 0.14, 5.6, { lintel: TEAL, lit: true });
-      else { qd(g, hall.L, u - 0.02, u + 0.16, 1.4, 7.2, TEAL); planks(g, hall.L, u, u + 0.14, 1.4, 6.8); }
-    }
-    cornice(g, { x: x + 0.2, y: y + 0.2, w: 1.6, d: 0.7, z: 11.4 }, M[3].cornice);
-    roofTop(g, x + 0.2, y + 0.2, 1.6, 0.7, 11.4, 3, 5);
-    gildedCap(g, U(p(x + 1.0, y + 0.55), 12.6), 4.2);
-    for (const gx of [0.3, 0.77, 1.23, 1.7]) col(g, x + gx, y + 1.0, 8.4, 1.4);
-    [0, 1].forEach((k) => {
-      counter(x + k * 0.9, y + 1.12, k);
-      if (work) { g.ell(p(x + k * 0.9 + 0.55, y + 1.97), 2.3, 1.1, '#B08436', { outline: true }); g.ell(U(p(x + k * 0.9 + 0.55, y + 1.97), 1.2), 1.7, 0.8, GOODS[k + 1]); }
-    });
-  }
-  if (work) { figNew(g, x + 1.9, y + (look <= 1 ? 1.4 : 1.95), 'citizen', 0.85); }
+    if (look >= 2) { const bc = look === 2 ? m.band : GOLD; qd(g, F.L, 0, 1, 2.0, 2.8, bc); qd(g, F.R, 0, 1, 2.0, 2.8, bc); qd(g, F.R, 0, 1, 2.0, 2.8, INK, { alpha: 0.18 }); }
+    if (work) GOODS.forEach((c, n) => g.ell(U(p(cx + 0.28 + 0.44 * (n / 2.4), cy + 0.55), 3.5), 1.35, 0.9, GOODS[(n + k) % 3], { outline: true }));
+    else planks(g, F.L, 0.08, 0.92, 0.2, 2.9);
+    awningStall(g, cx, cy, cs[k], look, !work);
+    if (work) { g.ell(p(cx + 0.5, cy + 0.9), 2.3, 1.1, '#B08436', { outline: true }); g.ell(U(p(cx + 0.5, cy + 0.9), 1.2), 1.7, 0.8, GOODS[k % 3]); }
+  });
+  const pole = p(x + 1.95, y + 0.08);
+  if (look >= 2) {
+    g.line(pole, U(pole, 13), look === 2 ? WOOD : GOLDC[2], 0.8);
+    if (look === 3) gildedCap(g, U(pole, 13), 1.8); else g.poly([U(pole, 13), [pole[0] + 5, pole[1] - 11.4], U(pole, 9.6)], RED);
+  } else { g.line(pole, U(pole, 9), WOOD, 0.7); g.poly([U(pole, 9), [pole[0] + 5, pole[1] - 7.6], U(pole, 5.6)], RED); }
+  if (work) figNew(g, x + 1.0, y + 1.0, 'citizen', 0.85);
 }
-function awningStall(g, cx, cy, c, striped, furled = false) {
-  const z = 7.5;
-  for (const [a, b] of [[cx + 0.14, cy + 0.86], [cx + 0.86, cy + 0.86], [cx + 0.86, cy + 0.14]]) { const q = U(p(a, b), z - 4.2); g.line(q, U(q, 4.2), WOOD, 0.7); }
-  if (furled) { const A = tb(g, cx + 0.12, cy + 0.12, 0.76, 0.76, 0.7, z, 0.12, [c[0], c[0], c[1]], 0); void A; return; }
+// A stall's awning on its posts: striped, in the stall's own colour, whatever the look. furled = rolled up (a shut stall).
+function awningStall(g, cx, cy, c, look, furled = false) {
+  const z = 7.5, post = [WOOD, '#E9DECB', '#E7DDCC', GOLDC[1]][look];
+  for (const [a, b] of [[cx + 0.14, cy + 0.86], [cx + 0.86, cy + 0.86], [cx + 0.86, cy + 0.14]]) { const q = U(p(a, b), z - 4.2); g.line(q, U(q, 4.2), post, look >= 2 ? 1 : 0.7); }
+  if (furled) { tb(g, cx + 0.12, cy + 0.12, 0.76, 0.76, 0.9, z - 0.4, 0.2, [c[0], c[0], c[1]]); return; }
   const A = tb(g, cx + 0.1, cy + 0.1, 0.8, 0.8, 1.2, z, 0.05, [c[0], c[0], c[1]]);
   const st = '#F6ECD6';
   for (let u = 0.1; u < 0.95; u += 0.25) { qd(g, A.L, u, u + 0.12, 0, 1.2, st, { alpha: 0.85 }); qd(g, A.R, u, u + 0.12, 0, 1.2, st, { alpha: 0.6 }); }
-  if (striped) g.poly(quad(cx + 0.15, cy + 0.15, 0.7, 0.7, z + 1.2), st, { alpha: 0.3 });
+  if (look >= 2) { qd(g, A.L, 0, 1, 0, 0.35, look === 2 ? GOLD : TEAL); qd(g, A.R, 0, 1, 0, 0.35, look === 2 ? GOLD : TEAL_DARK); }
 }
 
 // ---- nature and figures ---------------------------------------------------------------------------------------------------------------------

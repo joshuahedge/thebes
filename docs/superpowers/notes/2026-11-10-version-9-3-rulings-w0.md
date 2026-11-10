@@ -23,3 +23,16 @@
   - The reference drawings are in `src/dev/looksheetArt.js`, not in `housing.js`, `services.js` and `nature.js`, which the tracks own: no merge conflicts, and the tracks lift what they need.
   - Nothing is registered in `ART`, so the game is unchanged.
   - Cost if wrong: the tracks copy from one file instead of editing in place.
+
+## After Josh's review of the look sheet (still 1885-1889)
+
+- **1889 (amended). Four fixes.**
+  - **Colour stays in every look.** The bazaar's four awnings keep their red, gold, blue and green in the City and the Capital; the look changes the stall frames (posts, counters, bands) and the paving. Doors and wing awnings carry colour in all four looks.
+  - **The granary keeps today's shape in every look:** four domes on a walled base, no silos. The material and trim change: Village mud brick, Town whitewash, City sandstone with a painted band, Capital pale stone with a teal cornice and a gilded cap on each dome.
+  - **A shut granary reads as shut:** a closed barred plank door, capped dark hatches, no sacks or spill, the flag hanging down.
+  - **The three Tier 3 variants differ in shape.**
+    - (a) A wide single block with a parapet and a striped roof canopy.
+    - (b) A stepped two-block house with an outside stair and linen on the low roof.
+    - (c) A low block with a wind-catcher tower and a walled courtyard with a palm.
+    - Track H should keep this rule: variants change the massing first, and the door, windows and clutter second.
+  - The kiln is drawn 1.14x about its footprint's front corner so it stands level with the homes; the granary already fills its footprint.

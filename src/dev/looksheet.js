@@ -48,7 +48,7 @@ const ROWS = [
     id: 'kiln', group: 'services', label: 'Kiln\nworking | shut', h: 70, oy: 34,
     cell(g, look) {
       if (look < 0) { at(g, -36, 0, () => ART.potter.draw(g, 0, 0)); at(g, 36, 0, () => ART.potter.draw(g, 0, 0)); return; }
-      for (const [dx, st] of [[-36, 'work'], [36, 'shut']]) at(g, dx, 0, () => { yard(g, 0, 0, 2, 2, look, 0.25); kilnRef(g, 0, 0, look, st); });
+      for (const [dx, st] of [[-36, 'work'], [36, 'shut']]) at(g, dx, 0, () => { yard(g, 0, 0, 2, 2, look, 0.25); grow(g, 1.14, () => kilnRef(g, 0, 0, look, st)); });
     },
   },
   {
@@ -78,6 +78,8 @@ const ROWS = [
     },
   },
 ];
+// Draws fn grown by k about the footprint's front corner, so a workshop that sits small in its footprint stands level with the homes beside it.
+function grow(g, k, fn) { const y = 28 * g.scale; g.ctx.save(); g.ctx.translate(0, y); g.ctx.scale(k, k); g.ctx.translate(0, -y); fn(); g.ctx.restore(); }
 function jarsBench(g) {
   const c = p(0, 0);
   g.poly([[c[0] - 8, c[1] - 2], [c[0] + 8, c[1] - 2], [c[0] + 8, c[1] - 4], [c[0] - 8, c[1] - 4]], '#CCA463', { outline: true });
