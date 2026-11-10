@@ -11,3 +11,4 @@ import './h/all.js';         // Track H: homes in four looks and three variants,
 import './g/all.js';         // G: ground, yards and streets
 import './u/all.js';         // U: the decree's interface (the card, the chip, the end card, the wall, the ruler list)
 import './k/all.js';         // K: the decree's balance (bars and medals; the six-year runs load only for -Grep "v93 k balance")
+import './p/all.js';         // P: the caches by device, measured on the scenes, and the bar's contract (wave 2)

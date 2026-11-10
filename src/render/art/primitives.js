@@ -172,9 +172,14 @@ export function statue(g, gx, gy) {
 // 1.0 px and inner lines stay at 0.6 px and 32% (palette OUTLINE). Flat and illustrated: shade and light, no textures.
 const outward = (F, dist) => (F(1, 0)[0] > F(0, 0)[0] ? [-16 * dist, 8 * dist] : [16 * dist, 8 * dist]);   // the way a face points, for `dist` tiles
 
+// Version 9.3 Track P (ruling 1938): the bar's test hook. The three primitives of the bar count their calls here, so the contract test
+// (tests/v93/p/bar.test.js) can draw each slot once and list any that called none. A sprite is drawn once per bucket, so the count costs nothing a frame.
+export const PRIMITIVE_CALLS = { shadeWall: 0, contactLine: 0, insetOpening: 0 };
+
 // A soft shade from the top of a wall face toward its base (a warm lift at the very top, cool lavender at the foot). h is the wall's height in
 // art px: a tall wall takes more.
 export function shadeWall(g, face, h = 10) {
+  PRIMITIVE_CALLS.shadeWall++;
   let top = Infinity, bottom = -Infinity;
   for (const q of face) { top = Math.min(top, q[1]); bottom = Math.max(bottom, q[1]); }
   if (bottom - top < 1e-6) return;
@@ -195,6 +200,7 @@ export function silhouette(g, x, y, w, d, h, z = 0, alpha = 0.55) {
 
 // The dark line where walls meet the ground, with a faint shadow band on the ground in front of it. footprint is [x, y, w, d] in tiles.
 export function contactLine(g, footprint) {
+  PRIMITIVE_CALLS.contactLine++;
   const [x, y, w, d] = footprint;
   const a = p(x, y + d), b = p(x + w, y + d), c = p(x + w, y);
   g.line([a[0], a[1] + 0.9], [b[0], b[1] + 0.9], SHADOW, 2.4, 0.1);
@@ -207,6 +213,7 @@ export function contactLine(g, footprint) {
 // below. at = { F, u, s } is the bottom-left corner on the face; w is a fraction of the face, h art px up it.
 // opts: { fill (the opening's colour, DOOR), lintel (its colour), sill (true), lit (a warm lit doorway) }.
 export function insetOpening(g, at, w, h, { lintel = '#FFFFFF', fill = DOOR, sill = true, lit = false } = {}) {
+  PRIMITIVE_CALLS.insetOpening++;
   const { F, u, s } = at;
   qd(g, F, u - 0.035, u + w + 0.035, s + h, s + h + 1.1, lintel, { alpha: lintel === '#FFFFFF' ? 0.7 : 1 });
   qd(g, F, u, u + w, s, s + h, lit ? '#F6D46A' : fill);
