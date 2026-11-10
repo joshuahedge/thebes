@@ -9,7 +9,7 @@
 .decree-card .decree-twists { margin: 2px 0; }
 
 /* After the end the city cannot act: the alerts, tips and scribe stop (fix wave U8). */
-.decree-over :is(#banner, #tip, .nudge) { display: none; }
+.decree-over :is(#banner, #tip, .nudge, .scribe-bubble) { display: none; }   /* final fix: the scribe's bubble too (re-review) */
 
 /* The chip: the first row under the top bar, a button. It has the top bar's .score-chip look (its radius, teal-soft ground, ink and weight; #topbar .score-chip
    in css/ui.css is scoped to the bar), with a tap target's height because it opens the decree card. */
