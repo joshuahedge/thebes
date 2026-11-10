@@ -64,9 +64,16 @@ export function runMonth(world, events = null) {
   world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood, ...scoreRow(world) });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
   if (events) events.push({ type: 'month' });
+  // Version 9.3 (Track R, ruling 1962): the decree ends at the month end on or after its end day (day 2,160): the score is this day's, the speed goes to 0.
+  if (world.decree && !world.decree.ended && world.day >= world.decree.endDay) {
+    world.decree.ended = true;
+    world.speed = 0;
+    if (events) events.push({ type: 'decree_end' });
+  }
 }
 
 export function tickDay(world, events = null) {
+  if (world.decree && world.decree.ended) return;   // Version 9.3 (Track R, ruling 1962): a decree run that has ended does nothing more
   assignLabour(world);
   produceDay(world);
   cartDay(world, events);                               // Stage 4.7: the stores' carts move on, then set out (src/sim/carts.js)

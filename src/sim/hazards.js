@@ -12,6 +12,7 @@
 // { id, cause }, 'plague_end' { homes, lost }, 'quarantine_end' { key }, 'drought_warning' { strikes, year }, 'drought_start' { until, factor },
 // 'drought_end', 'locusts_warning' { kind, farms, strikes }, 'locusts_strike' { kind, farms, until, factor }, 'locusts_end' { kind }; and the
 // raid strikes' 'raid_wreck' and 'raid_loot' (src/sim/strikes.js).
+import { capacityOf } from './rules.js';
 import { HAZARD_ADVICE, DROUGHT, HAZARD_KINDS } from '../data/hazards.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from './world.js';
@@ -108,7 +109,7 @@ function droughtData(world) {
   const h = world.hazards.drought, o = foodOutlook(world);
   const monthsShort = o.short > 0 && !o.carries ? Math.ceil((o.need - o.held) / o.short) : 0;
   let capacity = 0;
-  for (const b of allBuildings(world)) if (BUILDINGS[b.type].stores && BUILDINGS[b.type].stores.some((g) => FOOD_GOODS.includes(g))) capacity += BUILDINGS[b.type].capacity;
+  for (const b of allBuildings(world)) if (BUILDINGS[b.type].stores && BUILDINGS[b.type].stores.some((g) => FOOD_GOODS.includes(g))) capacity += capacityOf(world, b.type);
   return {
     warned: Boolean(h.warning), strikes: h.warning ? h.warning.strikes : null, until: h.active ? h.active.until : null, year: (h.warning || h.active).year,
     months: DROUGHT.months, ...o, monthsShort, capacity,

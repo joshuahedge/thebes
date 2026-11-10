@@ -5,6 +5,7 @@
 //
 // Events: { type: 'palace_done', id, style } the day the works end (palaceDay). Enlarging is a command, so the interface
 // learns of it from enlargePalace's result, not from an event.
+import { decreeEnded, endedFail } from './rules.js';
 import { PALACE_STYLES, PALACE, TAX_RATES } from '../data/palace.js';
 import { allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
@@ -41,6 +42,7 @@ export function palaceQuote(world, id) {
 // so Undo cannot remove the palace and lose the enlargement's gold and works with it.
 // { ok: true, warnings: [], style, price, days }, or fails with palaceQuote's reason.
 export function enlargePalace(world, id) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const q = palaceQuote(world, id);
   if (!q.ok) return fail(q.reason);
   const b = world.buildings[id];
@@ -95,6 +97,7 @@ export const taxMood = (world) => TAX_RATES[taxRateOf(world)].mood;
 // The setTaxRate command: sets the palace's rate. Needs no gold and is not undoable (a rate is changed back the same way).
 // { ok: true, warnings: [], rate } or fails with 'not_palace' (id is no palace) or 'bad_rate' (not a key of TAX_RATES).
 export function setTaxRate(world, id, rate) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (!b || b.type !== PALACE.type) return fail('not_palace');
   if (!isRate(rate)) return fail('bad_rate');

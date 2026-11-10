@@ -14,6 +14,7 @@ import { riskOf } from './costs.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T, buildable } from './terrain.js';
 import { raidStage } from './raids.js';
+import { ruleElephantsFrom, ruleBoatShare } from './rules.js';
 
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 const kindOf = (u) => u.kind || 'soldier';
@@ -168,7 +169,8 @@ export function drawMix(world, index, size, { boats = false } = {}) {
 // the stage (the draw hash2(seed, index, RAID_SALT.elephant) keeps the index), so the scouts and the entry know it before the raid's size is fixed. Never on
 // the first raid. A raid too small for one (under ELEPHANTS.per raiders) brings none, but still comes in from upriver (nextRaidEntry).
 // Version 8.4 (ruling 1531): from the raid's stage, read from its warning day (raidStage: the day it is due before it is warned, so the scouts agree).
-export const elephantRaid = (world, index) => index > 0 && enemyMayCome('elephant', raidStage(world, index)) && hash2(world.seed, index, RAID_SALT.elephant) < ELEPHANTS.chance;
+export const elephantRaid = (world, index) => index > 0 && raidStage(world, index) >= ruleElephantsFrom(world, ENEMY_TYPES.elephant.fromRaid) - 1 &&   // Version 9.3 (Track R, ruling 1959): a decree's first elephant raid
+   hash2(world.seed, index, RAID_SALT.elephant) < ELEPHANTS.chance;
 
 // The elephants in a mix (0 when it has none, or a mix from before 8.4).
 export const elephantsIn = (mix) => (mix && mix.elephant > 0 ? mix.elephant : 0);
@@ -185,7 +187,8 @@ function drawShares(world, index, size, boats) {
   const stage = raidStage(world, index);
   for (const k of others) {
     if (!enemyMayCome(k, stage) || (k === 'boat' && !boats)) continue;
-    const m = MIX[k], since = stage - (ENEMY_TYPES[k].fromRaid - 1);
+    // Version 9.3 (Track R, ruling 1958): a decree's boat share (Sea Peoples 0.5) in place of the data's 0.25, base and cap both (at least the data's).
+    const m = k === 'boat' ? { ...MIX[k], base: ruleBoatShare(world, MIX[k].base), max: ruleBoatShare(world, MIX[k].max) } : MIX[k], since = stage - (ENEMY_TYPES[k].fromRaid - 1);
     const jitter = 1 - MIX.jitter + 2 * MIX.jitter * hash2(world.seed, index * 4 + ENEMY_KINDS.indexOf(k), RAID_SALT.mix);
     let n = Math.round(size * Math.min(m.max, m.base + m.perRaid * since) * factor * jitter);
     if (size >= MIX.minAtSize) n = Math.max(1, n);

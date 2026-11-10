@@ -12,7 +12,7 @@ import { FESTIVAL, DEFENCE, SPOILS } from '../data/raids.js';
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { soldiersPayWith, soldiersPayFull, spoilsLeft } from './spoils.js';
-import { heirFactor } from './dynasty.js';
+import { ruleFactor, ruleCost } from './rules.js';
 import { MONUMENT_STYLES } from '../data/wonders.js';
 import { COST_SCALE_NONE, COST_GROWTH } from '../data/reign.js';
 
@@ -37,7 +37,8 @@ export function costScale(world) {
 // 1.1): its founding here, its work gold (workGoldPerUnit) and its gilding or capstone (extraGoldOf). A style the data does not know, or no
 // style, is 1, and so is anything that is not a monument.
 export const styleGoldFactor = (style) => (MONUMENT_STYLES[style] ? MONUMENT_STYLES[style].goldFactor : 1);
-export const costOf = (world, type, options = {}) => scaled(world, BUILDINGS[type].cost * (BUILDINGS[type].monument ? styleGoldFactor(options.style) * costScale(world).monuments : 1));
+// Version 9.3 (Track R, ruling 1955): times the decree's price for this type (ruleCost, 1 with none).
+export const costOf = (world, type, options = {}) => scaled(world, BUILDINGS[type].cost * ruleCost(world, type) * (BUILDINGS[type].monument ? styleGoldFactor(options.style) * costScale(world).monuments : 1));
 
 export const roadCostOf = (world) => scaled(world, ECONOMY.roadCost);
 
@@ -66,7 +67,7 @@ export const threatsOn = (world) => raidsOn(world);
 // Version 9.0 (Track D, ruling 1568): the heir of the Unconquered's pay factor (heirFactor 'pay', x0.8) comes first, then the weapons' share, rounded once
 // (0.8 x 0.75 of the full pay while both hold); any other city's pay is 8.4's.
 export function soldiersPayOf(world) {
-  const heir = heirFactor(world, 'pay');
+  const heir = ruleFactor(world, 'pay');
   if (heir === 1) return soldiersPayWith(world);
   return Math.round(soldiersPayFull(world) * heir * (spoilsLeft(world) > 0 ? 1 - SPOILS.share : 1));
 }

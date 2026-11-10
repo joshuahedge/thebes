@@ -11,6 +11,7 @@
 //   ivory       units of ivory put in the city's stores; ivoryLost: units no store had room for
 // A raider elephant carries panicChecked: true once its panic has been drawn (it is drawn once, the first day it is below half).
 // Draws: hash2(world.seed, the elephant's id, RAID_SALT.panic).
+import { capacityOf } from './rules.js';
 import { ENEMY_TYPES, ELEPHANTS } from '../data/armies.js';
 import { RAID_SALT } from '../data/raids.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -54,14 +55,14 @@ export function panicDay(world, a, lastBy, hurt, events = null) {
 
 // The building types that keep ivory (a storehouse: its stores include it), and one's room.
 const ivoryStores = () => Object.keys(BUILDINGS).filter((t) => (BUILDINGS[t].stores || []).includes(IVORY));
-const roomIn = (b) => Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b));
+const roomIn = (b, world) => Math.max(0, capacityOf(world, b.type) - storeTotal(b));
 // Where a felled elephant's ivory goes (ruling 1505): the working store with room nearest (straight line from its centre) to the point it
 // fell, ties to the lower id; null when none has room.
 export function ivoryStore(world, at) {
   const types = ivoryStores();
   let best = null, bd = Infinity;
   for (const b of allBuildings(world)) {
-    if (!types.includes(b.type) || !isWorking(world, b) || roomIn(b) <= 0) continue;
+    if (!types.includes(b.type) || !isWorking(world, b) || roomIn(b, world) <= 0) continue;
     const d = Math.hypot(b.x + b.w / 2 - at.x, b.y + b.d / 2 - at.y);
     if (d < bd || (d === bd && b.id < best.id)) { bd = d; best = b; }
   }
@@ -75,7 +76,7 @@ export function elephantFell(world, a, r, events = null) {
   a.felled = (a.felled || 0) + 1;
   if (world.tally.elephantsFelled !== undefined) world.tally.elephantsFelled += 1;
   const b = ivoryStore(world, r);
-  const n = b ? Math.min(ELEPHANTS.ivory, roomIn(b)) : 0, lost = ELEPHANTS.ivory - n;
+  const n = b ? Math.min(ELEPHANTS.ivory, roomIn(b, world)) : 0, lost = ELEPHANTS.ivory - n;
   if (n > 0) {
     b.store[IVORY] = (b.store[IVORY] || 0) + n;
     a.ivory = (a.ivory || 0) + n;

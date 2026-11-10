@@ -1,6 +1,7 @@
 // Festivals (spec 4.9, 4.13): a small mood lever at a working temple, from Town. Complete in the Stage 3 contract (the
 // rules are a few lines of data, and the temple's button needs them from the start); Track B owns the file from then on.
 // State: world.danger.festivalDay (the day of the last festival, or null) and tally.festivals.
+import { decreeEnded, endedFail } from './rules.js';
 import { FESTIVAL } from '../data/raids.js';
 import { allBuildings } from './world.js';
 import { atLeast } from './progression.js';
@@ -31,6 +32,7 @@ export function festivalStatus(world) {
 // The holdFestival command (spec 7.3): charges festivalCostOf, records the day, counts tally.festivals.
 // { ok: true, cost, warnings: [] } or fails with festivalStatus's reason.
 export function holdFestival(world) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const s = festivalStatus(world);
   if (!s.can) return fail(s.reason);
   spend(world, s.cost);

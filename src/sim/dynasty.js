@@ -1,5 +1,6 @@
 // Version 9.0 "Dynasty" (Track D, rulings 1565-1584; the seam is wave 0's, ruling 1563): the heir's trait, the title a reign earns, the month-end
 // counts the titles read, and Pass the throne. The tables are src/data/dynasty.js (TITLES, TRAITS); the words are Track D's text.js section.
+import { decreeEnded, endedFail } from './rules.js';
 import { TITLES, TRAITS, FACTOR_LEVERS, PASS_FROM, deeperLoss } from '../data/dynasty.js';
 import { isHeir } from '../data/v90.js';
 import { RAIDS } from '../data/raids.js';
@@ -10,6 +11,8 @@ import { fedNow } from './feats.js';
 import { raidsOn } from './costs.js';
 import { taxRateOf } from './palace.js';
 import { scoreOf, sealReign } from './score.js';
+import { illHomes } from './health.js';
+import { DAYS_PER_MONTH } from './time.js';
 
 // ── The trait ──
 // The factor the heir's trait puts on one lever (design section 4, ruling 1567), read in that lever's one function; 1 when the lever is not the
@@ -102,6 +105,9 @@ export function countDynastyMonth(world) {
     const rate = taxRateOf(world);                       // the Generous's counts (ruling 1584): the month ends from Town at Low and at High
     if (rate === 'low') t.lowMonths += 1;
     if (rate === 'high') t.highMonths += 1;
+    // Version 9.3 (Track R, ruling 1963): the decree's two counts, from Town as the others: a month end with no sick home, and one with no building burned down in the month.
+    if (illHomes(world).length === 0) t.wellMonths = (t.wellMonths || 0) + 1;
+    if (!world.danger.burnDays.some((d) => d >= world.day - DAYS_PER_MONTH)) t.fireSafeMonths = (t.fireSafeMonths || 0) + 1;
   }
   const m = world.stats.lastMonth;
   if (m && atLeast(world, 'market_town')) {
@@ -136,6 +142,7 @@ export function passScore(world) {
 // takes (title, else the reign's own by titleOf). The next city is the interface's (boot.js). { ok, warnings, seal, title }, or fails as
 // canPassThrone says (with people for 'not_yet').
 export function passThrone(world, { title } = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const can = canPassThrone(world);
   if (!can.ok) return { ok: false, reason: can.reason, warnings: [], people: can.people };
   const id = isHeir(title) ? title : titleOf(world).id;

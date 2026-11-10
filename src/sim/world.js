@@ -75,6 +75,7 @@ export const newTally = () => ({
   ...Object.fromEntries(STAGE70_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE84_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE90_TALLY.map((k) => [k, 0])),
+  wellMonths: 0, fireSafeMonths: 0,   // Version 9.3 (Track R, ruling 1963): the decree's two counts; optional in a save (not in TALLY_KEYS), read as 0 when missing
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had

@@ -1,3 +1,4 @@
+import { decreeEnded, endedFail } from './rules.js';
 import { insertBuilding, removeBuilding } from './world.js';
 import { footprint, idx } from './grid.js';
 import { spend, refund } from './money.js';
@@ -27,6 +28,7 @@ function footprintFree(world, snap) {
 // buildings or roads would go back onto tiles something now uses. A placement that put a tower on a wall tile carries walls: [[tile index, old value]]. A road entry may carry walls: [[tile index, old value]] (the gates it made). Wall entries ({ kind: 'wall', tiles, before, cost },
 // pushed by drawWall) put each tile's old value back.
 export function undo(world) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const e = world.undo.pop();
   if (!e) return { ok: false, reason: 'nothing_to_undo' };
   if (e.kind === 'place') {

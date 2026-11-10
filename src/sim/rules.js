@@ -3,6 +3,7 @@
 // world.decree each function gives exactly what the game read before 9.3 (ruleFactor is heirFactor), so the main game plays as it did (the golden test).
 // world.js and the files it imports may not import this file (dynasty.js imports world.js through score.js): they read src/data/decrees.js helpers.
 import { DECREES } from '../data/decrees.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { heirFactor } from './dynasty.js';
 
 const decreesOf = (world) => (world && world.decree && Array.isArray(world.decree.ids) ? world.decree.ids.map((id) => DECREES[id]).filter(Boolean) : []);
@@ -20,3 +21,8 @@ export const ruleBoatShare = (world, base) => decreesOf(world).reduce((r, d) => 
 export const ruleForbids = (world, type) => decreesOf(world).some((d) => Array.isArray(d.forbid) && d.forbid.includes(type));
 export const isDecreeRun = (world) => decreesOf(world).length > 0;
 export const decreeEnded = (world) => Boolean(world && world.decree && world.decree.ended);
+
+// A store's capacity: the data's, times the decree's granaryHold for a granary (1 with none). world may be omitted (the data's number).
+export const capacityOf = (world, type) => BUILDINGS[type].capacity * (type === 'granary' ? ruleFactor(world, 'granaryHold') : 1);
+// What every command gives once the decree has ended (spec section 2): refused, with this reason.
+export const endedFail = () => ({ ok: false, reason: 'decree_ended' });

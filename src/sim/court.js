@@ -20,6 +20,7 @@
 // Events (pushed into the events array; never saved): { type: 'court_letter', id, kind, card }, { type: 'court_letter_gone', id, card },
 // { type: 'court_request', result: 'met' | 'refused' | 'missed', request, favour, gold }, { type: 'court_card', card, choice },
 // { type: 'court_gift', gold, good, n }.
+import { capacityOf, ruleFactor, decreeEnded, endedFail } from './rules.js';
 import { FAVOUR, COURT, REQUESTS, REQUEST_KINDS, GOOD_VALUE, GIFTS, CARDS, COURT_CARDS, CARD_NUMBERS, COURT_SALT, newCourtState } from '../data/court.js';
 import { RAIDS, FESTIVAL } from '../data/raids.js';
 import { HEALTH } from '../data/health.js';
@@ -103,14 +104,14 @@ export function takeGoods(world, good, n) {
 }
 const takesGood = (world, b, good) => storeAccepts(b, good) && isWorking(world, b);
 // Room for a good in the working stores that accept it.
-export const roomFor = (world, good) => allBuildings(world).reduce((n, b) => n + (takesGood(world, b, good) ? Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b)) : 0), 0);
+export const roomFor = (world, good) => allBuildings(world).reduce((n, b) => n + (takesGood(world, b, good) ? Math.max(0, capacityOf(world, b.type) - storeTotal(b)) : 0), 0);
 // Puts up to n of a good into those stores, lowest building id first; returns how many it put.
 export function putGoods(world, good, n) {
   let left = n;
   for (const b of allBuildings(world)) {
     if (left <= 0) break;
     if (!takesGood(world, b, good)) continue;
-    const k = Math.min(left, Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b)));
+    const k = Math.min(left, Math.max(0, capacityOf(world, b.type) - storeTotal(b)));
     if (k > 0) { b.store[good] = (b.store[good] || 0) + k; left -= k; }
   }
   return n - left;
@@ -159,6 +160,7 @@ const removeLetter = (world, id) => { world.court.letters = world.court.letters.
 
 // The letter has been opened: marks it read (the alert row stops raising it) and counts it, once. Returns true the first time.
 export function readLetter(world, id) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const l = letterFor(world, id);
   if (!l || l.read) return false;
   l.read = true;
@@ -174,20 +176,26 @@ const goldCap = (world) => { const A = REQUESTS.amounts.gold; return Math.floor(
 function askAmount(world, kind, good, id) {
   const A = REQUESTS.amounts[kind];
   const u = draw(world, id, world.day, 'requestAmount');
+  const ask = ruleFactor(world, 'courtAsk');   // Version 9.3 (Track R, ruling 1961): a decree's ask factor (The Vizier's Levy 2; 1 with none)
   if (kind === 'soldiers') {
     const total = unitsHome(world);
-    return Math.max(1, Math.min(total - 1, Math.round(total * span(A.share, u))));
+    return Math.max(1, Math.min(total - 1, Math.round(total * span(A.share, u) * ask)));
   }
   if (kind === 'gold') {
     const taxes = monthFigures(world).taxes;
     const base = taxes > 0 ? taxes : world.gold * 0.1;
-    const amount = roundTo(base * span(A.months, u) * costScale(world), A.step, A.min);
+    const amount = roundTo(base * span(A.months, u) * costScale(world) * ask, A.step, A.min);
     return Math.min(amount, goldCap(world));
   }
-  return roundTo(outputPerMonth(world, good) * span(A.months, u) * costScale(world), A.step, A.min);
+  return roundTo(outputPerMonth(world, good) * span(A.months, u) * costScale(world) * ask, A.step, A.min);
 }
 // The gold a met request pays (see REQUESTS.rewards).
+// Version 9.3 (Track R, ruling 1961): times a decree's reward factor (courtReward; 1 with none leaves the number as it was).
+const withReward = (world, v) => { const f = ruleFactor(world, 'courtReward'); return f === 1 ? v : Math.round(v * f); };
 function rewardOf(world, kind, good, amount, id) {
+  return withReward(world, rewardBase(world, kind, good, amount, id));
+}
+function rewardBase(world, kind, good, amount, id) {
   const R = REQUESTS.rewards;
   const u = draw(world, id, world.day, 'reward');
   if (kind === 'soldiers') return Math.max(R.min, amount * R.soldier);
@@ -287,6 +295,7 @@ function resolveRequest(world, result, favour, gold, events) {
 // Meets the active request: the goods, gold or units leave, favour rises by the request's own number and its reward is paid. Fails with
 // requestStatus's reason (nothing is taken).
 export function sendRequest(world, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const r = world.court.request;
   const st = requestStatus(world, r);
   if (!r) return fail('none');
@@ -305,6 +314,7 @@ export function sendRequest(world, events = null) {
 
 // Refuses the active request: favour falls by the number the letter named (the same as missing the deadline).
 export function refuseRequest(world, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const r = world.court.request;
   if (!r) return fail('none');
   const favour = addFavour(world, -r.missed);
@@ -524,6 +534,7 @@ export function applyEffects(world, effects, events = null) {
 // sheet is not rebuilt while focus is inside it, so the city may have changed since, and when the effects worked out now differ the answer
 // fails with 'changed' (nothing happens; the sheet then shows the new numbers): what is applied is always what was shown (ruling 444).
 export function answerCard(world, letterId, choiceId, events = null, hooks = RIVER_HOOKS, shown = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const c = world.court;
   const letter = letterFor(world, letterId);
   if (!letter || letter.kind !== 'card') return fail('no_letter');
