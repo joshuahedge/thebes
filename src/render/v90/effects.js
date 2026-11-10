@@ -11,6 +11,7 @@
 import { drawRaidMoment } from './raidMoment.js';
 import { drawDust, drawFireFought, drawFestive, drawWeather } from './layers.js';
 import { v90Dropper, v90Off, takeSpent } from './dropper.js';
+import { drawSweep } from '../v93/sweep.js';
 
 const clock = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
@@ -25,6 +26,7 @@ export function drawV90(g, world, opts = {}, off = () => false) {
   if (!off('fire')) drawFireFought(g, world, range, now);
   if (!off('festival')) drawFestive(g, world, walkers, range, now);
   if (!off('moment')) drawRaidMoment(g, world, range, now);
+  if (clocked) drawSweep(g, world, now);                                    // Version 9.3 (Track M): the level-up ring, shed before any of the above
 }
 
 export function effectsV90(g, view, world, opts = {}) {
