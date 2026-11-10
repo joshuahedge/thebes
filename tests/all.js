@@ -181,3 +181,5 @@ import './v90/all.js';
 import './v91/all.js';
 // Version 9.2 "A city you can read": one aggregator (tests/v92/all.js); nothing is added here.
 import './v92/all.js';
+// Version 9.3 "A city that grows": one aggregator (tests/v93/all.js); nothing is added here.
+import './v93/all.js';

@@ -18,6 +18,8 @@ import { S46_ART, s46Slot } from './s46.js';
 import { S47_ART } from './s47.js';
 import { V70_ART, v70Slot } from './v70.js';
 import { FERRY_ART } from './ferry.js';
+import { BUILDINGS } from '../../data/buildings.js';
+import { lookOfBuilding, LOOKS } from '../looks.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -38,6 +40,13 @@ export const ART = {
 // which of its neighbours are plazas (plaza.js plazaEdges) and a sphinx by the way it faces (sphinxFacing), both of which
 // need the world (without one, their plain slots). Everything else is its type.
 export function slotFor(b, world = null) {
+  const base = baseSlotFor(b, world);
+  const ex = EXPANDED.get(base);
+  if (!ex) return base;                                // a slot no track has put through withLooks keeps today's key
+  return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1, ex.states ? serviceState(b) : '');
+}
+
+function baseSlotFor(b, world) {
   const s46 = s46Slot(b, world);                       // Stage 4.6: a River or Armies building's own slot (art/s46.js), else on as before
   if (s46) return s46;
   const v70 = v70Slot(b, world);                       // Version 7.0: a Track T building's or a season's own slot (art/v70.js), else on as before
@@ -53,4 +62,44 @@ export function slotFor(b, world = null) {
   if (b.type === 'bazaar') return `bazaar.s${bazaarStage(b)}`;
   if (FARM_TYPES.includes(b.type)) return world ? `${b.type}.g${farmStage(world, b)}` : b.type;
   return b.type;
+}
+
+// ---- Version 9.3 (spec sections 2 and 4, ruling 1887): slots that carry a look, a variant and a state ----
+// A track puts its table through withLooks, which expands each entry whose draw takes a fourth argument opt = { look, variant, state } into one
+// slot per look (and per variant, and per state where asked), and records the base slot as expanded so slotFor appends the suffixes. Order of the
+// suffixes: house.t3.v1.l2, bazaar.s1.l2.work. An entry may give boundsFor(look) (and heightFor(look)) where its look changes its size.
+export const SERVICE_STATES = ['work', 'short', 'shut'];
+export const EXPANDED = new Map();   // base slot -> { looks, variants, states }
+
+const expandedKey = (base, variant, look, state) => `${base}${variant >= 0 ? `.v${variant}` : ''}${look >= 0 ? `.l${look}` : ''}${state ? `.${state}` : ''}`;
+
+export function withLooks(table, { looks = true, variants = 1, states = false } = {}) {
+  const out = {};
+  for (const [slot, def] of Object.entries(table)) {
+    EXPANDED.set(slot, { looks, variants, states });
+    for (let v = 0; v < Math.max(1, variants); v++) {
+      for (let l = 0; l < (looks ? LOOKS.length : 1); l++) {
+        for (const st of states ? SERVICE_STATES : ['']) {
+          const opt = { look: looks ? l : 0, variant: v, state: st || 'work' };
+          const { boundsFor: bf, heightFor: hf, ...rest } = def;
+          const entry = { ...rest, draw: (g, x, y) => def.draw(g, x, y, opt) };
+          if (bf) entry.bounds = bf(opt.look);
+          if (hf) entry.height = hf(opt.look);
+          out[expandedKey(slot, variants > 1 ? v : -1, looks ? l : -1, st)] = entry;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// A home's variant (0..2): a hash of its tile, so the same house always looks the same.
+export const homeVariant = (b) => (((b.x * 73856093) ^ (b.y * 19349663)) >>> 0) % 3;
+
+// A service's or workshop's state from the sim's own staffing: no workers or paused is shut, some but not all is short, full staff is working.
+export function serviceState(b) {
+  const workers = (BUILDINGS[b.type] && BUILDINGS[b.type].workers) || 0;
+  if (workers === 0) return b.paused ? 'shut' : 'work';   // a building that needs nobody (a well) is never short
+  if (b.paused || !(b.staff > 0)) return 'shut';
+  return b.staff < workers ? 'short' : 'work';
 }

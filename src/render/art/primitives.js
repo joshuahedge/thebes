@@ -4,7 +4,7 @@
 import { p, U, quad, hs, tileDiamond } from '../iso.js';
 import {
   SHADOW, INK, WINDOW, DOOR, PARAPET, POT, POT_LIGHT, WOOD, STONE, TEAL, TEAL_DARK, GREEN, GREEN_DARK,
-  RED, GOLD, PURP, PINK, GOLDC,
+  RED, GOLD, PURP, PINK, GOLDC, OUTLINE,
 } from './palette.js';
 
 export { p, U, quad, hs };
@@ -163,4 +163,124 @@ export function statue(g, gx, gy) {
   box(g, gx - 0.09, gy - 0.09, 0.18, 0.18, 3.2, 0, STONE, 0);
   box(g, gx - 0.035, gy - 0.035, 0.07, 0.07, 5.5, 3.2, GOLDC, 0);
   g.circ(U(p(gx, gy), 9.8), 1.15, GOLD);
+}
+
+// ---- Version 9.3 (spec section 6, ruling 1888): the primitives of the new bar --------------------------------------------------------------
+// Every drawing reaches the bar through these rather than by hand: a soft shade down a wall, a dark contact line where it meets the ground,
+// openings set in with an inner shadow and a lintel, stepped parapets, awnings, cornices, painted bands, porches and gilded caps. A face is a
+// mapper F(u, s) as tb() returns (F.L is the lit face, F.R the shaded one); `at` is { F, u, s }, a place on a face. Outlines: the silhouette is
+// 1.0 px and inner lines stay at 0.6 px and 32% (palette OUTLINE). Flat and illustrated: shade and light, no textures.
+const outward = (F, dist) => (F(1, 0)[0] > F(0, 0)[0] ? [-16 * dist, 8 * dist] : [16 * dist, 8 * dist]);   // the way a face points, for `dist` tiles
+
+// A soft shade from the top of a wall face toward its base (a warm lift at the very top, cool lavender at the foot). h is the wall's height in
+// art px: a tall wall takes more.
+export function shadeWall(g, face, h = 10) {
+  let top = Infinity, bottom = -Infinity;
+  for (const q of face) { top = Math.min(top, q[1]); bottom = Math.max(bottom, q[1]); }
+  if (bottom - top < 1e-6) return;
+  const k = Math.min(1, h / 16), s = g.scale;
+  const gr = g.ctx.createLinearGradient(0, top * s, 0, bottom * s);
+  gr.addColorStop(0, `rgba(255,246,226,${0.16 * k})`);
+  gr.addColorStop(0.4, 'rgba(255,246,226,0)');
+  gr.addColorStop(0.75, `rgba(90,74,106,${0.07 * k})`);
+  gr.addColorStop(1, `rgba(62,50,96,${0.12 + 0.12 * k})`);
+  g.poly(face, gr);
+}
+
+// The silhouette of a block: a 1.0 px line round its outer six points, heavier than the 0.6 px inner outlines.
+export function silhouette(g, x, y, w, d, h, z = 0, alpha = 0.55) {
+  const pts = [U(p(x, y + d), z), U(p(x + w, y + d), z), U(p(x + w, y), z), U(p(x + w, y), z + h), U(p(x, y), z + h), U(p(x, y + d), z + h)];
+  g.poly(pts, 'none', { stroke: OUTLINE, strokeWidth: 1.0, strokeAlpha: alpha });
+}
+
+// The dark line where walls meet the ground, with a faint shadow band on the ground in front of it. footprint is [x, y, w, d] in tiles.
+export function contactLine(g, footprint) {
+  const [x, y, w, d] = footprint;
+  const a = p(x, y + d), b = p(x + w, y + d), c = p(x + w, y);
+  g.line([a[0], a[1] + 0.9], [b[0], b[1] + 0.9], SHADOW, 2.4, 0.1);
+  g.line([b[0], b[1] + 0.9], [c[0], c[1] + 0.9], SHADOW, 2.4, 0.1);
+  g.line(a, b, INK, 1.1, 0.5);
+  g.line(b, c, INK, 1.1, 0.5);
+}
+
+// A door or a window set into a wall: the opening, an inner shadow down its lit-side jamb and under its lintel, a lintel above and a pale sill
+// below. at = { F, u, s } is the bottom-left corner on the face; w is a fraction of the face, h art px up it.
+// opts: { fill (the opening's colour, DOOR), lintel (its colour), sill (true), lit (a warm lit doorway) }.
+export function insetOpening(g, at, w, h, { lintel = '#FFFFFF', fill = DOOR, sill = true, lit = false } = {}) {
+  const { F, u, s } = at;
+  qd(g, F, u - 0.035, u + w + 0.035, s + h, s + h + 1.1, lintel, { alpha: lintel === '#FFFFFF' ? 0.7 : 1 });
+  qd(g, F, u, u + w, s, s + h, lit ? '#F6D46A' : fill);
+  if (lit) qd(g, F, u + w * 0.35, u + w, s, s + h * 0.8, '#FFF3C4', { alpha: 0.55 });
+  qd(g, F, u, u + w * 0.3, s, s + h, INK, { alpha: lit ? 0.3 : 0.4 });
+  qd(g, F, u, u + w, s + h - Math.min(1.2, h * 0.3), s + h, INK, { alpha: lit ? 0.3 : 0.4 });
+  if (sill) g.line(F(u - 0.04, s), F(u + w + 0.04, s), '#FFFFFF', 0.7, 0.65);
+}
+
+// A stepped parapet round a roof edge: n small blocks along the lit and shaded edges, alternately high and low. top = { x, y, w, d, z, C }.
+export function parapetSteps(g, top, n = 4, h = 1.3) {
+  const { x, y, w, d, z, C = ['#F4EDDF', '#ECE2D2', '#C6BACB'] } = top;
+  const step = w / n, stepD = d / n;
+  for (let i = 0; i < n; i++) {
+    const hh = i % 2 ? h * 0.55 : h;
+    box(g, x + step * i + step * 0.07, y + d - 0.09, step * 0.86, 0.09, hh, z, C, 0);
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const hh = i % 2 ? h : h * 0.55;
+    box(g, x + w - 0.09, y + stepD * i + stepD * 0.07, 0.09, stepD * 0.86, hh, z, C, 0);
+  }
+}
+
+// A striped reed awning over a door or window, sloping down and out from the wall. at = { F, u, s } is the top-left of the wall line it hangs from;
+// w is a fraction of the face; colour its main colour (the stripe is cream).
+export function awning(g, at, w, colour) {
+  const { F, u, s } = at;
+  const a0 = F(u, s), a1 = F(u + w, s), o = outward(F, 0.17);
+  const b0 = [a0[0] + o[0], a0[1] + o[1] + 2.6], b1 = [a1[0] + o[0], a1[1] + o[1] + 2.6];
+  g.poly([a0, a1, b1, b0], colour, { outline: true });
+  const n = Math.max(2, Math.round(w * 9));
+  for (let i = 0; i < n; i += 2) {
+    const t0 = i / n, t1 = (i + 1) / n;
+    const q = (t, r) => [a0[0] + (a1[0] - a0[0]) * t + (b0[0] - a0[0]) * r, a0[1] + (a1[1] - a0[1]) * t + (b0[1] - a0[1]) * r];
+    g.poly([q(t0, 0), q(t1, 0), q(t1, 1), q(t0, 1)], '#F6ECD6', { alpha: 0.9 });
+  }
+  g.line(b0, b1, SHADOW, 0.9, 0.25);
+}
+
+// A projecting top course round a block: a band 1.4 art px high that stands 0.05 tile proud of the walls, its top at z. top = { x, y, w, d, z, C }.
+export function cornice(g, top, colour) {
+  const { x, y, w, d, z } = top;
+  const C = colour || top.C || STONE;
+  box(g, x - 0.05, y - 0.05, w + 0.1, d + 0.1, 1.4, z - 1.4, Array.isArray(C) ? C : [C, C, C], undefined);
+}
+
+// A painted band across a block's faces at height s (art px), th high; the shaded face takes a dusk of the same colour.
+export function band(g, F, s, colour, th = 1) {
+  qd(g, F.L, 0, 1, s, s + th, colour);
+  qd(g, F.R, 0, 1, s, s + th, colour);
+  qd(g, F.R, 0, 1, s, s + th, INK, { alpha: 0.2 });
+}
+
+// A small porch: two pillars and a flat slab roof standing out from a lit face. at is the art point on the ground at the porch's left pillar;
+// w is its width along the face, h its pillar height (art px).
+export function porch(g, at, w, h, C = ['#F4EDDF', '#E7DDCC', '#C3B8C6']) {
+  const dir = [0.894, 0.447], out = [-0.894, 0.447], dp = 4;
+  const base = [at[0] + out[0] * dp, at[1] + out[1] * dp];
+  const pil = (q) => g.poly([[q[0] - 0.8, q[1]], [q[0] + 0.8, q[1]], [q[0] + 0.8, q[1] - h], [q[0] - 0.8, q[1] - h]], C[1], { outline: true });
+  const r = [base[0] + dir[0] * w, base[1] + dir[1] * w];
+  g.line([base[0], base[1] + 0.6], [r[0], r[1] + 0.6], SHADOW, 2.2, 0.12);
+  pil(base); pil(r);
+  const A = [at[0], at[1] - h], B = [at[0] + dir[0] * w, at[1] + dir[1] * w - h];
+  const A2 = [base[0], base[1] - h], B2 = [r[0], r[1] - h];
+  g.poly([A, B, B2, A2], C[0], { outline: true });
+  g.poly([A2, B2, [B2[0], B2[1] + 1.3], [A2[0], A2[1] + 1.3]], C[1], { outline: true });
+}
+
+// A gilded cap on a landmark: a gold dome with a lit shoulder and a small finial. at is the art point at the dome's base centre; r its half width.
+export function gildedCap(g, at, r) {
+  const [x, y] = at;
+  g.ell([x, y], r, r * 0.35, GOLDC[2]);
+  g.path([['M', [x - r, y]], ['Q', [x - r, y - r * 1.7], [x, y - r * 1.7]], ['Q', [x + r, y - r * 1.7], [x + r, y]], ['Z']], GOLDC[1], { outline: true });
+  g.path([['M', [x - r * 0.75, y - r * 0.2]], ['Q', [x - r * 0.75, y - r * 1.3], [x - r * 0.15, y - r * 1.45]], ['Q', [x - r * 0.4, y - r * 0.9], [x - r * 0.45, y - r * 0.2]], ['Z']], GOLDC[0], { alpha: 0.85 });
+  g.line([x, y - r * 1.7], [x, y - r * 2.3], GOLDC[2], 0.7);
+  g.circ([x, y - r * 2.4], 0.7, GOLDC[0]);
 }

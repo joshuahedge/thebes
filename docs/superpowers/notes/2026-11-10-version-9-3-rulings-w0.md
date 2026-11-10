@@ -1,0 +1,25 @@
+# Version 9.3, wave 0 rulings (1885-1889)
+
+- **1885. The look of a tile or a building (`src/render/looks.js`).**
+  - The eight ranks fold into four looks. A new look spreads from the palace (else the built-up area's middle) and reaches the farthest building `REBUILD_DAYS = 4 * DAYS_PER_MONTH = 120` days after the rank-up. A rank with no recorded day (`world.splits`) counts as fully rebuilt.
+  - The plan's tests put buildings at tile 40, which is off the 32-tile test map. They use tiles inside it (29, 28) instead; the arithmetic is unchanged.
+  - Cost if wrong: one constant, and a test that names it.
+- **1886. A building keeps the day it was placed (`makeBuilding`: `day: world.day`).**
+  - It is optional: an older save's buildings have none, and `validateWorld` needs no change (the old-save, validate and migrate groups pass).
+  - A building placed after its rank-up starts in the current look.
+  - Cost if wrong: any later test that deep-compares a fresh building (the decree's golden fingerprint, if it hashes buildings) moves with it; that is `day` and nothing else.
+- **1887. Slot keys (`registry.js`: `withLooks`, `homeVariant`, `serviceState`, `slotFor`).**
+  - The suffix order is variant, look, state: `house.t3.v1.l2`, `bazaar.s1.l2.shut`. `withLooks` records the base slot in `EXPANDED`; until a track calls it, `slotFor` returns today's keys, so nothing visible changes.
+  - A type that needs no workers (a well) is `work` unless paused, never `short` or `shut`.
+  - An entry may give `boundsFor(look)` and `heightFor(look)`.
+  - Cost if wrong: the key order is an interface the tracks and tests name; changing it later touches every track.
+- **1888. Materials and primitives (`materials.js`, `primitives.js`).**
+  - `MATERIALS[look]` gives wall, roof and cornice as the palette's own `[top, lit, shade]` triples (they drop into `box`), plus trim, band, ground `[packed, edge]` and paving. Every colour is a palette export; a test checks it.
+  - The Capital's wall is the honey limestone `SST` so it reads apart from the City's whitewash; its roof is `LIME` and its cornice teal.
+  - The new primitives take `at = { F, u, s }` for a place on a face, and `{ x, y, w, d, z }` for a roof or a footprint. One is added to the plan's list: `silhouette`, the 1.0 px outline round a block.
+  - Cost if wrong: a colour swap in one table.
+- **1889. The look sheet is its own page, and its reference art lives beside it.**
+  - It is `looksheet.html` (`?nosw=1`, optional `?look=N` and `?rows=...`), not an index scene, because `boot.js` is not wave 0's file.
+  - The reference drawings are in `src/dev/looksheetArt.js`, not in `housing.js`, `services.js` and `nature.js`, which the tracks own: no merge conflicts, and the tracks lift what they need.
+  - Nothing is registered in `ART`, so the game is unchanged.
+  - Cost if wrong: the tracks copy from one file instead of editing in place.

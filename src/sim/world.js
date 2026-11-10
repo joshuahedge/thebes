@@ -217,7 +217,8 @@ export function makeBuilding(world, type, x, y, rot = 0, { style = null } = {}) 
   const def = BUILDINGS[type];
   const dims = dimsOf(type, rot);
   // risk: fire risk points (spec 4.12); fire: null, or the blaze or fire burning in it (src/sim/fire.js).
-  const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null };
+  const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null,
+    day: world.day };   // Version 9.3 (ruling 1886): the game day it was placed, so a building put up after a rank-up starts in the new look (src/render/looks.js); absent on an older save's buildings
   // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; src/sim/health.js and crime.js build them) and its illness (null, or the illness it has).
   if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)
