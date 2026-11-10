@@ -26,3 +26,8 @@
 .stat-icon.score .star { fill: var(--gold); stroke: var(--ink); stroke-width: 0.8; }
 /* Ruling 1854: a long ruler name and its number wrap, balanced over two lines, instead of ending in an ellipsis that hid the end of the name and the number (seen at 375x667 and 150% text on the
    sealed-ruler card: "Neferkaure Amen..."). A name of one long word breaks where it must; the full name is still the heading's title. The rule itself is `.cartouche-ruler` in Track D's block above (ruling 1880). */
+/* Version 9.2 (after the release): Options > Display's Screenshot mode row stacks like the Export row. It had no layout of its own, so on a phone its button sat squeezed
+   beside its note and wrapped ("Screenshot / mode"). The button is the row's width on one line, its words at the left like the switches above it; the note sits under it. */
+.options-group .screenshot-row { flex-direction: column; align-items: stretch; gap: 2px; border-bottom: 0; }
+.options-group .screenshot-row .screenshot-mode { width: 100%; text-align: left; white-space: nowrap; }
+.options-group .screenshot-row .screenshot-note { margin: 0; }

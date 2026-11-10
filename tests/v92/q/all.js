@@ -5,3 +5,4 @@ import './wide.test.js';
 import './markers.test.js';
 import './debt.test.js';
 import './tidies.test.js';
+import './screenshotRow.test.js';

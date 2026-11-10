@@ -179,7 +179,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%'], [200, '200%']]),
         switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
         // Version 9.2 (Track Q, ruling 1791): Screenshot mode lives here (it left the menu and the City summary); it hides the interface until a tap, Esc or Back.
-        typeof onScreenshot === 'function' ? el('div', { class: 'row' }, [button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }), el('p', { class: 'screenshot-note small muted', text: Q92_TEXT.screenshotNote })]) : null),
+        // Version 9.2 (after the release): the row stacks like Export (css/v92.css), the button the row's width on one line and the note under it.
+        typeof onScreenshot === 'function' ? el('div', { class: 'row screenshot-row' }, [button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }), el('p', { class: 'screenshot-note small muted', text: Q92_TEXT.screenshotNote })]) : null),
       group('controls', G.controls, switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'), switchRow(T.vibration, 'vibration'),
         // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
         choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
