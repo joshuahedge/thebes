@@ -20,7 +20,7 @@ import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
 import { exportSave, downloadFile, pickTextFile } from './save/exportImport.js';
-import { T, D2_TEXT, V711_TEXT, V90_L_TEXT } from './ui/text.js';
+import { T, D2_TEXT, V711_TEXT, V90_L_TEXT, U93_TEXT } from './ui/text.js';
 import { el, button } from './ui/components.js';
 import { detectEnvironment, readEnvironment, createInstallFlow, installAskDue, INSTALL_ASK_KEY } from './save/installFlow.js';
 import { renderRulers } from './ui/v90/rulers.js';   // Version 9.0 (Track L): the ruler list
@@ -42,6 +42,9 @@ import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesso
 import { seenKey, dueCards } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
 import { installRescue } from './ui/v91/rescue.js';   // Version 9.1 (Track R): the error handler and its card
+import { decreesOfWeek, weekKey, weeklySeed, isWeekKey } from './ui/week.js';   // Version 9.3 (Track U): the week's decree
+import { decreeTitleCard, decreeUnlocked, weekBest, weekRivals } from './ui/v93/decree.js';
+import { parseShareLink } from './ui/share.js';
 
 const HOUR = 3600 * 1000;
 
@@ -55,7 +58,7 @@ export async function loadSave(store) {
 }
 
 export async function boot(doc, win, {
-  root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
+  root = doc.body, store = createSaveStore(), decreeStore = null, params = new URLSearchParams(win.location.search),
   now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {}, envInput = readEnvironment(win),
   sw = (win.navigator && win.navigator.serviceWorker) || null,
   createMusic: makeMusic = createMusic, showPictureCards: showCards = showPictureCards,   // Stage 4: replaceable by tests
@@ -66,6 +69,8 @@ export async function boot(doc, win, {
   // Stage 3: the device's records (spec 4.19), and the development scenes hook, there before the title card shows
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
+  // Version 9.3 (Track U, ruling 1976): the decree run's own slot (Track S's createSaveStore slot option). A test may hand one in.
+  const decreeSlot = decreeStore || createSaveStore({ slot: 'decree' });   // U93-SEAM: until Track S merges the option is ignored and this is the main slot, so nothing here writes to it without a decree run
   let api = null;
   let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
   let title = null;          // { card, loop, backdrop } while the title shows
@@ -208,7 +213,8 @@ export async function boot(doc, win, {
       else current.ui.store.set(openSheet(s, 'install'));
     },
     async save() {
-      if (current && current.lesson) return true;       // Version 6.0 (Track D2, ruling 626): the lesson's city is never saved; a saved city is never written over by it
+      if (current && current.decree) return saveDecree();   // Version 9.3 (Track U, ruling 1976): a decree run is saved to its own slot, never over the city
+      if (current && current.lesson) return true;      // Version 6.0 (Track D2, ruling 626): the lesson's city is never saved; a saved city is never written over by it
       if (!current || saveBlocked) return false;
       const text = packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed });
       const r = await store.save(text);
@@ -219,11 +225,11 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { if (current && current.lesson) return; withCards(() => startGame(startPicked())); },
+    newCity() { if (current && (current.lesson || current.decree)) return; withCards(() => startGame(startPicked())); },
     // Version 9.0 (Track L, rulings 1585, 1586): the game menu's Rulers opens the list as a sheet; Bring rulers from a file (Options > Saves) picks a file and answers its
     // text (null when none is picked); Play this map keeps the row's seed, level, layout and size as the next new city's choices and opens New city's card, whose
     // Start asks the replace question as always. The lesson has none of the three (its game's hooks drop them).
-    rulers() { if (current && !current.lesson) current.ui.store.set(openSheet(current.ui.store.get(), 'rulers')); },
+    rulers() { if (current && !current.lesson && !current.decree) current.ui.store.set(openSheet(current.ui.store.get(), 'rulers')); },
     bringRulers: () => pickTextFile(doc),
     playMap(row) {
       if (!playUndo) playUndo = { difficulty: settings.get().difficulty, size: newCitySize, layout: newCityLayout, seed: newCitySeed };   // Back (or Esc) puts these back
@@ -231,7 +237,7 @@ export async function boot(doc, win, {
       newCitySize = isMapSize(row.mapSize) ? row.mapSize : DEFAULT_MAP_SIZE;
       newCityLayout = MAP_VARIANTS.includes(row.mapVariant) ? row.mapVariant : 'auto';
       newCitySeed = row.seed;
-      if (current && !current.lesson) {
+      if (current && !current.lesson && !current.decree) {
         if (current.world.speed > 0) current.ui.speedControl.set(0);   // the card opens over a paused game, as the menu's New city does
         const store = current.ui.store;
         store.set(openSheet(store.get(), 'newCity'));
@@ -244,10 +250,10 @@ export async function boot(doc, win, {
     },
     // After 8.3 (ruling 1454): the game menu's Home: the city is saved, then the title shows with Continue; false (and the game stays) when the save fails.
     async home() {
-      if (!current || current.lesson) return false;
+      if (!current || current.lesson || current.decree) return false;
       if (!(await hooks.save())) return false;
       stopGame();
-      showTitle(await loadSave(store));
+      showTitle(await loadForTitle());
       return true;
     },   // Stage 4: the picture cards first, once a device
     // Version 8.2 (Track G, rulings 1308-1310): the game menu's New city card keeps its choices here, as the title's does (size, layout, the preview's seed);
@@ -262,12 +268,12 @@ export async function boot(doc, win, {
     // City (canPassThrone, which the menu reads) and never in the lesson. The heir's card's Start writes the seal and the records, then calls startHeir: the
     // heir's city on the card's choices (newCityChoices), whose heir is the dynasty's new one (freshWorld reads records.dynasty().heir); notice says so.
     passThrone() {
-      if (!current || current.lesson || !canPassThrone(current.world).ok) return;
+      if (!current || current.lesson || current.decree || !canPassThrone(current.world).ok) return;
       if (current.world.speed > 0) current.ui.speedControl.set(0);
       current.ui.store.set(openSheet(current.ui.store.get(), 'passThrone'));
     },
-    canPassThrone: () => Boolean(current && !current.lesson && canPassThrone(current.world).ok),
-    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice, heirStart: true })); },   // Version 9.2 (Track D, ruling 1817): heirStart holds the install ask back for the heir's first game month
+    canPassThrone: () => Boolean(current && !current.lesson && !current.decree && canPassThrone(current.world).ok),
+    startHeir({ notice = null } = {}) { if (current && (current.lesson || current.decree)) return; withCards(() => startGame(startPicked(), { notice, heirStart: true })); },   // Version 9.2 (Track D, ruling 1817): heirStart holds the install ask back for the heir's first game month
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -287,7 +293,7 @@ export async function boot(doc, win, {
     // The guided first city (ruling 617): from the step a lesson left part-way reached, else the first. { step }: a given step (0 starts again).
     lesson({ step = null } = {}) { startLesson(step === null ? lessonStartStep(settings.get()) : step); },
     async exportCity() {
-      if (!current || current.lesson) return;
+      if (!current || current.lesson || current.decree) return;
       const { ui, world } = current;
       const text = packSave(world, { savedAt: clock(), lastSpeed: ui.store.get().lastSpeed, records: records.load() });   // spec 4.17: the export carries the records
       try {                                             // share first: the sheet needs the tap's activation window (iOS)
@@ -339,7 +345,7 @@ export async function boot(doc, win, {
 
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).
-  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null, heirStart = false } = {}) {
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null, heirStart = false, decree = false } = {}) {
     playUndo = null;                                    // a city starting keeps the choices Play this map made
     let lateAsk = null;                                 // Version 9.2 (Track D): the install ask held for an heir's first game month
     leaveTitle();
@@ -349,14 +355,18 @@ export async function boot(doc, win, {
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
       ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: (force) => adoptLesson(force === true), canAdopt: () => !hasSavedCity(), exportSaved: async () => { exportLoaded(await loadSave(store)); } } }
-      : hooks;
-    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
-      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
+      // Version 9.3 (Track U, ruling 1976): the decree's game drops what is the city's (Pass the throne, the heir picker, a new city, Export, the ruler list and the records, which only a city writes)
+      // the way the lesson's does, saves to its own slot, and says how to leave (decreeRun, src/ui/v93/decree.js).
+      : decree
+        ? { ...hooks, records: undefined, save: () => saveDecree(), home: undefined, exportCity: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, decreeRun: decreeRunFor(world) }
+        : hooks;
+    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave && !decree ? { savedAt, lastSpeed } : null,
+      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); if (lateAsk && events.some((e) => e.type === 'month')) { const ask = lateAsk; lateAsk = null; ask(); } }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
       onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
-    current = { world, ui, loop, cam, lesson: Boolean(lesson) };
+    current = { world, ui, loop, cam, lesson: Boolean(lesson), decree: Boolean(decree) };
     rescue.attach(current);                             // the ?crash= dev hook (once a page)
-    if (!lesson) lateAsk = noteFirstPass(ui, { wait: heirStart });
+    if (!lesson && !decree) lateAsk = noteFirstPass(ui, { wait: heirStart });
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
@@ -380,6 +390,80 @@ export async function boot(doc, win, {
     if (at === 0 && !settings.get().lessonDone) settings.set({ lessonStep: 0 });
     return startGame(world, { lesson: { step: at }, saveNow: false, notice });
   }
+  // ---- Version 9.3 (Track U, rulings 1975-1984): the decree's game ----
+  // A decree run is the lesson's shape: its own game (current.decree), its own slot (decreeSlot), hooks that drop what is the city's, and no row written to the city records.
+  // It starts from the title's card or a d1 link, plays 6 years (Track R ends it), writes its best to the records once (records.noteDecree), and goes Back to your city.
+  const thisWeek = () => weekKey(new Date(clock()));
+  let decreeRunCache = null, decreeLoadedCache = null;   // what the decree slot holds, read before the title shows: { week, ended } and the loaded save
+  const linkedDecree = () => {
+    const link = parseShareLink((win.location && win.location.hash) || '');
+    return link && link.ok && link.kind === 'decree' && isWeekKey(link.week) ? link : null;
+  };
+  async function refreshDecreeRun() {
+    decreeRunCache = null; decreeLoadedCache = null;
+    if (!decreeUnlocked(records) && !linkedDecree()) return;
+    const loaded = await loadSave(decreeSlot);
+    if (loaded.state === 'ok' && loaded.world && loaded.world.decree) { decreeLoadedCache = loaded; decreeRunCache = { week: loaded.world.decree.week, ended: Boolean(loaded.world.decree.ended) }; }
+  }
+  const loadForTitle = async () => { await refreshDecreeRun(); return loadSave(store); };   // the title reads the decree slot first, so showTitle stays synchronous
+  async function saveDecree() {
+    if (!current || !current.decree) return false;
+    try {
+      const r = await decreeSlot.save(packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed }));
+      return Boolean(r && r.ok);
+    } catch (e) { return false; }
+  }
+  // A new run of `week` (or the slot's run, loaded): the Steady heir at Normal on the week's map, no guide; held on its first screen (the decree card) until Begin.
+  function startDecree(week = thisWeek(), { loaded = null } = {}) {
+    const ids = decreesOfWeek(week);
+    if (!ids.length) return null;
+    let world;
+    if (loaded && loaded.state === 'ok' && loaded.world && loaded.world.decree) world = loaded.world;
+    else {
+      world = createWorld({ seed: weeklySeed(week), size: DEFAULT_MAP_SIZE, mapVariant: 'auto', cityId: newCityId(clock()), decree: { week, ids } });
+      setGuide(world, false);
+    }
+    return startGame(world, { decree: true, fromSave: Boolean(loaded) });
+  }
+  // Back to your city: the run is saved in its slot, then the main slot loads (or the title shows when there is none).
+  async function leaveDecree() {
+    if (!current || !current.decree) return;
+    await saveDecree();
+    const loaded = await loadSave(store);
+    blockIfNewer(loaded);
+    if (loaded.state === 'ok') { loadedOk = true; startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }); return; }
+    stopGame();
+    await refreshDecreeRun();
+    showTitle(loaded);
+  }
+  // The run's end, once: the best goes to the records (Track S's records.noteDecree, which keeps the higher score and counts the try), then the slot keeps the ended run.
+  function noteDecreeEnd(world, result) {
+    const week = world.decree.week;
+    const before = weekBest(records, week);
+    const fresh = !world.decree.noted;
+    if (fresh) {
+      if (typeof records.noteDecree === 'function') { try { records.noteDecree(world, { now: clock() }); } catch (e) { /* records never stop the end card */ } }   // U93-SEAM
+      world.decree.noted = true;
+      saveDecree();
+    }
+    return { best: weekBest(records, week), isBest: fresh && (!before || result.total > before.score) };
+  }
+  function decreeRunFor(world) {
+    const week = world.decree.week;
+    return { week, ids: world.decree.ids, records, again: () => startDecree(week), back: () => leaveDecree(), rivals: () => weekRivals(records, week), noteEnd: (result) => noteDecreeEnd(world, result) };
+  }
+  // The title's button: a fresh run of `week`. A slot holding another week's unfinished run asks first (it holds one run).
+  function askStartDecree(week) {
+    const other = decreeRunCache && !decreeRunCache.ended && decreeRunCache.week !== week ? decreeRunCache : null;
+    if (!other || !title) { startDecree(week); return; }
+    title.card.showPanel((body, back) => {
+      body.append(el('p', { text: U93_TEXT.replaceQuestion(other.week) }), el('div', { class: 'actions' }, [
+        button(U93_TEXT.replaceYes, { class: 'start-new danger', onClick: () => startDecree(week) }),
+        button(T.back, { class: 'panel-back', onClick: back }),
+      ]));
+    });
+  }
+
   // Version 7.1.1 (ruling 1111): what finishing the lesson marks on the device (the lesson done, the picture cards seen: src/ui/v60/lesson.js sets the same three keys at its end),
   // so skipping it, from the title or from the first card, leaves the device exactly as a finished lesson does. Tips are not marked: the lesson's own city never spends them.
   const markLessonDone = () => settings.set({ lessonDone: true, lessonStep: LESSON_LENGTH, cardsSeen: true });
@@ -389,7 +473,7 @@ export async function boot(doc, win, {
   async function skipLesson() {
     if (!current || !current.lesson) return;
     markLessonDone();
-    if (hasSavedCity()) { stopGame(); showTitle(await loadSave(store)); return; }
+    if (hasSavedCity()) { stopGame(); showTitle(await loadForTitle()); return; }
     withCards(() => startGame(startPicked()));
   }
   // Version 8.1 (Track T, ruling 1208): the lesson's end is no stop: its city becomes the player's own. It is no longer the lesson's (world.lesson goes, so it saves and the court
@@ -424,7 +508,7 @@ export async function boot(doc, win, {
   async function leaveLesson(finished = false) {
     if (!current || !current.lesson) return;
     stopGame();
-    showTitle(await loadSave(store), { note: finished ? D2_TEXT.standsNote : null });
+    showTitle(await loadForTitle(), { note: finished ? D2_TEXT.standsNote : null });
     // Version 9.2 (Track L, fix wave, ruling 1871): the end card's Start my own city goes on to the New city card, on the classic river (ruling 1672), not to the title's front card;
     // Back there is the title. With a saved city the card's Start still asks the replace question first.
     if (finished && title) { newCityLayout = 'classic'; title.card.setChoices({ layout: 'classic' }); title.card.showNewCity(); }
@@ -497,6 +581,16 @@ export async function boot(doc, win, {
         // river at Normal for a device's first city, ruling 1660), so it is one tap, not three; New city in the menu offers the rest.
         onSkip: () => { markLessonDone(); withCards(() => startGame(startPicked())); } },
       onHowToPlay: () => hooks.pictureCards(),
+      // Version 9.3 (Track U, ruling 1977): this week's decree card, once a city has reached Town or a ruler is kept; a d1 link opens it on that link's week (even before then),
+      // and keeps its sender as a rival on that week (records.addRival, never your own name).
+      decree: decreeUnlocked(records) || linkedDecree() ? () => {
+        const link = linkedDecree();
+        if (link && link.name && typeof records.addRival === 'function') {   // U93-SEAM
+          try { if (records.dynasty().name !== link.name) records.addRival(link, clock()); } catch (e) { /* records never stop the card */ }
+        }
+        const week = link ? link.week : thisWeek();
+        return decreeTitleCard({ week, ids: decreesOfWeek(week), records, slot: decreeRunCache, onStart: () => askStartDecree(week), onContinue: (slot) => startDecree(slot.week, { loaded: decreeLoadedCache }) });
+      } : null,
       // The game's Options rows with no city behind them; Saves > Export city exports the city in the slot (none: no button).
       renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks: { ...hooks, exportCity: loaded.state === 'ok' ? () => exportLoaded(loaded) : undefined } }).settings(body),
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
@@ -545,13 +639,13 @@ export async function boot(doc, win, {
     const world = freshWorld();
     if (!sample && !stress) { buildSampleCity(world); setGuide(world, false); }   // a built-up city is not a new one: no guide
     startGame(world, { fromSave: true, savedAt: clock() - 2 * HOUR, lastSpeed: 2, saveNow: false });
-  } else showTitle(await loadSave(store));
+  } else showTitle(await loadForTitle());
 
   api = {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
     titleView: () => (title ? { world: title.world, cam: title.cam } : null),   // Stage 4 (Track F): the backdrop's city and camera, for the title scene
-    startGame, hooks, records, music, rescue,           // rescue (Version 9.1, Track R): the error handler's pieces, for the tests
+    startGame, startDecree, hooks, records, music, rescue,   // startDecree (Version 9.3, Track U): a decree run of a week, for the tests and the shots; rescue (Version 9.1, Track R): the error handler's pieces, for the tests
     freshWorld,                                         // Stage 4.6: a new world as New city makes it ({ seed, variant, size }), for the dev scenes
     destroy() {
       win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame(); rescue.destroy();

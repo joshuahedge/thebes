@@ -215,7 +215,7 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
   it('links css/v91.css once, with css/v92.css after it', async () => {
     const page = new DOMParser().parseFromString(await source('/index.html'), 'text/html');
     const hrefs = [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.getAttribute('href')).filter((h) => /css\//.test(h));
-    expect(hrefs.slice(-2)).toEqual(['./css/v91.css', './css/v92.css']);   // Version 9.2 (Track D): css/v92.css is the last stylesheet now
+    expect(hrefs.slice(-3)).toEqual(['./css/v91.css', './css/v92.css', './css/v93.css']);   // Version 9.2 (Track D): css/v92.css is the last stylesheet now
     expect(hrefs.filter((h) => h === './css/v91.css').length).toBe(1);
     expect((await fetch('/css/v91.css')).status).toBe(200);
   });

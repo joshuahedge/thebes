@@ -359,7 +359,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     // seed, which picks the link's level in the difficulty choice first. A bad or newer link says so; the card works as
     // usual. Any other hash (or none) adds nothing.
     const link = parseShareLink(shared);
-    if (!link) return;
+    if (!link || link.kind === 'decree') return;   // Version 9.3 (Track U): a d1 link opens the decree card (boot), not a friend's score
     if (!link.ok) {
       element.insertBefore(el('p', { class: 'shared-bad small coral', text: link.reason === 'newer_format' ? TITLE_SCORE_TEXT.newerLink : TITLE_SCORE_TEXT.badLink }), buttonBox);
       return;

@@ -11,6 +11,7 @@ import { DEFENCE, FESTIVAL } from '../data/raids.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { ECONOMY } from '../data/economy.js';
 import { allBuildings } from '../sim/world.js';
+import { ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): the firehouse's reach under a decree
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { isWorking, staffRatio } from '../sim/labour.js';
 import { canBurn, fireStarted, fireRiskOf, fireBand, fireCause, clearRubble } from '../sim/fire.js';
@@ -75,7 +76,7 @@ function firehouseRows(world, b) {
   if (inFireStage(b)) return [line(D.coversNothingBurning)];
   if (b.paused) return [line(D.coversNothingPaused)];
   if (!isWorking(world, b)) return [line(D.coversNothingUntil(needed('firehouse'), BUILDINGS.firehouse.workers))];
-  const reach = roadReach(world, b, FIRE.reach);
+  const reach = roadReach(world, b, ruleReach(world, 'firehouse', FIRE.reach));
   const n = allBuildings(world).filter((x) => canBurn(x) && adjacentRoadTiles(world, x).some((t) => reach.has(t))).length;
   const out = [line(D.covers(n), 'small')];
   if (staffRatio(world, b) < FIRE.staffedAt) out.push(line(D.tooShortToFight(Math.ceil(BUILDINGS.firehouse.workers * FIRE.staffedAt), BUILDINGS.firehouse.workers), 'small coral'));

@@ -4810,3 +4810,68 @@ export const A92_TEXT = {
 // Version 9.2, Track V
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'minimap') + 1, 0, ['frame', 'Fit the city to the screen']);   // ruling 1851: the F key
 T.gesturesHelp += ' Open the Minimap and tap Fit the city, or press F, to fit the whole city on the screen.';   // fix wave, ruling 1876: the button is what a phone has; the double tap on the Map button is a shortcut the words do not promise
+
+// Version 9.3, Track U (the decree's interface; rulings 1975-1984). Track U writes only between this header and the end of the file.
+// "Decree" is the mode's one name. The sim's numbers are read from src/data/decrees.js and src/sim/rules.js where a number shows; the twist lines below are the table's words.
+export const U93_TEXT = {
+  names: { sea_peoples: 'Sea Peoples', low_nile: 'Low Nile', plague: 'Year of the Plague', stone_famine: 'Stone famine', vizier_levy: "The Vizier's Levy", open_city: 'Open city', golden_caravans: 'Golden caravans', fire_season: 'Fire season', southern_host: 'The Southern Host' },
+  twists: {
+    sea_peoples: 'Raids come twice as often and larger, more of them by boat. Walls and gates cost half.',
+    low_nile: 'Floods one step weaker. Farms make 30% less. Granaries hold double.',
+    plague: 'Sickness spreads three times as fast. Physicians cost half.',
+    stone_famine: 'Quarries work at half speed. Brickworks at double.',
+    vizier_levy: 'The court asks twice as much, and its rewards pay double.',
+    open_city: 'No walls or gates may be built.',
+    golden_caravans: 'Trade pays double. Workshops make half.',
+    fire_season: 'Fires start three times as often. Firehouses reach 12 tiles, not 8.',
+    southern_host: 'War elephants come from the 2nd raid. Archers cost half.',
+  },
+  bonus: { sea_peoples: 'Raids beaten', low_nile: 'Months with every Cottage or better fed', plague: 'Months with no sick home', stone_famine: 'Monument work laid', vizier_levy: 'Court requests met', open_city: 'Raids beaten', golden_caravans: 'Trade income over the bills', fire_season: 'Months with no building lost to fire', southern_host: 'Elephants brought down' },
+  bonusPart: 'Decree bonus',
+  weekNumber: (week) => String(Number(String(week).split('-')[1]) || 0),
+  // "Sea Peoples, week 47"; two decrees are joined with " and ".
+  mark: (names, week) => `${names.join(' and ')}, week ${U93_TEXT.weekNumber(week)}`,
+  markOf: (ids, week) => U93_TEXT.mark(ids.map((id) => U93_TEXT.names[id] || id), week),
+  bonusOf: (ids) => ids.map((id) => U93_TEXT.bonus[id]).filter(Boolean).join(' and '),
+  cardTitle: "This week's decree",
+  cardGroup: 'The decree',
+  changes: 'What changes',
+  counts: (ids) => `The bonus counts: ${U93_TEXT.bonusOf(ids).toLowerCase()}`,
+  length: 'It runs 6 years, scored out of 600. Everyone plays the same map.',
+  start: 'Start', continue: 'Continue', again: 'Try again', begin: 'Begin', close: 'Close',
+  yourBest: (score, medal) => `Your best this week: ${score} of 600${medal && SCORE_TEXT.medals[medal] ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
+  noBest: 'You have not finished this week yet',
+  rivalLine: (name, score) => `${name} scored ${score} this week`,
+  unfinished: (week) => `You have an unfinished run from week ${U93_TEXT.weekNumber(week)}.`,
+  replaceQuestion: (week) => `Starting this week replaces your unfinished run from week ${U93_TEXT.weekNumber(week)}. Start anyway?`,
+  replaceYes: 'Start this week',
+  chip: (year) => `Year ${year} of 6`,
+  chipLabel: (mark, year) => `${mark}. Year ${year} of 6. Opens the decree card.`,
+  // The menu
+  backToCity: 'Back to your city',
+  startAgain: 'Start the decree again',
+  againQuestion: 'Start this decree again from day one? This run is lost.',
+  againYes: 'Start again',
+  // The locked card, and the placing refusal ("decree")
+  locked: 'Not under this decree',
+  // The end card
+  endTitle: 'The decree ends',
+  endLead: (mark) => `Six years are done. ${mark}.`,
+  total: (n) => `${n} of 600`,
+  medalWords: (medal) => (medal && SCORE_TEXT.medals[medal] ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
+  newBest: 'A new best for this week',
+  sameBest: 'Your best this week stands',
+  partsHead: 'Your six parts',
+  rivalsHead: 'Rivals this week',
+  noRivals: 'No rivals on this week yet. Share your score to start one.',
+  rivalRow: (name, score) => `${name}: ${score}`,
+  share: 'Share', shared: 'Link copied',
+  shareText: (mark, total, medal) => `Thebes decree, ${mark}: ${total} of 600${medal && SCORE_TEXT.medals[medal] ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
+  // The ruler list's decree rows
+  rowName: (r) => `${r.mark}, decree, score ${r.score} of 600, ${U93_TEXT.medalWords(r.medal)}`,
+  rowKind: 'Decree',
+  rowTries: (n) => (n === 1 ? '1 try' : `${n} tries`),
+  playMap: 'Play this map',
+  playMapNote: "Opens New city on this week's map as a plain city, without the decree.",
+};
+Object.assign(REASONS, { decree: U93_TEXT.locked });

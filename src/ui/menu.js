@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT, Q92_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT, Q92_TEXT, U93_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { rulerNameRow, bringRulersRow } from './v90/rulerOptions.js';   // Version 9.0 (Track L): Options > Saves' ruler name and Bring rulers
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
@@ -44,13 +44,16 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     // Version 6.0 (Track D2): the lesson's menu has no New city (the lesson's city is never kept) and leaves the lesson instead; any other
     // game's menu replays the lesson when the page offers it (hooks.lesson), saving the city first. Version 8.0 (Track U): Export city moved to Options >
     // Saves, and Import city is gone with Bring a city from Safari.
-    const inLesson = Boolean(hooks.lessonRun);
+    const inDecree = Boolean(hooks.decreeRun);   // Version 9.3 (Track U): a decree run has Back to your city and Start the decree again, and no new city, ruler or lesson rows (it is never the city's)
+    const inLesson = Boolean(hooks.lessonRun) || inDecree;
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
+      inDecree ? button(U93_TEXT.backToCity, { class: 'menu-back-to-city', onClick: () => hooks.decreeRun.back() }) : null,
+      inDecree ? button(U93_TEXT.startAgain, { class: 'menu-decree-again', onClick: () => store.set({ confirmDialog: { text: U93_TEXT.againQuestion, confirmLabel: U93_TEXT.againYes, destructive: true, onConfirm: () => hooks.decreeRun.again() } }) }) : null,
       // After 8.3 (ruling 1454): Home goes back to the title, the city saved first, so Continue there brings it straight back; a city that cannot be saved stays open
       // and says why. The lesson has its own way home, Leave the lesson.
       !inLesson && typeof hooks.home === 'function' ? button(T.home, { class: 'menu-home', onClick: async () => { if ((await hooks.home()) === false) toasts.show(T.homeNotSaved); } }) : null,
-      inLesson ? button(D2_TEXT.menuLeave, { class: 'leave-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => hooks.lessonRun.leave() } }) }) : null,
+      hooks.lessonRun ? button(D2_TEXT.menuLeave, { class: 'leave-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => hooks.lessonRun.leave() } }) }) : null,
       // Version 8.2 (Track G, ruling 1308): New city opens the new-city card (the title's own) as this one sheet; its Start asks the replace question.
       inLesson ? null : button(T.newCity, { class: 'menu-new-city', onClick: () => { onPause(); open('newCity'); } }),
       // Version 9.0 (wave 0, ruling 1563): Pass the throne (Track D's hooks.passThrone, offered while hooks.canPassThrone() says so: from City) and the
@@ -164,7 +167,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const stopDim = settings.subscribe(() => { if (soundRows[0].isConnected) dim(); else stopDim(); });   // the sheet has closed: stop listening
     // Saves: Export city, a file copy of the city being played (no import: Version 8.0 ruling 1146), where there is a city to export (not the lesson's, which is
     // never kept); and the level the next new city starts at (spec 4.18), which the in-game New city has no card to pick.
-    const canExport = typeof hooks.exportCity === 'function' && !hooks.lessonRun;
+    const canExport = typeof hooks.exportCity === 'function' && !hooks.lessonRun && !hooks.decreeRun;
     const saves = [
       canExport ? el('div', { class: 'row export-row' }, [button(T.exportCity, { class: 'export-city', onClick: () => hooks.exportCity() }), el('p', { class: 'export-note small muted', text: V80_U_TEXT.exportNote })]) : null,
       choiceRow(V80_U_TEXT.newCityLevel, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),

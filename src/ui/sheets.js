@@ -3,6 +3,7 @@
 // (early-game pass 2.10). Show me itself lives in createUI (showMeAt); this file only hands it a target.
 import { alertShowMe, bazaarFix } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): a decree's reach is the one the sim uses
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
@@ -191,7 +192,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(row(T.workers, def.workers ? `${b.staff} of ${def.workers}` : T.noWorkersNeeded));
     if (def.stores) body.append(...storeSection(b));
     else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
-    const reach = def.reach || def.supplyReach || def.producerReach;
+    const reach = ruleReach(world, b.type, def.reach || def.supplyReach || def.producerReach);
     // A lodge's or wharf's reach is where it delivers, not where its crew goes (that is the River rows' straight-line tiles): said so (final review).
     if (reach) body.append(row(def.hunts || def.fishes ? T.storesWithin : T.reach, `${reach} road tiles`));
     body.append(...extra('building', b));

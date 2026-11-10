@@ -7,7 +7,10 @@ import { PARTS_BY_VERSION, SCORE_PARTS } from '../../data/scoring.js';
 import { MAP_SQUARE } from '../../save/records.js';
 import { el, button, clear } from '../components.js';
 import { drawMapString } from '../share.js';
-import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T } from '../text.js';
+import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T, U93_TEXT } from '../text.js';
+import { partsObject } from '../v93/decree.js';   // Version 9.3 (Track U): the decree rows
+import { weeklySeed } from '../week.js';
+import { DEFAULT_MAP_SIZE } from '../../data/map.js';
 import { sideBySide } from './sideBySide.js';
 import { rulerCartouche } from '../v92/cartouche.js';
 
@@ -67,18 +70,59 @@ export function rulerRow(row, { onPlay = () => {} } = {}) {
   return el('li', { class: 'ruler', dataset: { id: row.id } }, [toggle, detail]);
 }
 
+// Version 9.3 (Track U, ruling 1982): a decree row sits among the rulers by date. It has the mark and the medal, no regnal number and no trait; opened it shows the six parts and the tries,
+// and Play this map starts a plain city on the week's map (the same New city question as a ruler's), not a decree run.
+export function decreeRow(row, { onPlay = () => {} } = {}) {
+  const detailId = `decree-detail-${String(row.id || row.week).replace(/[^A-Za-z0-9_-]/g, '_')}`;
+  const parts = partsObject(row.parts);
+  const names = { ...SCORE_TEXT.parts, bonus: U93_TEXT.bonusPart };
+  const toggle = el('button', { type: 'button', class: 'ruler-row decree-row', 'aria-expanded': 'false', 'aria-controls': detailId, 'aria-label': U93_TEXT.rowName(row) }, [
+    el('span', { class: 'decree-row-head' }, [
+      el('span', { class: 'decree-row-kind small muted', text: U93_TEXT.rowKind }),
+      el('strong', { class: 'decree-row-mark', text: row.mark }),
+    ]),
+    el('span', { class: 'ruler-score-box' }, [
+      el('strong', { class: 'ruler-score', text: String(row.score) }),
+      el('span', { class: 'ruler-medal small muted', text: V90_L_TEXT.medalWords(row.medal) }),
+    ]),
+    mapCanvas(row),
+  ]);
+  const detail = el('div', { class: 'ruler-detail', id: detailId, hidden: true }, [
+    el('h4', { class: 'small', text: V90_L_TEXT.partsHead }),
+    el('ul', { class: 'ruler-parts' }, Object.keys(parts).map((p) => el('li', { class: 'ruler-part', dataset: { part: p } }, [
+      el('span', { class: 'ruler-part-name', text: names[p] || p }),
+      el('span', { class: 'part-bar', 'aria-hidden': 'true' }, [el('span', { class: 'fill', style: { width: `${Math.max(0, Math.min(100, parts[p]))}%` } })]),
+      el('strong', { class: 'part-number', text: String(parts[p]) }),
+    ]))),
+    Number.isInteger(row.tries) ? el('p', { class: 'ruler-feats small', text: U93_TEXT.rowTries(row.tries) }) : null,
+    el('div', { class: 'actions' }, [button(U93_TEXT.playMap, { class: 'play-map', 'aria-describedby': `${detailId}-note`, onClick: () => onPlay({ seed: weeklySeed(row.week), difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, mapVariant: 'auto' }) })]),
+    el('p', { class: 'ruler-play-note small muted', id: `${detailId}-note`, text: U93_TEXT.playMapNote }),
+  ]);
+  toggle.addEventListener('click', () => {
+    const open = detail.hidden;
+    detail.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+  return el('li', { class: 'ruler decree', dataset: { id: row.id || row.week, week: row.week } }, [toggle, detail]);
+}
+
 // Fills body with the list. records: the device's records (rulers()); onPlay(row): Play this map; installAsk: true while the install ask is due (a ruler is
 // kept and the device can install), with onInstall for its button; onBack: a Back button at the foot (the title card's panel has no head to close it).
 export function renderRulers(body, { records, onPlay = () => {}, installAsk = false, ios = false, onInstall = () => {}, onBack = null } = {}) {
   clear(body);
   let rulers = [];
   try { rulers = records ? records.rulers() : []; } catch (e) { rulers = []; }
+  let decrees = [];
+  try { decrees = records && typeof records.decrees === 'function' ? records.decrees() : []; } catch (e) { decrees = []; }   // U93-SEAM: Track S's records.decrees
+  // Version 9.3 (Track U, ruling 1982): decree rows and rulers together, newest date first.
+  const rows = [...rulers.map((r) => ({ at: r.date || 0, node: () => rulerRow(r, { onPlay }) })), ...(Array.isArray(decrees) ? decrees : []).filter((d) => d && d.week).map((d) => ({ at: d.date || 0, node: () => decreeRow(d, { onPlay }) }))].sort((a, b) => b.at - a.at);
+  const listed = rulers.length || rows.length;
   body.append(el('div', { class: 'rulers-body' }, [
     installAsk && rulers.length ? el('div', { class: 'rulers-install' }, [
       el('p', { class: 'install-ask small', role: 'note', text: V90_L_TEXT.installAsk(ios) }),
       button(V90_L_TEXT.installButton, { class: 'install-ask-button primary', onClick: onInstall }),
     ]) : null,
-    rulers.length ? el('ul', { class: 'rulers-list' }, rulers.map((r) => rulerRow(r, { onPlay }))) : el('p', { class: 'rulers-empty muted', text: V90_L_TEXT.empty }),
+    listed ? el('ul', { class: 'rulers-list' }, rows.map((r) => r.node())) : el('p', { class: 'rulers-empty muted', text: V90_L_TEXT.empty }),
     onBack ? el('div', { class: 'actions' }, [button(T.back, { class: 'guide-back', onClick: onBack })]) : null,
   ]));
 }

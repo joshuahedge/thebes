@@ -9,12 +9,13 @@ import { prestigeOf } from '../sim/prestige.js';
 import { palaceOf } from '../sim/palace.js';
 import { isUnlocked, milestoneIndex } from '../sim/progression.js';
 import { costOf, roadCostOf } from '../sim/costs.js';
+import { ruleForbids } from '../sim/rules.js';   // Version 9.3 (Track U): a decree's forbidden building shows locked
 import { monthlyBill } from '../sim/economy.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { largePlotUnlocked } from '../sim/largePlots.js';
-import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT, U93_TEXT } from './text.js';
 import { MAP, hasRiver } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
@@ -79,7 +80,8 @@ export function cardInfo(world, item) {
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
   if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
-  const locked = isCardLocked(world, item);
+  const decreeLocked = !isCardLocked(world, item) && ruleForbids(world, item);   // Version 9.3 (Track U): the card stays in the tray, locked, with the decree's line
+  const locked = isCardLocked(world, item) || decreeLocked;
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.
@@ -89,7 +91,7 @@ export function cardInfo(world, item) {
   // Stage 4.6 (rulings 331, 350): a terrain card's tooltip says its rule from the sim's row ("Needs 2 of 4 tiles on clay. Clay ground, along the
   // riverbanks."), and the road card says a road crosses water on a bridge, at the sim's price (costOf(world, 'bridge')) and the rule's reach.
   const terrainText = item === 'road' ? S46_MAP_TEXT.bridgeCard(costOf(world, 'bridge')) : item === 'ferry' ? FERRY_TEXT.card : isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true);
-  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText, upkeepText: upkeep.text, upkeepTitle: upkeep.title };
+  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: decreeLocked ? U93_TEXT.locked : locked ? lockTextOf(world, item) : '', isNew, terrainText, upkeepText: upkeep.text, upkeepTitle: upkeep.title };
 }
 
 export function activeItemOf(tool) {
