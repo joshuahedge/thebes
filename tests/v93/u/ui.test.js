@@ -38,8 +38,8 @@ describe('v93 u card: the title\'s decree card and its gate', () => {
       const card = b.root.querySelector('.decree-card');
       expect(Boolean(card)).toBe(true);
       expect(card.querySelector('h2').textContent).toBe(U.cardTitle);
-      expect(card.querySelector('.decree-go').classList.contains('primary')).toBe(true);   // the panel's go button, as the friend's-score panel's Start
-      expect(card.querySelector('.decree-mark').textContent).toBe('Sea Peoples, week 47');
+      expect(card.querySelector('.decree-go').classList.contains('primary')).toBe(false);   // fix wave U7: a plain button; Play stays the title's one primary
+      expect(card.querySelector('.decree-mark').textContent).toBe('Sea Peoples, week 47');   // fix wave U10: no-break space
       expect(card.querySelector('.decree-twist').textContent).toContain(U.twists.sea_peoples);
       expect(card.querySelector('.decree-counts').textContent).toBe(U.counts(['sea_peoples']));
       expect(card.querySelector('.decree-go').textContent).toBe(U.start);
@@ -49,7 +49,7 @@ describe('v93 u card: the title\'s decree card and its gate', () => {
 
   it('a pair week joins the names with and', async () => {
     const t = await titleAt({ records: WITH_TOWN, clock: MONDAY_50 });
-    try { expect(t.root.querySelector('.decree-mark').textContent).toBe('Low Nile and Golden caravans, week 50'); } finally { t.cleanup(); }
+    try { expect(t.root.querySelector('.decree-mark').textContent).toBe('Low Nile and Golden caravans, week 50'); } finally { t.cleanup(); }
   });
 });
 
@@ -130,7 +130,7 @@ describe('v93 u run: the first screen, the chip and the menu', () => {
       expect(chip.querySelector('.chip-year').textContent).toBe('Year 1 of 6');
       expect(chip.querySelector('.chip-mark').textContent).toBe('Sea Peoples, week 47');
       expect(chip.getAttribute('aria-label')).toBe(U.chipLabel('Sea Peoples, week 47', 1));
-      expect(t.root.querySelector('#sheet .decree-mark').textContent).toBe('Sea Peoples, week 47');
+      expect(t.root.querySelector('#sheet .decree-mark').textContent).toBe('Sea Peoples, week 47');
       t.root.querySelector('#sheet .decree-begin').click();
       await frame();
       expect([t.kind(), g.world.speed]).toEqual([null, 1]);

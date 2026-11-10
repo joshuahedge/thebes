@@ -63,7 +63,7 @@ function baseSlotFor(b, world) {
   if (b.type === 'plaza') return world ? `plaza.e${plazaEdges(world, b)}` : 'plaza';
   if (b.type === 'sphinx') return world ? `sphinx.f${sphinxFacing(world, b)}` : 'sphinx';
   if (b.type === 'rubble') return `rubble.v${b.id % RUBBLE_VARIANTS}`;
-  if (b.type === 'granary') return `granary.s${granaryStage(b)}`;
+  if (b.type === 'granary') return `granary.s${granaryStage(b, world)}`;
   if (b.type === 'storehouse') return `storehouse.s${storehouseStage(b)}`;
   if (b.type === 'bazaar') return `bazaar.s${bazaarStage(b)}`;
   if (FARM_TYPES.includes(b.type)) return world ? `${b.type}.g${farmStage(world, b)}` : b.type;

@@ -4834,7 +4834,7 @@ export const U93_TEXT = {
     open_city: 'No walls or gates may be built.',
     golden_caravans: 'Trade pays double. Workshops make half.',
     fire_season: 'Fires start three times as often. Firehouses reach 12 tiles, not 8.',
-    southern_host: 'War elephants come from the 2nd raid. Archers cost half.',
+    southern_host: 'War elephants may come from the 2nd raid. Archers cost half.',
   },
   bonus: { sea_peoples: 'Raids beaten', low_nile: 'Months with every Cottage or better fed', plague: 'Months with no sick home', stone_famine: 'Monument work laid', vizier_levy: 'Court requests met', open_city: 'Raids beaten', golden_caravans: 'Trade income over the bills', fire_season: 'Months with no building lost to fire', southern_host: 'Elephants brought down' },
   bonusPart: 'Decree bonus',
@@ -4846,7 +4846,8 @@ export const U93_TEXT = {
   cardTitle: "This week's decree",
   cardGroup: 'The decree',
   changes: 'What changes',
-  counts: (ids) => `The bonus counts: ${U93_TEXT.bonusOf(ids).toLowerCase()}`,
+  counts: (ids) => { const s = U93_TEXT.bonusOf(ids); return `The bonus counts: ${s.charAt(0).toLowerCase()}${s.slice(1)}`; },   // fix wave (U6): only the first letter, so a tier's name keeps its capital
+  partLine: (id, n) => `${U93_TEXT.names[id] || id}: ${n} of 100`,   // fix wave (U9): one decree's own part, under a pair week's mean
   length: 'It runs 6 years, scored out of 600. Everyone plays the same map.',
   start: 'Start', continue: 'Continue', again: 'Try again', begin: 'Begin', close: 'Close',
   yourBest: (score, medal) => `Your best this week: ${score} of 600${medal && SCORE_TEXT.medals[medal] ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
@@ -4886,4 +4887,4 @@ export const U93_TEXT = {
   playMap: 'Play this map',
   playMapNote: "Opens New city on this week's map as a plain city, without the decree.",
 };
-Object.assign(REASONS, { decree: U93_TEXT.locked });
+Object.assign(REASONS, { decree: U93_TEXT.locked, decree_ended: 'The decree has ended' });   // fix wave (U2): what every refused command says after the end
