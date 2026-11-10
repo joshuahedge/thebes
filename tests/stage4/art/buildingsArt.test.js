@@ -75,9 +75,10 @@ describe('s4 art supply buildings', () => {
     const guild = addRaw(w, 'builders_guild', 10, 10, { staff: 0 });
     const q = addRaw(w, 'quarry', 14, 10, { staff: 10 });
     const bw = addRaw(w, 'brickworks', 18, 10, { staff: 4 });
-    expect([slotFor(guild, w), slotFor(q, w), slotFor(bw, w)]).toEqual(['builders_guild.idle', 'quarry', 'brickworks.s2']);
+    // Version 9.3 (Track B): idle is the shut state now, and a slot carries its look and its state (a half-staffed brickworks is short)
+    expect([slotFor(guild, w), slotFor(q, w), slotFor(bw, w)]).toEqual(['builders_guild.l0.shut', 'quarry.l0.work', 'brickworks.s2.l0.short']);
     guild.staff = 16; q.paused = true; bw.staff = 0;
-    expect([slotFor(guild, w), slotFor(q, w), slotFor(bw, w)]).toEqual(['builders_guild', 'quarry.idle', 'brickworks.idle']);
+    expect([slotFor(guild, w), slotFor(q, w), slotFor(bw, w)]).toEqual(['builders_guild.l0.work', 'quarry.l0.shut', 'brickworks.s1.l0.shut']);
     expect([supplySlot({ type: 'brickworks', staff: need }), supplySlot({ type: 'quarry' })]).toEqual(['brickworks.s3', 'quarry.idle']);
   });
 });

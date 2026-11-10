@@ -3,3 +3,7 @@
 import './w0/all.js';        // Wave 0: the seams (looks, the building's day, slot keys, materials and primitives)
 import './d0/all.js';        // D0: the decree's seams (the table, the week, rules.js, world.decree, the golden fingerprint)
 import './r/all.js';         // R: the decree's rules in the sim (the levers, the end, the tallies, decreeScore)
+import './s/all.js';         // S: the decree's save slot, records version 3 and links
+import './b/all.js';         // B: services, workshops and landmarks in four looks and three states
+import './n/all.js';         // N: the rest of the art (palace, monuments, nature, figures, armies, river, boats)
+import './m/all.js';         // Track M: the rebuild's scaffolds, the level-up sweep, the notice's line

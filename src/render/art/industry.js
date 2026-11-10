@@ -3,15 +3,26 @@
 // a pennant in the industry tint (spec 5.3), so the category reads at phone zoom. Everything is 2x2 and is drawn
 // back to front, so nearer things cover farther ones. The storehouse shows its stock in four stages (stages.js),
 // and INDUSTRY_ART registers one slot per stage beside its plain slot.
-import { box, tb, qd, door, win, parapet, mat, rug, pots, ladder, awn, p, U, quad, hs } from './primitives.js';
+import {
+  box, tb, qd, door, win, parapet, mat, rug, pots as potsDraw, ladder, awn, p, U, quad, hs,
+  insetOpening, band, awning, cornice, parapetSteps, gildedCap, col, crs, groundShadow,
+} from './primitives.js';
 import { rock } from './nature.js';
-import { fig } from './figures.js';
-import { pennant } from './services.js';
+import { fig as figDraw } from './figures.js';
+import {
+  pennant, styled, lookSlot, planks, bodyF, block, drum as drumK, smokePuff, potK, isShut, isBusy, DRAWING,
+} from './services.js';
 import {
   WASH, WASH2, MUD, MUD2, ROCK, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, ORANGE, GREEN, GREEN_DARK,
-  PURP, WOOD, POT, POT_LIGHT, SHADOW, DOOR, INDUSTRY_TINT,
+  PURP, WOOD, POT, POT_LIGHT, SHADOW, DOOR, INDUSTRY_TINT, INK, LIME, WINDOW,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
+import { MATERIALS } from './materials.js';
+
+// Version 9.3, Track B: a workshop that is not working (short of workers or shut) shows no goods in its yard, and a shut one no figure and no smoke.
+// services.js's DRAWING says which; today's plain slots draw as working.
+const fig = (...a) => { if (!isShut()) figDraw(...a); };
+const pots = (...a) => { if (isBusy()) potsDraw(...a); };
 
 const TIMBER = ['#C9A26A', '#A8814E', '#86705E'];          // crates and posts: lit top, lit side, shaded side
 const BALE = ['#DCC27A', '#C4A85E', '#9C8A6E'];
@@ -19,18 +30,21 @@ const CLAY = '#9A6A48', CLAY_WET = '#7A5238', CLAY_LIGHT = '#B8865C';
 
 // A wooden crate standing on tile point (gx, gy), s tiles across, h art px tall, raised by z.
 function crate(g, gx, gy, s, h, z = 0) {
+  if (!isBusy()) return;
   const F = box(g, gx - s / 2, gy - s / 2, s, s, h, z, TIMBER);
   g.line(F.L(0.5, 0), F.L(0.5, h), '#86603E', 0.4, 0.7);
   g.line(F.R(0.5, 0), F.R(0.5, h), '#6E5A50', 0.4, 0.7);
 }
 // A bale of flax or straw, banded with twine.
 function bale(g, gx, gy, w, d, z = 0) {
+  if (!isBusy()) return;
   const F = box(g, gx - w / 2, gy - d / 2, w, d, 2.4, z, BALE);
   qd(g, F.L, 0.3, 0.36, 0, 2.4, '#8C7240');
   qd(g, F.L, 0.64, 0.7, 0, 2.4, '#8C7240');
 }
 // A tall storage jar (an amphora) with a stopper, standing on art point q.
 function jar(g, q, color = POT, h = 5) {
+  if (!isBusy()) return;
   g.ell([q[0] + 1, q[1] + 0.3], 2, 0.8, SHADOW, { alpha: 0.18 });
   g.path([['M', [q[0] - 0.8, q[1]]], ['Q', [q[0] - 2.4, q[1] - h * 0.55], [q[0] - 0.7, q[1] - h]], ['L', [q[0] + 0.7, q[1] - h]], ['Q', [q[0] + 2.4, q[1] - h * 0.55], [q[0] + 0.8, q[1]]], ['Z']], color, { outline: true });
   g.ell([q[0] - 0.6, q[1] - h * 0.55], 0.45, h * 0.18, POT_LIGHT, { alpha: 0.6 });
@@ -38,6 +52,7 @@ function jar(g, q, color = POT, h = 5) {
 }
 // A sack of grain or barley.
 function sack(g, q, color = '#D8B47A') {
+  if (!isBusy()) return;
   g.ell(U(q, 1.4), 1.8, 1.5, color, { outline: true });
   g.ell(U(q, 3), 0.8, 0.45, '#9C7A54');
 }
@@ -51,7 +66,7 @@ function drum(g, gx, gy, r, h, side, shade, top) {
   return [c[0], c[1] - h];
 }
 // A soft puff of smoke centred on art point q.
-const puff = (g, q, r, a) => g.radial(q, r, r * 0.8, '#F4F0F2', a);
+const puff = (g, q, r, a) => { if (!isShut()) g.radial(q, r, r * 0.8, '#F4F0F2', a); };
 
 // Clay pit: a dug pit of wet clay with puddles, a digger and a ladder, bricks drying in rows along the front, a
 // green reed shade over the brick moulds and baskets of clay.
@@ -192,10 +207,12 @@ export function weaver(g, X, Y) {
 // and bucket, a heap of broken rock, and gems glinting in a basket and on the spoil.
 const GEMS = [TEAL, RED, PURP, '#3FA0D8', GOLD];
 function gem(g, q, c) {
+  if (!isBusy()) return;
   g.poly([[q[0], q[1] - 1.5], [q[0] + 1.1, q[1]], [q[0], q[1] + 1.1], [q[0] - 1.1, q[1]]], c, { outline: true });
   g.poly([[q[0], q[1] - 1.5], [q[0] + 1.1, q[1]], [q[0], q[1] - 0.2]], '#FFFFFF', { alpha: 0.45 });
 }
 function glint(g, q) {
+  if (!isBusy()) return;
   g.line([q[0] - 2, q[1]], [q[0] + 2, q[1]], '#FFFFFF', 0.5, 0.9);
   g.line([q[0], q[1] - 2], [q[0], q[1] + 2], '#FFFFFF', 0.5, 0.9);
 }
@@ -325,6 +342,7 @@ function tent(g, x, y, w, d, h, cloth, stripe) {
   g.line(ridge1, U(ridge1, 2.4), WOOD, 0.7);
 }
 function donkey(g, gx, gy, pack) {
+  if (isShut()) return;
   const c = p(gx, gy);
   g.ell([c[0] + 1.5, c[1] + 0.4], 5, 1.4, SHADOW, { alpha: 0.2 });
   for (const dx of [-2.6, -1.6, 1.8, 2.8]) g.line([c[0] + dx, c[1] - 3], [c[0] + dx, c[1]], '#6E625C', 0.8);
@@ -380,3 +398,120 @@ export const INDUSTRY_ART = {
 };
 // One slot per stock stage, named as slotFor (registry.js) names them: storehouse.s0-s3.
 for (let s = 0; s < 4; s++) INDUSTRY_ART[`storehouse.s${s}`] = slot(16, STORE_SHADOWS, (g, x, y) => storehouse(g, x, y, s));
+
+// ---- Version 9.3, Track B: the workshops in four looks and three states (registry.js runs INDUSTRY_LOOKS through withLooks) -----------------------------
+const M = MATERIALS;
+const PARAPET_C = ['#ECE2D2', '#ECE2D2', '#C6BACB'];
+
+// A flat roof at the look's bar: a terrace slab, then the parapet's steps (City, Capital) or a plain parapet (Village, Town).
+function roofTop(g, x, y, w, d, z, look, n = 3) {
+  const m = M[look];
+  if (look <= 1) {
+    box(g, x + 0.02, y + 0.02, w - 0.04, d - 0.04, 0.9, z, [PARAPET_C[0], '#ECE2D2', '#C6BACB']);
+    g.poly(quad(x + 0.08, y + 0.08, w - 0.16, d - 0.16, z + 0.9), look === 0 ? '#D8BC84' : m.cornice[1], { alpha: 0.9 });
+  } else {
+    cornice(g, { x, y, w, d, z }, m.cornice);
+    g.poly(quad(x + 0.04, y + 0.04, w - 0.08, d - 0.08, z), m.roof[0]);
+    parapetSteps(g, { x, y, w, d, z, C: look === 3 ? [m.roof[0], m.roof[1], m.roof[2]] : undefined }, n, look === 3 ? 1.4 : 1.2);
+  }
+}
+
+// The potter's workshop with its kiln, the approved reference of wave 0 and a landmark: the City gives the kiln a tall chimney stack, the Capital a gilded
+// cap on the kiln and the stack. work: the kiln glows and smokes, the awning is out over the wheel, finished pots stand in the yard. short: the same with a
+// bare yard. shut: no smoke, the mouth bricked up, the shutters barred, the yard bare.
+function kilnNew(g, x, y, look, state) {
+  const m = M[look], work = state === 'work', shut = state === 'shut';
+  const trim = look === 0 ? WOOD : m.trim;
+  const stack = look >= 2;
+  if (stack) {   // the chimney stack, behind the kiln
+    const S = tb(g, x + 1.74, y + 0.18, 0.16, 0.16, 22, 0, 0.03, look === 2 ? m.wall : [LIME[0], LIME[1], LIME[2]]);
+    qd(g, S.L, 0, 1, 18.6, 19.8, look === 2 ? BLUE : TEAL); qd(g, S.R, 0, 1, 18.6, 19.8, look === 2 ? BLUE : TEAL_DARK, { alpha: 0.85 });
+    g.ell(U(p(x + 1.82, y + 0.26), 22), 2.4, 1.2, '#4A3030');
+    if (!shut) { const t = U(p(x + 1.82, y + 0.26), 23); smokePuff(g, [t[0] + 1, t[1] - 3], 2.6, 0.5); smokePuff(g, [t[0] + 3, t[1] - 8], 3.2, 0.38); smokePuff(g, [t[0] + 5.6, t[1] - 13.5], 3.8, 0.26); }
+  }
+  const W = block(g, x + 0.12, y + 0.12, 0.92, 0.66, 9, 0, look === 0 ? MUD : m.wall);
+  if (look === 0) crs(g, W, 9, '#9C7A54', 2.5);
+  if (work || state === 'short') insetOpening(g, { F: W.L, u: 0.6, s: 0 }, 0.2, 5.4, { lintel: trim, lit: true });
+  else { qd(g, W.L, 0.57, 0.83, 0, 5.8, trim); planks(g, W.L, 0.6, 0.8, 0, 5.2); }
+  if (!shut) insetOpening(g, { F: W.R, u: 0.3, s: 3.8 }, 0.2, 2.6, { lintel: trim, fill: WINDOW, lit: true });
+  else planks(g, W.R, 0.3, 0.5, 3.8, 6.4);
+  insetOpening(g, { F: W.L, u: 0.16, s: 3.8 }, 0.16, 2.6, { lintel: trim, fill: shut ? '#6A4A38' : WINDOW });
+  if (look >= 1) band(g, W, 7.2, look === 1 ? TEAL : m.band, 1.0);
+  roofTop(g, x + 0.12, y + 0.12, 0.92, 0.66, 9, look, 3);
+  const kc = p(x + 1.52, y + 0.58);
+  drumK(g, kc, 7.5, 11, look >= 2 ? [m.wall[0], m.wall[1], m.wall[2]] : [MUD[0], MUD[1], MUD[2]]);
+  g.ell([kc[0], kc[1] - 11], 2.6, 1.3, '#4A3030');
+  if (look === 3) gildedCap(g, [kc[0], kc[1] - 10], 4.2);
+  if (!shut) {
+    g.ell([kc[0] - 1.5, kc[1] - 2.8], 2.8, 2.2, '#3A2420'); g.ell([kc[0] - 1.5, kc[1] - 2.6], 2, 1.6, ORANGE); g.ell([kc[0] - 1.5, kc[1] - 2.4], 1.1, 0.9, GOLD);
+    if (!stack) { smokePuff(g, [kc[0] + 1, kc[1] - 15], 3, 0.55); smokePuff(g, [kc[0] + 3.4, kc[1] - 20], 3.8, 0.42); smokePuff(g, [kc[0] + 6.4, kc[1] - 25.5], 4.4, 0.3); }
+    awning(g, { F: W.L, u: 0.0, s: 5.6 }, 0.34, RED);
+  } else {
+    g.ell([kc[0] - 1.5, kc[1] - 2.8], 2.8, 2.2, '#6A4A38'); g.line([kc[0] - 3.6, kc[1] - 2.8], [kc[0] + 0.6, kc[1] - 2.8], INK, 0.5, 0.6); g.line([kc[0] - 1.5, kc[1] - 4.8], [kc[0] - 1.5, kc[1] - 0.8], INK, 0.5, 0.6);
+  }
+  if (work) {
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 4; i++) potK(g, p(x + 1.05 + i * 0.2, y + 1.3 + r * 0.22), (i + r) % 3 ? POT : '#E9C08A', 0.9);
+    for (const [u, v] of [[0.3, 1.5], [0.52, 1.6]]) potK(g, p(x + u, y + v), POT, 0.9);
+  } else if (shut) potK(g, p(x + 1.9, y + 1.1), '#B08A6A', 0.8);   // one cracked pot left by the wall
+  if (!shut) fig(g, x + 0.46, y + 1.0, 'citizen', 0, 0.85);
+  pennant(g, U(p(x + 1.9, y + 1.0), 0), 11, INDUSTRY_TINT);
+}
+
+// The weaver, a landmark: the City builds a loft over the workshop, the Capital a taller loft under a gilded cap with a pillared porch at the door.
+function weaverFront(g, x, y, look, state) {
+  if (look < 2) return;
+  const m = M[look], h = look === 2 ? 6 : 8;
+  const L = block(g, x + 0.2, y + 0.2, 0.62, 0.5, h, 9, look === 2 ? m.wall : [LIME[0], LIME[1], LIME[2]]);
+  insetOpening(g, { F: L.L, u: 0.38, s: 1.6 }, 0.24, h - 3.4, { lintel: m.trim, fill: WINDOW, lit: state !== 'shut' });
+  if (state === 'shut') planks(g, L.L, 0.38, 0.62, 1.6, h - 1.8);
+  band(g, L, h - 1.4, look === 2 ? m.band : RED, 0.9);
+  roofTop(g, x + 0.2, y + 0.2, 0.62, 0.5, 9 + h, look, 2);
+  if (look === 3) {
+    gildedCap(g, U(p(x + 0.51, y + 0.45), 9 + h + 1), 2.2);
+    for (const cx of [0.46, 0.8]) col(g, x + cx, y + 0.9, 5.4, 0, [LIME[0], LIME[1], LIME[2]]);
+    box(g, x + 0.4, y + 0.85, 0.46, 0.1, 1, 5.8, [GOLDC[0], '#EBE1CE', '#CBBFCB'], 0);
+  }
+}
+
+// A clay pit shut: boards over the pit. A gem mine shut: boards over the shaft.
+function boardOver(g, x0, y0, w, d, z = 0.5) {
+  g.poly(quad(x0, y0, w, d, z), '#6A4A38', { outline: true });
+  for (let u = 0.2; u < 0.95; u += 0.2) g.line(U(p(x0 + w * u, y0), z), U(p(x0 + w * u, y0 + d), z), INK, 0.4, 0.55);
+  g.line(U(p(x0, y0), z), U(p(x0 + w, y0 + d), z), '#B08A5A', 1, 0.95);
+  g.line(U(p(x0 + w, y0), z), U(p(x0, y0 + d), z), '#B08A5A', 1, 0.95);
+}
+
+// A storehouse keeps its stock showing while it is short of workers (it is a store, not a yard of goods): only a shut one is bare.
+const storeDraw = (s) => (g, x, y, look, state) => {
+  DRAWING.state = state === 'shut' ? 'shut' : 'work';   // styled() puts it back
+  storehouse(g, x, y, s);
+};
+
+const ILOOK = (h, shadows, draw, cfg) => lookSlot(2, 2, h, shadows, styled(draw, cfg));
+export const INDUSTRY_LOOKS = {
+  clay_pit: ILOOK(12, [[1.46, 0.18, 0.42, 0.9, 6]], (g, x, y) => clayPit(g, x, y), {
+    band: null, shutters: false, by: [1.5, 1.9], noPalm: true, cover: (g, x, y) => boardOver(g, x + 0.14, y + 0.14, 1.26, 1.12),
+  }),
+  potter: ILOOK([30, 30, 32, 36], [[0.12, 0.12, 0.92, 0.66, 12], [1.22, 0.22, 0.6, 0.6, 11]], kilnNew, { plain: true }),
+  brewery: ILOOK(14, [[0.12, 0.12, 1.06, 0.72, 13]], (g, x, y) => brewery(g, x, y), {
+    body: [0.12, 0.12, 1.06, 0.72, 10], doors: [[0.44, 0.6, 6]], by: [1.3, 0.96],
+  }),
+  weaver: ILOOK([12, 12, 18, 22], [[0.12, 0.12, 0.8, 0.7, 12], [1.2, 0.62, 0.66, 0.66, 9]], (g, x, y) => weaver(g, x, y), {
+    body: [0.12, 0.12, 0.8, 0.7, 9], doors: [[0.56, 0.74, 5.6]], front: weaverFront, by: [1.0, 1.0],
+  }),
+  gem_mine: ILOOK(14, [[0.08, 0.1, 1.1, 0.8, 14], [1.0, 0.12, 0.86, 0.9, 10]], (g, x, y) => gemMine(g, x, y), {
+    band: null, shutters: false, cover: (g, x, y) => boardOver(g, x + 0.86, y + 1.0, 0.42, 0.42, 0.4),
+  }),
+  jeweller: ILOOK(16, [[0.3, 0.22, 1.2, 0.8, 15]], (g, x, y) => jeweller(g, x, y), {
+    body: [0.3, 0.22, 1.2, 0.8, 12], doors: [[0.44, 0.58, 6.4]], by: [1.72, 1.06],
+  }),
+  trading_post: ILOOK(23, [[0.14, 0.16, 0.8, 0.62, 7], [1.0, 0.2, 0.82, 0.6, 8]], (g, x, y) => tradingPost(g, x, y), {
+    band: null, shutters: false, by: [0.2, 1.9],
+    cover: (g, x, y) => { const F = bodyF(x + 0.3, y + 1.22, 1.4, 0.08); planks(g, F.L, 0, 1, 0, 3.2); },
+  }),
+};
+for (let s = 0; s < 4; s++) {
+  INDUSTRY_LOOKS[`storehouse.s${s}`] = ILOOK(16, STORE_SHADOWS, storeDraw(s), {
+    body: [0.12, 0.12, 1.76, 0.6, 9], doors: [[0.16, 0.30, 5.6], [0.44, 0.58, 5.6], [0.72, 0.86, 5.6]], shutters: false, band: 6.8,
+  });
+}
