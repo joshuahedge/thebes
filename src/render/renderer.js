@@ -10,7 +10,7 @@ import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
 import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
 import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
-import { createTerrainBaker, drawTileGrid, terrainBudgetFor } from './terrainBaker.js';
+import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -147,6 +147,7 @@ export function drawRising(ctx, sprite, px, py, zoom, dpr, t) {
 export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
   dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
+  cachesBudget = CACHES_BUDGET_BYTES,   // Version 9.3 Track P (ruling 1936): the terrain and sprites together, by device; a test may pass another's
 }) {
   const rawDpr = typeof dpr === 'function' ? dpr : () => dpr;
   const dprOf = () => Math.min(DPR_CAP, rawDpr());   // V0a: the canvas's ratio, capped
@@ -194,7 +195,7 @@ export function createRenderer({
     // its byte budget never evicts.
     const shown = visibleChunks(range).filter(({ cx, cy }) => !cullControl.on || chunkShows(cam, view, cx, cy));
     lastWorld = world;
-    if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0));   // ruling 1687: the terrain gives way to the sprites, to a floor
+    if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0, cachesBudget));   // ruling 1687: the terrain gives way to the sprites, to a floor
     if (spriteCache.frame) spriteCache.frame();   // and the sprites this frame gets are never evicted for the sprite budget
     let bakes = 0, chunks = 0, stale = 0;
     for (const { cx, cy } of shown) {
@@ -302,7 +303,7 @@ export function createRenderer({
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes()));   // Version 9.1: again for the sprites this frame drew
+    if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes(), cachesBudget));   // Version 9.1: again for the sprites this frame drew
 
     stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
