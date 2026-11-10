@@ -8,6 +8,7 @@
 // A tower standing on a wall tile has DEFENCE.towerOnWallHp: the raid step (raids.js) sets every standing tile to its
 // full hit points, fullWallHp, when raiders arrive and again when the raid ends (spec 4.13: hit tiles heal), so placing
 // or demolishing a tower needs no change to the wall layer.
+import { decreeEnded, endedFail, ruleForbids } from './rules.js';
 import { DEFENCE } from '../data/raids.js';
 import { idx, inBounds } from './grid.js';
 import { groundRefusal } from './terrain.js';
@@ -60,6 +61,7 @@ function wallTileReason(world, x, y, raiders) {
 // rest is drawn. Fails with 'locked' (before Market town), 'nothing_to_place' (nothing left to draw) or 'no_gold' (below the
 // debt floor), keeping tiles, gates and cost for the last two.
 export function previewWallTiles(world, list, { skipBlocked = false } = {}) {
+  if (ruleForbids(world, 'wall')) return fail('decree', { skipped: [] });   // Version 9.3 (Track R, ruling 1962): Open city
   if (!isUnlocked(world, 'wall')) return fail('locked', { skipped: [] });
   const raiders = raiderTiles(world);
   const tiles = [], gates = [], skipped = [], seen = new Set();
@@ -88,6 +90,7 @@ export function previewWallTiles(world, list, { skipBlocked = false } = {}) {
 // of newItems, and pushes one undo entry for the whole list, { kind: 'wall', tiles, before, cost } (before: each tile's value
 // before, so undo puts breaches back). Returns the preview's result.
 export function drawWallTiles(world, list, options = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = previewWallTiles(world, list, options);
   if (!p.ok) return p;
   const before = p.tiles.map((t) => world.wall[t]);

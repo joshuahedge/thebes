@@ -24,6 +24,7 @@
 //                                         'changed' when the city has moved on since, doing nothing, so what is carried out is what was read
 // Events pushed (never saved): { type: 'city_event_offered', kind, id, welcome, months }, { type: 'city_event', kind, choice, result: 'answered' |
 // 'default', effects }.
+import { decreeEnded, endedFail } from './rules.js';
 import { hash2 } from './rng.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { letterMayCome, noteLetter } from './letters.js';
@@ -388,6 +389,7 @@ export const favourMoves = (world, effects) => effects.filter((e) => e.kind === 
 // Carries out the event's choice: the waiting event only (fails 'no_event' for another), 'no_choice' for an id it does not list, the choice's reason when it
 // cannot be made, 'changed' when `shown` (the effects the card read) is not what the choice would do now. Clears the record's waiting event and counts it.
 export function applyChoice(world, event, choiceId, events = null, shown = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const s = world.cityEvents, w = s.waiting;
   const fail = (reason) => ({ ok: false, reason, warnings: [] });
   if (!event || !w || w.kind !== event.kind || w.day !== event.day) return fail('no_event');

@@ -43,6 +43,8 @@ import { FIRE } from '../data/fire.js';
 import { RAIDS } from '../data/raids.js';
 import { baseRaidSize, towersNeeded, workingTowers } from './raids.js';
 import { raidsOn } from './costs.js';
+import { DECREES, DECREE_PAIRS, PAIR_MEDALS } from '../data/decrees.js';
+import { titleMeasures } from './dynasty.js';
 
 const zeroParts = () => Object.fromEntries(SCORE_PARTS.map((p) => [p, 0]));
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -290,6 +292,52 @@ export function scoreOf(world) {
   const raw = SCORE_PARTS.reduce((s, p) => s + parts[p], 0);
   const factor = scoreFactor(world);
   return { version: SCORE_VERSION, total: Math.round(raw * factor), raw, factor, parts, ceilings, waiting: waitingOf(world), reasons, medal: medalFor(raw), next: nextMedal(world, raw) };
+}
+
+// -- Version 9.3, the weekly decree (Track R, ruling 1964; spec sections 1 and 5) --
+// One decree's measure for the bonus part, by DECREES[id].measure. Missing tallies (an older save) read as 0.
+export function decreeMeasure(world, id) {
+  const def = DECREES[id], t = world.tally;
+  if (!def) return 0;
+  const row = (title) => titleMeasures(world).find((r) => r.id === title) || {};
+  switch (def.measure) {
+    case 'raidsBeaten': return row('unconquered').beaten || 0;
+    case 'fedMonths': return t.fedMonths || 0;
+    case 'wellMonths': return t.wellMonths || 0;
+    case 'fireSafeMonths': return t.fireSafeMonths || 0;
+    case 'monumentUnits': return row('builder').units || 0;
+    case 'requestsMet': return t.requestsMet || 0;
+    case 'tradeOverBills': return row('merchant').measure || 0;
+    case 'elephantsFelled': return t.elephantsFelled || 0;
+    default: return 0;
+  }
+}
+
+// The bonus part, 0 to 100: the mean over the week's decrees of min(100, round(100 x measure / bar)), rounded (a world with no decree: 0).
+export function bonusPart(world) {
+  const ids = world.decree && Array.isArray(world.decree.ids) ? world.decree.ids.filter((id) => DECREES[id]) : [];
+  if (!ids.length) return 0;
+  const sum = ids.reduce((n, id) => n + Math.min(100, Math.round((100 * decreeMeasure(world, id)) / DECREES[id].bar)), 0);
+  return Math.round(sum / ids.length);
+}
+
+// The medal scale for a world's decree: one decree's own [bronze, silver, gold], a pair week's from PAIR_MEDALS (order does not matter).
+export function decreeMedals(world) {
+  const ids = (world.decree && world.decree.ids) || [];
+  if (ids.length === 1 && DECREES[ids[0]]) return DECREES[ids[0]].medals;
+  const k = DECREE_PAIRS.findIndex((p) => p.length === ids.length && p.every((id) => ids.includes(id)));
+  return k >= 0 ? PAIR_MEDALS[k] : null;
+}
+
+// A decree run's score out of 600: the five parts of scoreOf plus the bonus part. { total, parts (six), medal ('bronze' | 'silver' | 'gold' | null), version: 3 }.
+// total is the sum of the parts (a decree run is on Normal, factor 1); scoreOf is untouched, and a decree score is never compared with a main-game best.
+export function decreeScore(world) {
+  const parts = { ...scoreOf(world).parts, bonus: bonusPart(world) };
+  const total = Object.values(parts).reduce((n, v) => n + v, 0);
+  const scale = decreeMedals(world);
+  let medal = null;
+  if (scale) ['bronze', 'silver', 'gold'].forEach((m, i) => { if (total >= scale[i]) medal = m; });
+  return { total, parts, medal, version: SCORE_VERSION };
 }
 
 // What placing a building of this type at (x, y) would change, counting it as staffed: { people, prosperity, culture,

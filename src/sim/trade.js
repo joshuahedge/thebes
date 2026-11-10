@@ -14,6 +14,7 @@
 // trading post, on the same day and quota rules. Every caravan and boat obeys the route's switches and what trade holds back
 // (src/sim/tradeRules.js), and writes what it paid and was paid into world.trade.ledger (src/data/trade.js), which the Trade sheet reads
 // for last year's profit. setTradeSwitch and setKeepAtLeast are the Trade sheet's commands.
+import { capacityOf, decreeEnded, endedFail } from './rules.js';
 import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, QUAY_TYPE, TRADE_SIDES, partnerBy, DRIFT_LAST } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { hasRiver } from '../data/map.js';
@@ -28,7 +29,7 @@ import { storeAccepts, storeTotal } from './production.js';
 import { createRng, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { ferryEdges } from './ferries.js';
-import { heirFactor } from './dynasty.js';
+import { ruleFactor } from './rules.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { tradeAllowed, heldBack } from './tradeRules.js';
 
@@ -124,7 +125,7 @@ export function tradePrices(world, partnerId) {
   const drift = world.trade.drift[partnerId] || {};
   const price = (good, base, heir) => Math.max(1, Math.round(heir === 1 ? base * (1 + (drift[good] || 0)) : base * (1 + (drift[good] || 0)) * heir));
   const side = (list, heir) => Object.fromEntries(Object.entries(list).filter(([, t]) => !t.from || atLeast(world, t.from)).map(([good, t]) => [good, price(good, t.price, heir)]));
-  return { buys: side(p.buys, heirFactor(world, 'buys')), sells: side(p.sells, 1) };
+  return { buys: side(p.buys, ruleFactor(world, 'buys')), sells: side(p.sells, 1) };
 }
 
 // The day of the next caravan month end: caravans come at the end of every CARAVAN_EVERY_MONTHS-th month.
@@ -163,6 +164,7 @@ export function routeBlocker(world, partnerId) {
 // Opens the route to a partner (see routeBlocker). A route that opens while no post is joined to the trade entry
 // warns 'not_connected'.
 export function openRoute(world, partnerId) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const reason = routeBlocker(world, partnerId);
   if (reason) return fail(reason);
   const cost = routeCostOf(world, partnerId);
@@ -175,6 +177,7 @@ export function openRoute(world, partnerId) {
 // Turns one good on one side of one route on or off (side as PARTNERS lists it: 'buys', the city sells; 'sells', the city buys). Only an
 // off switch is stored (src/data/trade.js); turning it on again removes it, and an empty route or side goes with it.
 export function setTradeSwitch(world, partnerId, side, good, on) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const p = PARTNERS[partnerId];
   if (!p) return fail('unknown_partner');
   if (!TRADE_SIDES.includes(side)) return fail('bad_side');
@@ -203,6 +206,7 @@ export const sellAbove = (world, good) => Math.max(world.trade.orders[good] ? wo
 
 // Sets a good's Keep at least to n whole units: the floor (absent at 0) and the order's keep, when the good has an order.
 export function setKeepAtLeast(world, good, n) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   if (!GOODS[good]) return fail('unknown_good');
   if (!Number.isInteger(n) || n < 0) return fail('bad_keep');
   if (n > 0) world.trade.floors[good] = n;
@@ -242,6 +246,7 @@ export const monthsToNextArrival = (world) => Math.max(1, Math.ceil((nextCaravan
 // What caravans do with one good: 'buy' (the city buys it up to keep), 'sell' (the city sells it above keep) or
 // 'ignore'. keep is a whole number of units, 0 or more.
 export function setTradeOrder(world, good, mode, keep) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   if (!GOODS[good]) return fail('unknown_good');
   if (!TRADE_MODES.includes(mode)) return fail('bad_mode');
   if (!Number.isInteger(keep) || keep < 0) return fail('bad_keep');
@@ -272,16 +277,16 @@ function takeNear(world, post, good, n) {
 }
 
 // Room for a good in the working stores in the post's reach that accept it.
-const roomIn = (b) => BUILDINGS[b.type].capacity - storeTotal(b);
+const roomIn = (b, world) => capacityOf(world, b.type) - storeTotal(b);
 const targetsNear = (world, post, good) =>
-  buildingsInReach(world, post, TRADE_REACH, (o) => storeAccepts(o, good) && isWorking(world, o) && roomIn(o) > 0).map((e) => e.b);
-const roomNear = (world, post, good) => targetsNear(world, post, good).reduce((n, b) => n + roomIn(b), 0);
+  buildingsInReach(world, post, TRADE_REACH, (o) => storeAccepts(o, good) && isWorking(world, o) && roomIn(o, world) > 0).map((e) => e.b);
+const roomNear = (world, post, good) => targetsNear(world, post, good).reduce((n, b) => n + roomIn(b, world), 0);
 
 // Puts up to n of a good into those stores, nearest first; returns how many it put.
 function putNear(world, post, good, n) {
   let left = n;
   for (const b of targetsNear(world, post, good)) {
-    const k = Math.min(left, roomIn(b));
+    const k = Math.min(left, roomIn(b, world));
     b.store[good] = (b.store[good] || 0) + k;
     left -= k;
     if (left <= 0) break;

@@ -32,6 +32,7 @@ import { desirabilityField, houseDesirability } from './desirability.js';
 import { hash2 } from './rng.js';
 import { ring, idx, inBounds } from './grid.js';
 import { coverageMap, coverCause } from './serviceCover.js';
+import { ruleFactor } from './rules.js';   // Version 9.3 (Track R)
 
 // Disease is on from the milestone the physician comes with, and never on Peaceful.
 export const healthStarted = (world) => threatsOn(world) && atLeast(world, HEALTH.startsAt);
@@ -142,7 +143,7 @@ export function healthDay(world, events = null) {
     if (!covered) {
       for (const n of homeNeighbours(world, b)) {
         if (n.illness || !canFallIll(n)) continue;
-        if (hash2(n.id, day, (world.seed + HEALTH_SALT.spread + Math.imul(b.id, 7919)) | 0) < HEALTH.spreadChance) fallIll(world, n.id, events, 'spread');
+        if (hash2(n.id, day, (world.seed + HEALTH_SALT.spread + Math.imul(b.id, 7919)) | 0) < HEALTH.spreadChance * ruleFactor(world, 'sickSpread'))   /* Version 9.3 (Track R, ruling 1960): a decree's spread factor (1 with none) */ fallIll(world, n.id, events, 'spread');
       }
     }
     i.left -= covered ? HEALTH.coverFactor : 1;

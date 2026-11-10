@@ -17,6 +17,7 @@
 //            the tally `looted`, and { type: 'raid_loot', id, goods } for B2's carried sacks.
 // The raid report (raid.last) lists burned, wrecked and taken: active.wrecked, active.wreckedKinds and active.taken stay there as burned does
 // (absent means none: a report from before 6.0 has none of them).
+import { decreeEnded, endedFail } from './rules.js';
 import { RAIDS } from '../data/raids.js';
 import { WRECK, LOOT } from '../data/hazards.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -121,6 +122,7 @@ export function rebuildQuote(world, rubbleId) {
 // The rebuild command (see above). { ok, id, cost, type, warnings } or the quote's refusal, or the placing rule's own reason (the ground is no
 // longer free, say), with the rubble as it was.
 export function rebuild(world, rubbleId) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const q = rebuildQuote(world, rubbleId);
   if (!q.ok) return q;
   const snaps = q.tiles.map((id) => JSON.parse(JSON.stringify(world.buildings[id])));

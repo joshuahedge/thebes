@@ -20,6 +20,7 @@ import { MILESTONES } from '../data/progression.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { T } from './terrain.js';
 import { TRAITS, deeperLoss } from '../data/dynasty.js';
+import { floodStepOf } from '../data/decrees.js';
 
 // progression.js's atLeast and labour.js's isWorking and staffRatio, written out here: both import world.js, and world.js imports this
 // file (the contract's import rule).
@@ -78,9 +79,11 @@ export function levelOfYear(world, year) {
   const drought = world.hazards && world.hazards.drought;
   if (drought && ((drought.warning && drought.warning.year === year) || (drought.active && drought.active.year === year))) return 'low';
   const r = hash2(year, 0, (world.seed + RIVER_SALT.floodLevel) | 0);
-  let acc = 0;
-  for (const l of FLOOD_LEVELS) { acc += l.chance; if (r < acc) return l.id; }
-  return FLOOD_LEVELS[FLOOD_LEVELS.length - 1].id;
+  // Version 9.3 (Track R, ruling 1957): a decree's flood step (Low Nile: -1) moves the drawn level that many places along FLOOD_LEVELS, kept to the levels that exist.
+  const step = floodStepOf(world.decree);
+  let acc = 0, at = FLOOD_LEVELS.length - 1;
+  for (let i = 0; i < FLOOD_LEVELS.length; i++) { acc += FLOOD_LEVELS[i].chance; if (r < acc) { at = i; break; } }
+  return FLOOD_LEVELS[Math.max(0, Math.min(FLOOD_LEVELS.length - 1, at + step))].id;
 }
 
 // Makes the flood record for the year the world is in, once a Town, before the season begins (a city that becomes a Town after the

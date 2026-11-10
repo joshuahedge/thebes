@@ -5,6 +5,7 @@
 import { SPOILS } from '../data/raids.js';
 import { UNIT_TYPES } from '../data/armies.js';
 import { TRAITS } from '../data/dynasty.js';
+import { ruleUnitPay } from './rules.js';
 
 export function raidSpoils(world, report, won, events) {
   if (!won) return;
@@ -21,7 +22,8 @@ export function spoilsLeft(world) {
 
 // Every unit's pay for a month at the full rate (UNIT_TYPES[kind].pay; a soldier's is DEFENCE.soldierPay), before the captured weapons. Units away at the capital are not in
 // world.soldiers, so they are not paid (ruling 386).
-export const soldiersPayFull = (world) => world.soldiers.reduce((s, u) => s + (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).pay, 0);
+// Version 9.3 (Track R, ruling 1955): each kind's pay times the decree's unit-pay factor (1 with none), the sum rounded once.
+export const soldiersPayFull = (world) => Math.round(world.soldiers.reduce((s, u) => s + (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).pay * ruleUnitPay(world, u.kind), 0));
 
 // The pay with the weapons counted: SPOILS.share less while they last, rounded once to whole gold.
 export const soldiersPayWith = (world) => (spoilsLeft(world) > 0 ? Math.round(soldiersPayFull(world) * (1 - SPOILS.share)) : soldiersPayFull(world));

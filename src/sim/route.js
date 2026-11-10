@@ -14,6 +14,7 @@
 // close it off; at: the first one), 'hemmed_in' (hills), 'no_way' (a bit of each), 'too_far', and for an end that cannot take a road its own reason ('water', 'hills',
 // 'blocked', 'out_of_bounds'). Each failed search is followed by up to four cheap relaxed ones (a wider bridge, buildings passable, hills passable, all
 // three) to name the obstacle; `at` is the first tile of the obstacle on that way, for Show me.
+import { decreeEnded, endedFail } from './rules.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T, buildable } from './terrain.js';
 import { BRIDGE_MAX, bridgeRuns, runReason } from './bridges.js';
@@ -206,6 +207,7 @@ export function routeRoad(world, x0, y0, x1, y1) {
 
 // Lays the route (drawRoadTiles over its path: one undo step, the preview's cost taken from the treasury).
 export function drawRoute(world, x0, y0, x1, y1) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const r = routeRoad(world, x0, y0, x1, y1);
   if (!r.ok) return r;
   const laid = drawRoadTiles(world, r.path, { skipBlocked: false });
