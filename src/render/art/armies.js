@@ -4,10 +4,10 @@
 // your chariots are a horse and a two-wheeled car with a teal-painted side; raiders are dark figures in crested helmets: on foot with
 // an axe and a round shield (Stage 3's), archers with a bow and no shield, chariots on a dark horse with a crested driver, and boat
 // raiders with a long oar and no shield. Units stand UNIT_SCALE times a citizen's size.
-import { box, crs, qd, door, parapet, p, U, quad, hs } from './primitives.js';
+import { box, crs, qd, p, U, quad, hs, shadeWall, silhouette, contactLine, insetOpening, parapetSteps } from './primitives.js';
 import { pennant } from './services.js';
 import { DEFENCE_EMBLEM, shellSlot } from './defence.js';
-import { UNIT_SCALE, walkSlots } from './figures.js';
+import { UNIT_SCALE, walkSlots, footShadow } from './figures.js';
 import { MUD2, STONE, TEAL, TEAL_DARK, GOLD, WOOD, RED, SHADOW, TERRAIN, THATCH } from './palette.js';
 import { boundsFor } from '../iso.js';
 import { FIGHTERS, POSES, FACES, CHIEF_SCALE, SACK } from '../../data/battle.js';
@@ -27,7 +27,7 @@ function bow(g, X, Y, s, wood = WOOD) {
 // Your archer: a white kilt and teal collar like a soldier, a bow held before him, a quiver of arrows on his back, no shield.
 export function archer(g, gx, gy, z = 0, sc = UNIT_SCALE) {
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc;
-  g.ell([X, Y], 3 * s, 1.1 * s, SHADOW, { alpha: 0.25 });
+  footShadow(g, X, Y, s);
   g.poly([[X - 3.4 * s, Y - 6 * s], [X - 2 * s, Y - 6.6 * s], [X - 1 * s, Y - 12.6 * s], [X - 2.4 * s, Y - 12.2 * s]], '#8A4A2A', { outline: true });   // the quiver
   for (const k of [0, 0.6, 1.2]) g.line([X - (1.8 - k * 0.4) * s, Y - 12.4 * s], [X - (1.4 - k * 0.4) * s, Y - 14.2 * s], '#F6ECD6', 0.4 * s);     // fletchings
   g.line([X - 0.9 * s, Y], [X - 0.9 * s, Y - 3.4 * s], SKIN, 1.1 * s);
@@ -45,7 +45,7 @@ export function archer(g, gx, gy, z = 0, sc = UNIT_SCALE) {
 
 // A horse standing side-on, its feet at (X, Y), facing right: body, four legs, neck and head, a dark mane and tail.
 function horse(g, X, Y, s, body, dark, mane, plume = null) {
-  g.ell([X, Y], 6.4 * s, 1.4 * s, SHADOW, { alpha: 0.25 });
+  footShadow(g, X, Y, s, 6.4, 0.2);
   for (const [dx, col] of [[-3.6, dark], [-2.2, body], [2.4, dark], [3.6, body]]) g.line([X + dx * s, Y], [X + dx * s, Y - 4.4 * s], col, 1 * s);
   g.ell([X, Y - 6 * s], 4.8 * s, 2.2 * s, body, { outline: true });
   g.poly([[X + 3 * s, Y - 7 * s], [X + 4.6 * s, Y - 7.4 * s], [X + 6.2 * s, Y - 11.4 * s], [X + 4.6 * s, Y - 12 * s]], body, { outline: true });   // the neck
@@ -199,9 +199,11 @@ export function archeryRange(g, X, Y) {
   box(g, X + 0.06, Y + 0.06, 0.06, 1.88, 2.6, 0, MUD2);                          // the low wall, back left
   const B = box(g, X + 0.12, Y + 0.12, 1.76, 0.5, 9, 0, MUD2);                  // the stand
   crs(g, B, 9, '#9A7A5A', 3);
-  parapet(g, X + 0.12, Y + 0.12, 1.76, 0.5, 9);
+  parapetSteps(g, { x: X + 0.12, y: Y + 0.12, w: 1.76, d: 0.5, z: 9 }, 6, 1.2);   // Version 9.3 (Track N): a stepped parapet, the stand's walls shaded and set on the ground
   qd(g, B.L, 0, 1, 7.4, 8.4, DEFENCE_EMBLEM);
-  door(g, B, 0.12, 0.24, 6);
+  shadeWall(g, [B.L(0, 0), B.L(1, 0), B.L(1, 9), B.L(0, 9)], 9); shadeWall(g, [B.R(0, 0), B.R(1, 0), B.R(1, 9), B.R(0, 9)], 9);
+  silhouette(g, X + 0.12, Y + 0.12, 1.76, 0.5, 9); contactLine(g, [X + 0.12, Y + 0.12, 1.76, 0.5]);
+  insetOpening(g, { F: B.L, u: 0.12, s: 0 }, 0.12, 6, { lintel: DEFENCE_EMBLEM });
   for (let k = 0; k < 5; k++) {                                                  // bows hung on the stand's face
     const q = B.L(0.36 + k * 0.12, 3.4);
     g.stroke([['M', [q[0], q[1] - 3.6]], ['Q', [q[0] + 1.4, q[1] - 1.8], [q[0], q[1]]]], WOOD, 0.6);
@@ -228,8 +230,10 @@ export function stables(g, X, Y) {
   crs(g, B, 10, '#9A7A5A', 3);
   g.poly(quad(X + 0.04, Y + 0.06, 0.82, 2.88, 10), THATCH[1], { outline: true }); // the reed roof
   g.line(U(p(X + 0.04, Y + 1.5), 10.4), U(p(X + 0.86, Y + 1.5), 10.4), THATCH[2], 0.6, 0.6);
-  for (const u of [0.1, 0.36, 0.62, 0.88]) qd(g, B.R, u, u + 0.08, 0, 6, '#3A2A22');   // stall doors along its yard face
+  for (const u of [0.1, 0.36, 0.62, 0.88]) insetOpening(g, { F: B.R, u, s: 0 }, 0.1, 6, { lintel: DEFENCE_EMBLEM, fill: '#3A2A22', sill: false });   // stall doors along its yard face, set in
   qd(g, B.L, 0, 1, 8.4, 9.4, DEFENCE_EMBLEM);
+  shadeWall(g, [B.L(0, 0), B.L(1, 0), B.L(1, 10), B.L(0, 10)], 10); shadeWall(g, [B.R(0, 0), B.R(1, 0), B.R(1, 10), B.R(0, 10)], 10);   // Version 9.3 (Track N)
+  silhouette(g, X + 0.1, Y + 0.12, 0.7, 2.76, 10); contactLine(g, [X + 0.1, Y + 0.12, 0.7, 2.76]);
   box(g, X + 0.95, Y + 0.3, 0.6, 0.18, 2, 0, STONE);                            // the trough
   g.poly(quad(X + 0.99, Y + 0.33, 0.52, 0.12, 2), '#4FB3B5');
   box(g, X + 1.55, Y + 0.25, 0.3, 0.3, 4, 0, THATCH);                            // the hay stack
@@ -252,7 +256,7 @@ const aim = (a, b, len) => { const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.
 
 function soldierPose(g, X, Y, s, pose) {
   const b = pose === 'b', lean = (b ? 1.6 : 0.4) * s, hip = X + lean * 0.5;
-  g.ell([X + lean * 0.3, Y], 3.6 * s, 1.1 * s, SHADOW, { alpha: 0.25 });
+  footShadow(g, X + lean * 0.3, Y, s, 3.2);
   g.line([X + (b ? 2.6 : 1.4) * s, Y], [hip + 0.6 * s, Y - 3.4 * s], SKIN, 1.1 * s);           // the front foot planted, the back foot braced
   g.line([X - (b ? 2.4 : 1.2) * s, Y], [hip - 0.6 * s, Y - 3.4 * s], SKIN, 1.1 * s);
   g.poly([[hip - 2 * s, Y - 2.6 * s], [hip + 2 * s, Y - 2.6 * s], [hip + 1.5 * s, Y - 5.7 * s], [hip - 1.5 * s, Y - 5.7 * s]], KILT, { outline: true });
@@ -276,7 +280,7 @@ function soldierPose(g, X, Y, s, pose) {
 // head taller crest with a gold band, a gold breastplate and a gold-ringed shield; sack: a sack of what was taken on his shoulder.
 function raiderPose(g, X, Y, s, pose, { chief = false, sack = false } = {}) {
   const b = pose === 'b', walk = pose === 'walk', lean = (b ? 1.6 : walk ? 0 : 0.4) * s, hip = X + lean * 0.5;
-  g.ell([X + lean * 0.3, Y], 3.6 * s, 1.1 * s, SHADOW, { alpha: 0.3 });
+  footShadow(g, X + lean * 0.3, Y, s, 3.2, 0.22);
   const stride = walk ? 0.9 : b ? 2.4 : 1.3;
   g.line([X + stride * s, Y], [hip + 0.8 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);
   g.line([X - stride * s, Y], [hip - 0.8 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);

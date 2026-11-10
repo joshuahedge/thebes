@@ -57,6 +57,10 @@ export function ferryBoat(g0, gx, gy, left = false) {
   for (const k of [1, 2]) g.ell([X - 11 - k * 3, Y + 0.4], 2.4 + k, 0.8 + k * 0.2, TERRAIN.foam, { alpha: 0.38 - k * 0.1 });   // the wake
   g.path([['M', [X - 11, Y - 3.4]], ['Q', [X - 8, Y + 1.8], [X, Y + 1.8]], ['Q', [X + 8, Y + 1.8], [X + 11.6, Y - 3.4]],
     ['L', [X + 10.6, Y - 4.4]], ['Q', [X + 6, Y - 1.4], [X, Y - 1.4]], ['Q', [X - 7, Y - 1.4], [X - 10.4, Y - 4.4]], ['Z']], PLANK[0], { outline: true });
+  g.path([['M', [X - 10.6, Y - 3]], ['Q', [X - 8, Y + 1.2], [X, Y + 1.2]], ['Q', [X + 8, Y + 1.2], [X + 11, Y - 3]],                        // Version 9.3 (Track N): the hull's shaded strake, its lit gunwale and dark water
+    ['Q', [X + 7, Y - 0.2], [X, Y - 0.2]], ['Q', [X - 7, Y - 0.2], [X - 10.6, Y - 3]], ['Z']], PLANK[2], { alpha: 0.6 });
+  g.stroke([['M', [X - 10.8, Y - 3.6]], ['Q', [X - 7, Y - 1.2], [X, Y - 1.2]], ['Q', [X + 7, Y - 1.2], [X + 11.2, Y - 3.6]]], '#F3DDB0', 0.6, 0.8);
+  g.stroke([['M', [X - 10, Y + 2.2]], ['Q', [X, Y + 3.4], [X + 10, Y + 2.2]]], '#1E6A7C', 1.2, 0.35);
   g.line([X - 10.4, Y - 3.8], [X + 10.8, Y - 3.8], PLANK[2], 0.6, 0.9);                                                        // the rail
   for (const dx of [-8, -3, 2, 7]) { g.line([X + dx, Y + 1.2], [X + dx + 0.2, Y - 1.2], PLANK[1], 0.5); g.line([X + dx, Y - 3.8], [X + dx, Y - 6], PLANK[2], 0.6); }
   g.line([X - 10.4, Y - 6], [X + 10.8, Y - 6], PLANK[2], 0.5, 0.9);
