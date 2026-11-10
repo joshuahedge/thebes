@@ -207,14 +207,15 @@ function cleanDecree(x) {
   const parts = cleanDecreeParts(x.parts);
   if (!parts) return null;
   return {
-    id: `decree:${x.week}`, week: x.week, ids: Array.isArray(x.ids) ? x.ids.filter((i) => typeof i === 'string') : [], mark: typeof x.mark === 'string' ? x.mark.slice(0, 60) : '',
+    id: typeof x.id === 'string' && x.id.startsWith(`decree:${x.week}:`) ? x.id : `decree:${x.week}:${isNum(x.date) ? x.date : 0}`, week: x.week, ids: Array.isArray(x.ids) ? x.ids.filter((i) => typeof i === 'string') : [], mark: typeof x.mark === 'string' ? x.mark.slice(0, 60) : '',
     score: x.score, parts, medal: isMedal(x.medal) ? x.medal : null, day: isInt(x.day) && x.day >= 0 ? x.day : 0, map: typeof x.map === 'string' && MAP_RE.test(x.map) ? x.map : '',
     feats: Array.isArray(x.feats) ? x.feats.filter((f) => typeof f === 'string') : [], title: typeof x.title === 'string' ? x.title.slice(0, 40) : '', name: cleanName(x.name),
     tries: isInt(x.tries) && x.tries >= 1 ? x.tries : 1, date: isNum(x.date) ? x.date : 0,
   };
 }
 // Two rows of one week made one: the higher score's row, a tie to `a` (this device's), the tries added.
-const mergeDecree = (a, b) => ({ ...(b.score > a.score ? b : a), tries: a.tries + b.tries });
+// Same id (this device's own row, re-imported from its export): the larger tries; different ids (two devices): the tries added. The kept row keeps a's id.
+const mergeDecree = (a, b) => ({ ...(b.score > a.score ? b : a), id: a.id, tries: a.id === b.id ? Math.max(a.tries, b.tries) : a.tries + b.tries });
 // The fallback mark when the caller gives none: the decree ids as words, then the week ("Sea peoples, week 47").
 const markOf = (ids, week) => `${ids.map((i) => i.replace(/_/g, ' ')).join(' and ').replace(/^./, (c) => c.toUpperCase())}, week ${Number(week.slice(5))}`;
 
@@ -542,7 +543,7 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
         feats: world.feats && world.feats.earned ? [...world.feats.earned] : [], title, name: r.dynasty.name, tries: 1, date: now,
       });
       if (!row) return null;
-      const next = old ? { ...(row.score > old.score ? row : old), tries: old.tries + 1 } : row;
+      const next = old ? { ...(row.score > old.score ? row : old), id: old.id, tries: old.tries + 1 } : row;
       r.decrees = [...r.decrees.filter((x) => x.week !== d.week), next];
       write(r);
       return next;

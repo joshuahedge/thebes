@@ -41,7 +41,7 @@ describe('v93 s records', () => {
     expect(rec.decrees().map((d) => d.week)).toEqual(['2026-48', '2026-47']);
   });
   it('merges by week: the higher score, this device on a tie, tries added', () => {
-    const row = (week, score, name, tries) => ({ week, ids: [], mark: '', score, parts: parts(10), medal: null, day: 1, map: '', feats: [], title: '', name, tries, date: 1 });
+    const row = (week, score, name, tries) => ({ week, ids: [], mark: '', score, parts: parts(10), medal: null, day: 1, map: '', feats: [], title: '', name, tries, date: name === 'Mine' ? 1 : 2 });   // two devices: different first dates, so different ids
     const a = { decrees: [row('2026-47', 300, 'Mine', 2), row('2026-48', 200, 'Mine', 1)] };
     const b = { decrees: [row('2026-47', 350, 'Theirs', 3), row('2026-48', 200, 'Theirs', 1), row('2026-49', 100, 'Theirs', 1)] };
     const m = mergeRecords(a, b).decrees;
@@ -52,6 +52,16 @@ describe('v93 s records', () => {
     const rec = createRecords({ storage: fakeLocal() });
     rec.merge(b);
     expect(rec.decrees().length).toBe(3);
+  });
+  it('re-importing your own export leaves tries as they were; two devices still sum', () => {
+    const a = createRecords({ storage: fakeLocal() }), b = createRecords({ storage: fakeLocal() });
+    a.noteDecree(world(), { now: 10, score: sc(300) }); a.noteDecree(world(), { now: 11, score: sc(200) });
+    b.noteDecree(world(), { now: 99, score: sc(250) });
+    const own = a.load();
+    a.merge(own); a.merge(own);
+    expect(a.decrees()[0].tries).toBe(2);
+    a.merge(b.load());
+    expect([a.decrees()[0].tries, a.decrees()[0].score]).toEqual([3, 300]);
   });
   it('keeps a friend on a week as a rival apart from the main game rivals', () => {
     const rec = createRecords({ storage: fakeLocal() });
