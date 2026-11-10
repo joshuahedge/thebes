@@ -112,8 +112,16 @@ export function renderRulers(body, { records, onPlay = () => {}, installAsk = fa
   try { rulers = records ? records.rulers() : []; } catch (e) { rulers = []; }
   let decrees = [];
   try { decrees = records && typeof records.decrees === 'function' ? records.decrees() : []; } catch (e) { decrees = []; }   // Track S's records.decrees (a list's own records, as the tests give, may have none)
-  // Version 9.3 (Track U, ruling 1982): decree rows and rulers together, newest date first.
-  const rows = [...rulers.map((r) => ({ at: r.date || 0, node: () => rulerRow(r, { onPlay }) })), ...(Array.isArray(decrees) ? decrees : []).filter((d) => d && d.week).map((d) => ({ at: d.date || 0, node: () => decreeRow(d, { onPlay }) }))].sort((a, b) => b.at - a.at);
+  // Version 9.3 (Track U, ruling 1982): decree rows and rulers together, newest date first. The rulers keep the order
+  // they are given in (newest first, as since 9.0); each decree row, newest first, goes in before the first ruler older than it.
+  const rows = rulers.map((r) => ({ at: r.date || 0, node: () => rulerRow(r, { onPlay }) }));
+  const decreeRows = (Array.isArray(decrees) ? decrees : []).filter((d) => d && d.week).map((d) => ({ at: d.date || 0, node: () => decreeRow(d, { onPlay }) })).sort((a, b) => b.at - a.at);
+  let from = 0;
+  for (const d of decreeRows) {
+    while (from < rows.length && (rows[from].decree || rows[from].at >= d.at)) from++;
+    rows.splice(from, 0, { ...d, decree: true });
+    from++;
+  }
   const listed = rulers.length || rows.length;
   body.append(el('div', { class: 'rulers-body' }, [
     installAsk && rulers.length ? el('div', { class: 'rulers-install' }, [
