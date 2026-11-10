@@ -11,8 +11,11 @@
 3. **How a new look arrives:** a gradual rebuild, from the centre outward over a few game months.
 4. **Where it ships:** folded into the weekly decree, so it is the visual half of **9.3**. The decree keeps its own design (`specs/2026-10-27-thebes-v9-roadmap-design.md` section 5), and the 9.3 plan joins the two.
 5. **The approach:** A. One drawing per building takes the era: the materials come from a shared table, and about eight landmarks also change shape.
-6. **Sections 1 to 3:** as presented.
-7. **Section 4:** "I don't mind going above 16Mb". The caches are raised by measurement (section 5).
+6. **The looks, the rebuild, variety and working vs idle:** as presented.
+7. **The performance section:** "I don't mind going above 16Mb". The caches are raised by measurement (section 7).
+8. **Changes after the first draft:** "Can we do some more blending between tiles and make the existing sprites and visual assets better too?"
+   - This adds blending (section 5) and a quality pass over all existing art (section 6).
+   - The art target is a **richer flat style**: today's clean illustrated look with more depth, not a painterly or textured one.
 
 ## 1. What is true today (checked in the code at 853310a)
 
@@ -54,7 +57,7 @@ The eight ranks fold into four looks:
   - the kiln, the brickworks and the weaver;
   - the water supply;
   - the firehouse.
-- **Unchanged:**
+- **No looks:** these do not change with rank, but every one gets section 6's quality pass:
   - the palace's five styles (the player buys those);
   - the monuments, farms, the river, ferries and boats.
 
@@ -92,7 +95,51 @@ The eight ranks fold into four looks:
   - **Told apart by shape** (the door, the shutters), not colour alone. The existing markers still say why.
   - **Cost:** a state change swaps to another cached drawing, so it costs nothing per frame. It extends the `.idle` slots the builders' guild, quarry and brickworks already have.
 
-## 5. Performance
+## 5. Blending between tiles
+
+**Today:**
+- The edges of the green band, the floodplain soil, the rock belts and the river banks step along tile diagonals (`src/render/grass.js`, `terrainWater.js`, the ground masks in `terrainBaker.js`).
+- Buildings stand straight on the sand, with no ground of their own.
+
+**Terrain edges:**
+- Every edge between two grounds is drawn as a soft, uneven curve, worked out below tile size from a fixed noise (seeded by the map, so the same map always looks the same). The staircase goes.
+- A thin band of transition detail runs along each edge:
+  - tufts at a grass edge;
+  - a wet-sand strip and reeds at the water;
+  - pebbles where rock meets sand.
+
+**Buildings in the ground:**
+- **The yard:** every building gets a trodden yard, a patch of packed earth a little larger than its footprint, blended into the terrain.
+- **The path:** a worn path runs from the yard to the nearest road tile.
+- **Blocks:** neighbouring homes share their trodden ground, so a block reads as one neighbourhood.
+- **Contact shadow:** a soft shadow sits where the walls meet the ground.
+- **By look:** packed earth in the Village look, swept and edged in the Town look, part-paved in the City look, a paved court in the Capital look.
+
+**Road edges:** in the Village look roads fray into the sand with wheel dust; the later looks give them section 2's kerbs.
+
+**Cost:**
+- All of this is baked into the terrain chunks, so it costs nothing per frame.
+- A chunk's signature gains its buildings' footprints and looks. It re-bakes when a building is placed or removed, or when the rebuild front crosses it; both already trigger bakes, within the existing two a frame.
+
+**Not blended:** the river's flow, the flood's water and the night tint stay as drawn today; they are their own layers.
+
+## 6. The quality pass over existing art
+
+- **Every building drawing is redrawn once, at a richer flat bar,** in the same pass that gives it the four looks (section 2). The bar:
+  - **Walls:** a soft shade from the top of the wall toward its base, and a dark contact line where the wall meets the ground.
+  - **Doors and windows:** set in, with an inner shadow and a lintel.
+  - **Silhouettes:** roofs gain parapets, steps and clutter (jars, linen, dovecotes) so the shapes stop being plain boxes.
+  - **Outlines:** heavier on the silhouette, lighter inside (today it is one 0.6 px outline at 32%, `src/render/art/palette.js:31-33`).
+  - **Style:** today's palette and flat illustrated style: warm lit faces against cool lavender shade. No textures, no painterly edges.
+- **Art with no looks gets the same pass:**
+  - the palace's five styles and the monuments;
+  - farms, trees, palms, rocks and reeds;
+  - the figures and animals, boats and ferries;
+  - the river's banks.
+- **The look sheet comes first.** Before the tracks draw the rest, one sheet shows a home of each tier, three landmarks, a tree and a figure, before and after, in all four looks. Josh approves it, and it sets the bar every track draws to.
+- **New primitives:** the shared helpers in `src/render/art/primitives.js` gain the shade, the contact line, the inset opening and the parapet steps, so each drawing reaches the bar through them rather than by hand.
+
+## 7. Performance
 
 - **Far zoom (0.6 and under):** homes draw one plain drawing per tier and look, with no variants and no clutter. This is the first building LOD, and it also reads better at that distance.
 - **Caches (Josh: above 16 MB is fine):**
@@ -101,9 +148,13 @@ The eight ranks fold into four looks:
   - The final numbers are rulings with their measurements.
   - The real-phone list gains: "does the tab reload on a Capital mid-rebuild?" (9.1 cut the caches for exactly that).
 - **Street details** (trees, lamps, paving) are baked into the road chunks: no cost per frame.
+- **Blending and the quality pass:**
+  - The soft edges, yards, paths and contact shadows are baked into the terrain chunks.
+  - The richer drawings are cached like today's, so the per-frame cost is unchanged.
+  - Bake time per chunk rises; it is measured, and the two-a-frame limit holds.
 - **Frame bounds:** none is loosened. The stress city (`tests/render/stress.test.js`) and the 112 map (`tests/v90/v/budget.test.js`) are measured again in the Capital look and mid-rebuild.
 
-## 6. Testing
+## 8. Testing
 
 - **`lookOf`:**
   - by distance and by day, with the world set up both ways;
@@ -117,6 +168,12 @@ The eight ranks fold into four looks:
   - each drawing stays inside its declared bounds (the existing art contract tests' pattern);
   - every home tier has three variants, and the far-zoom drawing is used at 0.6 and under.
 - **Roads:** a chunk's signature changes when the front crosses it, and paving and trees appear only in the City and Capital looks.
+- **Blending:**
+  - the same map draws the same edges twice (the noise is seeded);
+  - no edge pixel follows a whole tile diagonal for more than one tile;
+  - a building's yard and path appear on placing and go on removal (the chunk re-bakes);
+  - neighbouring homes share one trodden patch.
+- **Quality pass:** every drawing uses the new primitives (shade, contact line, inset opening). A contract test lists any building or asset drawing that does not, and must be empty.
 - **The moment:** the notice line, one sweep, none under reduced motion, and the sweep shed first over budget.
 - **Screenshots:**
   - each look at 390x844 and 1280x800, at 100% and 150% text;
@@ -126,23 +183,25 @@ The eight ranks fold into four looks:
   - Before and after, named `v93-<track>-<what>-<WxH>-t<text>.png`.
 - **The final review** (Opus, as in 9.2) grades the look on a phone and a desktop.
 
-## 7. What does not change
+## 9. What does not change
 
 - **Game rules:** the sim, the balance, footprints, costs and the save format (`WORLD_VERSION` 12).
-- **Art:** the palace's five styles, the monuments, farms, the river and the interface.
+- **Art:** the interface; the palace's five styles, the monuments, farms and the river get no looks (section 6's quality pass still covers them).
 - **Standing rules:**
   - no colour-blind patterns, tests or settings;
   - "Pharaoh" in no game text;
   - the sim stays deterministic.
 - **Where the code lives:** `lookOf` lives in `src/render` (or a pure helper it imports) and reads the world; the sim never reads it.
 
-## 8. Open questions for the 9.3 plan
+## 10. Open questions for the 9.3 plan
 
 - **Q1. Track split.** A first guess:
-  - one track for `lookOf`, the materials table and the primitives;
-  - one for homes (looks, variants, far-zoom);
-  - one for services and workshops (looks, states, landmarks);
-  - one for streets and the moment.
+  - wave 0 builds `lookOf`, the materials table, the new primitives and the look sheet, then stops for Josh's approval;
+  - then tracks for:
+    - homes (looks, variants, far-zoom);
+    - services and workshops (looks, states, landmarks);
+    - streets, yards and terrain edges;
+    - the other art's quality pass (palace, monuments, farms, nature, figures);
+    - the moment.
   - They join the decree's tracks in one plan.
-- **Q2. Art review.** The 9.2 reviews worked from screenshots. For new art at this scale, an early "look sheet" screenshot of every building in all four looks, for Josh to approve before the tracks draw the rest, may save a round.
-- **Q3. The cap numbers,** after measurement (section 5).
+- **Q2. The cap numbers,** after measurement (section 7).
