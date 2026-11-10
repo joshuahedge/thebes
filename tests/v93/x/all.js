@@ -4,3 +4,4 @@ import './a-decree.test.js';   // fix A (rulings 1990-1994): the decree's bars, 
 import './xu-decree.test.js';
 import './h-homes-ground.test.js';   // group H: the big homes' variant shadows and the Capital street
 import './b-workshops.test.js';
+import './speed.test.js';

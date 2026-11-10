@@ -42,6 +42,7 @@ export function watchLooks(world, objects) {
   if (!w) { w = new Map(); watched.set(world, w); }
   const now = frameTimeOf(world);
   for (const o of objects) {
+    if (o.id >= 1e6) continue;                  // 9.3 speed fix: trees and walkers (ids from 1e6, renderer DECOR_ID_BASE) are no buildings
     const b = world.buildings[o.id];
     if (!b || !scaffolded(b)) continue;
     const look = lookOfBuilding(world, b), held = w.get(b.id);
