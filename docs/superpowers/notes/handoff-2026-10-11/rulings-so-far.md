@@ -2074,3 +2074,132 @@ The two design reviews of 9.1 (8 Nov) came before new content, so the weekly dec
 1882. The Health legend's two keys draw a 2 px edge, solid and dashed. — Cost if wrong: the swatch is a little heavier than the map's edge.
 1883. Ipi's bubble says the Generous heir as "Heir of the Generous. 20% more newcomers; taxes 2% lower." and drops "of the harvest" from the Bountiful's. — Cost if wrong: the bubble leaves out that High taxes take 1.15x.
 1884. The New city card's Peaceful line reads "No raids, sickness or thefts; rarer fires and Low Niles; buildings 20% cheaper." — Cost if wrong: locusts, also rarer, are left to the hint's full text.
+
+## Part 30: Version 9.3 "A city that grows, and the decree" (10 Nov 2026)
+
+Two halves. *A city that grows* (specs/2026-11-10-thebes-version-9-3-a-city-that-grows-design.md) changes the look of homes, ground, streets and services as the city ranks up. *The weekly decree* (specs/2026-11-10-thebes-version-9-3-the-weekly-decree-design.md) is a six-year run on the week's map with nine decrees; the roadmap's "Pharaoh's levy" is **The Vizier's Levy** in the game, because "Pharaoh" never appears in game text. The full text of each ruling is in notes/2026-11-10-version-9-3-rulings-<track>.md (w0, h, b, g, n, m, p, d0, r, s, u, k, then fix-a, fix-xu, fix-xb, fix-xh). One line each here, in number order; gaps say "unused". Where a later ruling supersedes an earlier one the line says so, and the earlier line stays as it was written.
+
+1885. The eight ranks fold into four looks (Village, Town, City, Capital); a new look spreads from the palace (else the built-up middle) and reaches the farthest building 120 days (`REBUILD_DAYS`, 4 months) after the rank-up; a rank with no recorded day counts as rebuilt. — Cost if wrong: one constant and the test that names it.
+1886. A building keeps the day it was placed (`b.day`, optional, so old saves load); one placed after its rank-up starts in the current look. — Cost if wrong: a test that deep-compares a fresh building moves by `day` alone.
+1887. Slot keys run variant, look, state (`house.t3.v1.l2`, `bazaar.s1.l2.shut`); a type that needs no workers is `work` unless paused. — Cost if wrong: the key order is an interface every track names.
+1888. `MATERIALS[look]` gives wall, roof, cornice, trim, band, ground and paving from the palette's own triples; the Capital's wall is the honey limestone so it reads apart from the City's whitewash; `silhouette` is added to the primitives. — Cost if wrong: a colour swap in one table.
+1889. The look sheet is its own page (`looksheet.html`) and its reference art lives in `src/dev/looksheetArt.js`, so the tracks do not collide. Amended after Josh's review of the sheet: colour stays in every look (the bazaar's four awnings), the granary keeps today's shape (four domes on a walled base) in every look, a shut granary reads shut, and the three Tier 3 variants differ in massing (wide block with a canopy; stepped house with a stair; wind-catcher and court). — Cost if wrong: the tracks copy from one file; the amendments are the bar the later fixes are held to.
+1890. `HOUSE_LOOKS` is exported unexpanded and registry.js runs it through `withLooks(..., { variants: 3 })` (a drawing file cannot call it as it loads). — Cost if wrong: none, one place expands the tables.
+1891. Homes are `house.t{1..9}.v{0..2}.l{0..3}`; `house.lot` stays one slot; the plain `house.t<n>` aliases `.v0.l0` for the card thumbnail. — Cost if wrong: a card shows the Village hut; six older tests now expect `.v0.l0`.
+1892. Variants differ in massing, not detail (Josh's note): v0 the tier's own block, v1 stepped, v2 a courtyard; the tier's roof tell stays on every variant. — Cost if wrong: only the drawings change.
+1893. The far drawing is `house.t{n}.l{look}.far`, chosen at camera zoom 0.6 or under (`FAR_ZOOM`): the v0 shape with no clutter. — Cost if wrong: one constant.
+1894. One height and one shadow set per tier, whatever the variant or look. Superseded for tiers 6 to 9 by 2011 (the heights stay one per tier). — Cost if wrong: a ground shadow a few px off on a variant that is not v0.
+1895. A City or Capital big home's walls are 0.7 px taller than a Village one's, so no look is shorter than the Village look. — Cost if wrong: a sub-pixel height.
+1896. The sick cloth reads the door from the drawing (`homeDoor(tier, variant)`), the fixed table kept as the fallback. — Cost if wrong: the cloth hangs where the door was.
+1897. The 2x2 homes keep their courtyard front-left and the pool at one place in all variants, so the ambient glint still sits on the water (changed by 2010 only where the plan moves a roof, not the pool). — Cost if wrong: the glint floats; change `BIG_POOL` and ambient together.
+1898. Today's drawings stay as `HOUSE_TODAY` (and H1..H9) for the look sheet's "today" column and the older pixel tests. — Cost if wrong: dead code to delete later.
+1899. Colour stays in every look: painted doors, awnings, canopies and the tier's roof tells keep their colours; the look changes walls, roofs, trims and bands. — Cost if wrong: none to the sim.
+1900. Every non-landmark service and workshop runs today's drawing through one recolouring pen (`styled()`) with the look's materials, a band, a pot, lamp or palm, a lit doorway when working or short and a plank door when shut. — Cost if wrong: Josh may want each drawn by hand; the pen is the one part to replace.
+1901. The bazaar, granary and potter's kiln are lifted from the look sheet, with the fill stages (granary 0-3, bazaar 0-2) kept in every look. — Cost if wrong: the stage cues are redrawn to the reference's style.
+1902. Old keys stay (`granary.s2`, `potter`, `quarry.idle` and the rest); `<type>.idle` is an alias of the Town look shut. — Cost if wrong: about two hundred more slot keys, drawn lazily.
+1903. The eight landmarks change by additive shape (granary, bazaar, temple, kiln, brickworks, weaver, well, firehouse). The granary part is retired by 2007: its drums and porch are gone. — Cost if wrong: the extras drop one at a time.
+1904. A workshop short of workers shows no goods in its yard; a shut one also shows no figure and no smoke, and its flag hangs lowered; a short storehouse still shows its stock. — Cost if wrong: a short storehouse looks fuller than a short brewery.
+1905. The art files export `*_LOOKS` tables and registry.js expands them at its end. — Cost if wrong: none for play.
+1906. `serviceState` reads `b.blocked === 'idle'`: a quarry or brickworks no monument site needs employs nobody, so it is shut. — Cost if wrong: one clause to revert.
+1907. The quay and the ferry landing take the states too, the wharf's stone unchanged; the firehouse's, tower's and barracks' mud faces take the look's wall. — Cost if wrong: none for play.
+1908. The art draws no smoke itself; the animated smoke is `ambient.js`, which already reads `isWorking` and `b.blocked`. — Cost if wrong: a short building keeps smoking in ambient, as today.
+1909. The lifted drawings leave out `groundShadow`; the renderer draws each slot's shadows. — Cost if wrong: it doubled the shadow and went outside the bounds.
+1910. Ground edges have sixteen points a diamond and a finer octave of seeded noise, so a straight edge leaves its ideal line within every tile. — Cost if wrong: ragged edges (turn `EDGE_DETAIL` down) or longer bakes.
+1911. Edge details (tufts, wet-sand flecks, crumbs, pebbles) and a stepped river bank with a damp line, drawn in batches. — Cost if wrong: marks read as noise at far zoom.
+1912. Every building but farms, walls, gates, bridges, rubble, plazas, gardens, statues and sphinxes has a trodden yard 0.3 tile past its footprint in the look's ground; near buildings of one look share a patch. — Cost if wrong: a yard under a type that should stand on bare ground.
+1913. A worn path runs from a footprint side to the nearest road when one or two free tiles lie between. — Cost if wrong: a path crossing a yard it should not.
+1914. `chunkSignature` gains each building tile's footprint-edge bits and look, and each road tile's look, only above the Village look; the two-tile ring stays. — Cost if wrong: a chunk re-bakes a frame late at a ring edge.
+1915. A road's look is its tile's: dirt track (Village), gravel (Town), stone kerbs (City), paving with joints and a gold centre line (Capital). — Cost if wrong: a road changes look a tile before its neighbour.
+1916. A City road is paved only where a building stands within a tile; a Capital road is always paved. The Capital half is superseded by 2012. — Cost if wrong: a long empty avenue stays gravel.
+1917. From the City look, a built-up straight road tile with a free verge carries a street tree every third tile (City) or a tree and a lamp alternating (Capital). — Cost if wrong: a tree drawn under a later sprite.
+1918. A building's walls have two soft contact-shadow layers at the base, one path a layer for the whole chunk. — Cost if wrong: a shadow under a sprite that draws its own.
+1919. Bake time measured on the stress city in the City look: about half as long again (Normal 108 to 171 ms for 16 chunks, Large 218 to 329 ms for 25), mostly the yards; the two-bakes-a-frame limit stays. — Cost if wrong: two bakes in a frame take about 1.5 times as long on a slow phone.
+1920. The palace's five styles are redrawn through the primitives; shapes, heights and bounds unchanged. — Cost if wrong: busier at 0.5 zoom.
+1921. Trees, rocks, reeds and scrub share one `contactShadow`; palms, acacias, rocks and reeds gain shading. — Cost if wrong: cached tree sprites carry a few more draw calls.
+1922. Finished monuments shade their bodies; sites rising course by course are not shaded (they draw live each frame). — Cost if wrong: a finished monument costs 6 to 20 more gradients a frame.
+1923. Plaza open edges gain a base line, a lit lip and a faint shade; sphinx plinths take the wall shade. — Cost if wrong: none for play.
+1924. Every figure and animal stands in `footShadow`, and citizens, women, priests and soldiers gain a shaded side; silhouettes and walk poses are unchanged. — Cost if wrong: none for play.
+1925. The nilometer, hunting lodge, gazelle, ostrich, croc, fishing boat, archery range and stables take the wall shade or foot shadow. — Cost if wrong: none for play.
+1926. Rubble and burnt or wrecked shells gain a cast shadow and a lit crest. — Cost if wrong: none for play.
+1927. Sheaves take a cast shadow; the flood pool a darker near rim. — Cost if wrong: none for play.
+1928. The trade boat, ferry and fishing boat share one hull treatment (shaded strake, lit gunwale, dark water line). — Cost if wrong: none for play.
+1929. Carts gain a contact patch and a shaded underside. Not done: the raider chariot, elephant and raider boat shadows, the ibis, heron and hippo shadows, the fishing wharf and the charred stump. — Cost if wrong: those rarely seen drawings sit a step below the rest.
+1930. A look change raises poles for one game day only on a building drawn within the last game day; no dust puff. — Cost if wrong: a fast pan right after a front passes may miss a pole.
+1931. The sweep is one gold ring from the look's centre to the farthest building (at least 6 tiles, plus 2) over 3 s. — Cost if wrong: on a zoomed-in view it leaves the screen in about a second.
+1932. Only Full motion sweeps, and only for a rank that brings a new look (Town, City, Capital). — Cost if wrong: a Gentle player gets the caption but no ring.
+1933. The sweep is shed before the 9.0 dropper sheds anything: not drawn while the effects' running average is over a quarter of their 2 ms budget. — Cost if wrong: a slow phone never sees the ring.
+1934. The rank-up caption's why is "The city rebuilds in the new style over the next months." for a rank that brings a new look. — Cost if wrong: wording only.
+1935. The caches are measured on the stress city and the 112 map, in the Capital look and mid-rebuild, at DPR 1 and 2, desktop and phone, over 600 frames of a moving camera. — Cost if wrong: a busier scene evicts more than measured.
+1936. Cache budgets by device: a desktop 32 MB of sprites and 80 MB with terrain, a phone 24 MB and 72 MB (9.1: 16 and 64 for all); a desktop is `deviceMemory` 8, a phone less, and where it reports nothing a phone when the screen's short side is under 768 px; P3 is now 72 MB with a worst view of 88 (marked WAVE2-PIN). — Cost if wrong: a phone's tab reloads on a Capital mid-rebuild, or an iPad (no `deviceMemory`, 768 px and over) gets the desktop's budgets.
+1937. What a frame needs is still held, whatever the budget; evictions stay under 0.5% of draws in every scene. — Cost if wrong: about 130 MB of canvas on the 112 map's far view at DPR 2.
+1938. The bar's contract (`shadeWall`, `contactLine`, `insetOpening`) is counted in `art/primitives.js` and checked for every registry slot, except figures, fields, palms, hills, rubble, the empty lot and the open works. — Cost if wrong: an exempt type gains a wall and is never checked.
+1939. Track B's drawings that called none of the three were listed as owed (every shut state, the plain card keys, the trading post, Quay, brickworks, gem mine, the wall and gate cards). Paid off by 2005 to 2009; the list is empty. — Cost if wrong: shut workshops read a step below the bar.
+1940-1944. PENDING: the speed fix (the slot cache and its measurement against 9.2) is not merged into this branch when this part was written. Its rulings are to be added here when it lands. — Cost if wrong: Part 30 is incomplete until then.
+1945-1949. Unused.
+1950. The plan's week and rotation values were checked against the real calendar and hold. — Cost if wrong: the week's decree differs from the plan's table.
+1951. `weekIndex` counts from 2026-W47 and `isPairWeek` is every fourth index (3 mod 4). — Cost if wrong: pair weeks shift by a week.
+1952. `ruleFactor` is `heirFactor` times the decrees' factors; every other rule function gives the old number with no decree. — Cost if wrong: the main game moves, and the golden test fails.
+1953. `createWorld({ decree })` drops unknown ids, forces the Steady heir and Normal, and needs no change to `serialize.js`. — Cost if wrong: a decree save would not load.
+1954. The golden fingerprint (72 month ends of the v92 Capital run, 89 tally keys) is checked in as `tests/v93/d0/golden.json`, proven to bite. — Cost if wrong: a sim change outside the score, gold, people, raids and tally slips past.
+1955. `ruleFactor` replaces `heirFactor` in six sim files; a unit's pay is `ruleUnitPay` per kind, summed then rounded once. — Cost if wrong: archers' pay is off by a rounding gold a month.
+1956. `capacityOf(world, type)` is the one capacity function and every place that read `BUILDINGS.x.capacity` reads it. — Cost if wrong: a place shows a granary's old 600.
+1957. The flood step moves the drawn level along FLOOD_LEVELS and clamps; a drought's forced Low is returned first. — Cost if wrong: Low Nile is a step weaker in a drought year.
+1958. The first warning is the decree's gap, less the heir's sooner; the band size is multiplied only from the second raid; the boat share replaces the boat row's base and max. — Cost if wrong: Sea Peoples' first raid is as it was.
+1959. Elephants come from `ruleElephantsFrom(world, 4)`, read in `elephantRaid` only. — Cost if wrong: none for other kinds.
+1960. `sickSpread` and `fireStart` multiply the data chances at their one call each; the firehouse reach is `ruleReach`. — Cost if wrong: Track U's count and danger sheet still said 8 until they switched (1981).
+1961. `courtAsk` multiplies every ordinary request and `courtReward` multiplies the reward on top, so a Levy request paid about four times a plain one. Superseded by 1992. — Cost if wrong: the Levy pays 2x rather than 4x.
+1962. `typeReason` and `previewWallTiles` refuse forbidden types with `'decree'`; 28 commands begin with a decree-ended refusal; `runMonth` sets `ended` and speed 0 at the first month end on or after `endDay`. Three commands missed are added by 1993. — Cost if wrong: a command added later works after the end.
+1963. `wellMonths` and `fireSafeMonths` are in `newTally` but not `TALLY_KEYS`, so an old save loads and reads 0; they count from Town. A well month is refined by 1991. — Cost if wrong: the bars would want a different start month.
+1964. The medal is judged on the sum of the six parts (a decree run is Normal); a pair outside `DECREE_PAIRS` has no medal. — Cost if wrong: a Hard decree run would need a factor.
+1965. The save store takes a slot option; `decree` prefixes IndexedDB and localStorage keys, the empty slot is the old store untouched. — Cost if wrong: a decree save under the main keys would overwrite the city.
+1966. Records version 3 adds `decrees`; a v2 blob reads with none. — Cost if wrong: an older game reading v3 drops `decrees`.
+1967. A decree row's id is `decree:<week>`; one row a week. — Cost if wrong: a duplicate row in the ruler list.
+1968. `noteDecree` takes the score from its caller (R owns `decreeScore`); without a score, a decree world or six good parts it returns null. — Cost if wrong: U must pass the score.
+1969. The link is `#d1.<week>.<six parts>.<seven splits>.<check>`; an unknown `d<n>` above 1 reads `newer_format`, anything else bad `malformed`. — Cost if wrong: a newer link reads as broken.
+1970. A decree rival is a rival row with `week`, one per name and week, kept out of the main game's lists. The words "classic layout" are stale: it carries the week's real map (`decreeMapOf`). — Cost if wrong: a friend's decree score beside a city on the same seed.
+1971. `addRival` keeps a decree rival when the link has a good `week`. — Cost if wrong: a decree link read as a main one.
+1972. Merging decrees by week keeps the higher score and adds the tries. — Cost if wrong: re-importing your own export doubles `tries`.
+1973. Opening a decree link only adds a rival. — Cost if wrong: none.
+1974. `decreeShareText` takes its words from `DECREE_SHARE_TEXT`, the sixth part labelled Decree. — Cost if wrong: wording only.
+1975. The decree's words live in `U93_TEXT`; "Decree" is the mode's one name. — Cost if wrong: a string change in one section.
+1976. A decree run is the lesson's shape: no Pass the throne, heir picker, new city, Export, Home, ruler list or records, saves to the decree slot, no guide and no daily goals. — Cost if wrong: a city row or stamp from a decree run in the records.
+1977. The title card sits after the main buttons; the gate is a city row with a Town split or any ruler; a `d1` link opens the card on its week early and keeps a named sender as a rival. — Cost if wrong: a new device sees the card early on a friend's link.
+1978. The chip is the first row under the top bar, not in it, because the phone's bar is full at 150% text. — Cost if wrong: one row less map at the top.
+1979. The first screen is the decree card over a paused game; Begin starts the clock at 1x; from the chip it says Close. — Cost if wrong: one extra tap on Continue.
+1980. A forbidden card stays in the tray, locked, with "Not under this decree". — Cost if wrong: a greyed card in Defence under Open city.
+1981. The numbers shown are the numbers the sim uses (`ruleFactor`, `ruleUnitPay`, `ruleReach`, `capacityOf`, the decree's medals); the granary's fill drawing still read plain capacity until 2003. — Cost if wrong: a number on screen differs from the sim's.
+1982. The ruler list's decree rows merge with rulers by date: mark, medal, score of 600, six parts, tries, the map; Play this map starts a plain city. — Cost if wrong: a player expects a decree run from the row.
+1983. The end card is the score sheet's own parts (`scoreTotalLine`, `scorePartRow`), with Share, Try again and Back to your city above the six parts; the run is noted once (`world.decree.noted`, optional). — Cost if wrong: a second open counts a second try.
+1984. R and S are merged and read directly; U's own share line is gone for S's. — Cost if wrong: a try counted without a row.
+1985. `runCapital` gains `decree`; the balance file loads only for `-Grep "v93 k balance"`. — Cost if wrong: nobody reruns the numbers after a sim change.
+1986. Each bar is the run's measure x 1.25 to two significant figures, and each medal set is the run's total rounded down to 10, +60, +120; Levy's run answers the court and the Host's meets warnings with towers. Several bars and medals are changed by 1990 to 1994. — Cost if wrong: a bar set from a player the decree does not assume is too easy or hard for the Levy and the Host.
+1987. The Southern Host's `elephantsFrom` is 1, not 2, because a six-year run never reaches raid stage 1. — Cost if wrong: elephants come a raid earlier than the twist line says.
+1988. Medals follow the plain script's last-day total, which declines in its last year (drought from month 61, mood 14), so bronzes range from 210 (Plague) to 410 (the Host). Left as measured; the question of script or game stays open. — Cost if wrong: a bronze on Plague is far easier than on the Host.
+1989. Sea Peoples' boats come in a decree run (`boatsFrom` 1); the twist reads "more of them by boat". Four weeks in the first rotation are Great oasis weeks with no river. Josh then ruled (10 Nov) that Sea Peoples never falls on the Great oasis (`decreeMapOf`). — Cost if wrong: about one Sea Peoples week in four played without boats, which the card said.
+1990. A months-measure bar is at most 60 (`MONTHS_BAR_MAX`); Fire season's bar is 60 (was 83), its medals [310, 370, 430]. Supersedes 1986 for Fire season. — Cost if wrong: a quick Town could count past 66.
+1991. A well month counts only while the city has 15 or more Cottage-or-better homes; Plague's measure is 4 and its bar 5 (was 9). Supersedes 1986 for Plague; its medals stand. — Cost if wrong: a small city can still avoid sickness, and the bonus asks for a bigger one.
+1992. The Vizier's Levy has no `courtReward` factor: the ask is doubled and the reward follows it, so "pays double" is true. Supersedes 1961. Stone famine + Levy medals [250, 310, 370]. — Cost if wrong: a Levy week pays less gold than before.
+1993. `meetDemand`, `layCrossing` and `sealReign` refuse with `decree_ended`; a test scans the commands the interface imports. Completes 1962. — Cost if wrong: the scan reads source text.
+1994. Sea Peoples + Fire season medals [410, 470, 530]. Supersedes the pair in 1986. — Cost if wrong: none.
+1995. The week helpers live in `src/data/week.js` (`src/ui/week.js` re-exports them). — Cost if wrong: a stale import path still works.
+1996. The top bar's date holds the last day of year 6 once the decree has ended. — Cost if wrong: a player expects the bar to run on.
+1997. A decree run has no chapter goals in the strip, the sheet, the City page or the nudge. — Cost if wrong: a goal caption could still fire from the sim.
+1998. In a decree run the score chip and the City page read `decreeScore` (of 600) and count to `decreeMedals`. Supersedes the city medals in the summary. — Cost if wrong: the chip's number differs from the city score seen before.
+1999. The decree chip has a dot between year and mark; the title card's twist lines are small and left-aligned, its go button plain. — Cost if wrong: looks only.
+2000. A finished run is noted when it arrives (`decree_end`), not when the card draws; the row's title is the heir title. — Cost if wrong: a second note is harmless.
+2001. After the end the refusal reads "The decree has ended", Play, the speeds and the keys open the end card, and the alerts, tip and scribe are hidden. — Cost if wrong: a debt alert after the end is not seen.
+2002. The title's Rulers button counts decree rows; the end card's side-by-side lists six parts; a pair week shows each decree's own part under the bonus; "Week N" keeps its no-break space. — Cost if wrong: the Rulers number counts two kinds of row.
+2003. Under Low Nile the granary drawing reads `capacityOf`, completing 1981. — Cost if wrong: a granary shows a step lower than it did.
+2004. The elephants' twist reads "War elephants may come from the 2nd raid"; the bonus line lowercases only its first letter. — Cost if wrong: wording only.
+2005. Every Track B drawing that never called the bar now does, and the owed list is empty; the plain card keys take their entry from `<base>.l1.work` (the cards show the Town look working). Pays 1939. — Cost if wrong: the plain keys point back at the old draws and the owed list returns.
+2006. A shut workshop reads by shape: a barred door at least 0.24 of the face wide and closed shutters (`shutFront`). — Cost if wrong: three numbers in one function.
+2007. The granary keeps its shape in every look: no drums or porch at City and Capital; heights [22, 22, 22, 26]. Retires the granary part of 1903. — Cost if wrong: Josh's yes to 1903 restores the drums.
+2008. `dress` shades and grounds the body of a shut building; a drawing with no body names its walls in `cfg.bar`. — Cost if wrong: the shade can tint things in front of a wall by a few percent.
+2009. The wall and gate cards add the contact line where the run meets the ground (no shade); the map's walls are unchanged. — Cost if wrong: only the card pictures call the bar.
+2010. The 2x2 homes (tiers 6 to 9) get distinct plans: v0 an L, v1 a low block with a back tower, v2 a narrow tall block with a set-back storey. — Cost if wrong: a roof tell on the wrong roof.
+2011. Each 2x2 variant has its own shadow blocks from the same plan. Supersedes 1894 for tiers 6 to 9. — Cost if wrong: none for other tables.
+2012. A Capital road is paved only where it is built up, like a City road, and kerbed elsewhere. Supersedes 1916's Capital half. — Cost if wrong: a Capital's outer roads look like City kerbs.
+2013. The Capital street reads differently at play zoom: warm sandstone cream with a gold-brown kerb, three lanes of slabs, palms and planters beside the lamps. — Cost if wrong: only the baked streets change.
+2014. Home heights are unchanged by the new plans. — Cost if wrong: none.
+
+Open at the end of 9.3 (see notes/2026-11-10-version-9-3-followups.md): the speed fix (1940 to 1944) is not merged; the model gave the iPad no phone budget (1936); the rebuild front can move when a building is added at the edge.
