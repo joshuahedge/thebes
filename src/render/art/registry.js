@@ -87,8 +87,9 @@ export function withLooks(table, { looks = true, variants = 1, states = false } 
       for (let l = 0; l < (looks ? LOOKS.length : 1); l++) {
         for (const st of states ? SERVICE_STATES : ['']) {
           const opt = { look: looks ? l : 0, variant: v, state: st || 'work' };
-          const { boundsFor: bf, heightFor: hf, ...rest } = def;
+          const { boundsFor: bf, heightFor: hf, shadowsFor: sf, ...rest } = def;
           const entry = { ...rest, draw: (g, x, y) => def.draw(g, x, y, opt) };
+          if (sf) entry.shadows = sf(opt);   // 9.3 fix wave (H1): shadow blocks that follow the variant's massing
           if (bf) entry.bounds = bf(opt.look);
           if (hf) entry.height = hf(opt.look);
           out[expandedKey(slot, variants > 1 ? v : -1, looks ? l : -1, st)] = entry;
