@@ -4826,7 +4826,7 @@ export const M93_TEXT = { rebuilds: 'The city rebuilds in the new style over the
 export const U93_TEXT = {
   names: { sea_peoples: 'Sea Peoples', low_nile: 'Low Nile', plague: 'Year of the Plague', stone_famine: 'Stone famine', vizier_levy: "The Vizier's Levy", open_city: 'Open city', golden_caravans: 'Golden caravans', fire_season: 'Fire season', southern_host: 'The Southern Host' },
   twists: {
-    sea_peoples: 'Raids come twice as often and larger, more of them by boat where the river allows. Walls and gates cost half.',   // Track K (ruling 1989): a Great oasis week has no river
+    sea_peoples: 'Raids come twice as often and larger, more of them by boat. Walls and gates cost half.',   // Josh (10 Nov): Sea Peoples never falls on the Great oasis (week.js decreeMapOf)
     low_nile: 'Floods one step weaker. Farms make 30% less. Granaries hold double.',
     plague: 'Sickness spreads three times as fast. Physicians cost half.',
     stone_famine: 'Quarries work at half speed. Brickworks at double.',

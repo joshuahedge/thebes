@@ -1,6 +1,8 @@
 // src/ui/week.js
 // Version 9.3, the weekly decree (spec section 1, rulings 1950-1951): the device's ISO week, its seed and its decrees. The interface reads the date; the sim never does.
-import { DECREE_ORDER, DECREE_PAIRS, DECREE } from '../data/decrees.js';
+import { DECREE_ORDER, DECREE_PAIRS, DECREE, DECREES } from '../data/decrees.js';
+import { hasRiver } from '../data/map.js';
+import { variantFor } from '../sim/mapgen.js';
 
 const DAY = 86400000, WEEK = 7 * DAY;
 const mod = (a, n) => ((a % n) + n) % n;
@@ -43,4 +45,14 @@ export function decreesOfWeek(key) {
   if (!Number.isFinite(i)) return [];
   if (mod(i, 4) === 3) return [...DECREE_PAIRS[mod(Math.floor(i / 4), DECREE_PAIRS.length)]];
   return [DECREE_ORDER[mod(i - Math.floor((i + 1) / 4), DECREE_ORDER.length)]];
+}
+
+// The week's map: its seed and its layout, the one place the run, the ruler list's Play this map and a rival's row read it.
+// The seed picks the layout as a new city's 'auto' does (mapgen variantFor), except that a decree needing a river (Sea Peoples:
+// its raids come by boat) never falls on the Great oasis: that week takes the classic river on the same seed (Josh, 10 Nov 2026).
+export function decreeMapOf(key) {
+  const seed = weeklySeed(key);
+  let mapVariant = variantFor(seed);
+  if (decreesOfWeek(key).some((id) => DECREES[id] && DECREES[id].needsRiver) && !hasRiver(mapVariant)) mapVariant = 'classic';
+  return { seed, mapVariant };
 }

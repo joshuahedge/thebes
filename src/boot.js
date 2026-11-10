@@ -42,7 +42,7 @@ import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesso
 import { seenKey, dueCards } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
 import { installRescue } from './ui/v91/rescue.js';   // Version 9.1 (Track R): the error handler and its card
-import { decreesOfWeek, weekKey, weeklySeed, isWeekKey } from './ui/week.js';   // Version 9.3 (Track U): the week's decree
+import { decreesOfWeek, weekKey, isWeekKey, decreeMapOf } from './ui/week.js';   // Version 9.3 (Track U): the week's decree
 import { decreeTitleCard, decreeUnlocked, weekBest, weekRivals } from './ui/v93/decree.js';
 import { parseShareLink } from './ui/share.js';
 
@@ -420,7 +420,7 @@ export async function boot(doc, win, {
     let world;
     if (loaded && loaded.state === 'ok' && loaded.world && loaded.world.decree) world = loaded.world;
     else {
-      world = createWorld({ seed: weeklySeed(week), size: DEFAULT_MAP_SIZE, mapVariant: 'auto', cityId: newCityId(clock()), decree: { week, ids } });
+      world = createWorld({ ...decreeMapOf(week), size: DEFAULT_MAP_SIZE, cityId: newCityId(clock()), decree: { week, ids } });
       setGuide(world, false);
     }
     return startGame(world, { decree: true, fromSave: Boolean(loaded) });

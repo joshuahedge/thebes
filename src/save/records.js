@@ -35,7 +35,7 @@ import { HEIR_DEFAULT, isHeir } from '../data/v90.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
 import { hasNewLand } from '../data/s47.js';
-import { isWeekKey, weeklySeed } from '../ui/week.js';
+import { isWeekKey, decreeMapOf } from '../ui/week.js';
 
 // Version 9.3 (Track S, rulings 1965-1974; records version 3): `decrees` beside the rulers:
 //   decrees: [ { id, week, ids, mark, score, parts, medal, day, map, feats, title, name, tries, date } ]
@@ -252,7 +252,7 @@ function cleanRival(v) {
   if (isObj(v) && isWeekKey(v.week)) {     // Version 9.3: a friend's decree score; the seed is the week's, Normal, and the parts are the six
     const name = cleanName(v.name), parts = cleanDecreeParts(v.parts);
     if (!name || !parts || !isNum(v.score)) return null;
-    const out = { name, heir: isHeir(v.heir) ? v.heir : HEIR_DEFAULT, seed: weeklySeed(v.week), difficulty: 'normal', mapVariant: 'classic', mapSize: DEFAULT_MAP_SIZE, score: v.score, parts, splits: cleanSplits(v.splits), version: SCORE_VERSION, added: isNum(v.added) ? v.added : 0, week: v.week };
+    const out = { name, heir: isHeir(v.heir) ? v.heir : HEIR_DEFAULT, ...decreeMapOf(v.week), difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, score: v.score, parts, splits: cleanSplits(v.splits), version: SCORE_VERSION, added: isNum(v.added) ? v.added : 0, week: v.week };
     return { id: rivalId(out), ...out };
   }
   if (!isObj(v) || !isInt(v.seed) || v.seed < 0 || !isLevel(v.difficulty) || !isNum(v.score)) return null;

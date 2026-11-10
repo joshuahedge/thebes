@@ -390,7 +390,7 @@ describe('v93 u rows: the ruler list\'s decree rows', () => {
       expect(row.querySelector('.ruler-detail').hidden).toBe(false);
       expect(row.querySelectorAll('.ruler-part').length).toBe(6);
       row.querySelector('.play-map').click();
-      expect(played).toEqual([{ seed: 202647, difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, mapVariant: 'auto' }]);
+      expect(played).toEqual([{ seed: 202647, difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, mapVariant: 'classic' }]);   // fix wave: the week's own map (week.js decreeMapOf); 2026-W47 is Sea Peoples, so the river, not the seed's oasis
     } finally { body.remove(); }
   });
 });
