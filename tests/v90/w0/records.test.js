@@ -36,12 +36,12 @@ function link({ seed = 11, difficulty = 'normal', variant = 'classic', size, nam
 
 describe('v90 w0 records: the shape, version 2', () => {
   it('starts empty with the three new parts, and reads a version 1 blob with them empty', () => {
-    expect(RECORDS_VERSION).toBe(2);
-    expect(emptyRecords()).toEqual({ version: 2, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: { name: '', heir: 'steady' } });
+    expect(RECORDS_VERSION).toBe(3);   // 9.3 Track S (ruling 1966): was 2
+    expect(emptyRecords()).toEqual({ version: 3, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: { name: '', heir: 'steady' }, decrees: [] });   // 9.3 Track S: was version 2, no decrees
     expect(newDynasty()).toEqual({ name: '', heir: 'steady' });
     const v1 = { version: 1, cities: [{ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 250, bestDay: 900, medal: null, splits: { town: 100 }, updated: 1 }], chronicle: [] };
     const read = normalizeRecords(v1);
-    expect([read.version, read.cities.length, read.rulers, read.rivals, read.dynasty]).toEqual([2, 1, [], [], { name: '', heir: 'steady' }]);
+    expect([read.version, read.cities.length, read.rulers, read.rivals, read.dynasty]).toEqual([3, 1, [], [], { name: '', heir: 'steady' }]);   // 9.3 Track S (ruling 1966): was 2
     const r = createRecords({ storage: memory(v1) });
     expect([r.rulers(), r.rivalsFor(11, 'normal'), r.dynasty()]).toEqual([[], [], { name: '', heir: 'steady' }]);
     expect(normalizeRecords('junk')).toEqual(emptyRecords());
@@ -51,8 +51,8 @@ describe('v90 w0 records: the shape, version 2', () => {
     const r = createRecords({ storage });
     const { w } = sealed();
     r.noteCity(w, 5);
-    expect(Object.keys(stored(storage)).sort()).toEqual(['chronicle', 'cities', 'dynasty', 'rivals', 'rulers', 'version']);
-    expect(stored(storage).version).toBe(2);
+    expect(Object.keys(stored(storage)).sort()).toEqual(['chronicle', 'cities', 'decrees', 'dynasty', 'rivals', 'rulers', 'version']);   // 9.3 Track S: decrees added
+    expect(stored(storage).version).toBe(3);   // 9.3 Track S (ruling 1966): was 2
     expect(stored(storage).cities.length).toBe(1);
   });
   it('drops a ruler, rival or dynasty it cannot read, and cleans what it keeps', () => {

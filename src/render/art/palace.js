@@ -3,13 +3,16 @@
 // flagpoles and banners before the hall; gilded cornices, seated statues and two small obelisks; and a lapis-and-gold
 // palace with a pool court. A 3x3 drawn once per style as a cached sprite, like the homes. While the palace is being
 // enlarged (b.works), its slot is the old style with timber scaffolding and a few workers round it ('palace.s<n>.w').
-import { box, tb, qd, door, win, parapet, mat, rug, pots, col, bed, pool, stairs, p, U, quad, hs } from './primitives.js';
+import {
+  box, tb, qd, parapet, mat, rug, pots, col, bed, pool, stairs, p, U, quad, hs,
+  shadeWall, silhouette, contactLine, insetOpening, parapetSteps, cornice, band, gildedCap, groundShadow,
+} from './primitives.js';
 import { palmAt } from './nature.js';
 import { fig } from './figures.js';
 import { pennant } from './services.js';
 import {
   WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, GREEN, GREEN_DARK, WOOD,
-  DOOR, PARAPET, SHADOW,
+  DOOR, PARAPET, SHADOW, WINDOW, POT, POT_LIGHT, INK,
 } from './palette.js';
 import { PALACE_STYLES } from '../../data/palace.js';
 import { boundsFor } from '../iso.js';
@@ -17,6 +20,29 @@ import { boundsFor } from '../iso.js';
 const LAPIS = '#2C4F9E', LAPIS_DARK = '#203C7A';
 const PLATFORM = ['#F2EADA', '#E2D6C2', '#BEB2C2'];
 const BANNERS = [RED, TEAL, GOLD, BLUE];
+
+// Version 9.3 (Track N, ruling 1920): the palace at the new bar, through the primitives. block() is a wall at the bar (faces, a soft shade down
+// each, the 1.0 px silhouette, and the contact line where it meets the ground); dr() and wn() set a door and a window in with an inner shadow and a lintel.
+export function block(g, x, y, w, d, h, z, C) {
+  const F = box(g, x, y, w, d, h, z, C);
+  shade(g, F, h);
+  silhouette(g, x, y, w, d, h, z);
+  if (z === 0) contactLine(g, [x, y, w, d]);
+  return F;
+}
+export function shade(g, F, h) {
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, h), F.L(0, h)], h);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, h), F.R(0, h)], h);
+}
+const dr = (g, F, u0, u1, h, trim = '#FFFFFF', lit = false) => insetOpening(g, { F: F.L, u: u0, s: 0 }, u1 - u0, h, { lintel: trim, lit });
+const wn = (g, S, u0, u1, s0, s1, trim = '#FFFFFF') => insetOpening(g, { F: S, u: u0, s: s0 }, u1 - u0, s1 - s0, { lintel: trim, fill: WINDOW });
+// A small jar on a roof or a step, as the homes carry (a dark foot shadow, the body, a lit streak, the mouth).
+const jar = (g, q, c = POT) => {
+  g.ell([q[0], q[1] + 0.2], 1.7, 0.6, SHADOW, { alpha: 0.18 });
+  g.ell(U(q, 1.7), 1.7, 1.9, c, { outline: true });
+  g.ell([q[0] - 0.55, q[1] - 2.2], 0.5, 0.8, POT_LIGHT, { alpha: 0.75 });
+  g.ell(U(q, 3.5), 1, 0.4, '#6A3A24');
+};
 
 // The palace's own banner pole: a tall pole with a long pennant; `finial` tops it with a gilded knob.
 function flag(g, gx, gy, z, h, color, finial = false) {
@@ -35,6 +61,8 @@ export function smallObelisk(g, gx, gy, h, z = 0, size = 1) {
   const pw = 0.2 * size, sw = 0.13 * size, tw = 0.045 * size, tip = 3.4 * size;
   box(g, gx - pw / 2, gy - pw / 2, pw, pw, 1.6, z, STONE, 0);
   const F = tb(g, gx - sw / 2, gy - sw / 2, sw, sw, h, z + 1.6, 0.02 * size, STONE);
+  shade(g, F, h);
+  g.ell(U(p(gx + 0.1, gy + 0.08), z), 5 * size, 1.5 * size, SHADOW, { alpha: 0.12 });   // its cast shadow on the platform
   qd(g, F.L, 0.2, 0.8, h * 0.2, h * 0.85, '#E2D6C2', { alpha: 0.6 });
   for (const s of [h * 0.3, h * 0.55]) { qd(g, F.L, 0.15, 0.85, s, s + 0.6 * size, TEAL, { alpha: 0.8 }); qd(g, F.R, 0.15, 0.85, s, s + 0.6 * size, TEAL_DARK, { alpha: 0.7 }); }
   const t = U(p(gx, gy), z + 1.6 + h + tip), a = U(p(gx - tw, gy + tw), z + 1.6 + h), b = U(p(gx + tw, gy + tw), z + 1.6 + h), c = U(p(gx + tw, gy - tw), z + 1.6 + h);
@@ -66,6 +94,9 @@ function pylon(g, x, y, w, d, h, z, { gilt = false, lapis = false } = {}) {
   g.circ(F.L(0.5, h * 0.45 + 1.4), 1.3, lapis ? GOLD : TEAL);
   qd(g, F.L, 0.34, 0.66, h * 0.32, h * 0.32 + 0.8, lapis ? '#F7F1E4' : BLUE);
   qd(g, F.R, 0.25, 0.75, 3, h - 5, lapis ? LAPIS_DARK : '#D9CFC6', { alpha: 0.6 });
+  shade(g, F, h);                                                               // a soft shade down both faces, the gate-doorway dark at its foot
+  qd(g, F.L, 0.34, 0.66, 0, 1.4, INK, { alpha: 0.18 });
+  g.line(F.L(0, h), F.L(1, h), '#FFFFFF', 0.6, 0.35);
   return F;
 }
 
@@ -73,43 +104,49 @@ function pylon(g, x, y, w, d, h, z, { gilt = false, lapis = false } = {}) {
 // storeys at the back with a roof mat; a gate in the front wall.
 export function palaceCourtyard(g, X, Y) {
   g.poly(quad(X + 0.1, Y + 0.1, 2.8, 2.8, 0), '#E7D3A6');
-  box(g, X + 0.1, Y + 0.1, 2.8, 0.14, 5, 0, MUD2);                             // the back walls
-  box(g, X + 0.1, Y + 0.24, 0.14, 2.66, 5, 0, MUD2);
-  const H = box(g, X + 0.32, Y + 0.3, 1.6, 1.06, 11, 0, WASH);
-  parapet(g, X + 0.32, Y + 0.3, 1.6, 1.06, 11);
-  qd(g, H.L, 0, 1, 9.4, 10.2, TEAL); qd(g, H.R, 0, 1, 9.4, 10.2, TEAL_DARK);
-  door(g, H, 0.42, 0.56, 6.6);
-  win(g, H.L, 0.12, 0.24, 4.4, 6.8); win(g, H.L, 0.72, 0.84, 4.4, 6.8); win(g, H.R, 0.3, 0.5, 4.4, 6.8);
-  const U2 = box(g, X + 0.4, Y + 0.36, 0.76, 0.6, 6, 11, WASH2);              // the upper storey
-  parapet(g, X + 0.4, Y + 0.36, 0.76, 0.6, 17);
-  win(g, U2.L, 0.3, 0.5, 2, 4.2);
+  block(g, X + 0.1, Y + 0.1, 2.8, 0.14, 5, 0, MUD2);                          // the back walls
+  block(g, X + 0.1, Y + 0.24, 0.14, 2.66, 5, 0, MUD2);
+  const H = block(g, X + 0.32, Y + 0.3, 1.6, 1.06, 11, 0, WASH);
+  cornice(g, { x: X + 0.32, y: Y + 0.3, w: 1.6, d: 1.06, z: 11 }, WASH2);
+  parapetSteps(g, { x: X + 0.32, y: Y + 0.3, w: 1.6, d: 1.06, z: 11 }, 5, 1.4);
+  band(g, H, 9.2, TEAL, 0.9);
+  dr(g, H, 0.42, 0.56, 6.6, TEAL_DARK);
+  wn(g, H.L, 0.12, 0.24, 4.4, 6.8, TEAL_DARK); wn(g, H.L, 0.72, 0.84, 4.4, 6.8, TEAL_DARK); wn(g, H.R, 0.3, 0.5, 4.4, 6.8, TEAL_DARK);
+  const U2 = block(g, X + 0.4, Y + 0.36, 0.76, 0.6, 6, 11, WASH2);            // the upper storey
+  parapetSteps(g, { x: X + 0.4, y: Y + 0.36, w: 0.76, d: 0.6, z: 17 }, 3, 1.1);
+  wn(g, U2.L, 0.3, 0.5, 2, 4.2, TEAL_DARK);
   mat(g, X + 1.28, Y + 0.44, 0.5, 0.4, 11, RED, GOLD);
+  jar(g, U(p(X + 1.0, Y + 0.34), 11), POT);                                    // roof clutter: jars, a line of linen
+  jar(g, U(p(X + 1.82, Y + 0.52), 11), '#D9B060');
+  g.line(U(p(X + 1.3, Y + 1.1), 11), U(p(X + 1.86, Y + 1.1), 11), WOOD, 0.4, 0.8);
+  g.poly([U(p(X + 1.4, Y + 1.1), 11), U(p(X + 1.56, Y + 1.1), 11), U(p(X + 1.56, Y + 1.1), 8.6), U(p(X + 1.4, Y + 1.1), 8.8)], '#FAF6EC', { alpha: 0.95 });
   pennant(g, U(p(X + 0.5, Y + 0.4), 17), 8, PINK);
   rug(g, X + 0.6, Y + 1.7, 0.7, 0.5, 0, RED, '#F2D7A8', GOLD);
-  box(g, X + 2.0, Y + 0.4, 0.7, 0.5, 4, 0, MUD, 0);                            // a store
+  block(g, X + 2.0, Y + 0.4, 0.7, 0.5, 4, 0, MUD);                             // a store
   pots(g, p(X + 2.3, Y + 1.0), 3);
   palmAt(g, X + 2.2, Y + 1.7, 0.95);
-  box(g, X + 0.1, Y + 2.76, 1.1, 0.14, 5, 0, MUD2);                            // the front walls and the gate
-  box(g, X + 1.7, Y + 2.76, 1.2, 0.14, 5, 0, MUD2);
-  box(g, X + 2.76, Y + 0.24, 0.14, 2.52, 5, 0, MUD2);
-  for (const u of [1.14, 1.64]) box(g, X + u, Y + 2.72, 0.12, 0.22, 7, 0, WASH, 0);
+  block(g, X + 0.1, Y + 2.76, 1.1, 0.14, 5, 0, MUD2);                          // the front walls and the gate
+  block(g, X + 1.7, Y + 2.76, 1.2, 0.14, 5, 0, MUD2);
+  block(g, X + 2.76, Y + 0.24, 0.14, 2.52, 5, 0, MUD2);
+  for (const u of [1.14, 1.64]) block(g, X + u, Y + 2.72, 0.12, 0.22, 7, 0, WASH);
 }
 
 // 1 The columned hall: a whitewashed hall on a platform with a banded cornice, a portico of six teal columns, steps
 // down to a court with flower beds and palms.
 export function palaceColumned(g, X, Y) {
-  box(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
-  const H = box(g, X + 0.3, Y + 0.24, 2.4, 1.32, 14, 2, WASH);
-  parapet(g, X + 0.3, Y + 0.24, 2.4, 1.32, 16);
+  block(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
+  const H = block(g, X + 0.3, Y + 0.24, 2.4, 1.32, 14, 2, WASH);
+  cornice(g, { x: X + 0.3, y: Y + 0.24, w: 2.4, d: 1.32, z: 16 }, STONE);
+  parapetSteps(g, { x: X + 0.3, y: Y + 0.24, w: 2.4, d: 1.32, z: 16 }, 6, 1.4);
   bands(g, H, [[12.6, 14, TEAL, TEAL_DARK], [11.8, 12.6, RED, RED_DARK]]);
-  door(g, H, 0.44, 0.56, 8);
-  for (const u of [0.12, 0.26, 0.7, 0.84]) win(g, H.L, u, u + 0.07, 5, 8.4);
-  for (const u of [0.25, 0.65]) win(g, H.R, u, u + 0.12, 5, 8.4);
+  dr(g, H, 0.44, 0.56, 8, TEAL_DARK, true);
+  for (const u of [0.12, 0.26, 0.7, 0.84]) wn(g, H.L, u, u + 0.07, 5, 8.4, TEAL_DARK);
+  for (const u of [0.25, 0.65]) wn(g, H.R, u, u + 0.12, 5, 8.4, TEAL_DARK);
   mat(g, X + 0.6, Y + 0.5, 0.9, 0.6, 16, TEAL, GOLD);
+  jar(g, U(p(X + 1.9, Y + 0.5), 16), POT); jar(g, U(p(X + 2.1, Y + 0.7), 16), '#D9B060');
   colonnade(g, X + 0.42, X + 2.58, Y + 1.92, 6, 11, 2);
   const R = box(g, X + 0.3, Y + 1.56, 2.4, 0.5, 1.6, 14.6, STONE);              // the portico's roof
-  qd(g, R.L, 0, 1, 0, 1.6, TEAL);
-  stairs(g, X + 1.2, Y + 2.06, 0.6, 0.3, 2, 2, PLATFORM);
+  qd(g, R.L, 0, 1, 0, 1.6, TEAL);  stairs(g, X + 1.2, Y + 2.06, 0.6, 0.3, 2, 2, PLATFORM);
   bed(g, X + 0.24, Y + 2.3, 0.7, 0.5);
   bed(g, X + 2.06, Y + 2.3, 0.7, 0.5);
   palmAt(g, X + 0.5, Y + 2.55, 0.8, 2);
@@ -118,13 +155,18 @@ export function palaceColumned(g, X, Y) {
 
 // The hall behind a gateway (styles 2-4): a long whitewashed hall on the platform, its cornice in the style's colours.
 function hall(g, X, Y, { gilt = false, lapis = false } = {}) {
-  const H = box(g, X + 0.3, Y + 0.2, 2.4, 1.2, 16, 2, WASH);
-  parapet(g, X + 0.3, Y + 0.2, 2.4, 1.2, 18);
+  const H = block(g, X + 0.3, Y + 0.2, 2.4, 1.2, 16, 2, WASH);
+  cornice(g, { x: X + 0.3, y: Y + 0.2, w: 2.4, d: 1.2, z: 18 }, gilt ? GOLDC : STONE);
+  parapetSteps(g, { x: X + 0.3, y: Y + 0.2, w: 2.4, d: 1.2, z: 18 }, 6, 1.4);
   bands(g, H, [[14.4, 16, gilt ? GOLD : TEAL, gilt ? GOLDC[2] : TEAL_DARK], [13.6, 14.4, lapis ? LAPIS : RED, lapis ? LAPIS_DARK : RED_DARK]]);
-  for (const u of [0.25, 0.65]) win(g, H.R, u, u + 0.12, 6, 10);
+  const trim = lapis ? LAPIS_DARK : gilt ? GOLD : TEAL_DARK;
+  for (const u of [0.25, 0.65]) wn(g, H.R, u, u + 0.12, 6, 10, trim);
+  for (const u of [0.14, 0.5, 0.78]) wn(g, H.L, u, u + 0.08, 6, 10, trim);
   mat(g, X + 0.5, Y + 0.4, 0.8, 0.6, 18, lapis ? LAPIS : RED, GOLD);
+  jar(g, U(p(X + 1.1, Y + 0.34), 18), POT);
   colonnade(g, X + 1.5, X + 2.5, Y + 0.3, 3, 4, 18, gilt ? GOLDC : undefined);   // a roof pavilion
   box(g, X + 1.44, Y + 0.24, 1.12, 0.14, 1.2, 22, gilt ? GOLDC : STONE, 0);
+  if (gilt) gildedCap(g, U(p(X + 2.0, Y + 0.31), 23.2), 2.6);                    // a small gilded dome on the pavilion's roof
   return H;
 }
 
@@ -136,7 +178,7 @@ export const PYLON_HEIGHT = { painted: 22, gilt: 26, lapis: 34 };
 function gateway(g, X, Y, y0, opts) {
   const h = opts.lapis ? PYLON_HEIGHT.lapis : opts.gilt ? PYLON_HEIGHT.gilt : PYLON_HEIGHT.painted, gh = opts.lapis ? 22 : opts.gilt ? 17 : 14;
   pylon(g, X + 0.32, Y + y0, 0.86, 0.6, h, 2, opts);
-  const G = box(g, X + 1.22, Y + y0 + 0.12, 0.56, 0.4, gh, 2, STONE);
+  const G = block(g, X + 1.22, Y + y0 + 0.12, 0.56, 0.4, gh, 2, STONE);
   qd(g, G.L, 0.18, 0.82, 0, 10, DOOR);
   if (opts.gilt) {
     qd(g, G.L, 0.22, 0.78, 0.4, 9.6, GOLDC[1]);                                  // the gilded leaves
@@ -158,7 +200,7 @@ function plinthStatue(g, gx, gy, z) {
 
 // 2 Pylons and banners: the hall behind a painted pylon gateway, four flagpoles with banners before it.
 export function palacePylons(g, X, Y) {
-  box(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
+  block(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
   hall(g, X, Y);
   gateway(g, X, Y, 1.5, {});
   for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 2.2, 2, 34, BANNERS[i]);
@@ -171,7 +213,7 @@ export function palacePylons(g, X, Y) {
 // gold, banners on taller poles with gilded finials, seated gold statues on tall plinths flanking the approach, and two
 // small obelisks with gilded tips at the front corners.
 export function palaceGilded(g, X, Y) {
-  box(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
+  block(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
   hall(g, X, Y, { gilt: true });
   gateway(g, X, Y, 1.4, { gilt: true });
   for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 2.06, 2, 37, BANNERS[i], true);
@@ -186,7 +228,7 @@ export function palaceGilded(g, X, Y) {
 // 4 Lapis and gold: lapis-panelled pylons with gold cornices, the hall banded in lapis and gold, a pool court with
 // palms in front, the obelisks and the statues, gold on the platform's edge.
 export function palaceLapis(g, X, Y) {
-  const P = box(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2.4, 0, PLATFORM);
+  const P = block(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2.4, 0, PLATFORM);
   qd(g, P.L, 0, 1, 0.6, 1.6, LAPIS); qd(g, P.R, 0, 1, 0.6, 1.6, LAPIS_DARK);
   qd(g, P.L, 0, 1, 1.6, 2.4, GOLD); qd(g, P.R, 0, 1, 1.6, 2.4, GOLDC[2]);
   hall(g, X, Y, { gilt: true, lapis: true });

@@ -3,24 +3,24 @@
 // with the footprint in tiles, height and bounds in art px relative to p(x, y) of the footprint origin,
 // and shadows as ground-shadow blocks relative to the origin tile. A slot can later point at a PNG by
 // replacing `draw` with `png: { src, ax, ay, scale }` (see spriteCache.js); nothing else changes.
-import { HOUSE_ART } from './housing.js';
-import { SERVICE_ART } from './services.js';
-import { INDUSTRY_ART } from './industry.js';
+import { HOUSE_ART, HOUSE_LOOKS } from './housing.js';
+import { SERVICE_ART, SERVICE_LOOKS } from './services.js';
+import { INDUSTRY_ART, INDUSTRY_LOOKS } from './industry.js';
 import { NATURE_ART } from './nature.js';
 import { FIGURE_ART } from './figures.js';
-import { DEFENCE_ART, RUBBLE_VARIANTS } from './defence.js';
+import { DEFENCE_ART, DEFENCE_LOOKS, RUBBLE_VARIANTS } from './defence.js';
 import { MONUMENT_ART } from './monuments.js';
-import { SUPPLY_ART, SUPPLY_TYPES, supplySlot } from './supply.js';
+import { SUPPLY_ART, SUPPLY_LOOKS, SUPPLY_TYPES, supplyBase } from './supply.js';
 import { PLAZA_ART, plazaEdges, sphinxFacing } from './plaza.js';
 import { PALACE_ART } from './palace.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
 import { S46_ART, s46Slot } from './s46.js';
 import { S47_ART } from './s47.js';
 import { V70_ART, v70Slot } from './v70.js';
-import { FERRY_ART } from './ferry.js';
+import { TRADE_LOOKS } from './trade.js';
+import { FERRY_ART, FERRY_LOOKS } from './ferry.js';
 import { BUILDINGS } from '../../data/buildings.js';
-import { lookOfBuilding } from '../looks.js';
-import { withLooks, EXPANDED, SERVICE_STATES, expandedKey } from './expand.js';
+import { lookOfBuilding, LOOKS } from '../looks.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -40,7 +40,7 @@ export const ART = {
 // or brickworks nobody works at shows its idle look (supply.js supplySlot), the brickworks by its drying rows; a plaza by
 // which of its neighbours are plazas (plaza.js plazaEdges) and a sphinx by the way it faces (sphinxFacing), both of which
 // need the world (without one, their plain slots). Everything else is its type.
-// Version 9.3 (Track H, ruling 1893): with { far: true } (the camera at 0.6 or under, FAR_ZOOM) a slot that has a far drawing (ex.far, set by housing.js) gives that,
+// Version 9.3 (Track H, ruling 1893): with { far: true } (the camera at 0.6 or under, FAR_ZOOM) a slot that has a far drawing (ex.far, set for homes below) gives that,
 // house.t3.l2.far: one plain drawing per tier and look, no variant and no clutter.
 export const FAR_ZOOM = 0.6;
 export function slotFor(b, world = null, { far = false } = {}) {
@@ -59,7 +59,7 @@ function baseSlotFor(b, world) {
   if (v70) return v70;
   if (b.type === 'house') return b.large === true && b.tier === 0 ? 'house.lot' : `house.t${b.tier}`;   // Version 6.0 (Track C): an empty Large plot is drawn as a marked lot
   if (b.type === 'palace') return `palace.s${b.style || 0}${b.works ? '.w' : ''}`;   // spec 4.20; live monuments are their type
-  if (SUPPLY_TYPES.includes(b.type)) return supplySlot(b);
+  if (SUPPLY_TYPES.includes(b.type)) return supplyBase(b);   // 9.3 Track B: idle is the shut state now, not a slot of its own
   if (b.type === 'plaza') return world ? `plaza.e${plazaEdges(world, b)}` : 'plaza';
   if (b.type === 'sphinx') return world ? `sphinx.f${sphinxFacing(world, b)}` : 'sphinx';
   if (b.type === 'rubble') return `rubble.v${b.id % RUBBLE_VARIANTS}`;
@@ -74,8 +74,30 @@ function baseSlotFor(b, world) {
 // A track puts its table through withLooks, which expands each entry whose draw takes a fourth argument opt = { look, variant, state } into one
 // slot per look (and per variant, and per state where asked), and records the base slot as expanded so slotFor appends the suffixes. Order of the
 // suffixes: house.t3.v1.l2, bazaar.s1.l2.work. An entry may give boundsFor(look) (and heightFor(look)) where its look changes its size.
-// withLooks, EXPANDED, SERVICE_STATES and expandedKey now live in expand.js (Track H, ruling 1890: a drawing file calls withLooks as it loads, so it cannot live here).
-export { withLooks, EXPANDED, SERVICE_STATES };
+export const SERVICE_STATES = ['work', 'short', 'shut'];
+export const EXPANDED = new Map();   // base slot -> { looks, variants, states }
+
+const expandedKey = (base, variant, look, state) => `${base}${variant >= 0 ? `.v${variant}` : ''}${look >= 0 ? `.l${look}` : ''}${state ? `.${state}` : ''}`;
+
+export function withLooks(table, { looks = true, variants = 1, states = false } = {}) {
+  const out = {};
+  for (const [slot, def] of Object.entries(table)) {
+    EXPANDED.set(slot, { looks, variants, states });
+    for (let v = 0; v < Math.max(1, variants); v++) {
+      for (let l = 0; l < (looks ? LOOKS.length : 1); l++) {
+        for (const st of states ? SERVICE_STATES : ['']) {
+          const opt = { look: looks ? l : 0, variant: v, state: st || 'work' };
+          const { boundsFor: bf, heightFor: hf, ...rest } = def;
+          const entry = { ...rest, draw: (g, x, y) => def.draw(g, x, y, opt) };
+          if (bf) entry.bounds = bf(opt.look);
+          if (hf) entry.height = hf(opt.look);
+          out[expandedKey(slot, variants > 1 ? v : -1, looks ? l : -1, st)] = entry;
+        }
+      }
+    }
+  }
+  return out;
+}
 
 // A home's variant (0..2): a hash of its tile, so the same house always looks the same.
 export const homeVariant = (b) => (((b.x * 73856093) ^ (b.y * 19349663)) >>> 0) % 3;
@@ -84,6 +106,20 @@ export const homeVariant = (b) => (((b.x * 73856093) ^ (b.y * 19349663)) >>> 0) 
 export function serviceState(b) {
   const workers = (BUILDINGS[b.type] && BUILDINGS[b.type].workers) || 0;
   if (workers === 0) return b.paused ? 'shut' : 'work';   // a building that needs nobody (a well) is never short
-  if (b.paused || !(b.staff > 0)) return 'shut';
+  if (b.paused || !(b.staff > 0) || b.blocked === 'idle') return 'shut';   // 9.3 Track B: a supply building no site needs (blocked 'idle') employs nobody and is shut
   return b.staff < workers ? 'short' : 'work';
 }
+
+// ---- Version 9.3, Track B: services and workshops in four looks and three states ----
+// Each of these art files exports a table whose draws take opt = { look, state }; it is expanded here (after EXPANDED above exists: the art files cannot call
+// withLooks themselves, they are imported before it) into '<base>.l<look>.<state>' slots, which slotFor then names. The old plain and stage keys ('granary.s2',
+// 'storehouse.s1', 'potter', ...) stay as they were for cards and older callers; '<type>.idle' now resolves to the Town look shut.
+for (const table of [SERVICE_LOOKS, INDUSTRY_LOOKS, DEFENCE_LOOKS, SUPPLY_LOOKS, TRADE_LOOKS, FERRY_LOOKS]) Object.assign(ART, withLooks(table, { states: true }));
+for (const type of SUPPLY_TYPES) ART[`${type}.idle`] = ART[type === 'brickworks' ? 'brickworks.s1.l1.shut' : `${type}.l1.shut`];
+
+// ---- Version 9.3, Track H: homes in four looks and three variants (rulings 1890-1899) ----
+// housing.js exports HOUSE_LOOKS (draws take opt = { look, variant }) and expanded here the same way (Track B's fix for the import cycle) into
+// 'house.t<n>.v<v>.l<look>'; its far drawings ('house.t<n>.l<look>.far') are in HOUSE_ART, and marking the base far lets slotFor name them.
+// The plain 'house.t<n>' stays for cards (ui/thumbs.js) and older callers: the Village look, variant 0.
+Object.assign(ART, withLooks(HOUSE_LOOKS, { variants: 3 }));
+for (const base of Object.keys(HOUSE_LOOKS)) { EXPANDED.get(base).far = true; ART[base] = ART[`${base}.v0.l0`]; }

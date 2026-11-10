@@ -69,12 +69,12 @@ describe('life art', () => {
   });
   it('names stage slots for granaries, bazaars and farms, and keeps the rest as they were', () => {
     const world = { day: 3 };
-    expect(slotFor({ type: 'granary', store: { grain: BUILDINGS.granary.capacity } })).toBe('granary.s3');
-    expect(slotFor({ type: 'bazaar', store: {} }, world)).toBe('bazaar.s0');
+    expect(slotFor({ type: 'granary', store: { grain: BUILDINGS.granary.capacity } })).toBe('granary.s3.l0.shut');   // Version 9.3 (Track B): plus the look and the state (no staff: shut)
+    expect(slotFor({ type: 'bazaar', store: {} }, world)).toBe('bazaar.s0.l0.shut');
     expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null }, world)).toBe('farm_grain.g2.peret');   // Version 7.0 (Track S): and the season of day 3 (Peret)
     expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null })).toBe('farm_grain');
-    expect(slotFor({ type: 'house', tier: 2 }, world)).toBe('house.t2.v0.l0');   // Version 9.3: a home's slot names its variant and look
-    expect(slotFor({ type: 'well' }, world)).toBe('well');
+    expect(slotFor({ type: 'house', tier: 2 }, world)).toBe('house.t2.v0.l0');   // Version 9.3 (Track H): a home's slot names its variant and look
+    expect(slotFor({ type: 'well' }, world)).toBe('well.l0.work');
   });
   it('registers every stage slot with its building\'s footprint, height and shadows, each drawn differently', () => {
     for (const [type, slots] of Object.entries(STAGE_SLOTS)) {
@@ -131,8 +131,8 @@ describe('life art', () => {
     const cache = { get: (slot, ...rest) => { asked.push(slot); return real.get(slot, ...rest); } };
     const renderer = createRenderer({ canvas: makeCanvas(400, 300), dpr: 1, spriteCache: cache, baker: createTerrainBaker(), maxBakesPerFrame: Infinity });
     renderer.renderFrame(w, createCamera({ x: 18, y: 14, zoom: 1 }), { view: { width: 400, height: 300 } });
-    expect(asked).toContain('granary.s3');
-    expect(asked).toContain('bazaar.s1');                                     // 50 of 300
+    expect(asked).toContain('granary.s3.l0.work');                            // Version 9.3 (Track B): the stage, then the look and the state
+    expect(asked).toContain('bazaar.s1.l0.work');                                  // 50 of 300
     expect(asked).toContain(`farm_grain.g${farmStage(w, farm)}.${seasonAt(w).season}`);   // Version 7.0 (Track S): a farm also names its season
     expect(farmStage(w, farm)).toBeGreaterThan(0);                            // staffed, so growing
     expect(asked.includes('granary') || asked.includes('bazaar') || asked.includes('farm_grain')).toBe(false);

@@ -13,7 +13,6 @@ import {
   PURP, WOOD, LEAF, LEAF2, LEAF3, SHADOW, INK, DOOR, WINDOW, PARAPET, POT, POT_LIGHT,
 } from './palette.js';
 import { MATERIALS, BAND2 } from './materials.js';
-import { withLooks, EXPANDED } from './expand.js';
 import { boundsFor } from '../iso.js';
 
 // Hut: a mud-brick cube with a tall thatched roof, a woven door, a reed fence and a pot.
@@ -700,9 +699,10 @@ const homeEntry = (t) => {
 const FAR_ART = {};
 for (const t of HOME_TIERS) for (let l = 0; l < M.length; l++) FAR_ART[`house.t${t}.l${l}.far`] = { ...homeEntry(t), draw: (g, x, y) => drawHome(g, x, y, l, t, 0, true) };
 
+// registry.js puts HOUSE_LOOKS through withLooks (variants 3) and marks each base far, so slotFor names the far drawing at far zoom. It cannot happen here:
+// registry.js imports this file before withLooks exists (Track B's fix for the same cycle; ruling 1890).
+export const HOUSE_LOOKS = Object.fromEntries(HOME_TIERS.map((t) => [`house.t${t}`, homeEntry(t)]));
 export const HOUSE_ART = {
   'house.lot': { w: 2, d: 2, height: 9, bounds: boundsFor(2, 2, 9), shadows: [[0.04, 0.04, 1.92, 1.92, 1]], draw: LotPlot },
-  ...withLooks(Object.fromEntries(HOME_TIERS.map((t) => [`house.t${t}`, homeEntry(t)])), { variants: 3 }),
   ...FAR_ART,
 };
-for (const t of HOME_TIERS) EXPANDED.get(`house.t${t}`).far = true;   // slotFor gives the far drawing at far zoom
