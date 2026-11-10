@@ -109,7 +109,7 @@ const CAUSES = [
     text: (w) => `Next step: a booth near here (${gold(costOf(w, 'booth'))}) gives this home entertainment`, action: T.showMe, after: (w) => { addRaw(w, 'booth', 16, 11); staffAll(w); } },
   { code: 'low_desirability', make: () => lot({ booth: true }),
     // Version 5.0 (Task 7): the decoration that lifts the street most, beside the home (tests/v50/grand prove the pick), with the score before and after, all from desirabilityFix.
-    text: (w, h) => { const f = desirabilityFix(w, h); return `Next step: a ${buildingName(f.item).toLowerCase()} ${f.dist <= 1 ? 'beside this home' : `${f.dist} tiles from this home`} (${gold(costOf(w, f.item))}) raises its desirability from ${f.from < 0 ? `−${-f.from}` : f.from} to ${f.to} (it needs ${TIERS[6].desirability.rise})`; },
+    text: (w, h) => { const f = desirabilityFix(w, h); return `Next step: a ${buildingName(f.item).toLowerCase()} ${f.dist <= 1 ? 'beside this home' : `${f.dist} tiles from this home`} (${gold(costOf(w, f.item))}) raises its pleasantness from ${f.from < 0 ? `−${-f.from}` : f.from} to ${f.to} (it needs ${TIERS[6].desirability.rise})`; },
     action: T.showMe, after: (w, h) => { for (let i = 0; i < 12 && houseDesirability(w, h) < TIERS[6].desirability.rise; i++) addRaw(w, 'statue', 8 + i, 13); } },
   // Version 6.0 (Track C): a Townhouse with every need met has no next tier (a small plot stops there); the Large plot is where a Manor grows. Once one stands, it is simply kept.
   { code: 'no_large', make: () => townhouse(),

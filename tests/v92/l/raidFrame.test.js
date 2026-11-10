@@ -2,7 +2,8 @@
 // camera has settled; the month step counts its two months from the month it began in.
 import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
-import { lessonWorld, lessonAt, replayTo, stepDone, stepProgress, stepFrame, stepTower, monthsSinceEntry, LESSON_SCRIPT } from '../../../src/sim/lesson.js';
+import { lessonWorld, lessonAt, replayTo, stepDone, stepProgress, stepFrame, stepTower, raidTarget, monthsSinceEntry, LESSON_SCRIPT } from '../../../src/sim/lesson.js';
+import { LESSON_RAID_ENTRY } from '../../../src/data/lesson.js';
 import { tickDay, monthIndex } from '../../../src/sim/clock.js';
 import { setSpeed } from '../../../src/sim/commands.js';
 import { tileToScreen } from '../../../src/render/camera.js';
@@ -57,7 +58,8 @@ describe('v92 l raid: the frame holds the band and the tower is lit (T1, design 
     w.raid.active = null;
   });
 
-  for (const [width, height] of [[375, 667], [1280, 800]]) {
+  // Fix wave (ruling 1870, B1): the band comes in by the lesson's own south entry, so the tower, the target and the band are in one frame from the arrival on a 375 px screen too.
+  for (const [width, height] of [[375, 667], [390, 844], [1280, 800]]) {
     it(`at ${width}x${height} a raider is on the screen at the arrival, the tower's ring is drawn and its hole is lit, and the camera follows the band in`, async () => {
       const s = await pageAt('tower', { width, height });
       try {
@@ -80,25 +82,44 @@ describe('v92 l raid: the frame holds the band and the tower is lit (T1, design 
         const [tx, ty] = tileToScreen(g.cam, view, tower.x + tower.w / 2, tower.y + tower.d / 2);
         const ring = s.root.querySelector('.lesson-ring-tower'), scrim = s.root.querySelector('.lesson-scrim');
         const rr = ring.getBoundingClientRect();
-        // On a phone the band and the tower are further apart than the screen is wide even at the furthest zoom out: the band is in frame at the arrival (the tower's ring is still
-        // drawn, and it is in frame once the band has come in, below); on a wide screen both are.
-        expect([raiders.some(([x, y]) => inView(x, y)), width < 600 || inView(tx, ty), ring.hidden, scrim.classList.contains('two'), rr.width > 0]).toEqual([true, true, false, true, true]);
+        // At every size the band, the tower and the target (the bazaar the ring is on) are on the screen at the arrival.
+        const target = g.world.buildings[g.world.raid.active.targetId] || raidTarget(g.world).building;
+        const [bx, by] = tileToScreen(g.cam, view, target.x + target.w / 2, target.y + target.d / 2);
+        expect([raiders.every(([x, y]) => inView(x, y)), inView(tx, ty), inView(bx, by), ring.hidden, scrim.classList.contains('two'), rr.width > 0]).toEqual([true, true, true, false, true, true]);
+        expect([g.world.raid.active.entry.x, g.world.raid.active.entry.y, g.world.raid.active.dir]).toEqual([LESSON_RAID_ENTRY.x, LESSON_RAID_ENTRY.y, 'south']);
         // the camera follows: after the band has marched on, the frame has moved with it
-        const first = g.world.raid.active.raiders.map((r) => r.x).reduce((a, b) => a + b, 0) / g.world.raid.active.raiders.length;
-        for (let d = 0; d < 60 && g.world.raid.active; d++) s.io.tick();
+        const meanTo = (rs) => rs.reduce((a, r) => a + Math.hypot(r.x - target.x, r.y - target.y), 0) / rs.length;
+        const first = meanTo(g.world.raid.active.raiders);
+        for (let d = 0; d < 6 && g.world.raid.active; d++) s.io.tick();
         g.ui.cameraControl.tick(1e9);
         await frame();
         if (g.world.raid.active) {
           const rs = g.world.raid.active.raiders;
-          expect(rs.reduce((a, r) => a + r.x, 0) / rs.length).toBeLessThan(first);
+          expect(meanTo(rs)).toBeLessThan(first);
           expect(rs.some((r) => { const [x, y] = tileToScreen(g.cam, view, r.x, r.y); return inView(x, y); })).toBe(true);
           const [ux, uy] = tileToScreen(g.cam, view, tower.x + tower.w / 2, tower.y + tower.d / 2);
-          if (rs.every((r) => Math.hypot(r.x - tower.x, r.y - tower.y) < 12)) expect(inView(ux, uy)).toBe(true);   // close in, the tower is in the frame too
+          expect(inView(ux, uy)).toBe(true);   // the tower stays in the frame as the band closes in
         }
+        // the lesson's lock (rulings 1200, 1204): the tower fights and the step ends: the raid is over and the step is done, never waiting
+        for (let d = 0; d < 400 && g.world.raid.active; d++) s.io.tick();
+        expect([Boolean(g.world.raid.active), Boolean(g.world.raid.last), stepDone(g.world, step('raid'))]).toEqual([false, true, true]);
         void o;
       } finally { s.cleanup(); }
     });
   }
+});
+
+describe('v92 l row: the count is not clipped with the words (M12)', () => {
+  it('the "n of m" chip comes before the step\'s words inside the row\'s clamped body, so a phone\'s three-line cut takes words and never the count', async () => {
+    const s = await pageAt('road', { width: 390, height: 844 });
+    try {
+      dockCard(s.root);
+      await frame();
+      const kids = [...s.root.querySelector('#lesson .body').children].map((n) => n.className.split(' ')[0]);
+      expect(kids.indexOf('chip')).toBeGreaterThan(-1);
+      expect(kids.indexOf('chip')).toBeLessThan(kids.indexOf('text'));
+    } finally { s.cleanup(); }
+  });
 });
 
 describe('v92 l fire: the step plays at 1x until the camera has settled (design 2.1)', () => {

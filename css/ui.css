@@ -1470,12 +1470,6 @@ body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"], [
 body.lesson-names-alert #banner > .critical:is([data-code="fire"], [data-code="raid_warning"], [data-code="raid"]) { display: none; }
 /* The lit target: the map dimmed round a ring (both ignore taps), a control with a ring of its own; the ring pulses under Full motion only. */
 #ui > .lesson-scrim { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), rgba(28, 22, 12, 0) 0%, rgba(28, 22, 12, 0) 72%, rgba(28, 22, 12, 0.46) 100%); }
-/* Version 9.2 (Track L, design 2.4): the end card's learned lines and its two choices, each button over the words that say what it does. */
-.lesson-end .lesson-learned { margin: 8px 0 12px; padding-left: 18px; }
-.lesson-end-actions { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
-.lesson-end-actions .lesson-choice { display: flex; flex-direction: column; gap: 4px; }
-.lesson-end-actions .lesson-choice button { min-height: 44px; }
-.lesson-end-actions .lesson-hint { margin: 0; }
 /* Version 9.2 (Track L, design 2.1): the raid step's scrim has two holes (the target and the tower): one flat dimming masked by both holes, kept where it lies outside the two. */
 #ui > .lesson-scrim.two { background: rgba(28, 22, 12, 0.46);
   -webkit-mask-image: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), transparent 0%, transparent 72%, #000 100%), radial-gradient(ellipse var(--rx2, 120px) var(--ry2, 80px) at var(--cx2, 50%) var(--cy2, 50%), transparent 0%, transparent 72%, #000 100%);
@@ -1487,6 +1481,12 @@ body:not(.reduce-motion) #ui > .lesson-ring { animation: lesson-ring 1.6s ease-i
 body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out infinite; }
 @keyframes lesson-ring { 50% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.55); } }
 @keyframes lesson-lit { 50% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.45); } }
+/* Version 9.2 (Track L, design 2.4): the end card's two choices, each button over the words that say what it does, then the lines learned (fix wave, ruling 1872: the choices come first). */
+.lesson-end .lesson-learned { margin: 12px 0 0; padding-left: 18px; }
+.lesson-end-actions { display: flex; flex-direction: column; gap: 12px; align-items: stretch; margin-top: 12px; }
+.lesson-end-actions .lesson-choice { display: flex; flex-direction: column; gap: 4px; }
+.lesson-end-actions .lesson-choice button { min-height: 44px; }
+.lesson-end-actions .lesson-hint { margin: 0; }
 /* The end sheet, and the title's lesson-only card. */
 #sheet .lesson-end .lead { font-weight: 600; }
 .title-buttons .lesson-hint { margin: 0; text-align: center; }
@@ -1766,4 +1766,3 @@ body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }
 .replace-note, .replace-note.muted { color: var(--amber-text); background: var(--amber-soft); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 6px 12px; }
 /* While a sheet fills the panel (body.panel-sheet) the goals strip steps aside, so the sheet keeps all the room under the minimap that it had before the strip lived here. */
 body.panel-sheet #panel > #goals { display: none; }
-

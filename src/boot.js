@@ -425,6 +425,9 @@ export async function boot(doc, win, {
     if (!current || !current.lesson) return;
     stopGame();
     showTitle(await loadSave(store), { note: finished ? D2_TEXT.standsNote : null });
+    // Version 9.2 (Track L, fix wave, ruling 1871): the end card's Start my own city goes on to the New city card, on the classic river (ruling 1672), not to the title's front card;
+    // Back there is the title. With a saved city the card's Start still asks the replace question first.
+    if (finished && title) { newCityLayout = 'classic'; title.card.setChoices({ layout: 'classic' }); title.card.showNewCity(); }
   }
 
   // A newer version's save in the slot must never be overwritten (spec 7.5), whichever way the game starts.

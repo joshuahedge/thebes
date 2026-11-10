@@ -265,13 +265,16 @@ export function createDialog({ container, store }) {
   let shown = null, opener = null;
   // Version 9.2 (fix wave, Track A, ruling 1875): a confirm opened from a sheet re-renders that sheet, so the opener is a node that is gone by the time the dialog closes. The opener is kept
   // with where it sat (its nearest container with an id), its class and its words, and a dead one is found again by those.
-  const describe = (a) => { const scope = a.closest ? a.closest('[id]') : null; return { node: a, scope: scope ? scope.id : null, cls: a.className, text: a.textContent }; };
+  // An opener with its own id is found again by that id; a class alone is trusted only when one live button has it (re-review: never focus the wrong button).
+  const describe = (a) => { const scope = a.parentElement ? a.parentElement.closest('[id]') : null; return { node: a, id: a.id || null, scope: scope ? scope.id : null, cls: a.className, text: a.textContent }; };
   const successor = (o) => {
     if (o.node.isConnected) return o.node;
+    if (o.id) { const same = document.getElementById(o.id); if (same && !container.contains(same)) return same; }
     const within = o.scope ? document.getElementById(o.scope) : null;
     if (!within || container.contains(within)) return null;
     const live = [...within.querySelectorAll('button')].filter((b) => !b.disabled);
-    return live.find((b) => b.className === o.cls && b.textContent === o.text) || live.find((b) => b.className === o.cls) || null;
+    const byClass = live.filter((b) => b.className === o.cls);
+    return byClass.find((b) => b.textContent === o.text) || (byClass.length === 1 ? byClass[0] : null);
   };
   function render() {
     const d = store.get().confirmDialog;

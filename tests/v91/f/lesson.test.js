@@ -37,7 +37,7 @@ export function walkLesson() {
 // after its warning (day 63), not RAIDS.warningDays (9.0: 'raid:65>199').
 // 9.1 balance (ruling 1728): was 'raid:65>199' (tests/v84/r/lesson.test.js DAYS_83, tests/v90/balance/heirs.test.js DAYS_84)
 // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139' (the month step now waits two months from its own entry: +30 days)
-export const DAYS_91 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>168'];
+export const DAYS_91 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>143'];   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 'raid:94>168' (the lesson's band comes in by its own south entry)
 
 describe('v91 f lesson: the walk-through and its waits (P5)', () => {
   it('reaches every step, on 9.1\'s days', () => {
@@ -78,8 +78,8 @@ describe('v91 f lesson: the walk-through and its waits (P5)', () => {
     const { steps } = walkLesson();
     const r1 = (n) => Math.round(n * 10) / 10;
     const total = steps.reduce((n, x) => n + x.secs, 0), raid = steps.find((s) => s.id === 'raid');
-    expect(steps.filter((x) => x.secs > 0).map((x) => `${x.id}:${r1(x.secs)}`)).toEqual(['families:20', 'workers:31', 'month:19.5', 'firehouse:1', 'fire:1', 'tower:2', 'raid:32.2']);   // 9.1 balance (ruling 1729): was raid 134 s at 1x; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:9' and 'fire:2' (the month step waits two months from its entry)
-    expect([r1(raid.waitSecs), r1(raid.secs - raid.waitSecs), r1(total), raid.end - raid.begin]).toEqual([9.7, 22.5, 106.7, 74]);   // 9.2 Track L (kept by the balance check, ruling 1855) (rulings 1756, 1772): was 97.2 in total (month 39 s at 1x, 19.5 s at its 2x)
+    expect(steps.filter((x) => x.secs > 0).map((x) => `${x.id}:${r1(x.secs)}`)).toEqual(['families:20', 'workers:31', 'month:19.5', 'firehouse:1', 'fire:1', 'tower:2', 'raid:19.7']);   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 'raid:32.2' (the band comes in from the south and the fight is 20 days at 2x, not 45);   // 9.1 balance (ruling 1729): was raid 134 s at 1x; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:9' and 'fire:2' (the month step waits two months from its entry)
+    expect([r1(raid.waitSecs), r1(raid.secs - raid.waitSecs), r1(total), raid.end - raid.begin]).toEqual([9.7, 10, 94.2, 49]);   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was [9.7, 22.5, 106.7, 74]; the next note is the older one:   // 9.2 Track L (kept by the balance check, ruling 1855) (rulings 1756, 1772): was 97.2 in total (month 39 s at 1x, 19.5 s at its 2x)
     expect([raid.waitSecs <= 30, raid.secs - raid.waitSecs <= 30, total <= 150]).toEqual([true, true, true]);   // the wait and the fight each inside 30 s; all waits together inside 150 s
   });
 });
