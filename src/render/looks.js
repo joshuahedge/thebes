@@ -19,9 +19,12 @@ export function lookOfRank(rankId) {
 const centres = new WeakMap();   // world -> { version, cx, cy, dMax }
 export function lookCentre(world) {
   const v = buildingsVersion(world);
+  const top = lookOfRank(world.milestone), rankDay = world.splits && world.splits[FIRST_RANK[top]];
   const held = centres.get(world);
-  if (held && held.version === v) return held;
-  const list = allBuildings(world);
+  if (held && held.version === v && held.top === top && held.rankDay === rankDay) return held;
+  // Version 9.3 speed fix (ruling 1943): the front's centre and reach come from the buildings standing on the rank day (no b.day counts as standing), so a well
+  // built at the edge later, or pulled down, never moves the front for the rest of the city. With no rank day recorded, every building counts.
+  const list = allBuildings(world).filter((b) => !Number.isInteger(rankDay) || !Number.isInteger(b.day) || b.day <= rankDay);
   const palace = list.find((b) => b.type === 'palace');
   let cx = 0, cy = 0;
   if (palace) { cx = palace.x + palace.w / 2; cy = palace.y + palace.d / 2; }
@@ -31,7 +34,7 @@ export function lookCentre(world) {
   }
   let dMax = 0;
   for (const b of list) dMax = Math.max(dMax, Math.hypot(b.x + b.w / 2 - cx, b.y + b.d / 2 - cy));
-  const out = { version: v, cx, cy, dMax };
+  const out = { version: v, top, rankDay, cx, cy, dMax };
   centres.set(world, out);
   return out;
 }
@@ -51,7 +54,22 @@ export function lookAt(world, x, y) {
 }
 
 // A building's look: its centre's, unless it was placed after its rank's look arrived (b.day, Task 0.2), when it starts current.
+// Version 9.3 speed fix (ruling 1940): every drawn building asks this every frame (slotFor, the scaffold watch), and it answers from the world's rank, day,
+// splits and buildings, so it is kept per building and thrown away when any of those moves (in a rebuild the day moves it; at rest it holds for ever).
+const held = new WeakMap();   // world -> { milestone, day, version, town, city, capital, byBuilding: WeakMap(b -> look) }
 export function lookOfBuilding(world, b) {
+  const v = buildingsVersion(world), sp = world.splits;
+  const town = sp ? sp.town : undefined, city = sp ? sp.city : undefined, capital = sp ? sp.capital : undefined;
+  let h = held.get(world);
+  if (!h || h.milestone !== world.milestone || h.day !== world.day || h.version !== v || h.town !== town || h.city !== city || h.capital !== capital) {
+    h = { milestone: world.milestone, day: world.day, version: v, town, city, capital, byBuilding: new WeakMap() };
+    held.set(world, h);
+  }
+  let look = h.byBuilding.get(b);
+  if (look === undefined) { look = lookOfBuildingFresh(world, b); h.byBuilding.set(b, look); }
+  return look;
+}
+export function lookOfBuildingFresh(world, b) {
   const top = lookOfRank(world.milestone);
   const day = world.splits && world.splits[FIRST_RANK[top]];
   if (top > 0 && Number.isInteger(b.day) && Number.isInteger(day) && b.day > day) return top;

@@ -20,7 +20,7 @@ import { V70_ART, v70Slot } from './v70.js';
 import { TRADE_LOOKS } from './trade.js';
 import { FERRY_ART, FERRY_LOOKS } from './ferry.js';
 import { BUILDINGS } from '../../data/buildings.js';
-import { lookOfBuilding, LOOKS } from '../looks.js';
+import { lookOfBuilding, lookOfBuildingFresh, LOOKS } from '../looks.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -48,6 +48,26 @@ export function slotFor(b, world = null, { far = false } = {}) {
   const ex = EXPANDED.get(base);
   if (!ex) return base;                                // a slot no track has put through withLooks keeps today's key
   const look = ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1;
+  if (far && ex.far) return keyOf(ex, base, -2, look, '');
+  return keyOf(ex, base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, look, ex.states ? serviceState(b) : '');
+}
+
+// Version 9.3 speed fix (ruling 1940): an expanded key is built once per (base, variant, look, state) and handed back from a table after, so a frame of
+// five thousand buildings builds no strings. The table sits on the base's EXPANDED entry; each string is the one expandedKey (or the far name) makes.
+const STATE_INDEX = { '': 0, work: 1, short: 2, shut: 3 };
+function keyOf(ex, base, variant, look, state) {
+  const i = ((variant + 2) * 8 + look + 1) * 4 + STATE_INDEX[state];   // variant -2 is the far drawing's
+  const keys = ex.keys || (ex.keys = []);
+  return keys[i] || (keys[i] = variant === -2 ? `${base}.l${look}.far` : expandedKey(base, variant, look, state));
+}
+
+const HOUSE_BASES = [];
+// The slot as it was before the tables above: every key built new and the look worked out new. The speed fix's test holds slotFor to it (tests/v93/x/speed.test.js).
+export function slotForFresh(b, world = null, { far = false } = {}) {
+  const base = baseSlotFor(b, world);
+  const ex = EXPANDED.get(base);
+  if (!ex) return base;
+  const look = ex.looks ? (world ? lookOfBuildingFresh(world, b) : 0) : -1;
   if (far && ex.far) return `${base}.l${look}.far`;
   return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, look, ex.states ? serviceState(b) : '');
 }
@@ -57,7 +77,7 @@ function baseSlotFor(b, world) {
   if (s46) return s46;
   const v70 = v70Slot(b, world);                       // Version 7.0: a Track T building's or a season's own slot (art/v70.js), else on as before
   if (v70) return v70;
-  if (b.type === 'house') return b.large === true && b.tier === 0 ? 'house.lot' : `house.t${b.tier}`;   // Version 6.0 (Track C): an empty Large plot is drawn as a marked lot
+  if (b.type === 'house') return b.large === true && b.tier === 0 ? 'house.lot' : (HOUSE_BASES[b.tier] || (HOUSE_BASES[b.tier] = `house.t${b.tier}`));   // 9.3 speed fix: one string a tier, not one a call   // Version 6.0 (Track C): an empty Large plot is drawn as a marked lot
   if (b.type === 'palace') return `palace.s${b.style || 0}${b.works ? '.w' : ''}`;   // spec 4.20; live monuments are their type
   if (SUPPLY_TYPES.includes(b.type)) return supplyBase(b);   // 9.3 Track B: idle is the shut state now, not a slot of its own
   if (b.type === 'plaza') return world ? `plaza.e${plazaEdges(world, b)}` : 'plaza';

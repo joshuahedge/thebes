@@ -90,11 +90,13 @@ const TREE_REACH = 64;   // art px a tree or hill tile can reach past its tile's
 
 // Version 5.0 (Task 0): the buildings in range come from the chunk index (src/render/chunkIndex.js), the same ones in the same order as a
 // pass over every building, so a large city draws only what is near the view. Task 6: with `screen` ({ cam, view }) the objects the view cannot show are left out (viewCull).
+const FAR_SLOT = { far: true }, NEAR_SLOT = { far: false };
 export function collectObjects(world, range, walkers = [], registry = ART, screen = null) {
   const out = [];
   const cull = screen && cullControl.on ? viewCull(screen.cam, screen.view) : null;
+  const slotOpts = Boolean(screen) && screen.cam.zoom <= FAR_ZOOM ? FAR_SLOT : NEAR_SLOT;   // 9.3 speed fix: two options objects, not one a building
   for (const b of buildingsInRange(world, range)) {
-    const slot = slotFor(b, world, { far: Boolean(screen) && screen.cam.zoom <= FAR_ZOOM });   // Version 9.3 (Track H): a home at far zoom is its plain far drawing
+    const slot = slotFor(b, world, slotOpts);   // Version 9.3 (Track H): a home at far zoom is its plain far drawing
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
     if (cull && !def.live && !cull.sees(b.x, b.y, def.bounds, def.height)) continue;

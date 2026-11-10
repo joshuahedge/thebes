@@ -44,14 +44,15 @@ export const DEVICE_BUDGETS = {
   desktop: { sprites: 32 * MB, caches: 80 * MB },
   phone: { sprites: 24 * MB, caches: 72 * MB },
 };
-export function deviceKind({ deviceMemory, screenWidth, screenHeight } = {}) {
+export function deviceKind({ deviceMemory, screenWidth, screenHeight, maxTouchPoints } = {}) {
   if (typeof deviceMemory === 'number' && deviceMemory > 0) return deviceMemory >= 8 ? 'desktop' : 'phone';
+  if (maxTouchPoints > 0) return 'phone';   // 9.3 speed fix (ruling 1944): Safari reports no deviceMemory, and an iPad's tab reloads under desktop budgets; touch with no memory figure is a phone's
   const side = Math.min(screenWidth || Infinity, screenHeight || Infinity);
   return side < 768 ? 'phone' : 'desktop';
 }
 const thisDevice = () => {
   const nav = typeof navigator !== 'undefined' ? navigator : {}, scr = typeof screen !== 'undefined' ? screen : {};
-  return deviceKind({ deviceMemory: nav.deviceMemory, screenWidth: scr.width, screenHeight: scr.height });
+  return deviceKind({ deviceMemory: nav.deviceMemory, maxTouchPoints: nav.maxTouchPoints, screenWidth: scr.width, screenHeight: scr.height });
 };
 export const DEVICE_KIND = thisDevice();
 export const SPRITE_BUDGET_BYTES = DEVICE_BUDGETS[DEVICE_KIND].sprites;   // 9.1: 16 MB on every device
