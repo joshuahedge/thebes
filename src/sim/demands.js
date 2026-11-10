@@ -180,6 +180,7 @@ export function declineDemand(world, id, events = null) {
 }
 // Send what an accepted demand asks (goods, gold or units): favour rises and the reward is paid. Fails with demandStatus's reason.
 export function meetDemand(world, id, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Fix A, known 10): after a decree's end every command is refused
   const d = findOpen(world, id);
   if (!d) return fail('none');
   const st = demandStatus(world, d);

@@ -6,7 +6,8 @@ import { isHeir } from '../data/v90.js';
 import { RAIDS } from '../data/raids.js';
 import { MILESTONES } from '../data/progression.js';
 import { atLeast } from './progression.js';
-import { population } from './world.js';
+import { population, housesOf } from './world.js';
+import { WELL_MONTH_HOMES } from '../data/decrees.js';
 import { fedNow } from './feats.js';
 import { raidsOn } from './costs.js';
 import { taxRateOf } from './palace.js';
@@ -105,8 +106,8 @@ export function countDynastyMonth(world) {
     const rate = taxRateOf(world);                       // the Generous's counts (ruling 1584): the month ends from Town at Low and at High
     if (rate === 'low') t.lowMonths += 1;
     if (rate === 'high') t.highMonths += 1;
-    // Version 9.3 (Track R, ruling 1963): the decree's two counts, from Town as the others: a month end with no sick home, and one with no building burned down in the month.
-    if (illHomes(world).length === 0) t.wellMonths = (t.wellMonths || 0) + 1;
+    // Version 9.3 (Track R, ruling 1963): the decree's two counts, from Town as the others: a month end with no sick home while the city has WELL_MONTH_HOMES Cottage-or-better homes (Fix A, ruling 1991), and one with no building burned down in the month.
+    if (illHomes(world).length === 0 && housesOf(world).filter((h) => h.tier >= 3).length >= WELL_MONTH_HOMES) t.wellMonths = (t.wellMonths || 0) + 1;
     if (!world.danger.burnDays.some((d) => d >= world.day - DAYS_PER_MONTH)) t.fireSafeMonths = (t.fireSafeMonths || 0) + 1;
   }
   const m = world.stats.lastMonth;

@@ -123,6 +123,7 @@ export function createScoreUi(ctx) {
   }
   function seal() {
     const r = sealReign(world);
+    if (!r.ok) { goTo('summary'); return; }   // Fix A (known 10): refused once a decree has ended
     try { if (records()) records().addSeal(world, r.seal, clock()); } catch (e) { /* records never stop a seal */ }
     version++;
     goTo('summary');

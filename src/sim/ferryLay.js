@@ -10,6 +10,7 @@ import { spend } from './money.js';
 import { pushUndo } from './undo.js';
 import { idx } from './grid.js';
 import { costOf } from './costs.js';
+import { decreeEnded, endedFail } from './rules.js';
 import { previewFerry, FERRY_LANDING } from './ferries.js';
 import { judgeCrossing } from './ferryFind.js';
 import { drawRoadTiles } from './commands.js';   // a bridge plan's road (commands.js imports layLandings from here: each reads the other only when called)
@@ -28,6 +29,7 @@ export function layLandings(world, landings, water) {
 // Lays a crossing judgeCrossing or previewFerry accepted (verdict.ok): the landings, the stubs' road, one charge and one undo entry ({ kind: 'place', ids,
 // cost: the landings', walls: [], roads: the tiles given road, roadCost }). Returns the verdict with ids: the two landings' ids, in the verdict's order.
 export function layCrossing(world, p) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Fix A, known 10): after a decree's end every command is refused
   if (!p || !p.ok) return p;
   const ids = layLandings(world, p.landings, p.water);
   const roads = (p.roads || []).map(([x, y]) => idx(world.size, x, y)).filter((t) => !world.road[t]);

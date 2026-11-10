@@ -44,6 +44,7 @@ import { RAIDS } from '../data/raids.js';
 import { baseRaidSize, towersNeeded, workingTowers } from './raids.js';
 import { raidsOn } from './costs.js';
 import { DECREES, DECREE_PAIRS, PAIR_MEDALS } from '../data/decrees.js';
+import { decreeEnded, endedFail } from './rules.js';
 import { titleMeasures } from './dynasty.js';
 
 const zeroParts = () => Object.fromEntries(SCORE_PARTS.map((p) => [p, 0]));
@@ -380,6 +381,7 @@ export function scoreRow(world) {
 // The interface then writes the chronicle entry (src/save/records.js). { ok: true, warnings: [], seal }.
 // Version 6.0 (Track A, ruling 657): the great work finished seals the score once by itself (src/sim/demands.js), with extra { won: true }.
 export function sealReign(world, extra = {}) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Fix A, known 10): after a decree's end every command is refused
   const s = scoreOf(world);
   const seal = { day: world.day, score: s.total, parts: { ...s.parts }, medal: s.medal, version: s.version, ...extra };
   world.seals.push(seal);

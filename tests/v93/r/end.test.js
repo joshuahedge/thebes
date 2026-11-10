@@ -6,7 +6,7 @@ import { place, setSpeed, setPaused } from '../../../src/sim/commands.js';
 import { countDynastyMonth } from '../../../src/sim/dynasty.js';
 import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
 import { packSave, unpackSave } from '../../../src/save/serialize.js';
-import { DECREE } from '../../../src/data/decrees.js';
+import { DECREE, WELL_MONTH_HOMES } from '../../../src/data/decrees.js';
 
 describe('v93 r the end', () => {
   it('ends on day 2,160 and not before, then does nothing and refuses every command', () => {
@@ -33,7 +33,8 @@ describe('v93 r the end', () => {
 });
 
 describe('v93 r the tallies', () => {
-  const town = () => { const w = makeTestWorld(); w.milestone = 'town'; return w; };
+  // Fix A (ruling 1991, was: a bare Town world): a well month counts only from WELL_MONTH_HOMES Cottage-or-better homes, so the city has that many.
+  const town = () => { const w = makeTestWorld(); w.milestone = 'town'; for (let i = 0; i < WELL_MONTH_HOMES; i++) addRaw(w, 'house', 10 + (i % 8) * 2, 10 + Math.floor(i / 8) * 2, { tier: 3, residents: 4 }); return w; };
   it('counts a month with no sick home and one with no fire, and misses a sick or burned one', () => {
     const w = town(); w.day = 300;
     countDynastyMonth(w);
