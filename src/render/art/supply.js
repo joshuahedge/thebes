@@ -7,7 +7,7 @@
 import { box, tb, qd, door, win, parapet, mat, awn, pots, p, U, quad, hs, gildedCap } from './primitives.js';
 import { rock } from './nature.js';
 import { fig as figDraw } from './figures.js';
-import { pennant, styled, lookSlot, smokePuff, isShut } from './services.js';
+import { pennant, styled, lookSlot, smokePuff, isShut, planks, taperF } from './services.js';
 import { WASH, WASH2, MUD, MUD2, ROCK, STONE, SST, TEAL, TEAL_DARK, RED, GOLD, GREEN, GREEN_DARK, WOOD, SHADOW, POT, LIME, BLUE } from './palette.js';
 import { MATERIALS } from './materials.js';
 
@@ -254,5 +254,10 @@ export const SUPPLY_LOOKS = {
 for (let r = 1; r <= 3; r++) {
   SUPPLY_LOOKS[`brickworks.s${r}`] = SLOOK([18, 18, 26, 30], KILN_SHADOWS, (g, x, y, look, state) => brickworks(g, x, y, r, state === 'shut'), {
     band: null, shutters: false, behind: brickBehind, front: brickFront, by: [1.1, 1.95],
+    bar: [[1.26, 0.16, 0.6, 0.6, 14, 0, 0.12]],   // 9.3 fix wave: the kiln's tapered drum, shaded and grounded in every state
+    cover: (g, x, y) => {                         // shut (B2): the stoke hole barred, with a wide plank door across it
+      const K = taperF(x + 1.26, y + 0.16, 0.6, 0.6, 14, 0.12);
+      planks(g, K.L, 0.26, 0.74, 0, 5.2);
+    },
   });
 }

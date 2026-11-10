@@ -10,8 +10,9 @@ import {
 import { rock } from './nature.js';
 import { fig as figDraw } from './figures.js';
 import {
-  pennant, styled, lookSlot, planks, bodyF, block, drum as drumK, smokePuff, potK, isShut, isBusy, DRAWING,
+  pennant, styled, lookSlot, planks, bodyF, block, drum as drumK, smokePuff, potK, isShut, isBusy, DRAWING, shutFront,
 } from './services.js';
+import { shadeWall, contactLine } from './primitives.js';
 import {
   WASH, WASH2, MUD, MUD2, ROCK, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, ORANGE, GREEN, GREEN_DARK,
   PURP, WOOD, POT, POT_LIGHT, SHADOW, DOOR, INDUSTRY_TINT, INK, LIME, WINDOW,
@@ -432,10 +433,10 @@ function kilnNew(g, x, y, look, state) {
   const W = block(g, x + 0.12, y + 0.12, 0.92, 0.66, 9, 0, look === 0 ? MUD : m.wall);
   if (look === 0) crs(g, W, 9, '#9C7A54', 2.5);
   if (work || state === 'short') insetOpening(g, { F: W.L, u: 0.6, s: 0 }, 0.2, 5.4, { lintel: trim, lit: true });
-  else { qd(g, W.L, 0.57, 0.83, 0, 5.8, trim); planks(g, W.L, 0.6, 0.8, 0, 5.2); }
+  else shutFront(g, W.L, 9, [[0.6, 0.8, 5.4]], trim, { doorW: 0.3 });   // 9.3 fix wave (B2): a wide barred door and closed shutters across the front
   if (!shut) insetOpening(g, { F: W.R, u: 0.3, s: 3.8 }, 0.2, 2.6, { lintel: trim, fill: WINDOW, lit: true });
-  else planks(g, W.R, 0.3, 0.5, 3.8, 6.4);
-  insetOpening(g, { F: W.L, u: 0.16, s: 3.8 }, 0.16, 2.6, { lintel: trim, fill: shut ? '#6A4A38' : WINDOW });
+  else { insetOpening(g, { F: W.R, u: 0.26, s: 3.4 }, 0.3, 3.2, { lintel: trim, fill: '#6A4A38' }); planks(g, W.R, 0.27, 0.55, 3.4, 6.6); }
+  if (!shut) insetOpening(g, { F: W.L, u: 0.16, s: 3.8 }, 0.16, 2.6, { lintel: trim, fill: WINDOW });
   if (look >= 1) band(g, W, 7.2, look === 1 ? TEAL : m.band, 1.0);
   roofTop(g, x + 0.12, y + 0.12, 0.92, 0.66, 9, look, 3);
   const kc = p(x + 1.52, y + 0.58);
@@ -487,6 +488,14 @@ const storeDraw = (s) => (g, x, y, look, state) => {
   storehouse(g, x, y, s);
 };
 
+// The trading post's two tents at the bar (9.3 fix wave): a soft shade down each lit side, and the contact line where each meets the ground.
+function tradingPostBar(g, x, y) {
+  for (const [tx, ty, w, d, h] of [[0.14, 0.16, 0.8, 0.62, 9], [1.0, 0.2, 0.82, 0.6, 10]]) {
+    shadeWall(g, [p(x + tx, y + ty + d), p(x + tx + w, y + ty + d), U(p(x + tx + w, y + ty + d / 2), h), U(p(x + tx, y + ty + d / 2), h)], h);
+    contactLine(g, [x + tx, y + ty, w, d]);
+  }
+}
+
 const ILOOK = (h, shadows, draw, cfg) => lookSlot(2, 2, h, shadows, styled(draw, cfg));
 export const INDUSTRY_LOOKS = {
   clay_pit: ILOOK(12, [[1.46, 0.18, 0.42, 0.9, 6]], (g, x, y) => clayPit(g, x, y), {
@@ -501,13 +510,18 @@ export const INDUSTRY_LOOKS = {
   }),
   gem_mine: ILOOK(14, [[0.08, 0.1, 1.1, 0.8, 14], [1.0, 0.12, 0.86, 0.9, 10]], (g, x, y) => gemMine(g, x, y), {
     band: null, shutters: false, cover: (g, x, y) => boardOver(g, x + 0.86, y + 1.0, 0.42, 0.42, 0.4),
+    bar: [[0.06, 0.08, 0.9, 0.72, 13, 0, 0.16], [0.84, 0.1, 0.7, 0.62, 9, 0, 0.14], [1.4, 0.2, 0.48, 0.5, 6, 0, 0.12], [0.08, 0.76, 0.52, 0.5, 6, 0, 0.12]],   // the outcrop's blocks, shaded and grounded
   }),
   jeweller: ILOOK(16, [[0.3, 0.22, 1.2, 0.8, 15]], (g, x, y) => jeweller(g, x, y), {
     body: [0.3, 0.22, 1.2, 0.8, 12], doors: [[0.44, 0.58, 6.4]], by: [1.72, 1.06],
   }),
   trading_post: ILOOK(23, [[0.14, 0.16, 0.8, 0.62, 7], [1.0, 0.2, 0.82, 0.6, 8]], (g, x, y) => tradingPost(g, x, y), {
-    band: null, shutters: false, by: [0.2, 1.9],
-    cover: (g, x, y) => { const F = bodyF(x + 0.3, y + 1.22, 1.4, 0.08); planks(g, F.L, 0, 1, 0, 3.2); },
+    band: null, shutters: false, by: [0.2, 1.9], front: tradingPostBar,
+    cover: (g, x, y) => {   // shut (9.3 fix wave, B2): a barricade across the front with a wide barred door and closed shutters
+      const F = bodyF(x + 0.3, y + 1.22, 1.4, 0.08);
+      qd(g, F.L, 0, 1, 0, 5, '#8A6A4E');
+      shutFront(g, F.L, 5, [[0.4, 0.6, 3.4]], '#C9A36B', { doorW: 0.3 });
+    },
   }),
 };
 for (let s = 0; s < 4; s++) {

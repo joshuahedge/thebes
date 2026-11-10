@@ -4,7 +4,7 @@
 // 'wall' and 'gate' slots are what their card and the gate's picture show, built from the same pieces.
 import { box, tb, qd, crs, door, win, parapet, pots, awn, p, U, quad, hs } from './primitives.js';
 import { pennant, styled, lookSlot } from './services.js';
-import { gildedCap } from './primitives.js';
+import { gildedCap, contactLine } from './primitives.js';
 import { MATERIALS } from './materials.js';
 import {
   WASH, WASH2, MUD, MUD2, STONE, RED, RED_DARK, TEAL, GOLD, WOOD, DOOR, INK, SHADOW, TERRAIN, LIME, TEAL_DARK,
@@ -270,10 +270,18 @@ export function breachPiece(g, x, y, alongX = true) {
 
 // The 'wall' slot (the Wall card): a short run of three linked pieces. The 'gate' slot: a gate on a strip of road
 // between two wall pieces.
+// 9.3 fix wave (known item 2): the cards' wall and gate pictures take the bar too: a soft shade down the run's lit face and the dark contact line where it
+// meets the ground. (The map draws its walls through wallPiece and gatePiece, which stay as they were.) x0..x1 is the run along x, h its height.
+function runBar(g, x, y, x0, x1, h) {
+  void h;   // the run's mudbrick bands keep their own light (a shade over them moves the wall's colours that tests pin); the contact line is the bar here
+  const a = 0.5 - WALL.t / 2;
+  contactLine(g, [x0, y + a, x1 - x0, WALL.t]);
+}
 export function wallRun(g, x, y) {
   wallPiece(g, x - 1, y, { e: 1 });
   wallPiece(g, x, y, { w: 1, e: 1 });
   wallPiece(g, x + 1, y, { w: 1 });
+  runBar(g, x, y, x - 1, x + 2, WALL.h);
 }
 export function gateRun(g, x, y) {
   const road = [['M', p(x + 0.5, y - 0.4)], ['L', p(x + 0.5, y + 1.4)]];
@@ -281,6 +289,8 @@ export function gateRun(g, x, y) {
   wallPiece(g, x - 1, y, { e: 1 });
   gatePiece(g, x, y, true);
   wallPiece(g, x + 1, y, { w: 1 });
+  runBar(g, x, y, x - 1, x, WALL.h);                       // the wall run to the left of the gate
+  runBar(g, x, y, x + 1, x + 2, WALL.h);                   // and to the right
 }
 
 // Version 6.0 (Track B2): the shell a burned or wrecked building leaves. Rubble that remembers what stood there (b.was) is drawn per tile of its
