@@ -3,7 +3,7 @@
 // bars and medals in src/data/decrees.js were set from these runs (ruling 1986). Fourteen six-year runs (about a minute here), so this file is outside the default suite (tests/v93/k/all.js).
 import { describe, it, expect } from '../../harness.js';
 import { runCapital } from '../../stage4/balance/capitalRun.js';
-import { DECREES, DECREE_ORDER, DECREE_PAIRS, PAIR_MEDALS } from '../../../src/data/decrees.js';
+import { DECREES, DECREE_ORDER, DECREE_PAIRS, PAIR_MEDALS, MONTHS_BAR_MAX } from '../../../src/data/decrees.js';
 import { decreeMeasure, decreeScore, bonusPart } from '../../../src/sim/score.js';
 import { MILESTONES } from '../../../src/data/progression.js';
 import { canPlace, place } from '../../../src/sim/commands.js';
@@ -66,7 +66,7 @@ describe('v93 k balance', () => {
       const r = decreeRun(ids);
       expect(r.insane).toEqual([]);
       expect(rankOf(r.year2) >= rankOf('town')).toBe(true);
-      if (ids.length === 1) expect(r.bonus >= 70 && r.bonus <= 90).toBe(true);
+      if (ids.length === 1) expect(r.bonus >= 70 && r.bonus <= (DECREES[ids[0]].bar === MONTHS_BAR_MAX ? 100 : 90)).toBe(true);   // Fix A (ruling 1990): a capped months bar is at most what the script counts, so the script may reach 100
       const medals = medalsOf(ids);
       expect(medals[1] - medals[0]).toBe(60);
       expect(medals[2] - medals[0]).toBe(120);

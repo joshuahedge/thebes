@@ -4823,6 +4823,7 @@ export const M93_TEXT = { rebuilds: 'The city rebuilds in the new style over the
 
 // Version 9.3, Track U (the decree's interface; rulings 1975-1984). Track U writes only between this header and the end of the file.
 // "Decree" is the mode's one name. The sim's numbers are read from src/data/decrees.js and src/sim/rules.js where a number shows; the twist lines below are the table's words.
+import { WELL_MONTH_HOMES } from '../data/decrees.js';   // Fix A (ruling 1991): the Plague's bonus words name the home count the sim uses
 export const U93_TEXT = {
   names: { sea_peoples: 'Sea Peoples', low_nile: 'Low Nile', plague: 'Year of the Plague', stone_famine: 'Stone famine', vizier_levy: "The Vizier's Levy", open_city: 'Open city', golden_caravans: 'Golden caravans', fire_season: 'Fire season', southern_host: 'The Southern Host' },
   twists: {
@@ -4836,7 +4837,7 @@ export const U93_TEXT = {
     fire_season: 'Fires start three times as often. Firehouses reach 12 tiles, not 8.',
     southern_host: 'War elephants come from the 2nd raid. Archers cost half.',
   },
-  bonus: { sea_peoples: 'Raids beaten', low_nile: 'Months with every Cottage or better fed', plague: 'Months with no sick home', stone_famine: 'Monument work laid', vizier_levy: 'Court requests met', open_city: 'Raids beaten', golden_caravans: 'Trade income over the bills', fire_season: 'Months with no building lost to fire', southern_host: 'Elephants brought down' },
+  bonus: { sea_peoples: 'Raids beaten', low_nile: 'Months with every Cottage or better fed', plague: `Months with no sick home (${WELL_MONTH_HOMES} or more Cottage homes)`, stone_famine: 'Monument work laid', vizier_levy: 'Court requests met', open_city: 'Raids beaten', golden_caravans: 'Trade income over the bills', fire_season: 'Months with no building lost to fire', southern_host: 'Elephants brought down' },
   bonusPart: 'Decree bonus',
   weekNumber: (week) => String(Number(String(week).split('-')[1]) || 0),
   // "Sea Peoples, week 47"; two decrees are joined with " and ".
