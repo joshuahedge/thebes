@@ -19,7 +19,8 @@ import { S47_ART } from './s47.js';
 import { V70_ART, v70Slot } from './v70.js';
 import { FERRY_ART } from './ferry.js';
 import { BUILDINGS } from '../../data/buildings.js';
-import { lookOfBuilding, LOOKS } from '../looks.js';
+import { lookOfBuilding } from '../looks.js';
+import { withLooks, EXPANDED, SERVICE_STATES, expandedKey } from './expand.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -39,11 +40,16 @@ export const ART = {
 // or brickworks nobody works at shows its idle look (supply.js supplySlot), the brickworks by its drying rows; a plaza by
 // which of its neighbours are plazas (plaza.js plazaEdges) and a sphinx by the way it faces (sphinxFacing), both of which
 // need the world (without one, their plain slots). Everything else is its type.
-export function slotFor(b, world = null) {
+// Version 9.3 (Track H, ruling 1893): with { far: true } (the camera at 0.6 or under, FAR_ZOOM) a slot that has a far drawing (ex.far, set by housing.js) gives that,
+// house.t3.l2.far: one plain drawing per tier and look, no variant and no clutter.
+export const FAR_ZOOM = 0.6;
+export function slotFor(b, world = null, { far = false } = {}) {
   const base = baseSlotFor(b, world);
   const ex = EXPANDED.get(base);
   if (!ex) return base;                                // a slot no track has put through withLooks keeps today's key
-  return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1, ex.states ? serviceState(b) : '');
+  const look = ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1;
+  if (far && ex.far) return `${base}.l${look}.far`;
+  return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, look, ex.states ? serviceState(b) : '');
 }
 
 function baseSlotFor(b, world) {
@@ -68,30 +74,8 @@ function baseSlotFor(b, world) {
 // A track puts its table through withLooks, which expands each entry whose draw takes a fourth argument opt = { look, variant, state } into one
 // slot per look (and per variant, and per state where asked), and records the base slot as expanded so slotFor appends the suffixes. Order of the
 // suffixes: house.t3.v1.l2, bazaar.s1.l2.work. An entry may give boundsFor(look) (and heightFor(look)) where its look changes its size.
-export const SERVICE_STATES = ['work', 'short', 'shut'];
-export const EXPANDED = new Map();   // base slot -> { looks, variants, states }
-
-const expandedKey = (base, variant, look, state) => `${base}${variant >= 0 ? `.v${variant}` : ''}${look >= 0 ? `.l${look}` : ''}${state ? `.${state}` : ''}`;
-
-export function withLooks(table, { looks = true, variants = 1, states = false } = {}) {
-  const out = {};
-  for (const [slot, def] of Object.entries(table)) {
-    EXPANDED.set(slot, { looks, variants, states });
-    for (let v = 0; v < Math.max(1, variants); v++) {
-      for (let l = 0; l < (looks ? LOOKS.length : 1); l++) {
-        for (const st of states ? SERVICE_STATES : ['']) {
-          const opt = { look: looks ? l : 0, variant: v, state: st || 'work' };
-          const { boundsFor: bf, heightFor: hf, ...rest } = def;
-          const entry = { ...rest, draw: (g, x, y) => def.draw(g, x, y, opt) };
-          if (bf) entry.bounds = bf(opt.look);
-          if (hf) entry.height = hf(opt.look);
-          out[expandedKey(slot, variants > 1 ? v : -1, looks ? l : -1, st)] = entry;
-        }
-      }
-    }
-  }
-  return out;
-}
+// withLooks, EXPANDED, SERVICE_STATES and expandedKey now live in expand.js (Track H, ruling 1890: a drawing file calls withLooks as it loads, so it cannot live here).
+export { withLooks, EXPANDED, SERVICE_STATES };
 
 // A home's variant (0..2): a hash of its tile, so the same house always looks the same.
 export const homeVariant = (b) => (((b.x * 73856093) ^ (b.y * 19349663)) >>> 0) % 3;

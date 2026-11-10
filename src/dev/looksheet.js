@@ -6,6 +6,7 @@
 // The sheet is drawn straight onto one canvas through the game's own drawing helper, so what it shows is what the primitives and materials give.
 import { makeDraw } from '../render/art/ctx.js';
 import { ART } from '../render/art/registry.js';
+import { HOUSE_TODAY } from '../render/art/housing.js';
 import { p } from '../render/art/primitives.js';
 import { palmAt, acacia } from '../render/art/nature.js';
 import { fig } from '../render/art/figures.js';
@@ -26,10 +27,10 @@ function homesRow(id, label, h, oy, items) {
 }
 
 const ROWS = [
-  homesRow('t1', 'Tier 1', 40, 18, [[0, (g, l) => (l < 0 ? ART['house.t1'].draw(g, 0, 0) : (yard(g, 0, 0, 1, 1, l), hut(g, 0, 0, l)))]]),
-  homesRow('t3', 'Tier 3\nthree variants', 50, 26, [-40, 0, 40].map((dx, v) => [dx, (g, l) => (l < 0 ? ART['house.t3'].draw(g, 0, 0) : (yard(g, 0, 0, 1, 1, l), cottage(g, 0, 0, l, v)))])),
-  homesRow('t6', 'Tier 6', 70, 34, [[0, (g, l) => (l < 0 ? ART['house.t6'].draw(g, 0, 0) : (yard(g, 0, 0, 2, 2, l, 0.3), manor(g, 0, 0, l, 6)))]]),
-  homesRow('t9', 'Tier 9', 80, 44, [[0, (g, l) => (l < 0 ? ART['house.t9'].draw(g, 0, 0) : (yard(g, 0, 0, 2, 2, l, 0.3), manor(g, 0, 0, l, 9)))]]),
+  homesRow('t1', 'Tier 1', 40, 18, [[0, (g, l) => (l < 0 ? HOUSE_TODAY['house.t1'].draw(g, 0, 0) : (yard(g, 0, 0, 1, 1, l), hut(g, 0, 0, l)))]]),
+  homesRow('t3', 'Tier 3\nthree variants', 50, 26, [-40, 0, 40].map((dx, v) => [dx, (g, l) => (l < 0 ? HOUSE_TODAY['house.t3'].draw(g, 0, 0) : (yard(g, 0, 0, 1, 1, l), cottage(g, 0, 0, l, v)))])),
+  homesRow('t6', 'Tier 6', 70, 34, [[0, (g, l) => (l < 0 ? HOUSE_TODAY['house.t6'].draw(g, 0, 0) : (yard(g, 0, 0, 2, 2, l, 0.3), manor(g, 0, 0, l, 6)))]]),
+  homesRow('t9', 'Tier 9', 80, 44, [[0, (g, l) => (l < 0 ? HOUSE_TODAY['house.t9'].draw(g, 0, 0) : (yard(g, 0, 0, 2, 2, l, 0.3), manor(g, 0, 0, l, 9)))]]),
   {
     id: 'bazaar', group: 'services', label: 'Bazaar\nworking | shut', h: 68, oy: 32,
     cell(g, look) {
@@ -72,7 +73,7 @@ const ROWS = [
     cell(g, look, cw) {
       const fit = Math.min(1, (cw - 6) / 192);
       g.ctx.save(); g.ctx.scale(fit, fit);
-      const house = (gg, x, y) => (look < 0 ? ART['house.t3'].draw(gg, x, y) : cottage(gg, x, y, look, Math.floor(x) % 3));
+      const house = (gg, x, y) => (look < 0 ? HOUSE_TODAY['house.t3'].draw(gg, x, y) : cottage(gg, x, y, look, Math.floor(x) % 3));
       if (look < 0) groundToday(g, 6, house); else groundNew(g, 6, look, house);
       g.ctx.restore();
     },

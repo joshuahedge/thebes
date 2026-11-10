@@ -3,6 +3,8 @@
 // fades), so it reads under Gentle and Still as under Full: a pale cloth with a dark edge, a pole across the lintel, two folds and a
 // ragged hem, wider and taller than the door so it reads at default zoom on a phone. createUI draws it inside the fire hook (opts.fire), after the sprites.
 import { p, U } from './iso.js';
+import { homeDoor } from './art/housing.js';
+import { homeVariant } from './art/registry.js';
 
 export const CLOTH = { fill: '#A9B8A0', fold: '#7C8E76', edge: '#4A5A48', pole: '#6B4A3A', hem: '#8E9F88' };
 
@@ -22,7 +24,7 @@ const inRange = (b, r) => !r || (b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= 
 
 // The cloth's art points for a home: { pole: [a, b], cloth: the quad, hem: the ragged lower edge, folds: [[a, b], ...] }.
 export function clothFor(b) {
-  const d = DOORS[b.tier] || DOORS[1];
+  const d = (b.tier >= 1 && b.tier <= 9 && homeDoor(b.tier, homeVariant(b))) || DOORS[b.tier] || DOORS[1];   // Version 9.3 (Track H): the door of this home's variant
   const w = Math.max(d.hw * 2.2, 0.15), top = d.h + 2, bottom = 0.4;   // wider and taller than the door, so it reads at default zoom on a phone
   const at = (u, z) => U(p(b.x + d.cx + u * w, b.y + d.fy + 0.02), z);
   return {

@@ -4,7 +4,7 @@
 // the sprite shows, and the shadow grows with it.
 import { ART_SCALE, p, depthKey, compareDepth } from './iso.js';
 import { visibleTileRange, visibleChunks, artToScreen, CHUNK } from './camera.js';
-import { ART, slotFor } from './art/registry.js';
+import { ART, slotFor, FAR_ZOOM } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
@@ -94,7 +94,7 @@ export function collectObjects(world, range, walkers = [], registry = ART, scree
   const out = [];
   const cull = screen && cullControl.on ? viewCull(screen.cam, screen.view) : null;
   for (const b of buildingsInRange(world, range)) {
-    const slot = slotFor(b, world);
+    const slot = slotFor(b, world, { far: Boolean(screen) && screen.cam.zoom <= FAR_ZOOM });   // Version 9.3 (Track H): a home at far zoom is its plain far drawing
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
     if (cull && !def.live && !cull.sees(b.x, b.y, def.bounds, def.height)) continue;
