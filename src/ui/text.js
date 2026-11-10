@@ -4843,7 +4843,8 @@ export const U93_TEXT = {
   // "Sea Peoples, week 47"; two decrees are joined with " and ".
   mark: (names, week) => `${names.join(' and ')}, week ${U93_TEXT.weekNumber(week)}`,
   markOf: (ids, week) => U93_TEXT.mark(ids.map((id) => U93_TEXT.names[id] || id), week),
-  bonusOf: (ids) => ids.map((id) => U93_TEXT.bonus[id]).filter(Boolean).join(' and '),
+  bonusOf: (ids) => ids.map((id) => U93_TEXT.bonus[id]).filter(Boolean).map((s, i) => (i ? `${s.charAt(0).toLowerCase()}${s.slice(1)}` : s)).join(' and '),   // final fix: a pair's second label reads mid-sentence
+  chipWhat: "The decree's score: five parts and the decree bonus, 100 each, out of 600.",   // final fix: the score chip's popover in a decree run
   cardTitle: "This week's decree",
   cardGroup: 'The decree',
   changes: 'What changes',

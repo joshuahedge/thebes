@@ -5,3 +5,4 @@ import './xu-decree.test.js';
 import './h-homes-ground.test.js';   // group H: the big homes' variant shadows and the Capital street
 import './b-workshops.test.js';
 import './speed.test.js';
+import './final.test.js';   // the re-review's last fixes
