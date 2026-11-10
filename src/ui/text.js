@@ -4811,6 +4811,16 @@ export const A92_TEXT = {
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'minimap') + 1, 0, ['frame', 'Fit the city to the screen']);   // ruling 1851: the F key
 T.gesturesHelp += ' Open the Minimap and tap Fit the city, or press F, to fit the whole city on the screen.';   // fix wave, ruling 1876: the button is what a phone has; the double tap on the Map button is a shortcut the words do not promise
 
+// Version 9.3, Track S
+// The decree's share text (src/ui/share.js decreeShareText): "Sea Peoples, week 47: 412 of 600, silver", then a row of squares per part. Track U may reword it at the merge.
+export const DECREE_SHARE_TEXT = {
+  line: (mark, total, medal) => `${mark}: ${total} of 600${medal ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
+  parts: { ...SCORE_TEXT.parts, bonus: 'Decree' },
+};
+
+// Version 9.3, Track M
+export const M93_TEXT = { rebuilds: 'The city rebuilds in the new style over the next months.' };   // ruling 1930: the rank-up caption's why, for a rank that brings a new look
+
 // Version 9.3, Track U (the decree's interface; rulings 1975-1984). Track U writes only between this header and the end of the file.
 // "Decree" is the mode's one name. The sim's numbers are read from src/data/decrees.js and src/sim/rules.js where a number shows; the twist lines below are the table's words.
 export const U93_TEXT = {

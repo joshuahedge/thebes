@@ -100,7 +100,8 @@ describe('farms, orchard, garden, statue and booth art', () => {
       expect(slotFor({ ...farm, staff: 0 }, world)).toBe(`${type}.g0.peret`);              // idle: fallow, or bare trees
       expect(slotFor(farm)).toBe(type);
     }
-    for (const type of ['garden', 'statue', 'booth']) expect(slotFor({ type })).toBe(type);
+    for (const type of ['garden', 'statue']) expect(slotFor({ type })).toBe(type);
+    expect(slotFor({ type: 'booth' })).toBe('booth.l0.shut');   // Version 9.3 (Track B): a booth carries its look and its state
   });
   it('gives each crop its own look: golden barley, flax in blue flower, figs ripening on the trees', () => {
     expect(CROPS).toEqual(['grain', 'barley', 'flax']);

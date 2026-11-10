@@ -3,9 +3,11 @@
 // them as a continuous mudbrick band from wallPiece, gatePiece and breachPiece (src/render/terrainWalls.js), and the
 // 'wall' and 'gate' slots are what their card and the gate's picture show, built from the same pieces.
 import { box, tb, qd, crs, door, win, parapet, pots, awn, p, U, quad, hs } from './primitives.js';
-import { pennant } from './services.js';
+import { pennant, styled, lookSlot } from './services.js';
+import { gildedCap } from './primitives.js';
+import { MATERIALS } from './materials.js';
 import {
-  WASH, WASH2, MUD, MUD2, STONE, RED, RED_DARK, TEAL, GOLD, WOOD, DOOR, INK, SHADOW, TERRAIN,
+  WASH, WASH2, MUD, MUD2, STONE, RED, RED_DARK, TEAL, GOLD, WOOD, DOOR, INK, SHADOW, TERRAIN, LIME, TEAL_DARK,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
 import { SHELL, SHELL_VARIANTS, shellHeightClass } from '../../data/battle.js';
@@ -60,7 +62,9 @@ export function rubble(g, x, y, v = 0) {
   for (const [u, h] of steps) bx(u, 0.18, 0.14, 0.14, h + (v === 2 ? -0.8 : 0), 0, MUD2);
   g.line(P(0.15, 0.32, 2.6), P(0.66, 0.32, 1.4), BURNT, 0.6, 0.55);                 // scorch along its foot
   const ring = [[0.2, 0.66], [0.3, 0.44], [0.52, 0.38], [0.74, 0.46], [0.84, 0.66], [0.66, 0.86], [0.38, 0.84]];
+  g.ell(P(0.6, 0.86, 0), 10, 2.2, SHADOW, { alpha: 0.14 });                       // Version 9.3 (Track N, ruling 1926): the heap's cast shadow, and its lit crest below
   g.poly(ring.map(([u, w2]) => P(u, w2, 0)), HEAP[2], { outline: true });          // the heap's footing in shade
+  g.line(P(0.3, 0.46, 3.4), P(0.74, 0.46, 3.2), '#F3DDB0', 0.5, 0.6);
   g.poly(ring.map(([u, w2]) => { const d = Math.hypot(u - 0.52, w2 - 0.64); return P(u + (0.52 - u) * 0.2, w2 + (0.64 - w2) * 0.2, 2.6 - d * 3); }), HEAP[1]);
   g.poly([P(0.36, 0.56, 3.2), P(0.52, 0.5, 3.8), P(0.66, 0.58, 3.2), P(0.52, 0.7, 2.6)], HEAP[0]);
   const chunks = [[0.32, 0.6, 0.14, 0.1, 1.4, 2.2], [0.5, 0.52, 0.12, 0.12, 1.6, 2.8], [0.62, 0.66, 0.1, 0.14, 1.2, 1.8], [0.42, 0.72, 0.12, 0.08, 1, 1.4]];
@@ -303,6 +307,7 @@ export function shell(g, x, y, cause, mask, tall, v = 0) {
   };
   for (const edge of [0, 1]) if (mask & (1 << edge)) for (let i = 0; i < 3; i++) stub(edge, i, false);   // the back walls first
   const ring = [[0.2, 0.62], [0.3, 0.4], [0.52, 0.34], [0.74, 0.42], [0.84, 0.62], [0.68, 0.84], [0.4, 0.84]];
+  g.ell(P(0.6, 0.86, 0), 10, 2.2, SHADOW, { alpha: fire ? 0.2 : 0.14 });                          // Version 9.3 (Track N, ruling 1926): the heap's cast shadow
   g.poly(ring.map(([u, w2]) => P(u, w2, 0)), HP[2], { outline: true });                           // the heap's footing in shade
   g.poly(ring.map(([u, w2]) => { const d = Math.hypot(u - 0.52, w2 - 0.62); return P(u + (0.52 - u) * 0.18, w2 + (0.62 - w2) * 0.18, (fire ? 3.4 : 2.2) - d * 3); }), HP[1]);
   g.poly([P(0.38, 0.54, 3.6), P(0.54, 0.48, 4.2), P(0.68, 0.56, 3.6), P(0.54, 0.68, 3)], HP[0]);
@@ -339,6 +344,32 @@ export const DEFENCE_ART = {
   wall: { w: 1, d: 1, height: 9, bounds: [-32, -20, 32, 28], shadows: [], draw: wallRun },
   gate: { w: 1, d: 1, height: 18, bounds: [-32, -28, 32, 30], shadows: [], draw: gateRun },
   rubble: { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, 0) },
+};
+// Version 9.3, Track B: the firehouse (a landmark: at City its lookout becomes a watchtower, at Capital a taller one under a gilded cap), the tower and the
+// barracks, in four looks and three states (registry.js runs this table through withLooks). Walls and rubble are not here (a wall piece is a tile layer).
+const FIRE_TOWER = [0, 0, 9, 13];
+function firehouseFront(g, x, y, look) {
+  if (look < 2) return;
+  const m = MATERIALS[look], h = FIRE_TOWER[look];
+  const T = box(g, x + 0.18, y + 0.16, 0.3, 0.3, h, 11, look === 2 ? m.wall : [LIME[0], LIME[1], LIME[2]]);
+  qd(g, T.L, 0.3, 0.7, h * 0.4, h * 0.8, DOOR);
+  qd(g, T.R, 0.3, 0.7, h * 0.4, h * 0.8, DOOR);
+  qd(g, T.L, 0, 1, h - 1.6, h - 0.8, look === 2 ? RED : TEAL);
+  qd(g, T.R, 0, 1, h - 1.6, h - 0.8, look === 2 ? RED_DARK : TEAL_DARK);
+  box(g, x + 0.15, y + 0.13, 0.36, 0.36, 1.2, 11 + h, [m.cornice[0], m.cornice[1], m.cornice[2]], 0);
+  if (look === 3) gildedCap(g, U(p(x + 0.33, y + 0.31), 12.2 + h), 2.4);
+  else awn(g, x + 0.14, y + 0.12, 0.38, 0.38, 11 + h + 4, RED, RED_DARK, '#F6ECD6');
+}
+export const DEFENCE_LOOKS = {
+  firehouse: lookSlot(1, 1, [19, 19, 30, 36], [[0.12, 0.12, 0.66, 0.6, 11]], styled((g, x, y) => firehouse(g, x, y), {
+    body: [0.12, 0.12, 0.66, 0.6, 11], doors: [[0.24, 0.58, 6.6]], front: firehouseFront, by: [0.92, 0.88], noPalm: true,
+  })),
+  tower: lookSlot(1, 1, 31, [[0.2, 0.2, 0.6, 0.6, 24]], styled((g, x, y) => tower(g, x, y), {
+    mud: true, body: [0.2, 0.2, 0.6, 0.6, 22], band: 18, doors: [[0.38, 0.62, 5.2]], shutters: false, by: [0.9, 0.9], noPalm: true,
+  })),
+  barracks: lookSlot(2, 2, 19, [[0.12, 0.12, 1.76, 0.66, 11], [1.34, 0.78, 0.54, 0.5, 7]], styled((g, x, y) => barracks(g, x, y), {
+    mud: true, body: [0.12, 0.12, 1.76, 0.66, 11], doors: [[0.46, 0.56, 6.6]], band: 8.6, shutters: false,
+  })),
 };
 for (let v = 0; v < RUBBLE_VARIANTS; v++) DEFENCE_ART[`rubble.v${v}`] = { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, v) };
 // Version 6.0 (Track B2): every shell, by cause, edges, height class and variant (drawn when first shown, like any slot).

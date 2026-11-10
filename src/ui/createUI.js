@@ -93,7 +93,8 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT, M93_TEXT } from './text.js';
+import { bringsNewLook } from '../render/v93/sweep.js';   // Version 9.3 (Track M)
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 import { SPLITS } from '../data/scoring.js';
@@ -793,7 +794,7 @@ export function createUI({
   function cheerFor(e) {
     if (e.type === 'milestone') {
       const m = MILESTONES.find((x) => x.id === e.id);
-      return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), onShow: () => { sfx.play('milestone'); sfx.buzz(40); } };
+      return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), why: bringsNewLook(e.id) ? M93_TEXT.rebuilds : '', onShow:() => { sfx.play('milestone'); sfx.buzz(40); } };
     }
     if (e.type === 'goal') {                           // on a phone it reads as the strip itself changing: "✓ Lay a road +25 gold"
       const g = goalById(e.id);

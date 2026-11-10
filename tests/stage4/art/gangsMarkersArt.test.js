@@ -274,6 +274,6 @@ describe('s4 art pinned markers', () => {
     expect(countNear(c, UI.problem, 12)).toBeGreaterThan(200);
     const stem = px(m.x, (m.y + m.r + m.foot.y) / 2);
     expect(stem[3]).toBe(255);
-    expect(slotFor(well)).toBe('well');
+    expect(slotFor(well)).toBe('well.l0.work');   // Version 9.3 (Track B): the look and the state
   });
 });

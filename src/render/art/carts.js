@@ -4,7 +4,7 @@
 // by colour alone. The cart is drawn a third larger than a walker so it reads at phone zoom. Figures face right; `_l` slots are the same drawing mirrored.
 import { p } from './primitives.js';
 import { fig } from './figures.js';
-import { WOOD, GOLD, TEAL, SHADOW } from './palette.js';
+import { WOOD, GOLD, TEAL, SHADOW, INK } from './palette.js';
 import { GOODS } from '../../data/goods.js';
 
 const PLANK = ['#CFA970', '#B58A56', '#8D6A44'];
@@ -101,7 +101,8 @@ export function cart(g0, gx, gy, good, left = false) {
   const [X, Y] = (() => { const c = p(gx, gy); return [c[0], c[1]]; })();
   const g = facing(g0, X, left), [col, kind] = loadOf(good);
   const P = (dx, dy) => [X + dx * S, Y + dy * S];
-  g.ell(P(-3, 0), 12 * S, 2 * S, SHADOW, { alpha: 0.25 });
+  g.ell(P(-1, 0.2), 12 * S, 2 * S, SHADOW, { alpha: 0.16 });                                 // Version 9.3 (Track N): a soft cast, and a dark contact patch under the wheel
+  g.ell(P(1.4, 0.2), 3.4 * S, 0.8 * S, INK, { alpha: 0.3 });
   g.line(P(-6.5, -7), P(-13, -6.2), WOOD, 1.1);                                               // the handles the pusher holds
   g.line(P(-6.5, -5.4), P(-13, -5.2), WOOD, 0.9);
   // the pusher, a citizen a step behind the handles
@@ -110,6 +111,8 @@ export function cart(g0, gx, gy, good, left = false) {
   g.poly([P(-6.6, -5), P(6.6, -5), P(5.8, -9.2), P(-5.8, -9.2)].map((q) => q), PLANK[0], { outline: true });   // the bed
   g.line(P(-6.2, -6.4), P(6.2, -6.4), PLANK[2], 0.5, 0.8);
   g.line(P(-6.6, -5), P(6.6, -5), PLANK[2], 0.8);
+  g.poly([P(-6.6, -5), P(6.6, -5), P(6.3, -6.2), P(-6.3, -6.2)], PLANK[2], { alpha: 0.5 });   // the bed's shaded underside
+  g.line(P(-6.2, -9.2), P(5.6, -9.2), '#F3DDB0', 0.5, 0.7);                                   // and its lit rim
   drawLoad(g, P, null, kind, col);
   g.circ(P(1.4, -3.2), 3.2 * S, PLANK[2], { outline: true });                                 // the wheel, in front of the bed's side
   g.circ(P(1.4, -3.2), 2.1 * S, PLANK[1]);

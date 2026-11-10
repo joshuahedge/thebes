@@ -4,11 +4,14 @@
 // building nobody works at (an idle one employs nobody: src/sim/labour.js) shows its tools laid down and nobody at work,
 // through its own slot (registry.js slotFor: '<type>.idle'). The brickworks' drying rows show how fast it makes bricks
 // (its staffing: brickworksStage), one to three rows, so a half-staffed brickworks reads as half at work.
-import { box, tb, qd, door, win, parapet, mat, awn, pots, p, U, quad, hs } from './primitives.js';
+import { box, tb, qd, door, win, parapet, mat, awn, pots, p, U, quad, hs, gildedCap } from './primitives.js';
 import { rock } from './nature.js';
-import { fig } from './figures.js';
-import { pennant } from './services.js';
-import { WASH, WASH2, MUD, MUD2, ROCK, STONE, SST, TEAL, TEAL_DARK, RED, GOLD, GREEN, GREEN_DARK, WOOD, SHADOW, POT } from './palette.js';
+import { fig as figDraw } from './figures.js';
+import { pennant, styled, lookSlot, smokePuff, isShut } from './services.js';
+import { WASH, WASH2, MUD, MUD2, ROCK, STONE, SST, TEAL, TEAL_DARK, RED, GOLD, GREEN, GREEN_DARK, WOOD, SHADOW, POT, LIME, BLUE } from './palette.js';
+import { MATERIALS } from './materials.js';
+
+const fig = (...a) => { if (!isShut()) figDraw(...a); };   // Version 9.3, Track B: nobody about a shut place (services.js DRAWING)
 import { CATEGORY_TINT } from '../../data/ui.js';
 import { BUILDINGS } from '../../data/buildings.js';
 import { boundsFor } from '../iso.js';
@@ -223,4 +226,33 @@ for (let r = 1; r <= 3; r++) SUPPLY_ART[`brickworks.s${r}`] = slot(18, KILN_SHAD
 export function supplySlot(b) {
   if (!(b.staff > 0) || b.paused || b.blocked === 'idle') return `${b.type}.idle`;
   return b.type === 'brickworks' ? `brickworks.s${brickworksStage(b)}` : b.type;
+}
+// Version 9.3, Track B: the slot's base, which registry.js slotFor puts the look and the state on ('quarry.l2.shut'). Idle is no longer a slot of its own: it is
+// the shut state (serviceState reads b.blocked 'idle' too), and the old '<type>.idle' keys stay as aliases that resolve to it.
+export const supplyBase = (b) => (b.type === 'brickworks' ? `brickworks.s${brickworksStage(b)}` : b.type);
+
+// The brickworks, a landmark: the City adds a tall chimney stack behind the kiln, the Capital a gilded cap on the kiln as well.
+function brickBehind(g, x, y, look, state) {
+  if (look < 2) return;
+  const m = MATERIALS[look];
+  const S = tb(g, x + 1.74, y + 0.1, 0.16, 0.16, 25, 0, 0.03, look === 2 ? m.wall : [LIME[0], LIME[1], LIME[2]]);
+  qd(g, S.L, 0, 1, 21, 22.2, look === 2 ? BLUE : TEAL); qd(g, S.R, 0, 1, 21, 22.2, look === 2 ? BLUE : TEAL_DARK, { alpha: 0.85 });
+  g.ell(U(p(x + 1.82, y + 0.18), 25), 2.4, 1.2, '#4A3030');
+  if (state !== 'shut') { const t = U(p(x + 1.82, y + 0.18), 26); smokePuff(g, [t[0] + 1, t[1] - 3], 2.6, 0.5); smokePuff(g, [t[0] + 3, t[1] - 8], 3.2, 0.38); }
+}
+function brickFront(g, x, y, look) {
+  if (look === 3) gildedCap(g, U(p(x + 1.56, y + 0.46), 14), 3.6);
+}
+
+const SLOOK = (h, shadows, draw, cfg) => lookSlot(2, 2, h, shadows, styled(draw, cfg));
+export const SUPPLY_LOOKS = {
+  builders_guild: SLOOK(20, GUILD_SHADOWS, (g, x, y, look, state) => buildersGuild(g, x, y, state === 'shut'), {
+    body: [0.12, 0.12, 1.0, 0.7, 11], doors: [[0.56, 0.74, 6.4]], band: 7.6, by: [1.1, 1.0],
+  }),
+  quarry: SLOOK(20, QUARRY_SHADOWS, (g, x, y, look, state) => quarry(g, x, y, state === 'shut'), { band: null, shutters: false, by: [0.3, 1.9] }),
+};
+for (let r = 1; r <= 3; r++) {
+  SUPPLY_LOOKS[`brickworks.s${r}`] = SLOOK([18, 18, 26, 30], KILN_SHADOWS, (g, x, y, look, state) => brickworks(g, x, y, r, state === 'shut'), {
+    band: null, shutters: false, behind: brickBehind, front: brickFront, by: [1.1, 1.95],
+  });
 }
