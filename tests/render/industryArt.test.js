@@ -55,7 +55,7 @@ describe('industry art', () => {
       expect([type, e.bounds]).toEqual([type, boundsFor(2, 2, e.height)]);
       expect([type, e.shadows.length > 0]).toEqual([type, true]);
       for (const s of e.shadows) expect(s.length).toBe(5);
-      expect(slotFor({ type, store: {} }) === type || type === 'storehouse').toBe(true);
+      expect(slotFor({ type, store: {} }).startsWith(type)).toBe(true);   // Version 9.3 (Track B): the type, then the look and the state
     }
     expect(ART.trading_post.height).toBeGreaterThan(ART.storehouse.height);   // its flag is the tallest thing in the yard
   });
@@ -74,8 +74,8 @@ describe('industry art', () => {
   });
   it('names the storehouse slot by its stock and registers each stage like the plain slot, each drawn differently', () => {
     const cap = BUILDINGS.storehouse.capacity;
-    expect(slotFor({ type: 'storehouse', store: {} })).toBe('storehouse.s0');
-    expect(slotFor({ type: 'storehouse', store: { clay: cap } }, { day: 3 })).toBe('storehouse.s3');
+    expect(slotFor({ type: 'storehouse', store: {} })).toBe('storehouse.s0.l0.shut');   // Version 9.3 (Track B): plus the look and the state (no staff: shut)
+    expect(slotFor({ type: 'storehouse', store: { clay: cap } }, { day: 3 })).toBe('storehouse.s3.l0.shut');
     const plain = ART.storehouse, hashes = new Set();
     for (let s = 0; s < 4; s++) {
       const e = INDUSTRY_ART[`storehouse.s${s}`];

@@ -88,6 +88,6 @@ describe('v70 t caravans and boats', () => {
     const before = serialize(w);
     for (const t of [80, 88, 89.5, 90.5, 93, 95]) for (const m of ['full', 'gentle', 'still']) tradeWalkers(w, t, null, m);
     expect(serialize(w)).toBe(before);
-    expect([slotFor(q, w), slotFor(q, w) in ART, slotFor(q, null)]).toEqual(['quay.n', true, 'quay']);
+    expect([slotFor(q, w).startsWith('quay.n.l'), slotFor(q, w) in ART, slotFor(q, null)]).toEqual([true, true, 'quay']);   // Version 9.3 (Track B): the side, then the look and the state
   });
 });
