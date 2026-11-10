@@ -73,7 +73,7 @@ describe('life art', () => {
     expect(slotFor({ type: 'bazaar', store: {} }, world)).toBe('bazaar.s0.l0.shut');
     expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null }, world)).toBe('farm_grain.g2.peret');   // Version 7.0 (Track S): and the season of day 3 (Peret)
     expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null })).toBe('farm_grain');
-    expect(slotFor({ type: 'house', tier: 2 }, world)).toBe('house.t2');
+    expect(slotFor({ type: 'house', tier: 2 }, world)).toBe('house.t2.v0.l0');   // Version 9.3 (Track H): a home's slot names its variant and look
     expect(slotFor({ type: 'well' }, world)).toBe('well.l0.work');
   });
   it('registers every stage slot with its building\'s footprint, height and shadows, each drawn differently', () => {

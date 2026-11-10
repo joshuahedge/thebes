@@ -7,3 +7,5 @@ import './s/all.js';         // S: the decree's save slot, records version 3 and
 import './b/all.js';         // B: services, workshops and landmarks in four looks and three states
 import './n/all.js';         // N: the rest of the art (palace, monuments, nature, figures, armies, river, boats)
 import './m/all.js';         // Track M: the rebuild's scaffolds, the level-up sweep, the notice's line
+import './m/all.js';         // Track M: the rebuild's scaffolds, the level-up sweep, the notice's line
+import './h/all.js';         // Track H: homes in four looks and three variants, and the far drawing

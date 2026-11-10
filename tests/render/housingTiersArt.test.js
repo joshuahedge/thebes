@@ -37,20 +37,20 @@ describe('house art, tiers 5 to 9', () => {
     expect(hashes.size).toBe(9);
   });
   it('registers the Townhouse as 1x1 and Manor to Estate as 2x2, each taller than the tier below', () => {
-    const e5 = ART['house.t5'];
-    expect([e5.w, e5.d, e5.draw]).toEqual([1, 1, H5]);
-    expect(e5.height).toBeGreaterThan(ART['house.t4'].height);
+    // Version 9.3 (Track H): the game's slots carry a variant and a look (house.t5.v0.l0); the heights are one number a tier, set by the tallest of its drawings
+    const e5 = ART['house.t5.v0.l0'];
+    expect([e5.w, e5.d]).toEqual([1, 1]);
+    expect(e5.height).toBeGreaterThan(ART['house.t4.v0.l0'].height);
     for (const t of [6, 7, 8, 9]) {
-      const e = ART[`house.t${t}`];
+      const e = ART[`house.t${t}.v0.l0`];
       expect([t, e.w, e.d]).toEqual([t, 2, 2]);
       expect(e.shadows).toEqual([[0.1, 0.1, 1.2, 0.82, BIG[t].hA + 3], [1.25, 0.1, 0.65, 1.25, BIG[t].hB + 3]]);
       expect(typeof e.draw).toBe('function');
     }
-    for (const t of [5, 6, 7, 8, 9]) expect(ART[`house.t${t}`].bounds).toEqual(boundsFor(ART[`house.t${t}`].w, ART[`house.t${t}`].d, ART[`house.t${t}`].height));
-    expect(ART['house.t6'].height).toBeLessThan(ART['house.t7'].height);
-    expect(ART['house.t7'].height).toBeLessThan(ART['house.t8'].height);
-    expect(ART['house.t8'].height).toBeLessThan(ART['house.t9'].height);
-    expect([6, 7, 8, 9].map((t) => ART[`house.t${t}`].height)).toEqual([21, 24, 27, 36]);
+    for (const t of [5, 6, 7, 8, 9]) expect(ART[`house.t${t}.v0.l0`].bounds).toEqual(boundsFor(ART[`house.t${t}.v0.l0`].w, ART[`house.t${t}.v0.l0`].d, ART[`house.t${t}.v0.l0`].height));
+    expect(ART['house.t6.v0.l0'].height).toBeLessThan(ART['house.t7.v0.l0'].height);
+    expect(ART['house.t7.v0.l0'].height).toBeLessThan(ART['house.t8.v0.l0'].height);
+    expect(ART['house.t8.v0.l0'].height).toBeLessThan(ART['house.t9.v0.l0'].height);
     // spec 5.3: each big home stands clearly taller than the tier below, main block and annexe both
     for (const t of [7, 8, 9]) expect([t, BIG[t].hA - BIG[t - 1].hA >= 2, BIG[t].hB - BIG[t - 1].hB >= 2]).toEqual([t, true, true]);
   });
@@ -74,8 +74,8 @@ describe('house art, tiers 5 to 9', () => {
   });
   it('names a slot for every tier and nothing past the top', () => {
     for (let t = 1; t <= 9; t++) {
-      expect(slotFor({ type: 'house', tier: t })).toBe(`house.t${t}`);
-      expect(typeof ART[`house.t${t}`].draw).toBe('function');
+      expect(slotFor({ type: 'house', tier: t })).toBe(`house.t${t}.v0.l0`);
+      expect(typeof ART[`house.t${t}.v0.l0`].draw).toBe('function');
     }
     expect(ART['house.t10']).toBe(undefined);
   });

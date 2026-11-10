@@ -48,11 +48,11 @@ describe('sprite cache', () => {
     const cache = createSpriteCache();
     const c = makeCanvas(200, 200);
     const ctx = c.getContext('2d');
-    drawSprite(ctx, cache.get('house.t1', 1, 1), 100, 100, 1, 1);
+    drawSprite(ctx, cache.get('house.t1.v0.l0', 1, 1), 100, 100, 1, 1);
     expect(pixelAt(c, 100, 112)[3]).toBeGreaterThan(0);
     expect(pixelAt(c, 10, 10)[3]).toBe(0);
     const z = makeCanvas(200, 200);
-    drawSprite(z.getContext('2d'), cache.get('house.t1', 0.5, 1), 100, 100, 0.5, 1);
+    drawSprite(z.getContext('2d'), cache.get('house.t1.v0.l0', 0.5, 1), 100, 100, 0.5, 1);
     let big = 0, small = 0;
     for (let x = 0; x < 200; x += 2) for (let y = 0; y < 200; y += 2) {
       if (pixelAt(c, x, y)[3] > 0) big++;

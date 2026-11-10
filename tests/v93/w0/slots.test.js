@@ -44,11 +44,14 @@ describe('v93 w0 slots: the look, the variant and the state in a slot key', () =
   it('keeps today\'s key for a type no track has expanded, and adds suffixes once it is', () => {
     const w = makeTestWorld(); w.milestone = 'capital'; w.splits.capital = 0; w.day = 1000;
     const h = makeBuilding(w, 'house', 5, 5); h.tier = 3;
-    expect(slotFor(h, w)).toBe('house.t3');
-    EXPANDED.set('house.t3', { looks: true, variants: 3, states: false });
-    const v = homeVariant(h);
-    expect(slotFor(h, w)).toBe(`house.t3.v${v}.l3`);
-    EXPANDED.delete('house.t3');
-    expect(slotFor(h, w)).toBe('house.t3');
+    // Version 9.3 (Track H): homes are expanded now, so the test borrows a made-up type for the unexpanded half
+    const fake = { type: 'fake_unexpanded', x: 5, y: 5, w: 1, d: 1 };
+    expect(slotFor(fake, w)).toBe('fake_unexpanded');
+    EXPANDED.set('fake_unexpanded', { looks: true, variants: 3, states: false });
+    const v = homeVariant(fake);
+    expect(slotFor(fake, w)).toBe(`fake_unexpanded.v${v}.l3`);
+    EXPANDED.delete('fake_unexpanded');
+    expect(slotFor(fake, w)).toBe('fake_unexpanded');
+    expect(slotFor(h, w)).toBe(`house.t3.v${homeVariant(h)}.l3`);
   });
 });

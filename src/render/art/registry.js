@@ -3,7 +3,7 @@
 // with the footprint in tiles, height and bounds in art px relative to p(x, y) of the footprint origin,
 // and shadows as ground-shadow blocks relative to the origin tile. A slot can later point at a PNG by
 // replacing `draw` with `png: { src, ax, ay, scale }` (see spriteCache.js); nothing else changes.
-import { HOUSE_ART } from './housing.js';
+import { HOUSE_ART, HOUSE_LOOKS } from './housing.js';
 import { SERVICE_ART, SERVICE_LOOKS } from './services.js';
 import { INDUSTRY_ART, INDUSTRY_LOOKS } from './industry.js';
 import { NATURE_ART } from './nature.js';
@@ -40,11 +40,16 @@ export const ART = {
 // or brickworks nobody works at shows its idle look (supply.js supplySlot), the brickworks by its drying rows; a plaza by
 // which of its neighbours are plazas (plaza.js plazaEdges) and a sphinx by the way it faces (sphinxFacing), both of which
 // need the world (without one, their plain slots). Everything else is its type.
-export function slotFor(b, world = null) {
+// Version 9.3 (Track H, ruling 1893): with { far: true } (the camera at 0.6 or under, FAR_ZOOM) a slot that has a far drawing (ex.far, set for homes below) gives that,
+// house.t3.l2.far: one plain drawing per tier and look, no variant and no clutter.
+export const FAR_ZOOM = 0.6;
+export function slotFor(b, world = null, { far = false } = {}) {
   const base = baseSlotFor(b, world);
   const ex = EXPANDED.get(base);
   if (!ex) return base;                                // a slot no track has put through withLooks keeps today's key
-  return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1, ex.states ? serviceState(b) : '');
+  const look = ex.looks ? (world ? lookOfBuilding(world, b) : 0) : -1;
+  if (far && ex.far) return `${base}.l${look}.far`;
+  return expandedKey(base, ex.variants > 1 ? homeVariant(b) % ex.variants : -1, look, ex.states ? serviceState(b) : '');
 }
 
 function baseSlotFor(b, world) {
@@ -111,3 +116,10 @@ export function serviceState(b) {
 // 'storehouse.s1', 'potter', ...) stay as they were for cards and older callers; '<type>.idle' now resolves to the Town look shut.
 for (const table of [SERVICE_LOOKS, INDUSTRY_LOOKS, DEFENCE_LOOKS, SUPPLY_LOOKS, TRADE_LOOKS, FERRY_LOOKS]) Object.assign(ART, withLooks(table, { states: true }));
 for (const type of SUPPLY_TYPES) ART[`${type}.idle`] = ART[type === 'brickworks' ? 'brickworks.s1.l1.shut' : `${type}.l1.shut`];
+
+// ---- Version 9.3, Track H: homes in four looks and three variants (rulings 1890-1899) ----
+// housing.js exports HOUSE_LOOKS (draws take opt = { look, variant }) and expanded here the same way (Track B's fix for the import cycle) into
+// 'house.t<n>.v<v>.l<look>'; its far drawings ('house.t<n>.l<look>.far') are in HOUSE_ART, and marking the base far lets slotFor name them.
+// The plain 'house.t<n>' stays for cards (ui/thumbs.js) and older callers: the Village look, variant 0.
+Object.assign(ART, withLooks(HOUSE_LOOKS, { variants: 3 }));
+for (const base of Object.keys(HOUSE_LOOKS)) { EXPANDED.get(base).far = true; ART[base] = ART[`${base}.v0.l0`]; }
