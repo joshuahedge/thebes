@@ -113,7 +113,8 @@ describe('v91 w0 seams: the rescue, autosave\'s blocked() and the caches', () =>
     expect(b.split('installRescue(').length).toBe(2);   // one call (the import names it without a bracket)
     const call = b.indexOf('installRescue({');
     expect(call > 0).toBe(true);
-    for (const opener of ["if (params.get('skipTitle') === '1')", '} else showTitle(await loadSave(store));']) expect([opener, call < b.indexOf(opener)]).toEqual([opener, true]);
+    // Version 9.3 (Track U): the title opens through loadForTitle (the decree slot is read first, then the main slot)
+    for (const opener of ["if (params.get('skipTitle') === '1')", '} else showTitle(await loadForTitle());']) expect([opener, call < b.indexOf(opener)]).toEqual([opener, true]);
     expect(b.slice(call, b.indexOf(';', call))).toContain('game: () => current');
   });
   it('autosave saves as on 9.0 until ui.setAutosaveBlocked(true), then never calls the save and raises no save-failing banner', async () => {

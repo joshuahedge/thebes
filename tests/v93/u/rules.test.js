@@ -7,7 +7,10 @@ import { roadReach } from '../../../src/sim/reach.js';
 import { capacityOf, ruleReach } from '../../../src/sim/rules.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { FIRE } from '../../../src/data/fire.js';
-import { DECREE } from '../../../src/data/decrees.js';
+import { DECREE, DECREES } from '../../../src/data/decrees.js';
+import { decreeScore } from '../../../src/sim/score.js';
+import { thresholdFor } from '../../../src/ui/goalsList.js';
+import { thresholdMedalText } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 const under = (w, ids) => { w.decree = { week: '2026-47', ids, endDay: DECREE.endDay, ended: false }; return w; };
@@ -33,6 +36,15 @@ describe('v93 u rules: the interface reads the decree\'s numbers', () => {
     const build = (w) => { for (const x of [3, 6, 24, 27]) addRaw(w, 'house', x, 11, { tier: 1, residents: 5 }); return w; };
     const plain = build(roadWorld()), fire = build(under(roadWorld(), ['fire_season']));
     expect(firehouseReachFrom(fire, 15, 11) > firehouseReachFrom(plain, 15, 11)).toBe(true);
+  });
+
+  it('the next-medal bar in a decree run counts to the decree\'s own medals out of 600', () => {
+    const w = under(makeTestWorld(), ['sea_peoples']);
+    w.milestone = 'capital';
+    const total = decreeScore(w).total, [bronze] = DECREES.sea_peoples.medals;
+    const t = thresholdFor(w);
+    expect(total < bronze).toBe(true);
+    expect([t.kind, t.text]).toEqual(['medal', thresholdMedalText({ medal: 'bronze', points: bronze - total })]);
   });
 
   it('Low Nile: a granary holds double, a storehouse as before', () => {
