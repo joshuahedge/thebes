@@ -150,10 +150,12 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : '', info.isNew ? 'new' : '', advised ? 'advised' : ''].filter(Boolean).join(' ');
     const thumb = drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, dpr);
     // The badge is a word, part of the card's name for screen readers, so the colour never says it alone.
-    const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
+    // Version 9.2 (Track Q, ruling 1792): one badge to a card: Suggested wins over New.
+    const badge = info.isNew && !advised ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
+    // Version 9.2 (Track Q, ruling 1792): the card shows the price alone; the monthly cost and workers are in the confirm bar.
     const b = el('button', { type: 'button', class: cls, dataset: { item }, 'data-lock': `tray-item-${item}`, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
-      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(world, item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge, advised ? el('span', { class: 'hint', text: TRAY_V81_TEXT.advised }) : null,
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge, advised ? el('span', { class: 'hint', text: TRAY_V81_TEXT.advised }) : null,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;

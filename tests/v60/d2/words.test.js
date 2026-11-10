@@ -69,7 +69,7 @@ describe('v60 d2 the lesson\'s words are the sim\'s', () => {
   it('month names the wage and the forecast the sim gives', () => {
     const w = at('month');
     const words = said(w, 'month');
-    expect(words.why).toContain(`${ECONOMY.wagePerWorker} gold for each worker`);
+    expect(words.why).toContain(`${ECONOMY.wagePerWorker} gold a worker`);
     const f = lessonFacts(w, LESSON_STEPS[idx('month')]);
     expect(Number.isFinite(f.forecast)).toBe(true);
     expect(words.why).toContain(`${f.forecast >= 0 ? '+' : '−'}${Math.abs(f.forecast)} a month now`);

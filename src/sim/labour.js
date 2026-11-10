@@ -1,10 +1,30 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
-import { PRIORITY_LEVELS, MIN_STAFF_RATIO } from '../data/labour.js';
+import { PRIORITY_LEVELS, PRIORITY_LEVELS_BEFORE_TOWN, MIN_STAFF_RATIO } from '../data/labour.js';
+import { atLeast } from './progression.js';
 import { population, allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
 import { crewPlan, hasMonumentWork } from './monuments.js';
 import { syncFerries } from './ferries.js';
+
+// Version 9.2 (Track L, ruling 1758): the order workers fill the levels in now: services ahead of safety until the city is a Town, then 9.1's order.
+export const priorityOrder = (world) => (atLeast(world, 'town') ? PRIORITY_LEVELS : PRIORITY_LEVELS_BEFORE_TOWN);
+
+// Version 9.2 (Track L, design 2.6): why a short workplace is short, for its alert's words: the kind of building holding the most workers on the level just ahead of its own (in the
+// order now used) that has any, or null when no level ahead of it holds a worker. Read from the staff assignLabour gave, never a stored guess.
+export function workersWentTo(world, b) {
+  const order = priorityOrder(world), mine = order.indexOf(BUILDINGS[b.type].priority);
+  for (let k = mine - 1; k >= 0; k--) {
+    const by = {};
+    for (const o of allBuildings(world)) {
+      const def = BUILDINGS[o.type];
+      if (def.workers && def.priority === order[k] && o.staff > 0) by[o.type] = (by[o.type] || 0) + o.staff;
+    }
+    const best = Object.entries(by).sort((p, q) => q[1] - p[1] || (p[0] < q[0] ? -1 : 1))[0];
+    if (best) return best[0];
+  }
+  return null;
+}
 
 export function assignLabour(world) {
   const workforce = Math.floor(population(world) * ECONOMY.workerShare);
@@ -26,7 +46,7 @@ export function assignLabour(world) {
     jobs += def.workers;
   }
   const shortLevels = [];
-  for (const level of PRIORITY_LEVELS) {
+  for (const level of priorityOrder(world)) {
     const list = byLevel[level] || [];
     if (!list.length) continue;
     const demand = list.reduce((s, b) => s + BUILDINGS[b.type].workers, 0);

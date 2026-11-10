@@ -17,6 +17,10 @@ const recordsOf = (s) => JSON.parse(s.storage.data[RECORDS_KEY] || '{"cities":[]
 async function handedOver() {
   const s = await pageAt('raid', { width: 1280, height: 800 });
   for (let d = 0; d < 300 && s.api.game().lesson; d++) { s.io.tick(); if (s.g().world.raid.last) break; }
+  // Version 9.2 (Track L, ruling 1755): the end card's Keep building this city hands the city over (it was a timer)
+  await waitFor(() => Boolean(s.root.querySelector('#sheet .lesson-keep')), 3000);
+  const keep = s.root.querySelector('#sheet .lesson-keep');
+  if (keep) keep.click();
   await waitFor(() => !s.api.game().lesson, BEAT_MS + 3000);
   return s;
 }

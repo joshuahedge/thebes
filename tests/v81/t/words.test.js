@@ -43,7 +43,7 @@ describe('v81 t words: the story', () => {
     expect([ipiLine(V81T_TEXT.handover), V81T_TEXT.handover.startsWith('From here, Thebes is yours.')]).toEqual([true, true]);
     for (const c of LESSON_CHAPTERS) expect([c.id, ipiLine(V81T_TEXT.refused(c.id)), V81T_TEXT.refused(c.id).endsWith('the rest comes soon.')]).toEqual([c.id, true, true]);
     expect(V81T_TEXT.refused('roads')).toBe('First the road; the rest comes soon.');
-    expect([TRAY_TEXT.adviceHead, ipiLine(T.adviceLead)]).toEqual(['Ipi suggests', true]);
+    expect([TRAY_TEXT.adviceHead, ipiLine(T.adviceLead)]).toEqual(['City advice', true]);
   });
 });
 

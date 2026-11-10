@@ -41,6 +41,7 @@ import { unitsAtHome, sendUnits } from './armies.js';
 import { herdArrives, herdLeaves, huntingOutlook } from './wildlife.js';
 import { buyForecast, fishFactor } from './flood.js';
 import { hash2 } from './rng.js';
+import { letterMayCome, noteLetter } from './letters.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
 const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR;
@@ -571,15 +572,18 @@ function endEffects(world) {
 
 function issueRequest(world, events) {
   const c = world.court;
+  if (!letterMayCome(world, 'request')) return;
   const guided = c.guided === 'pending';
   const r = createRequest(world, events, guided);
   if (!r) { c.nextRequestDay = world.day + CARDS.retryDays; return; }
   if (guided) c.guided = 'issued';
+  noteLetter(world, 'request');
   c.nextRequestDay = world.day + pick(REQUESTS.gapMonths, draw(world, r.id, world.day, 'requestGap')) * DAYS_PER_MONTH;
 }
 
 function issueCard(world, events, hooks) {
   const c = world.court;
+  if (!letterMayCome(world, 'card')) return;
   if (world.raid.active) { c.nextCardDay = world.day + CARDS.raidRetryDays; return; }
   if (c.letters.some((l) => l.kind === 'card')) { c.nextCardDay = world.day + CARDS.retryDays; return; }
   const all = eligibleCards(world, hooks);
@@ -591,6 +595,7 @@ function issueCard(world, events, hooks) {
   c.nextId += 1;
   c.letters.push({ id, kind: 'card', card: chosen.card, day: world.day, read: false, args: chosen.args });
   c.lastCard = chosen.card;
+  noteLetter(world, 'card');
   c.nextCardDay = world.day + pick(CARDS.gapMonths, draw(world, id, world.day, 'cardGap')) * DAYS_PER_MONTH;
   if (events) events.push({ type: 'court_letter', id, kind: 'card', card: chosen.card });
 }

@@ -47,14 +47,15 @@ describe('s4 contract monument data', () => {
     expect(MONUMENT_KINDS.map((k) => MONUMENTS[k].extra)).toEqual([null, { kind: 'gilding', gold: 1000 }, null, null, null, null, null, null, null, { kind: 'capstone', gold: 5000 }, null]);
     expect(MONUMENT_KINDS.map((k) => MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done)).toEqual([10, 30, 40, 50, 70, 110, 130, 160, 210, 270, 200]);
     for (const k of MONUMENT_KINDS) expect([k, MONUMENTS[k].prestige.courses]).toEqual([k, MONUMENTS[k].prestige.done]);
-    expect(MONUMENT_KINDS.filter((k) => !NEW_MONUMENT_KINDS.includes(k) && k !== 'great_temple').reduce((s, k) => s + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0)).toBe(PRESTIGE.scoreFull);   // the seven of Stage 4 still make the score's 700
+    expect(MONUMENT_KINDS.filter((k) => !NEW_MONUMENT_KINDS.includes(k) && k !== 'great_temple').reduce((s, k) => s + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0)).toBe(700);   // the seven of Stage 4 still make 700 (9.2, Track S: the score's scoreFull is every kind's, 1,280)
+    expect(MONUMENT_KINDS.reduce((s, k) => s + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0)).toBe(PRESTIGE.scoreFull);   // all eleven make the score's 1,280
     expect(MONUMENT_KINDS.map((k) => MONUMENTS[k].unlock)).toEqual([
       { milestone: 'city' }, { milestone: 'city' }, { milestone: 'great_city' }, { milestone: 'great_city' }, { milestone: 'great_city' }, { milestone: 'capital' },
       { milestone: 'capital' }, { milestone: 'capital', prestige: 100 }, { milestone: 'capital' }, { milestone: 'capital', prestige: 300 },
       { milestone: 'seat' },                                                          // Version 6.0 (Track A): the great temple, at the Seat of the Two Lands
     ]);
     expect(PRESTIGE_UNLOCKS).toEqual(['pyramid_small', 'pyramid_great']);
-    expect(PRESTIGE).toEqual({ moodPer: 70, moodMax: 10, scoreFull: 700 });
+    expect(PRESTIGE).toEqual({ moodPer: 70, moodMax: 10, scoreFull: 1280 });
   });
   it('keeps the shared rules: 20 units a crew-month, 6.5 gold a unit as Track F tuned it, the reaches, the stockpile, the stall, the big-footprint fit', () => {
     expect(MONUMENT).toEqual({ unitsPerCrewMonth: 20, goldPerUnit: 6.5, crewReach: 12, crewStep: 12, crewLoss: 0.1, crewFloor: 0.5, campShare: 0.1, producerReach: 12, supplyReach: 16, stockPerCrew: 40, stallDays: 3, demolishRefund: 0.25, rushPace: 2, rushGold: 3 });   // Version 8.4: Rush (ruling 1467)
@@ -111,14 +112,14 @@ describe('s4 contract building data', () => {
 });
 
 describe('s4 contract score v2 data and costs', () => {
-  it('sets score v2: five parts, Monuments from prestige, medals at 200, 300 and 400, seven splits and the t2 link', () => {
-    expect(SCORE_VERSION).toBe(2);
+  it('sets the five parts, Monuments from prestige, v3 medals at 240, 320 and 400 (v2: 200, 300, 400), seven splits and the t3 link (9.2, Track S)', () => {
+    expect(SCORE_VERSION).toBe(3);
     expect(SCORE_PARTS).toEqual([...SCORE_PARTS_V1, 'monuments']);
     expect(SCORE_WEIGHTS.monuments).toEqual({ prestige: 100 });
-    expect(MEDALS.map((m) => m.at)).toEqual([200, 300, 400]);
+    expect(MEDALS.map((m) => m.at)).toEqual([240, 320, 400]);
     expect(SPLITS).toEqual([...SPLIT_MILESTONES, 'pyramids', 'great_pyramid']);
-    expect(SHARE.format).toBe('t2');
-    expect(SHARE.formats).toEqual({ t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES }, t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS } });
+    expect(SHARE.format).toBe('t3');
+    expect(SHARE.formats).toEqual({ t1: { version: 1, parts: SCORE_PARTS_V1, splits: SPLIT_MILESTONES }, t2: { version: 2, parts: SCORE_PARTS, splits: SPLITS }, t3: { version: 3, parts: SCORE_PARTS, splits: SPLITS } });   // 9.2 wave 0: t3's slot
   });
   it('scales founding, work gold, gilding, the capstone and the palace by the difficulty\'s cost, never below 0', () => {
     expect(byLevel((w) => costOf(w, 'pyramid_great'))).toEqual([4800, 4800, 6000, 7500]);

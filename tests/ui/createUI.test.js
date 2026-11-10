@@ -275,7 +275,7 @@ describe('ui createUI', () => {
     expect(document.body.classList.contains('has-banner')).toBe(true);
     expect(r.root.querySelector('#banner .critical').textContent).toContain('debt');
     expect(r.root.querySelector('#map-summary').textContent).toContain('alert');
-    expect(r.root.querySelector('#live').textContent).toContain('alert');
+    expect(r.root.querySelector('#live').textContent + r.root.querySelector('#live-urgent').textContent).toContain('alert');   // 9.2 (Track A, ruling 1832): a critical is said in #live-urgent
     fire(r.root.querySelector('#banner .view'), 'pointerdown');               // a pointer opens it (a key would put focus on the sheet's title, and focus inside keeps the sheet from rebuilding)
     fire(r.root.querySelector('#banner .view'), 'click', { detail: 1 });      // View: Back to gold for the debt alert (Version 9.1, Track R, ruling 1681); the summary sheet for the other city-wide alerts
     expect(r.store.get().sheet.kind).toBe('backToGold');

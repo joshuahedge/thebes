@@ -9,7 +9,7 @@
 // A raid warning is its countdown chip from the start, and the chip's words open the raid sheet (the tribute sheet), which
 // holds the arrival, the defence and Pay tribute; there is no Shrink and no "+N more", and the Map badge counts every alert
 // the banner is not showing, criticals included. Wide screens keep the full banner.
-import { alertsFor } from '../sim/alerts.js';
+import { alertsFor, rollUpAlerts } from '../sim/alerts.js';
 import { tributeQuote } from '../sim/raids.js';
 import { summaryData } from './hud.js';
 import { noteView } from '../render/overlays.js';
@@ -83,6 +83,19 @@ export function bannerModel(world, critical) {
   return m;
 }
 
+// Version 9.2 wave 0 (ruling 1750): the View that steps through a row's ids, shared by every row. `row` is the alerts a row stands for (the fire row's group,
+// or one alert); `n` counts the presses so far. Returns the alert whose id is the n-th of the row's ids (round and round), so a rolled-up row (Track Q) steps
+// through every id it holds; an alert with no id is its own stop.
+export function stepRow(row, n) {
+  const list = Array.isArray(row) ? row : [row];
+  const stops = [];
+  for (const a of list) {
+    if (a.ids && a.ids.length > 1) for (const id of a.ids) stops.push({ ...a, id, ids: [id], count: 1 });
+    else stops.push(a);
+  }
+  return stops[n % stops.length];
+}
+
 // onAction (Stage 3): a button on an alert other than View, as onAction(alert, kind): 'tribute' (Pay tribute), 'more' (+N
 // more: the alert list), 'warning' (a phone chip's words: the raid sheet) and 'view' for an alert at a map point (the
 // danger interface moves the camera there). phone() says whether the layout is a phone's (portrait or compact).
@@ -93,21 +106,33 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
   let lastSig = null;
   let step = 0;                     // the rolled-up fire row's View: which fire it shows next
   let shown = 0;                    // how many alerts the banner stands for (every fire when it is the fires' row)
+  const rowsMemo = new WeakMap();   // a list of alerts -> its rows (refresh makes a new list; the badge and the sheet ask often)
+  const rowsOf = (list) => { let r = rowsMemo.get(list); if (!r) { r = rollUpAlerts(list); rowsMemo.set(list, r); } return r; };
   const collapsed = new Set();      // raid warnings (by arrival day) the player shrank to the chip
 
   // Ruling 9: one announcer (#live, no role="alert" on the rows); a change that brings a new critical is announced at
   // once (assertive), every other change politely.
+  // Version 9.2 (Track A, ruling 1832): two regions, each keeping one politeness for good (a region whose aria-live flips as its words change is announced unreliably): #live is
+  // polite and #live-urgent, made beside it, is assertive; a change says its words in the one that fits and empties the other.
+  let urgentLive = live.parentNode && live.parentNode.querySelector('#live-urgent');
+  if (!urgentLive && live.parentNode) {
+    urgentLive = live.ownerDocument.createElement('p');
+    urgentLive.id = 'live-urgent'; urgentLive.className = 'sr-only'; urgentLive.setAttribute('aria-live', 'assertive');
+    live.after(urgentLive);
+  }
+  live.setAttribute('aria-live', 'polite');
   function announce(urgent) {
     const keys = current.all.map(keyOf).sort().join('|');
     if (keys === lastKeys) return;
     lastKeys = keys;
-    live.setAttribute('aria-live', urgent ? 'assertive' : 'polite');
-    if (!current.all.length) { setText(live, T.noAlerts); return; }
-    setText(live, `${plural(current.all.length, 'alert', 'alerts')}: ${current.all.map((a) => alertText(a, world).title).join('. ')}`);
+    const words = current.all.length ? `${plural(current.all.length, 'alert', 'alerts')}: ${current.all.map((a) => alertText(a, world).title).join('. ')}` : T.noAlerts;
+    const loud = urgent && current.all.length > 0 && urgentLive;
+    setText(live, loud ? '' : words);
+    if (urgentLive) setText(urgentLive, loud ? words : '');
   }
 
   function view(m) {
-    const a = m.group[step % m.group.length];
+    const a = stepRow(m.group, step);
     step += 1;
     if (isPointAlert(a)) onAction(a, 'view');
     else { noteView(world, a.id); onView(a); }                                    // Stage 4: View outlines what it frames (ruling 281)
@@ -209,8 +234,10 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
     refresh: () => refresh(false),
     // The Map badge's count: on wide screens the warnings (the banner's "+N more" counts the other criticals); on phones
     // every alert the banner is not showing, criticals included (ruling 167).
-    count: () => (phone() ? current.all.length - shown : current.ordinary.length),
+    // Version 9.2 (Track Q, ruling 1775): it counts rows, one per cause (the list's rows), and the banner is one row.
+    count: () => (phone() ? rowsOf(current.all).length - (shown ? 1 : 0) : rowsOf(current.ordinary).length),
     list: () => current.all,
+    rows: () => rowsOf(current.all),
     critical: () => current.critical,
     action: (alert, kind) => onAction(alert, kind),
   };

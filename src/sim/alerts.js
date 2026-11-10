@@ -16,6 +16,31 @@ import { s46Alerts } from './s46.js';
 import { v60Alerts } from './v60.js';
 import { v70Alerts } from './v70.js';
 
+// Version 9.2 (Track Q, ruling 1775): the roll-up by cause. alertsFor stays the flat, building-by-building truth (the markers, the advice and a building's own
+// problem list read it); rollUpAlerts turns a list of alerts into rows, one per cause. Every alert of a ROLLED code becomes one row with its count, its ids (in
+// id order) and `members` (the alerts it stands for), shaped as plots_no_road and crime_risk already were (id is the first id, so View still finds a building).
+// A lone alert is its own row, untouched. Letters, warnings with a date or a place and one-off notices are never merged.
+export const ROLLED = new Set(['no_road', 'no_storage', 'storage_full', 'no_input', 'understaffed', 'bazaar_empty', 'bazaar_sold_out', 'fire', 'blaze', 'fire_risk', 'site_stalled', 'illness', 'crime_risk', 'labour_shortage']);
+
+export function rollUpAlerts(list) {
+  const groups = new Map(), out = [];
+  for (const a of list) {
+    if (!ROLLED.has(a.code)) { out.push(a); continue; }
+    const g = groups.get(a.code);
+    if (g) g.push(a);
+    else { const fresh = [a]; groups.set(a.code, fresh); out.push(fresh); }
+  }
+  return out.map((x) => {
+    if (!Array.isArray(x)) return x;
+    if (x.length === 1) return x[0];
+    const ids = [...new Set(x.flatMap((a) => a.ids || (a.id !== undefined && a.id !== null ? [a.id] : [])))].sort((p, q) => p - q);
+    return { ...x[0], id: ids.length ? ids[0] : x[0].id, ids, count: x.reduce((n, a) => n + (a.count || 1), 0), members: x };
+  });
+}
+
+// The flat alerts a list of rows stands for.
+export const flatAlerts = (rows) => rows.flatMap((a) => a.members || [a]);
+
 export function alertsFor(world) {
   const alerts = [];
   let byHouse = null;
@@ -50,6 +75,10 @@ export function alertsFor(world) {
     alerts.push({ code: 'unemployment' });
   }
   if (world.gold < 0) alerts.push({ code: 'debt' });
+  for (const a of alerts) {
+    if (!a.ids && a.id !== undefined) a.ids = [a.id];
+    if (a.count === undefined) a.count = 1;
+  }
   return alerts;
 }
 

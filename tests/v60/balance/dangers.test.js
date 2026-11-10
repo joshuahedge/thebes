@@ -51,7 +51,7 @@ describe('v60 balance dangers late run', () => {
     expect(t.droughts).toBeGreaterThanOrEqual(1);
     expect(t.swarms).toBeGreaterThanOrEqual(1);
     expect(t.blights).toBeGreaterThanOrEqual(1);
-    expect(t.wrecked).toBeGreaterThanOrEqual(1);
+    expect(t.wrecked).toBe(0);   // 9.2 balance (ruling 1855): was at least 1; with the court's one gate (Track Q) the late city's raids are all beaten before a band wrecks a building (4 plagues, 2 low Niles, 4 swarms, 1 blight, 10 raids, 210 fires)
     expect(t.raids).toBeGreaterThanOrEqual(3);
     expect(t.fires).toBeGreaterThanOrEqual(1);
     expect(new Set(rec.strikes.map((s) => s.kind))).toEqual(new Set(['plague', 'drought', 'locusts', 'blight']));
@@ -77,7 +77,7 @@ describe('v60 balance dangers late run', () => {
     // the player's answers were made, each through the sim's own commands
     expect(rec.did.harvest).toBeGreaterThan(0);
     expect(rec.did.physician).toBeGreaterThan(0);
-    expect(rec.did.rebuilt).toBeGreaterThan(0);
+    expect(rec.did.rebuilt).toBe(0);   // 9.2 balance (ruling 1855): was more than 0; no raid wrecks a building now (above), so there is nothing to rebuild
     expect(rec.did.rebuildFailed).toBe(0);
   });
 });

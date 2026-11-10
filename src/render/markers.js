@@ -20,6 +20,7 @@
 // back first, so the front badge is drawn last and asked first.
 import { problemMarkers, roadlessPlots, roadlessPlotBadges } from './overlays.js';
 import { artToScreen, visibleTileRange } from './camera.js';
+import { rollUpAlerts } from '../sim/alerts.js';
 import { makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
 import { UI, INK } from './art/palette.js';
@@ -39,7 +40,14 @@ export const MARKER = {
                   // count badge, as a cluster of identical warnings says no more than its count (art-direction review 3)
   ring: 2,        // the footprint ring's width, CSS px (a problem's; a warning's is half as wide and has no halo)
   wash: 0.12,     // the footprint wash's strength (a problem's; a warning's is half as strong)
+  haloAlpha: 0.4, // Version 9.2 (Track Q, ruling 1780): the ring's white halo, lighter at every zoom (it was 0.75: a red tide of white-edged rings in a big city)
+  halo: 1.0,      // and its extra width, CSS px (it was 1.6)
+  // Version 9.2 (Track Q, ruling 1779): from this zoom out (the plots' own far zoom, CROWD.zoom) a tile is 38 px or less across and a badge with its halo and gap 29, so badges of one cause
+  // run into one another along a street: there is one badge per rolled-up row (src/sim/alerts.js rollUpAlerts), on that row's frontmost building in view, and no footprint rings.
+  // (The design's "a badge wider than a tile" never holds inside the camera's 0.5 to 2: a tile is 32 to 128 px, a badge 22.)
+  farZoom: 0.6,
 };
+export const isFar = (cam) => cam.zoom <= MARKER.farZoom;
 
 // The roof a building's stem stands on, in art px: a monument's top as it stands now; any other building's sprite at
 // four fifths of its height over the footprint's middle (its roof, below its flags); a plot's ground.
@@ -53,7 +61,8 @@ const toneOf = (glyph) => (glyph === 'down' ? 'warning' : 'problem');
 
 // Stage 3's markers as { id, ids, glyph, key }, one per building: a group of road-less plots' road badge first (the road
 // decides the mark, P13), then every other building with an alert or a home about to lose a tier.
-function candidates(world, alerts, range) {
+function candidates(world, alerts, range, far = false) {
+  if (far) return farCandidates(world, alerts, range);
   const out = [], seen = new Set();
   const add = (b, glyph) => { if (b && !seen.has(b.id)) { seen.add(b.id); out.push({ id: b.id, ids: [b.id], glyph, key: depthKey(b.x, b.y, b.w, b.d) }); } };
   for (const m of roadlessPlotBadges(world, range)) add(world.buildings[m.id], 'road');
@@ -61,10 +70,40 @@ function candidates(world, alerts, range) {
   return out;
 }
 
+// The far zoom's candidates (MARKER.farZoom): one per rolled-up row, on the row's frontmost building in view (a row with many buildings keeps its count: its ids go with it,
+// the frontmost first), and one for every home about to lose a tier. `rings: false` on each: nothing is outlined at a distance.
+function farCandidates(world, alerts, range) {
+  const out = [], inView = (b) => {
+    const x = b.x + b.w / 2, y = b.y + b.d / 2;
+    return !range || (x >= range.x0 && x <= range.x1 + 1 && y >= range.y0 && y <= range.y1 + 1);
+  };
+  const front = (ids) => {
+    const bs = ids.map((id) => world.buildings[id]).filter((b) => b && inView(b));
+    bs.sort((a, b) => depthKey(b.x, b.y, b.w, b.d) - depthKey(a.x, a.y, a.w, a.d) || a.id - b.id);
+    return bs;
+  };
+  for (const row of rollUpAlerts(alerts || [])) {
+    const ids = row.ids || (row.id !== undefined && row.id !== null ? [row.id] : []);
+    if (!ids.length) continue;
+    const bs = front(ids);
+    if (!bs.length) continue;
+    const glyph = row.code === 'no_road' || row.code === 'plots_no_road' ? 'road' : '!';
+    out.push({ id: bs[0].id, ids: bs.map((b) => b.id), glyph, rings: false, key: depthKey(bs[0].x, bs[0].y, bs[0].w, bs[0].d) });
+  }
+  const downs = problemMarkers(world, [], range).filter((m) => m.kind === 'down').map((m) => world.buildings[m.id]).filter(Boolean);
+  if (downs.length) {
+    const bs = front(downs.map((b) => b.id));
+    if (bs.length) out.push({ id: bs[0].id, ids: bs.map((b) => b.id), glyph: 'down', rings: false, key: depthKey(bs[0].x, bs[0].y, bs[0].w, bs[0].d) });
+  }
+  return out;
+}
+
 // The markers on screen, laid out (see the header). Pure: the same world, alerts, camera and view give the same layout.
-export function layoutMarkers(world, alerts, cam, view) {
+// opts.far (Version 9.2, Track Q): true or false overrides the camera's own answer (isFar), for the tests that pin the near layout at the zoom that crowds it.
+export function layoutMarkers(world, alerts, cam, view, opts = {}) {
   const range = visibleTileRange(cam, view, world.size);
-  const list = candidates(world, alerts, range);
+  const far = opts.far === undefined ? isFar(cam) : Boolean(opts.far);
+  const list = candidates(world, alerts, range, far);
   if (!list.length) return [];
   const { r, stem, gap, most } = MARKER, near = 2 * r + gap;
   for (const c of list) {
@@ -103,13 +142,14 @@ export function layoutMarkers(world, alerts, cam, view) {
     let y = foot.y - stem - r;
     while (!clear(foot.x, y)) y -= near;                                       // further back: a longer stem
     const m = { ids, x: foot.x, y, r, foot: { ...foot }, glyph, tone, count: ids.length };
+    if (far) m.rings = false;
     placed.push(m);
     return m;
   };
   for (const g of places) {
     if (g.length > limit(g)) {
-      const front = g[0], ids = g.map((c) => c.id);
-      put(front.foot, ids, g.some((c) => c.glyph !== 'down') ? '!' : 'down', g.some((c) => toneOf(c.glyph) === 'problem') ? 'problem' : 'warning');
+      const front = g[0];
+      put(front.foot, g.flatMap((c) => c.ids), g.some((c) => c.glyph !== 'down') ? '!' : 'down', g.some((c) => toneOf(c.glyph) === 'problem') ? 'problem' : 'warning');
     } else for (const c of g) put(c.foot, c.ids, c.glyph, toneOf(c.glyph));
   }
   return placed.reverse();                                                      // back first: the front is drawn last
@@ -155,13 +195,14 @@ export function drawMarkers(g, world, alerts, range, layout = []) {
   const css = g.cssScale || g.scale, ringW = MARKER.ring / css;
   for (const m of layout) {
     const color = TONE[m.tone] || UI.problem, warn = m.tone === 'warning';
+    if (m.rings === false) continue;                                              // Version 9.2 (Track Q): a far badge outlines nothing
     for (const id of m.ids) {
       const b = world.buildings[id];
       if (!b) continue;
       const pts = quad(b.x, b.y, b.w, b.d, 0);
       g.poly(pts, color, { alpha: warn ? MARKER.wash / 2 : MARKER.wash });
       if (warn) { g.poly(pts, 'none', { stroke: color, strokeWidth: ringW / 2, strokeAlpha: 0.85 }); continue; }   // a softer mark for a warning
-      g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: ringW + 1.6 / css, strokeAlpha: 0.75 });
+      g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: ringW + MARKER.halo / css, strokeAlpha: MARKER.haloAlpha });
       g.poly(pts, 'none', { stroke: color, strokeWidth: ringW });
     }
   }

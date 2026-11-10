@@ -41,7 +41,7 @@ export const STEP_TEXT = {
   // The price in the parentheses: "30 gold", "5 gold a tile", and when the treasury cannot pay it, how much it has (colour is never the only cue).
   // Version 5.0 (Task 7): where a decoration goes, what it does to the street, and a hunting lodge's place.
   spot: (dist) => (dist <= 1 ? 'beside this home' : `${dist} tiles from this home`),
-  lifts: (from, to, needs) => `raises its desirability from ${signed(from)} to ${signed(to)} (it needs ${needs})`,   // a score below zero reads with a minus sign, as the desirability row's does
+  lifts: (from, to, needs) => `raises its pleasantness from ${signed(from)} to ${signed(to)} (it needs ${needs})`,   // a score below zero reads with a minus sign, as the desirability row's does
   herd: 'by the nearest herd',
   price: (gold, unit, have, short) => `${gold} gold${unit ? ` a ${unit}` : ''}${short ? `, more than the ${have} you have` : ''}`,
 };
@@ -104,7 +104,7 @@ export function stepWords(world, home, step) {
       const good = goodName(c.good).toLowerCase(), held = world.buildings[c.id], at = plural(c.len, 'road tile', 'road tiles');
       return done(STEP_LABELS.next, f.fetch
         ? `have the ${buildingName(world.buildings[f.select].type).toLowerCase()} near the bazaar keep ${good} stocked by cart (it is held ${at} from the bazaar)`   // Version 8.3: Keep stocked, not Fetch
-        : `${good} is held only in a ${buildingName(held ? held.type : 'storehouse').toLowerCase()} ${at} from the bazaar, and no store near the bazaar can keep it stocked yet`);
+        : `${good} is held only in a ${buildingName(held ? held.type : 'storehouse').toLowerCase()}, ${at} from the bazaar; no store near it can keep it stocked yet`);
     }
     out.action = { label: T.view, aria: viewLabel(buildingName(b ? b.type : 'building')), select: f.select };
     const rest = /no_road$/.test(c.code) ? `lay a road beside the ${n}`

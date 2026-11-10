@@ -33,7 +33,10 @@ import { openSheet, closeSheet } from '../modes.js';
 import { renderNewCityCard } from '../titleCard.js';
 import { titleOf, passScore, passThrone, canPassThrone } from '../../sim/dynasty.js';
 import { cleanName, RULER_NAME_MAX, RULER_NAME_DEFAULT } from '../../save/records.js';
-import { V90_D_TEXT, T } from '../text.js';
+import { V90_D_TEXT, D92_D_TEXT, T } from '../text.js';
+import { MAP_VARIANTS_OFFERED } from '../../data/map.js';
+import { mapSquareOf } from '../../save/records.js';
+import { rulerCartouche } from '../v92/cartouche.js';
 
 // The game's new-city card's picture: 120 px on a short screen, else 160 (ruling 1311, as src/ui/menu.js has it).
 const previewPx = () => (typeof window !== 'undefined' && window.innerHeight < 700 ? 120 : 160);
@@ -46,6 +49,7 @@ export function createPassSheets(ctx) {
   const goTo = (kind) => store.set(openSheet(store.get(), kind));
   let title = null;        // titleOf's result when the sheet opened
   let name = null;         // the dynasty's name as typed (null until the sheet opens)
+  let layoutSet = false;   // Version 9.2 (Track D, ruling 1816): the heir card's map was set to the sealed city's layout once this Pass; the player's own pick stays after
 
   const dynastyName = () => { try { return (records() && records().dynasty().name) || RULER_NAME_DEFAULT; } catch (e) { return RULER_NAME_DEFAULT; } };
   // The regnal number the game will add for this name: one more than the rulers already of that name (records.addRuler counts the same way).
@@ -57,6 +61,7 @@ export function createPassSheets(ctx) {
     const can = canPassThrone(world);
     if (!can.ok) { body.append(el('p', { class: 'pass-refused', text: W.notYetPass(can.people) })); return; }
     title = titleOf(world);
+    layoutSet = false;
     if (name === null) name = dynastyName();
     const kept = passScore(world);
     const head = el('strong', { class: 'pass-title-text', text: W.remembered(nameNow(), regnalOf(nameNow()), title.id) });
@@ -90,24 +95,43 @@ export function createPassSheets(ctx) {
       extras,
       el('p', { class: 'pass-replace small', text: W.replaced }),
       el('div', { class: 'actions' }, [
-        button(W.passButton, { class: 'pass-confirm primary', onClick: () => { name = input.value; goTo('passHeir'); } }),
+        button(W.passButton, { class: 'pass-confirm primary', onClick: () => { name = input.value; goTo('passSealed'); } }),
         exportFirst,
         button(W.notYet, { class: 'pass-not-yet', onClick: () => store.set(closeSheet(store.get())) }),
       ]),
     ]));
   }
 
+  // Version 9.2 (Track D, ruling 1815): the sealed-ruler card between the sheet and the heir's card. Nothing is sealed here: the ruler as the Pass would
+  // seal it (the name and number, the title, the score kept, the rank and years, the city's map square), what the heir inherits, and one button. Back is the sheet.
+  function sealedCard(body, { setTitle } = {}) {
+    if (typeof setTitle === 'function') setTitle(D92_D_TEXT.sealedSheet);
+    if (!title || !canPassThrone(world).ok) { sheet(body, { setTitle }); return; }
+    const kept = passScore(world), ruler = nameNow();
+    const row = { name: ruler, n: regnalOf(ruler), title: title.id, rank: world.milestone, day: world.day, score: kept.score, medal: kept.medal, map: mapSquareOf(world) };
+    const go = button(D92_D_TEXT.found, { class: 'sealed-found primary', 'aria-describedby': 'sealed-found-note', onClick: () => goTo('passHeir') });
+    body.append(el('section', { class: 'sealed-card' }, [
+      rulerCartouche(row, { full: true }),
+      el('p', { class: 'sealed-inherits', text: D92_D_TEXT.inherits(title.id) }),
+      el('p', { id: 'sealed-found-note', class: 'sealed-note small muted', text: D92_D_TEXT.foundNote }),
+      el('div', { class: 'actions' }, [go, button(D92_D_TEXT.back, { class: 'sealed-back', onClick: () => goTo('passThrone') })]),
+    ]));
+    queueMicrotask(() => { if (go.isConnected) go.focus({ preventScroll: true }); });   // the card opens at its top, on the cartouche
+  }
+
   function heirCard(body, { close, setTitle } = {}) {
     if (typeof setTitle === 'function') setTitle(W.heirCardHead);
     if (!title || !canPassThrone(world).ok) { sheet(body, { setTitle }); return; }   // opened on its own (no title yet): the sheet first
     const C = (ctx.hooks && ctx.hooks.newCityChoices) || { get: () => ({}), setSize() {}, setLayout() {}, setSeed() {} };
+    // Version 9.2 (Track D, ruling 1816): the map starts on the sealed city's layout (the ruler row's mapVariant); Surprise me is the layout choice's first entry.
+    if (!layoutSet) { layoutSet = true; C.setLayout(MAP_VARIANTS_OFFERED.includes(world.mapVariant) ? world.mapVariant : 'auto'); }
     const now = C.get();
     const settings = ctx.settings;
     const card = renderNewCityCard({
       difficulty: settings ? settings.get().difficulty : 'normal', onDifficulty: (level) => { if (settings) settings.set({ difficulty: level }); },
       mapSize: now.mapSize, onMapSize: C.setSize, layout: now.layout || 'auto', onLayout: C.setLayout, seed: now.seed, onSeed: C.setSeed,
       hasSave: true, head: false, previewPx: previewPx(),
-      onBack: () => { if (close) close(); else store.set(closeSheet(store.get())); },
+      onBack: () => goTo('passSealed'),
       onStart: () => pass(),
     });
     const actions = card.element.querySelector('.actions');
@@ -146,8 +170,8 @@ export function createPassSheets(ctx) {
       return;
     }
     name = null;
-    if (ctx.hooks && typeof ctx.hooks.startHeir === 'function') ctx.hooks.startHeir({ notice: W.passedToast(ruler, n, res.title) });
+    if (ctx.hooks && typeof ctx.hooks.startHeir === 'function') ctx.hooks.startHeir({ notice: null, ruler, n, title: res.title });   // Version 9.2 (Track D, ruling 1817): no toast; the heir's first line is Ipi's (dynastyUi.opening)
   }
 
-  return { passThrone: sheet, passHeir: heirCard };
+  return { passThrone: sheet, passSealed: sealedCard, passHeir: heirCard };
 }

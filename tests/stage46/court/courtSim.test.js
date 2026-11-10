@@ -203,7 +203,7 @@ describe('s46 court requests', () => {
     expect(mean(normal)).toBeGreaterThan(mean(easy));
     for (const n of normal) { expect(n >= 60 && n <= 120).toBe(true); expect(n % 10).toBe(0); }
   });
-  it('draws deadlines of 6-12 months, favour of +10..+15 met and -10..-20 missed, and a reward in gold, from the seed alone', () => {
+  it('draws deadlines of 6-12 months, favour of +20..+30 met and -20..-40 missed (9.2: was +10..+15 and -10..-20), and a reward in gold, from the seed alone', () => {
     const seen = { due: new Set(), met: new Set(), missed: new Set() };
     for (let seed = 1; seed <= 60; seed++) {
       const w = courtWorld({ seed });
@@ -219,8 +219,8 @@ describe('s46 court requests', () => {
       expect(again.court.request).toEqual(r);
     }
     expect([...seen.due].every((m) => m >= 6 && m <= 12 && Number.isInteger(m))).toBe(true);
-    expect([...seen.met].every((n) => n >= 10 && n <= 15)).toBe(true);
-    expect([...seen.missed].every((n) => n >= 10 && n <= 20)).toBe(true);
+    expect([...seen.met].every((n) => n >= 20 && n <= 30)).toBe(true);     // 9.2 balance (ruling 1865): was 10-15 (each letter worth twice the favour behind the court's one gate)
+    expect([...seen.missed].every((n) => n >= 20 && n <= 40)).toBe(true);  // 9.2 balance (ruling 1865): was 10-20
     expect(seen.due.size).toBeGreaterThan(2);
     expect(seen.met.size).toBeGreaterThan(2);
   });
@@ -237,6 +237,7 @@ describe('s46 court requests', () => {
     refuseRequest(w);
     expect(w.court.nextRequestDay).toBeGreaterThan(w.day);                    // a month's breather before the next
     w.day = w.court.nextRequestDay;
+    delete w.letterGate;                                                      // 9.2 Track Q (kept by the balance check, ruling 1855) (ruling 1777): the requests' own schedule is pinned here; the court's gate has its own tests (tests/v92/q/letters.test.js)
     courtDay(w);
     expect(w.court.request.id).toBeGreaterThan(first.id);
   });

@@ -6,7 +6,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
-import { V84_G_TEXT } from './text.js';
+import { V84_G_TEXT, Q92_TEXT, A92_TEXT } from './text.js';
 import { taxRateOf } from '../sim/palace.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
@@ -16,7 +16,9 @@ import { roadGoods } from '../sim/carts.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
-import { CRITICAL_RANK } from './alerts.js';
+import { CRITICAL_RANK, stepRow } from './alerts.js';
+import { rollUpAlerts } from '../sim/alerts.js';
+import { adviceWords } from './adviceText.js';
 import { summaryData } from './hud.js';
 import { cityTabs, markTabPanel, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
@@ -67,16 +69,24 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 // Version 7.1 (fix batch B): whether the thing happening right now came from the keyboard (a key, or a click with detail 0, which is what Enter and Space on a button send),
 // so a sheet that opens from it can take keyboard focus at its title. The flag lasts until the event's own work is done (the next task), so a sheet the game opens by itself
 // never steals focus. One pair of listeners for the page, however many sheets are made.
-let byKeyboard = false;
+// What a sheet covers while it is open: the bars, rails and dock behind it are inert for a keyboard user (Tab stays inside the sheet); the first tap lifts it, so a touch user is never blocked.
+let keyboardModality = false, behindInert = null;   // behindInert: the page region (the sheet's parent) whose bars are inert now, or null
+const BEHIND = ['topbar', 'under-bar', 'panel', 'rail', 'corners', 'dock'];
+function setBehindInert(scope, on) {
+  behindInert = on ? scope : null;
+  for (const id of BEHIND) { const n = scope && scope.querySelector(`:scope > #${id}`); if (n) { if (on) n.setAttribute('inert', ''); else n.removeAttribute('inert'); } }
+}
+const letGo = () => setBehindInert(behindInert, false);
+let byKeyboard = false, byInput = false;   // Version 9.2 (Track A): byInput is any key or tap, so a sheet the player opened by any means takes focus in (a sheet the game opens by itself still never does)
 if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
   globalThis.__thebesSheetInput = true;
-  const mark = (v) => { byKeyboard = v; if (v) setTimeout(() => { byKeyboard = false; }, 0); };
+  const mark = (v) => { byKeyboard = v; byInput = true; keyboardModality = v; setTimeout(() => { byKeyboard = false; byInput = false; }, 0); };
   document.addEventListener('keydown', () => mark(true), true);
   document.addEventListener('click', (e) => mark(e.detail === 0), true);
-  document.addEventListener('pointerdown', () => mark(false), true);
+  document.addEventListener('pointerdown', () => { mark(false); if (behindInert) letGo(); }, true);
 }
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onFrame = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
   const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
@@ -433,33 +443,54 @@ export function createSheets({ container, store, world, placement, cameraControl
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
     const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? '+' : null, onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
-    const map = [el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut])];
+    // Version 9.2 (fix wave, Track A, rulings 1876 and 1877): "Fit the city" sits beside + and − in both layouts (Track V's frame, the F key's own), where a phone can
+    // find it; on the wide layout the side panel already draws the minimap, so the sheet leaves its own out and keeps the buttons.
+    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? 'F' : null, onClick: () => onFrame() });
     const phone = store.get().layout !== 'wide';
-    const list = phone ? criticalFirst(getAlerts()) : getAlerts();
-    const alerts = [el('h3', { text: T.alerts })];
+    const map = [...(phone ? [el('div', { class: 'minimap-wrap' }, [canvas])] : []), el('div', { class: 'actions' }, [zoomIn, zoomOut, fit])];
+    const rows = getRows();   // Version 9.2 (Track Q, ruling 1775): one row per cause
+    const list = phone ? criticalFirst(rows) : rows;
+    const alerts = [];
+    // The top of City advice first (the same items, the same Show me), then every cause.
+    const first = adviceTop();
+    if (first.length) alerts.push(el('h3', { class: 'fix-first-head', text: Q92_TEXT.fixFirst }), el('ol', { class: 'fix-first' }, first.map((a) => {
+      const w = adviceWords(a, world);
+      return el('li', { class: 'fix-first-item', dataset: { kind: a.kind } }, [el('strong', { text: w.what }), ' ', w.action ? button(w.action.label, { class: 'show-me quiet', 'aria-label': w.action.aria, onClick: () => onAdviceFix(a) }) : null]);
+    })));
+    alerts.push(el('h3', { text: T.alerts }));
     if (!list.length) alerts.push(el('p', { class: 'muted', text: T.noAlerts }));
     else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => {
       const t = alertText(a, world);
       // Stage 4 (spec 4.16): a stalled site's fix is Show me for a missing guild or material (the card, its ghost near the site).
-      const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
+      const stall = a.code === 'site_stalled' && !a.members && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
       const threat = alertShowMe(world, a);
       const food = bazaarFix(world, a);   // Version 8.2.1 (ruling 1366): the bazaar's food alerts, aimed by their cause
       const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })]
         : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })]
         : food ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => { if (food.view) { noteView(world, food.view); if (food.keep) aimKeepStocked(food.view, food.keep.good); onSelect(food.view); } else onShowMe(food.showMe); } })]
         : threat ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(threat) })] : [];   // Stage 4.5: an illness or crime alert with no physician or police post in reach
-      return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
+      return el('li', { dataset: { code: a.code } }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));
     body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
-    minimap.render(list);
+    minimap.render(getAlerts());
     return [head(T.minimap), body];
   }
+
+  // Version 9.2 (Track Q, ruling 1775): View on a rolled-up row goes to its first building, then the next on each press, round and round (stepRow, as the fire row's does).
+  const rowPress = new Map();
+  const stepInList = (a) => {
+    if (!a.members) return a;
+    const n = rowPress.get(a.code) || 0;
+    rowPress.set(a.code, n + 1);
+    return stepRow(a, n);
+  };
 
   // View in the alert list: a building's alert goes through onView (it selects the building); a raid's alert sits at a
   // map point (Stage 3), so the sheet closes and the camera goes there.
   // Stage 4: View outlines what it frames (ruling 281); a site stalled because its guild is short of workers or burning views
   // that guild (spec 4.16 Stalls).
-  function viewInList(a) {
+  function viewInList(row) {
+    const a = stepInList(row);
     if ((a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y)) { close(); cameraControl.panTo(a.x + 0.5, a.y + 0.5); return; }
     const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
     if (stall && stall.view) { noteView(world, stall.view); onSelect(stall.view); return; }
@@ -477,6 +508,16 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
   }
 
+  // Version 9.2 (Track A, ruling 1826): a sheet that closes gives focus back to what opened it, and lifts the inert from what was behind it.
+  let wasOpen = false, sheetOpener = null;
+  function closed() {
+    if (!wasOpen) return;
+    wasOpen = false;
+    setBehindInert(container.parentNode, false);
+    const back = sheetOpener; sheetOpener = null;
+    if (back && back.isConnected && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
+  }
+
   function render() {
     const s = store.get();
     if (anotherNote && anotherNote.sheet !== s.sheet) anotherNote = null;   // Build another's refusal goes with the sheet it was said on
@@ -485,15 +526,16 @@ export function createSheets({ container, store, world, placement, cameraControl
     // An opener in the guidance row (the goal's All goals, a tip's button) already has its focus handed into the sheet by createUI's guidance code, so it is left to that.
     const fromRow = Boolean(document.activeElement && document.activeElement.closest && document.activeElement.closest('#goals, #tip, #cheer, #legend'));
     const opened = store.get().sheet !== scrolledFor;
-    const toTitle = opened && byKeyboard && !fromRow;
+    const toTitle = opened && byKeyboard && !fromRow;   // a tap leaves focus where it is: an open sheet with focus inside is not rebuilt by the daily refresh (createUI refreshDaily), so a touch player's numbers would go stale
+    if (opened && s.sheet && !wasOpen) { const a = document.activeElement; sheetOpener = a && a !== document.body && !container.contains(a) ? a : null; }
     const focusIndex = toTitle ? -1 : buttons.indexOf(document.activeElement);   // a sheet just opened by the keyboard takes focus at its title instead
     const focusClass = focusIndex >= 0 ? buttons[focusIndex].className : null;
     clear(container);
-    if (!s.sheet) { container.hidden = true; return; }
+    if (!s.sheet) { container.hidden = true; closed(); return; }
     let parts;
     if (s.sheet.kind === 'info') {
       const b = world.buildings[s.sheet.id];
-      if (!b) { container.hidden = true; if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
+      if (!b) { container.hidden = true; closed(); if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
       parts = b.type === 'house' ? houseSheet(b) : BUILDINGS[b.type].monument ? monumentSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
@@ -504,13 +546,14 @@ export function createSheets({ container, store, world, placement, cameraControl
       custom[s.sheet.kind](body, { close, setTitle: (t) => { title = t; }, tabs: (node) => { tabs = node; } });   // tabs: a row above the body (the papyrus's Messages | City, ruling 1268)
       parts = tabs ? [head(title), tabs, body] : [head(title), body];
     }
-    else { container.hidden = true; return; }
+    else { container.hidden = true; closed(); return; }
     container.hidden = false;
+    wasOpen = true;
     container.append(...parts);
     // The sheet's own title names it (index.html's "Details" is only the fallback), and a sheet opened from the keyboard puts focus on that title, so a screen reader reads it first.
     const title = container.querySelector('.head h2');
     if (title) container.setAttribute('aria-label', title.textContent); else container.setAttribute('aria-label', 'Details');
-    if (toTitle && title) { title.tabIndex = -1; title.focus(); }
+    if (toTitle && title) { title.tabIndex = -1; title.focus(); if (keyboardModality || byKeyboard) setBehindInert(container.parentNode, true); }
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;

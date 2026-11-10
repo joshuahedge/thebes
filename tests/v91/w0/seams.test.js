@@ -212,10 +212,10 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     expect(at('<!-- end v91 early-error -->') < firstSheet).toBe(true);
     expect(at('<!-- v91 preload -->') > lastSheet && at('<!-- end v91 preload -->') < at('</head>')).toBe(true);
   });
-  it('links css/v91.css last, once', async () => {
+  it('links css/v91.css once, with css/v92.css after it', async () => {
     const page = new DOMParser().parseFromString(await source('/index.html'), 'text/html');
     const hrefs = [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.getAttribute('href')).filter((h) => /css\//.test(h));
-    expect(hrefs[hrefs.length - 1]).toBe('./css/v91.css');
+    expect(hrefs.slice(-2)).toEqual(['./css/v91.css', './css/v92.css']);   // Version 9.2 (Track D): css/v92.css is the last stylesheet now
     expect(hrefs.filter((h) => h === './css/v91.css').length).toBe(1);
     expect((await fetch('/css/v91.css')).status).toBe(200);
   });
@@ -226,6 +226,10 @@ describe('v91 w0 seams: index.html\'s blocks, css/v91.css and the text sections'
     for (const m of marks) expect([m, text.split(m).length, at(m) > at('// ── end v90 v ──')]).toEqual([m, 2, true]);
     for (let i = 1; i < marks.length; i++) expect([marks[i], at(marks[i - 1]) < at(marks[i])]).toEqual([marks[i], true]);
     // Version 9.1 (Track A, kept at the merge): the sections were empty in wave 0; each track now writes between its own header and end line, so only the order is pinned.
-    expect(text.trimEnd().endsWith('// ── end v91 h ──')).toBe(true);
+    // 9.2 wave 0: the seven empty 9.2 headers follow it now.
+    // 9.2 Track L: the tracks write under their own 9.2 headers now, so only what lies between the 9.1 end line and the first 9.2 header (Track L's) is pinned empty.
+    expect(text.slice(at('// ── end v91 h ──'), at('// Version 9.2, Track L')).replace(/^\/\/.*$/gm, '').trim()).toBe('');
+    expect(at('// Version 9.2, Track L') > at('// ── end v91 h ──')).toBe(true);
+    // 9.2 (Track S): the 9.2 sections fill as their tracks merge, so what follows the end line is no longer pinned empty (tests/v92/w0 pins the headers' order).
   });
 });

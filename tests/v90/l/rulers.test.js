@@ -50,11 +50,12 @@ describe('v90 l rulers: the list', () => {
       const body = root.querySelector('#body');
       renderRulers(body, { records });
       const [newest, older] = [...body.querySelectorAll('.ruler-row')];
-      expect(newest.querySelector('.ruler-name').textContent).toBe('Ramesses IV the Steady');
-      expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1.0 years');
-      expect([older.querySelector('.ruler-name').textContent, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great city · 12.5 years', '312', 'Gold medal']);
+      // 9.2 (Track D, ruling 1818): was one string "Ramesses IV the Steady"; the name and number are one line, the title under it
+      expect([newest.querySelector('.cartouche-ruler').textContent, newest.querySelector('.cartouche-title').textContent]).toEqual(['Ramesses IV', 'the Steady']);
+      expect(newest.querySelector('.ruler-sub').textContent).toBe('Town · 1 year');
+      expect([`${older.querySelector('.cartouche-ruler').textContent} ${older.querySelector('.cartouche-title').textContent}`, older.querySelector('.ruler-sub').textContent, older.querySelector('.ruler-score').textContent, older.querySelector('.ruler-medal').textContent]).toEqual(['Khufu II the Merchant', 'Great City · 12 years, 6 months', '312', 'Gold medal']);   // 9.2 (Track W, the ranks' names): was 'Great city'
       expect(newest.querySelector('.ruler-medal').textContent).toBe('No medal');
-      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great city, 12.5 years, score 312, Gold medal');
+      expect(older.getAttribute('aria-label')).toBe('Khufu II the Merchant, Great City, 12 years, 6 months, score 312, Gold medal');
       expect([1, 4, 9, 14, 49].map((n) => V90_D_TEXT.regnal('Ra', n))).toEqual(['Ra I', 'Ra IV', 'Ra IX', 'Ra XIV', 'Ra XLIX']);
       const c = older.querySelector('canvas.ruler-map');
       expect([c.width, c.height, c.getAttribute('aria-hidden')]).toEqual([32, 32, 'true']);
@@ -76,7 +77,7 @@ describe('v90 l rulers: the list', () => {
       expect([...detail.querySelectorAll('.ruler-part')].map((p) => [p.dataset.part, p.querySelector('.part-number').textContent])).toEqual([['people', '72'], ['prosperity', '65'], ['culture', '58'], ['safety', '40'], ['monuments', '36']]);
       expect(detail.querySelector('.ruler-heir').textContent).toBe('Heir of the Bountiful');
       expect(detail.querySelector('.ruler-feats').textContent).toBe('Feats: Debt-free founder, Well fed');
-      expect(detail.querySelector('.ruler-map-line').textContent).toBe('Seed 4242, Hard, east layout, 80 x 80 map');
+      expect(detail.querySelector('.ruler-map-line').textContent).toBe('Map number 4242, Hard, east layout, 80 x 80 map');
       expect(detail.querySelector('.side-by-side')).toBe(null);                      // no rival kept
       fire(row, 'click');
       expect([row.getAttribute('aria-expanded'), detail.hidden]).toEqual(['false', true]);
@@ -103,7 +104,7 @@ describe('v90 l rulers: the list', () => {
       const body = root.querySelector('#body');
       renderRulers(body, { records, onPlay: (r) => played.push([r.seed, r.difficulty, r.mapVariant, r.mapSize]) });
       const play = body.querySelector('.play-map');
-      expect([play.textContent, body.querySelector('.ruler-play-note').textContent]).toEqual(['Play this map', 'Opens New city on this seed, level, layout and size. A city you have is replaced unless you export it first.']);
+      expect([play.textContent, body.querySelector('.ruler-play-note').textContent]).toEqual(['Play this map', 'Opens New city on this map. A city you have is replaced unless you export it first.']);
       expect(play.getAttribute('aria-describedby')).toBe(body.querySelector('.ruler-play-note').id);
       fire(play, 'click');
       expect(played).toEqual([[4242, 'hard', 'island', 80]]);
@@ -140,9 +141,10 @@ describe('v90 l rulers: the list', () => {
       expect(body.querySelector('.rulers-install')).toBe(null);
     } finally { cleanup(); }
   });
-  it('builds a row for one ruler on its own, an unreadable map string leaving a blank square', () => {
+  it('builds a row for one ruler on its own, an unreadable map string leaving no square at all (9.2 Track D: was a blank one)', () => {
     const row = rulerRow({ ...ruler(1), map: '' }, {});
-    expect(row.querySelector('canvas').width).toBe(32);
+    expect(row.querySelector('canvas')).toBe(null);   // Version 9.2 (Track D): a row with no readable map draws no blank tan square
+    expect(rulerRow(ruler(1), {}).querySelector('canvas.ruler-map').width).toBe(32);
     expect(row.querySelector('.ruler-row').getAttribute('aria-expanded')).toBe('false');
   });
 });
@@ -161,9 +163,9 @@ describe('v90 l rulers: layout at phone width', () => {
         renderRulers(body, { records });
         const rows = [...body.querySelectorAll('.ruler-row')];
         for (const r of rows) {
-          const b = r.getBoundingClientRect(), name = r.querySelector('.ruler-name').getBoundingClientRect(), score = r.querySelector('.ruler-score-box').getBoundingClientRect(), map = r.querySelector('canvas').getBoundingClientRect();
+          const b = r.getBoundingClientRect(), name = r.querySelector('.cartouche').getBoundingClientRect(), score = r.querySelector('.ruler-score-box').getBoundingClientRect(), map = r.querySelector('canvas').getBoundingClientRect();
           expect(b.height >= 44).toBe(true);
-          expect(name.right <= score.left + 1).toBe(true);                         // the name wraps before it can go under the score
+          expect(name.bottom <= score.top + 1).toBe(true);                         // 9.2 (Track D, ruling 1818): the cartouche has the row's first line to itself, so the name never goes under the score
           expect(score.right <= map.left + 1).toBe(true);
           expect(b.right <= sheet.getBoundingClientRect().right + 1).toBe(true);
         }

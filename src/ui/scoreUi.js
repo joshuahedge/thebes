@@ -21,7 +21,7 @@ import { el, button } from './components.js';
 import { createDynastyUi } from './v90/dynastyUi.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT, D92_D_TEXT,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -42,10 +42,13 @@ export function createScoreUi(ctx) {
   // One part: its name and number, a bar (the number again, for sight; never alone) and its reason line.
   function partRow(part, s) {
     const n = s.parts[part];
+    // Version 9.2 (Track S, ruling 1813): under score v3 a part is drawn against its own ceiling (the terms that have started), so a Village's Safety is 20 of 20,
+    // not 20 of 100; a score with no ceilings (a v2 best's) is drawn against 100 as it was.
+    const cap = s.ceilings && s.ceilings[part] > 0 ? s.ceilings[part] : 100;
     return el('li', { class: 'score-part', dataset: { part } }, [
       el('div', { class: 'row' }, [el('span', { text: SCORE_TEXT.parts[part] }), el('strong', { class: 'part-number', text: String(n) })]),
-      el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n) }, [
-        el('span', { class: 'fill', style: { width: `${n}%` } }),
+      el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(cap), 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n, cap) }, [
+        el('span', { class: 'fill', style: { width: `${Math.min(100, (n / cap) * 100)}%` } }),
       ]),
       s.reasons[part] ? el('p', { class: 'reason small muted', text: score4ReasonText(s.reasons[part]) }) : null,   // Stage 4: the Monuments part's next step too
     ]);
@@ -68,11 +71,10 @@ export function createScoreUi(ctx) {
   }
 
   const goTo = (kind) => store.set(openSheet(store.get(), kind));
-  // Seal this reign, Share score and Screenshot mode (spec 4.19: screenshot mode sits beside Share score).
+  // Seal this reign and Share score (Version 9.2, ruling 1791: Screenshot mode moved to Options > Display).
   const scoreActions = () => el('div', { class: 'actions score-actions' }, [
     button(SCORE_TEXT.sealReign, { class: 'seal-reign', onClick: () => goTo('sealReign') }),
     button(SCORE_TEXT.shareScore, { class: 'share-score', onClick: () => goTo('shareScore') }),
-    button(T.screenshotMode, { class: 'screenshot-mode quiet', onClick: () => ctx.screenshotMode() }),
   ]);
 
   // Feats (spec 4.19): their own group, after the score and just above the achievements, each with its exact condition
@@ -171,7 +173,7 @@ export function createScoreUi(ctx) {
       el('p', { class: 'honour', text: SHARE_TEXT.honourHelp }),
       el('pre', { class: 'emoji-row', text: rows }),
       input,
-      el('div', { class: 'actions' }, [sharePicture, shareText, button(T.screenshotMode, { class: 'screenshot-mode quiet', onClick: () => ctx.screenshotMode() })]),
+      el('div', { class: 'actions' }, [sharePicture, shareText]),   // Version 9.2 (Track Q, ruling 1791): Screenshot mode is in Options > Display
     );
   }
 
@@ -253,7 +255,7 @@ export function createScoreUi(ctx) {
     refresh() { if (world) version++; },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
-    destroy() { picture = null; cached = null; },       // a picture still being made never touches a later interface's sheet
+    destroy() { picture = null; cached = null; dynasty.destroy(); },     // a picture still being made never touches a later interface's sheet
   };
 }
 
@@ -340,7 +342,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     const rulerCount = records && typeof onRulers === 'function' ? safe(() => records.rulers().length, 0) : 0;
     if (bests.length || stamps.length || rulerCount) {
       const box = el('div', { class: 'title-records', role: 'group', 'aria-label': TITLE_SCORE_TEXT.records }, [
-        ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b) })),
+        ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b), title: D92_D_TEXT.bestLabel(b) })),   // Version 9.2 (Track D, ruling 1819): "Best reign: 200, Bronze"; the seed, level and size are in the Rulers list (a pointer's tooltip has them too)
         stamps.length ? el('div', { class: 'stamps' }, [
           ...stamps.slice(0, STAMP_MAX).map((e) => stampFor(e, dpr)),
           stamps.length > STAMP_MAX ? el('span', { class: 'more-stamps small muted', text: TITLE_SCORE_TEXT.moreStamps(stamps.length - STAMP_MAX) }) : null,

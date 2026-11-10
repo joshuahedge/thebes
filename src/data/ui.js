@@ -78,6 +78,7 @@ export const KEYS = {
   panDown: ['ArrowDown', 's', 'S'],
   rotate: ['r', 'R'],
   minimap: ['m', 'M'],
+  frame: ['f', 'F'],   // Version 9.2 (Track V, ruling 1851): fit the built area to the screen (the Map button's double tap does the same)
   overlay: ['o', 'O'],
   confirm: ['Enter'],
   back: ['Escape'],
@@ -118,7 +119,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '9.1';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '9.2';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

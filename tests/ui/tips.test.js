@@ -527,12 +527,14 @@ describe('ui tips', () => {
         expect(tip.getAttribute('aria-live')).toBe('polite');
         expect(getComputedStyle(tip).display === 'none').toBe(false);          // rendered while empty, so a screen reader announces the first tip
         expect(tip.getBoundingClientRect().height).toBeLessThan(2);
-        expect(Math.abs(bar.getBoundingClientRect().bottom - goals.getBoundingClientRect().bottom)).toBeLessThan(0.5);   // no gap while empty
+        // 9.2 (Track Q, ruling 1777): on the wide layout the goals strip is the side panel's, so the row's references are the strip's under the top bar (a phone) or the bar's own edge (wide).
+        const inBar = goals.parentNode === bar;
+        expect(Math.abs(bar.getBoundingClientRect().bottom - (inBar ? goals : tip).getBoundingClientRect().bottom)).toBeLessThan(inBar ? 0.5 : 2);   // no gap while empty (the empty tip row is a dot)
         const before = document.activeElement;
         expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
         expect(document.activeElement).toBe(before);                           // announced, never focused
         const row = tip.querySelector('.tip-row');
-        expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(goals.getBoundingClientRect().bottom);   // under the goals strip
+        if (inBar) expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(goals.getBoundingClientRect().bottom);   // under the goals strip
         expect(bar.getBoundingClientRect().bottom).toBeLessThan(h * 0.45);     // nothing over the middle of the map
         const got = row.querySelector('.got-it').getBoundingClientRect();
         expect(got.width).toBeGreaterThanOrEqual(44);
@@ -557,7 +559,7 @@ describe('ui tips', () => {
       expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     } finally { r.cleanup(); }
   });
-  it('in the game: on a phone every tip is two lines at most on screen, whole in the live region, with the Tip label kept for screen readers only at larger text', async () => {
+  it('in the game: on a phone every tip is two lines at most on screen, whole in the live region, with the Tip label kept on screen, small, at larger text (9.2, Track A)', async () => {
     const worst = [];
     for (const [w, h] of [[360, 640], [390, 844], [740, 360]]) {
       for (const size of [100, 125, 150]) {
@@ -580,7 +582,8 @@ describe('ui tips', () => {
             if (size > 100) {
               expect(parseFloat(getComputedStyle(text).fontSize)).toBeLessThan(16 * size / 100);   // 14 px scaled, not the body size
               expect(label.textContent).toBe(T.tip);                           // still in the live region
-              expect(label.getBoundingClientRect().width).toBeLessThan(2);     // but not on screen
+              expect(label.getBoundingClientRect().width).toBeGreaterThan(8);   // 9.2 (Track A, ruling 1827): and on screen too, at 12 px or more
+              expect(parseFloat(getComputedStyle(label).fontSize)).toBeGreaterThanOrEqual(12);
             }
             expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(w);
             expect(row.querySelector('.got-it').getBoundingClientRect().height).toBeGreaterThanOrEqual(44);

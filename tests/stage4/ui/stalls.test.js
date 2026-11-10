@@ -41,7 +41,7 @@ describe('s4 ui the stall warning', () => {
     const w = city();
     const b = stall(w, 'pyramid_small', 12, 11, 'no_crew');
     const alerts = alertsFor(w).filter((a) => a.code === 'site_stalled');
-    expect(alerts).toEqual([{ code: 'site_stalled', id: b.id, reason: 'no_crew' }]);
+    expect(alerts).toEqual([{ code: 'site_stalled', id: b.id, reason: 'no_crew', ids: [b.id], count: 1 }]);   // 9.2 wave 0: ids and count
     const t = triage(w, alerts);
     expect([t.critical.length, t.ordinary.length, bannerModel(w, t.critical)]).toEqual([0, 1, null]);
     expect(alertText(alerts[0], w)).toEqual({ title: 'Small pyramid is not progressing', fix: "No crew: build a builders' guild on a road that reaches this site" });

@@ -35,6 +35,10 @@ export const LESSON_PLACES = {
 // alone once the warning is up (src/sim/lesson.js leadRaid). The raid step plays its wait at LESSON_RAID_WAIT_SPEED until the raiders arrive, then the fight at
 // LESSON_RAID_SPEED so it stays watchable, which its words say before Play.
 export const LESSON_RAID_LEAD = 30;
+// Version 9.2 (Track L, fix wave, ruling 1870): where the staged raid's band comes in, on the south edge of the lesson's map, 9 tiles from the tower and 4 from the bazaar. The
+// map's own two entries (east at 47,24 and north at 24,0) are about 40 screen units of tiles from the tower, so at the 0.5 zoom floor on a 375 px screen the tower, the target and
+// the band were never in one frame; from here all three are inside it from the arrival (src/sim/lesson.js leadRaid sets it on the first warning, in the lesson's city only).
+export const LESSON_RAID_ENTRY = { x: 26, y: 47 };
 export const LESSON_RAID_SPEED = 2;
 export const LESSON_RAID_WAIT_SPEED = 3;
 
@@ -70,7 +74,7 @@ export const LESSON_STEPS = [
   { id: 'bazaar', check: { kind: 'served', type: 'bazaar', homes: 3 }, at: { x: 21, y: 43, w: 2, d: 2 }, show: { category: 'services', item: 'bazaar' } },
   { id: 'workers', check: { kind: 'working', types: ['farm_grain', 'granary', 'bazaar'] }, at: { x: 21, y: 40, w: 1, d: 3 }, show: { category: 'homes', item: 'house' }, play: 'act', act: { kind: 'plots' } },
   // Version 9.1 (Track F, ruling 1665): and the mood chip, lit and live beside the gold, since Ipi's line says it is where mood's why is (its explainer lists the reasons).
-  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .stat.gold, #topbar .stat.mood', play: 'card', lock: ['stat-gold', 'stat-mood'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
+  { id: 'month', stage: 'month', check: { kind: 'monthsSince', n: 2 }, speed: 2, dom: '#topbar .stat.gold, #topbar .stat.mood', play: 'card', lock: ['stat-gold', 'stat-mood'] },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 20, y: 38, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },

@@ -7,6 +7,9 @@ import { idx, inBounds } from '../sim/grid.js';
 import { T } from '../sim/terrain.js';
 import { TERRAIN, SHADOW } from './art/palette.js';
 
+export const KERB = { drop: 2.4, width: 11, alpha: 0.3 };            // Version 9.2 (Track V): art px the low side's shadow drops, its width and its strength
+export const CART_TRACK = { width: 4.6, alpha: 0.3 };                  // the darker centre: art px wide, and the strength of the road's edge tone over the top
+
 const isRoad = (world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
 
 export function roadSegments(world, range) {
@@ -28,10 +31,15 @@ export function drawRoads(g, world, range) {
   if (!segs.length && !dots.length) return;
   const path = [];
   for (const [ax, ay, bx, by] of segs) path.push(['M', p(ax + 0.5, ay + 0.5)], ['L', p(bx + 0.5, by + 0.5)]);
+  // Version 9.2 (Track V, ruling 1846): the far zoom has no room for ruts and pebbles, so the road reads from two broad strokes baked into the chunk (never drawn per frame): a kerb shadow
+  // on the low side (the stroke shifted down the screen, so only the lower edge shows it) and, over the top, a darker centre where the carts run.
+  if (path.length) g.stroke(path.map(([c, q]) => [c, [q[0], q[1] + KERB.drop]]), SHADOW, KERB.width, KERB.alpha);
+  for (const [x, y] of dots) { const q = p(x + 0.5, y + 0.5); g.circ([q[0], q[1] + KERB.drop], 6 * 0.6, SHADOW, { alpha: KERB.alpha }); }
   for (const [c, w, a] of [[SHADOW, 15, 0.12], [TERRAIN.roadEdge, 12, 1], [TERRAIN.road, 10, 1]]) {
     if (path.length) g.stroke(path, c, w, a);
     for (const [x, y] of dots) g.circ(p(x + 0.5, y + 0.5), w / 2 * 0.6, c, { alpha: a });
   }
+  if (path.length) g.stroke(path, TERRAIN.roadEdge, CART_TRACK.width, CART_TRACK.alpha);
   const ruts = [];
   for (const [ax, ay, bx, by] of segs) {
     const alongX = ay === by;

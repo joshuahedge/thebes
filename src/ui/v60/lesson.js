@@ -26,21 +26,20 @@
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES, stepCategory } from '../../data/lesson.js';
 import { MILESTONES } from '../../data/progression.js';
-import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, leadRaid, stepSpeed, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
+import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, monthsSinceEntry, chapterAt, lessonAt, leadRaid, stepSpeed, stepSpot, stepFrame, stepTower, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
 import { population } from '../../sim/world.js';
-import { monthIndex } from '../../sim/clock.js';
 import { workingTowers } from '../../sim/raids.js';
 import { setSpeed } from '../../sim/commands.js';
-import { lessonFacts, stepWords, handOverMonth } from '../lesson.js';
+import { lessonFacts, stepWords, handOverMonth, handOverHold } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
-import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, T } from '../text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, V92L_TEXT, T } from '../text.js';
 import { V81T_TEXT } from '../v81/lessonText.js';
 import { mountScribe, unmountScribe, say, hush, portrait } from '../v81/scribe.js';
 import { lockTo, unlock } from '../v81/lessonLock.js';
 import { el, button, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
-import { tileToScreen } from '../../render/camera.js';
+import { tileToScreen, zoomFloor } from '../../render/camera.js';
 import { UI, TEAL_DARK } from '../../render/art/palette.js';
 import { openSheet, isToolMode } from '../modes.js';
 import { TOPBAR_PX, freeTop } from '../layout.js';
@@ -81,7 +80,7 @@ export function lockFor(step) {
 export function beatFacts(world) {
   return {
     roads: gateRoadTiles(world), homes: homesOnRoad(world), well: homesReached(world, 'well'), bazaar: homesReached(world, 'bazaar'), people: population(world),
-    months: monthIndex(world), gold: Math.floor(world.gold), towers: workingTowers(world), won: Boolean(world.raid.last && world.raid.last.won),
+    months: monthsSinceEntry(world), gold: Math.floor(world.gold), towers: workingTowers(world), won: Boolean(world.raid.last && world.raid.last.won),
     burned: (world.tally.blazesOut || 0) === 0 && (world.tally.firesOut || 0) === 0, working: workingTypes(world, ['farm_grain', 'granary', 'bazaar']).length,
   };
 }
@@ -106,9 +105,9 @@ export function createLessonUi(ctx) {
   };
   if (!run) {
     // Version 9.1 (Track F, ruling 1663): the first month after the hand-over is marked on the root (src/ui/tips.js holds a tip while an alert and a goal are both up).
-    const markMonth = () => { if (ctx.root) ctx.root.classList.toggle('handover-month', handOverMonth(ctx.world)); };
+    const markMonth = () => { if (ctx.root) { ctx.root.classList.toggle('handover-month', handOverMonth(ctx.world)); ctx.root.classList.toggle('handover-hold', handOverHold(ctx.world)); } };
     markMonth();
-    return { ...base, onEvents(events) { moments.onEvents(events); rankUps(events); markMonth(); }, refresh() { markMonth(); }, destroy() { moments.destroy(); unmountScribe(); if (ctx.root) ctx.root.classList.remove('handover-month'); } };
+    return { ...base, onEvents(events) { moments.onEvents(events); rankUps(events); markMonth(); }, refresh() { markMonth(); }, destroy() { moments.destroy(); unmountScribe(); if (ctx.root) ctx.root.classList.remove('handover-month', 'handover-hold'); } };
   }
 
   const { world, store, root, settings } = ctx;
@@ -123,14 +122,16 @@ export function createLessonUi(ctx) {
   const chip = el('span', { class: 'chip small', role: 'img' });
   const more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
   const beatLine = el('span', { class: 'beat-line' });   // Ipi's reaction to the step just done takes the why's place for its beat (ruling 1206); the next step's do stays in sight
-  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, beatLine, text, ' ', chip, ' ', ipiWhy, more]);   // the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
+  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, chip, ' ', beatLine, text, ' ', ipiWhy]);   // Version 9.2 (fix wave, ruling 1873): the count comes before the words, so a phone's clamp cuts the words, never the count; the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
   // Version 8.2 (integration, ruling 1330): the bubble is Ipi's two short lines and nothing more. The 7.0 detail line that followed them repeated the why at full size (the
   // farm: "the green land by the river" twice); it is gone from the bubble, and what it added lives in the step's card, Show me and How to play.
+  more.addEventListener('click', () => toggleOpen());   // Version 9.2: More is the row's own control now (it was inside the body, whose tap toggled it)
   const showMe = button(T.showMe, { class: 'show-me quiet', onClick: () => doShowMe() });
-  const newCity = button(D2_TEXT.endNew, { class: 'lesson-new primary', hidden: true, onClick: () => run.finish() });
+  // Version 9.2 (Track L, ruling 1755): the way on at the end is the end card; this button only brings it back if it was closed (Back) without choosing.
+  const newCity = button(V92L_TEXT.endChoose, { class: 'lesson-new primary', hidden: true, onClick: () => openEnd() });
   const face = portrait(36);
   face.classList.add('lesson-face');
-  const row = el('div', { id: 'lesson', class: 'lesson-row', role: 'region', 'aria-label': D2_TEXT.region }, [face, body, showMe, newCity]);
+  const row = el('div', { id: 'lesson', class: 'lesson-row', role: 'region', 'aria-label': D2_TEXT.region }, [face, body, more, showMe, newCity]);
   const before = underBar ? underBar.querySelector('#goals') : null;
   if (underBar) underBar.insertBefore(row, before);
   root.classList.add('lesson-on');
@@ -138,7 +139,9 @@ export function createLessonUi(ctx) {
   // ── the lit target: a scrim with a hole, a ring, and a ring on a control ──
   const scrim = el('div', { class: 'lesson-scrim', 'aria-hidden': 'true', hidden: true });
   const ring = el('div', { class: 'lesson-ring', 'aria-hidden': 'true', hidden: true });
+  const towerRing = el('div', { class: 'lesson-ring lesson-ring-tower', 'aria-hidden': 'true', hidden: true });   // Version 9.2 (design 2.1): the raid step's second ring, on the tower, with its own hole in the scrim
   const ui = root.querySelector('#ui') || root;
+  ui.insertBefore(towerRing, ui.firstChild);
   ui.insertBefore(ring, ui.firstChild);
   ui.insertBefore(scrim, ui.firstChild);
 
@@ -197,8 +200,9 @@ export function createLessonUi(ctx) {
   // Version 8.1: Ipi's why and do lead the row (8.2, ruling 1330: and are all of it; More shows only while a phone cuts them).
   function measure() {
     more.hidden = true;
+    const why = Boolean(ipiWhy.textContent);   // Version 9.2 (design 2.5): Ipi's why waits behind More, so More shows whenever there is one (and while the instruction is cut, or open)
     const cut = !open && isCut(body);
-    if (cut || open) { writeMore(more, open); more.hidden = false; }
+    if (why || cut || open) { writeMore(more, open); more.hidden = false; }
   }
 
   // Which card and category the step asks for (the bazaar's, when it has been taken down and the step needs it).
@@ -225,7 +229,9 @@ export function createLessonUi(ctx) {
 
   // ── the step card and the clock (ruling 1002) ──
   const keysOn = () => settings.get().keyboardShortcuts !== false;
-  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onSkip: () => askSkip(), keys: keysOn });
+  // Version 9.2 (Track L, D11): Esc on the card means Leave (with its question); Enter and Space stay Go.
+  const askLeave = () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => run.leave() } });
+  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onSkip: () => askSkip(), onLeave: () => askLeave(), keys: keysOn });
 
   // The card pauses the game, remembering the speed it was playing at (the player's own, kept through the cards that follow while it stays paused).
   function holdForCard(building) {
@@ -266,6 +272,22 @@ export function createLessonUi(ctx) {
     ourPace = null;
     if (ours) setPace(1);
   }
+  // Version 9.2 (Track L, design 2.1): the fire step plays at 1x until the camera has settled on the blaze (the staged fire is out in a day or two, so at 2x or 3x it was over
+  // before the glide arrived), then goes back to the speed the player had. fireHeld is that speed while it is held; fireFor the step it was held at (once).
+  let fireHeld = null, fireFor = -1;
+  function holdFire(capture) {
+    const onFire = Boolean(step) && step.id === 'fire' && !finished;
+    if (capture) {
+      if (onFire && fireFor !== at && fireHeld === null && world.speed > 1) { fireFor = at; fireHeld = world.speed; setPace(1); }
+      return;
+    }
+    if (fireHeld === null) return;
+    const settled = onFire && shownAt === at && !(ctx.cameraControl && ctx.cameraControl.animating);
+    if (onFire && !settled) return;
+    const to = fireHeld;
+    fireHeld = null;
+    if (world.speed === 1 && !destroyed) setPace(to);
+  }
   // Version 9.1 (ruling 1658): the codes the banner may carry at this step, on the root for src/ui/alerts.js; the banner is asked again when they change.
   function markAlerts() {
     const codes = ownAlerts(finished ? null : step).join(' ');
@@ -301,7 +323,7 @@ export function createLessonUi(ctx) {
     const first = at === 0;   // ruling 1110: the first card offers Skip, I've played before
     // Version 9.1 (Track F, ruling 1667): the story is told once, on the title card the lesson starts from; the first card says its chapter's why like every other.
     // Fix wave (ruling 1736): a step that sets a speed of its own (the raid's) says it on the card, before Play, as the docked row does.
-    const said = [chapter.why, step.waitSpeed ? V91F_TEXT.raidFast : '', words.do].filter(Boolean).join(' ');
+    const said = [chapter.why, step.id === 'homes' ? V92L_TEXT.workersLine : '', step.waitSpeed ? V91F_TEXT.raidFast : '', words.do].filter(Boolean).join(' ');   // Version 9.2 (design 2.7): chapter 2 says how many work
     const beat = leadBeat;
     leadBeat = '';
     card.show({ label: V81T_TEXT.chapterLabel(ch.index + 1, LESSON_CHAPTER_COUNT, chapter.name), text: said, beat, skipOffered: first && typeof run.skip === 'function', goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
@@ -426,7 +448,7 @@ export function createLessonUi(ctx) {
     step = at < LESSON_LENGTH ? LESSON_STEPS[at] : null;
     facts = lessonFacts(world, step);
     if (!step) {
-      setText(label, ''); setText(ipiWhy, ''); setText(text, D2_TEXT.endRow); chip.hidden = true;
+      setText(label, ''); setText(ipiWhy, ''); setText(text, V92L_TEXT.endRow); chip.hidden = true;
       showMe.hidden = true; paintEnd();
       row.dataset.step = 'end';
     } else {
@@ -463,16 +485,23 @@ export function createLessonUi(ctx) {
 
   // The row's way out at the end ("Go to the title") is live only while the end sheet is not open (the replay of a device with a saved city, ruling 1209).
   const endSheetOpen = () => { const s = store.get().sheet; return Boolean(s) && s.kind === 'lessonEnd'; };
-  function paintEnd() { newCity.hidden = !finished || endSheetOpen() || canAdopt(); }
+  function paintEnd() { newCity.hidden = !finished || endSheetOpen(); }
   const canAdopt = () => typeof run.adopt === 'function' && (typeof run.canAdopt !== 'function' || run.canAdopt());
-
-  // The end (ruling 1208): the lesson's city becomes the player's own. Handed over after the last reaction has been seen, from a timer, never from inside a command or a day
-  // (boot builds a new interface for the city, and this one goes).
-  let handing = 0;
-  function handOver() {
-    if (handing || destroyed) return;
-    handing = setTimeout(() => { if (!destroyed) run.adopt(); }, BEAT_MS);
+  // Whether something the end card must not open over is up: a sheet, the confirm dialog, a step card (the picture cards of a lesson are its own) or any other dialog.
+  const somethingUp = () => { const s = store.get(); return Boolean(s.sheet) || Boolean(s.confirmDialog) || card.isUp() || Boolean(root.querySelector('.picture-cards:not([hidden])')); };
+  function openEnd() { if (!somethingUp()) store.set(openSheet(store.get(), 'lessonEnd')); }
+  // The end card opens once, as soon as nothing else is open (it waits for them: a card, a sheet, the dialog), and never while the interface is still being built (its sheets are
+  // made after its seams: a lesson begun at the end, a dev scene's, opens it at the first refresh instead).
+  let built = false;
+  function tryEnd(building = false) {
+    if (!finished || building || !built || endShown || destroyed || somethingUp()) return;
+    endShown = true;
+    store.set(openSheet(store.get(), 'lessonEnd'));
   }
+
+  // The end (ruling 1208, Version 9.2 ruling 1755): the lesson's city becomes the player's own when the player says so, on the end card, which both paths (a first run, and a replay on
+  // a device with a saved city) end on. It is run from a button's tap, never from inside a command or a day (boot builds a new interface for the city, and this one goes).
+  const handing = 0;   // (kept for destroy: no timer now)
 
   // Where the sim says the lesson is: moves on through every step it shows done, stages what the next one stages, reacts with a line and a chime, and ends.
   function sync(building = false) {
@@ -486,13 +515,13 @@ export function createLessonUi(ctx) {
       if (!building) clearForStep();
       if (ctx.sfx) { ctx.sfx.play('goal'); if (ctx.sfx.buzz) ctx.sfx.buzz(20); }
       open = false; paintOpen();
-      shownAt = -1;
+      shownAt = -1; frameKey = ''; zoom0 = null; bandAt = null;
       announceNext = true;
       if (!building) startBeat(done);
     }
     if (at >= LESSON_LENGTH && !finished) {
       finished = true;
-      needPause = !canAdopt();
+      needPause = true;                                  // Version 9.2 (ruling 1755): the game waits behind the end card, on both paths
       settings.set({ lessonDone: true, lessonStep: LESSON_LENGTH, cardsSeen: true });
     }
     if (needPause && !building && ctx.speedControl) { needPause = false; ctx.speedControl.set(0); }   // a command: not while the interface is still being built
@@ -513,11 +542,10 @@ export function createLessonUi(ctx) {
     if (!card.isUp() && !showing && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
     if (!building && !card.isUp() && !showing) pace();
     if (announceNext) { announceNext = false; announce(); }
-    if (finished && !building && canAdopt()) handOver();
-    // The end sheet (a replay on a device with a saved city) opens once nothing else is open, and never while the interface is still being built (its sheets are made after
-    // its seams: a lesson begun at the end, a dev scene's, opens it at the first refresh instead).
-    else if (finished && !building && !endShown && !store.get().sheet && !store.get().confirmDialog) { endShown = true; store.set(openSheet(store.get(), 'lessonEnd')); }
+    if (!building) built = true;
+    tryEnd(building);
     ensureVisible();
+    if (!building && !card.isUp() && !showing) holdFire(true);
   }
 
   // The map the interface leaves free, as insets from the screen's edges in px (createUI's sheetInsets is private to it, so the same parts are read here): a wide screen's
@@ -532,18 +560,56 @@ export function createLessonUi(ctx) {
 
   // Version 8.0 (Track N, ruling 1170): the view follows each step's own target: every step that points at a place frames that place in the middle of the free map as it
   // begins, as Show me does (a step about the whole city leaves the view alone).
-  function ensureVisible() {
-    if (finished || shownAt === at || !step || !ctx.cameraControl) return;
+  // Version 9.2 (Track L, design 2.1): the raid step is framed again when the raiders land and follows the band in from then (followBand, once a frame): `frameKey` is the
+  // step and its phase ('band' while the raiders are on the map), `bandAt` the band's middle as last framed, `zoom0` the zoom the step began at (the frame only ever zooms
+  // out from it, to hold the tower, the target and the band).
+  let frameKey = '', bandAt = null, zoom0 = null;
+  const isRaidStep = () => Boolean(step) && Boolean(step.at) && step.at.of === 'raidTarget';
+  const onBand = () => isRaidStep() && !finished && Boolean(world.raid.active) && Array.isArray(world.raid.active.raiders) && world.raid.active.raiders.length > 0;
+  const bandMiddle = () => {
+    const rs = world.raid.active.raiders;
+    return { x: rs.reduce((n, r) => n + r.x, 0) / rs.length, y: rs.reduce((n, r) => n + r.y, 0) / rs.length };
+  };
+  // The zoom that holds a box of tiles inside the free map with the ring's room round it: a w x d box is (w + d) x 32 px wide and (w + d) x 16 tall at zoom 1.
+  function fitZoom(fr, v, i) {
+    const span = Math.max(1, fr.w + fr.d), pad = 2 * RING_ROOM_PX;
+    return Math.min((v.width - i.left - i.right - pad) / (span * 32), (v.height - i.top - i.bottom - pad) / (span * 16));
+  }
+  function followBand() {
+    if (!onBand() || card.isUp() || !ctx.cameraControl || !run.cam || typeof ctx.cameraControl.glide !== 'function') return;
+    const m = bandMiddle();
+    if (bandAt && Math.hypot(m.x - bandAt.x, m.y - bandAt.y) < 2.5) return;
+    ensureVisible(true);
+  }
+  function ensureVisible(follow = false) {
+    if (finished || !step || !ctx.cameraControl) return;
+    const phase = onBand() ? 'band' : '';
+    const fkey = `${at}:${phase}`;
+    if (!follow && shownAt === at && frameKey === fkey) return;
     const spot = stepSpot(world, step);
-    shownAt = at;
+    shownAt = at; frameKey = fkey;
     if (!spot || !run.cam) return;
+    if (isRaidStep() && zoom0 === null) zoom0 = run.cam.zoom;
+    if (phase === 'band') bandAt = bandMiddle(); else bandAt = null;
     // Version 8.2 (Track L, ruling 1321): a step with a frame of its own (the raid: the target, the towers and the side the raiders come from) centres that box, and the target's own point is what
     // is kept in view, so the ring stays on the screen whatever the box.
     const fr = stepFrame(world, step) || spot;
     const v = viewOf(), tx = spot.x + spot.w / 2, ty = spot.y + spot.d / 2, i = freeInsets(v);
     const road = step.id === 'road' ? roadCentre(spot, v, i) : null;   // Version 9.1 (ruling 1674): nudged east for the diamond, the ring kept whole
-    const cx = road ? road.x : fr.x + fr.w / 2, cy = road ? road.y : fr.y + fr.d / 2;
-    const go = () => (road ? ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i) : ctx.cameraControl.frameKeeping(cx, cy, tx, ty, i, fr === spot ? undefined : RING_ROOM_PX));   // a framed box keeps the whole ring in view, not just its middle
+    let cx = road ? road.x : fr.x + fr.w / 2, cy = road ? road.y : fr.y + fr.d / 2;
+    // Version 9.2: the raid's frame may pull out (never in past where the step began) to hold the tower, the target and the band; the tower is what it keeps in view.
+    const tower = isRaidStep() ? stepTower(world, step) : null;
+    let kx = tower ? tower.x + tower.w / 2 : tx, ky = tower ? tower.y + tower.d / 2 : ty;
+    const fit = fr !== spot && zoom0 !== null ? fitZoom(fr, v, i) : null;
+    const zoom = fit === null ? undefined : Math.min(zoom0, Math.max(0.05, fit));
+    // On a narrow screen the tower and the band can be further apart than the free map is wide even at the furthest zoom out: then the band comes first (it is what the
+    // player is to see arrive), the view leaning a little toward the tower, and it slides onto the whole box as the band comes in (followBand).
+    if (phase === 'band' && fit !== null && fit < zoomFloor(run.cam, v) && tower) {
+      const m = bandMiddle();
+      cx = m.x + (kx - m.x) * 0.3; cy = m.y + (ky - m.y) * 0.3;
+      kx = m.x; ky = m.y;
+    }
+    const go = () => (road ? ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i) : ctx.cameraControl.frameKeeping(cx, cy, kx, ky, i, fr === spot ? undefined : RING_ROOM_PX, undefined, null, zoom));   // a framed box keeps the whole ring in view, not just its middle
     if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
   }
 
@@ -588,20 +654,32 @@ export function createLessonUi(ctx) {
     const glow = beatSpot && beating();
     const spot = glow ? beatSpot : step && !finished && !card.isUp() ? stepSpot(world, step) : null;   // under the step card the map is dimmed by the card's own layer
     ring.classList.toggle('beat', Boolean(glow));
-    if (!spot || !run.cam) { scrim.hidden = true; ring.hidden = true; }
+    const tw = spot && !glow && isRaidStep() && !finished ? stepTower(world, step) : null;   // Version 9.2: the raid step lights its tower too
+    if (!tw) towerRing.hidden = true;
+    if (!spot || !run.cam) { scrim.hidden = true; ring.hidden = true; towerRing.hidden = true; }
     else {
       const v = viewOf();
       const [sx, sy] = tileToScreen(run.cam, v, spot.x + spot.w / 2, spot.y + spot.d / 2);
       const { rx, ry } = ringHalf(spot, run.cam.zoom);
-      const k2 = [Math.round(sx), Math.round(sy), Math.round(rx), Math.round(ry)].join(',');
-      if (k2 !== key || scrim.hidden || ring.hidden) {
+      const t2 = tw ? tileToScreen(run.cam, v, tw.x + tw.w / 2, tw.y + tw.d / 2) : null, h2 = tw ? ringHalf(tw, run.cam.zoom) : null;
+      const k2 = [Math.round(sx), Math.round(sy), Math.round(rx), Math.round(ry), ...(tw ? [Math.round(t2[0]), Math.round(t2[1]), Math.round(h2.rx), Math.round(h2.ry)] : [])].join(',');
+      if (k2 !== key || scrim.hidden || ring.hidden || (tw && towerRing.hidden)) {
         key = k2;
         scrim.hidden = Boolean(glow); ring.hidden = false;
         scrim.style.setProperty('--cx', `${sx}px`); scrim.style.setProperty('--cy', `${sy}px`);
         scrim.style.setProperty('--rx', `${rx * 1.18}px`); scrim.style.setProperty('--ry', `${ry * 1.18}px`);
         Object.assign(ring.style, { left: `${sx - rx}px`, top: `${sy - ry}px`, width: `${2 * rx}px`, height: `${2 * ry}px` });
+        scrim.classList.toggle('two', Boolean(tw));
+        if (tw) {
+          scrim.style.setProperty('--cx2', `${t2[0]}px`); scrim.style.setProperty('--cy2', `${t2[1]}px`);
+          scrim.style.setProperty('--rx2', `${h2.rx * 1.18}px`); scrim.style.setProperty('--ry2', `${h2.ry * 1.18}px`);
+          Object.assign(towerRing.style, { left: `${t2[0] - h2.rx}px`, top: `${t2[1] - h2.ry}px`, width: `${2 * h2.rx}px`, height: `${2 * h2.ry}px` });
+          towerRing.hidden = false;
+        }
       }
     }
+    followBand();
+    holdFire(false);
     paintRoadMark();
     const sel = step && step.dom && !finished ? step.dom : null;
     if (sel !== litSel) { for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit'); litSel = sel; }
@@ -619,17 +697,30 @@ export function createLessonUi(ctx) {
     const raidWon = Boolean(world.raid.last && world.raid.last.won);
     let people = 0;
     for (const b of Object.values(world.buildings)) if (b.type === 'house') people += b.residents || 0;
-    sheetBody.append(el('div', { class: 'lesson-end' }, [
-      el('p', { class: 'lead', text: D2_TEXT.endBody({ people, won: raidWon }) }),
-      el('p', { class: 'small muted', text: D2_TEXT.endMore }),
-    ]));
-    sheetBody.append(el('div', { class: 'actions' }, [
-      button(D2_TEXT.endNew, { class: 'lesson-new-city primary', onClick: () => run.finish() }),
-      button(D2_TEXT.endStay, { class: 'lesson-stay', onClick: close }),
-    ]));
+    // Version 9.2 (Track L, ruling 1755): one card for both paths: the city's numbers (the sim's own), a line for each thing learned, and two buttons that each say what they do before the
+    // tap. On a device with a saved city, keeping this city would replace that one, so it asks first and offers Export (the dialog's extra button).
+    const saved = !canAdopt();
+    // Fix wave (ruling 1872): the order is the numbers, the two choices, then the lines learned, so at large text on a phone both choices are above the fold and the list scrolls under them.
+    const endBox = el('div', { class: 'lesson-end' }, [
+      el('p', { class: 'lead', text: V92L_TEXT.endNumbers({ people, gold: Math.floor(world.gold), won: raidWon }) }),
+    ]);
+    sheetBody.append(endBox);
+    const keep = () => {
+      if (!saved) { close(); if (ctx.speedControl) ctx.speedControl.set(1); run.adopt(); return; }
+      store.set({ confirmDialog: { text: V92L_TEXT.keepReplaceConfirm, confirmLabel: V92L_TEXT.keepReplace, destructive: true,
+        extraLabel: typeof run.exportSaved === 'function' ? V92L_TEXT.exportFirst : undefined, onExtra: () => run.exportSaved(),
+        onConfirm: () => { close(); if (ctx.speedControl) ctx.speedControl.set(1); run.adopt(true); } } });
+    };
+    const choice = (btn, hint) => el('div', { class: 'lesson-choice' }, [btn, el('p', { class: 'small muted lesson-hint', id: `${btn.className.split(' ')[0]}-hint`, text: hint })]);
+    const keepBtn = button(V92L_TEXT.endKeep, { class: 'lesson-keep primary', onClick: keep }), ownBtn = button(V92L_TEXT.endOwn, { class: 'lesson-new-city', onClick: () => run.finish() });
+    keepBtn.setAttribute('aria-describedby', 'lesson-keep-hint'); ownBtn.setAttribute('aria-describedby', 'lesson-new-city-hint');
+    endBox.append(el('div', { class: 'actions lesson-end-actions' }, [
+      choice(keepBtn, saved ? V92L_TEXT.keepHintSaved : V92L_TEXT.keepHint),
+      choice(ownBtn, saved ? V92L_TEXT.ownHintSaved : V92L_TEXT.ownHint),
+    ]), el('ul', { class: 'lesson-learned small' }, V92L_TEXT.learned.map((t) => el('li', { text: t }))));
   }
 
-  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) paintEnd(); if (cardWaits && !midAction()) sync(); } });
+  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) { paintEnd(); tryEnd(); } if (cardWaits && !midAction()) sync(); } });
   sync(true);
   return {
     ...base,
@@ -646,7 +737,7 @@ export function createLessonUi(ctx) {
       unlock();
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
       doc.removeEventListener('pointerdown', onDown, true); doc.removeEventListener('pointerup', onUp, true); doc.removeEventListener('pointercancel', onUp, true);
-      row.remove(); scrim.remove(); ring.remove(); roadMark.remove(); card.destroy();
+      row.remove(); scrim.remove(); ring.remove(); towerRing.remove(); roadMark.remove(); card.destroy();
       for (const n of root.querySelectorAll('.lesson-lit, .lesson-pulse')) n.classList.remove('lesson-lit', 'lesson-pulse');
       root.classList.remove('lesson-on', 'lesson-names-alert');
       delete root.dataset.lessonAlerts;

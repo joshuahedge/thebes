@@ -39,7 +39,7 @@ export const CARD_PICTURES = { families: { speed: 2 }, month: { coin: true }, fi
 export const pictureOf = (step) => (step && (step.show ? { item: step.show.item } : CARD_PICTURES[step.id])) || null;
 
 // createLessonCard({ root, doc, store, onGo, onSkip }) -> { show({ label, words, goLabel, picture }), hide(), isUp(), element, go, skip, destroy() }
-export function createLessonCard({ root, doc = document, store, onGo, onSkip = () => {}, keys = () => true }) {
+export function createLessonCard({ root, doc = document, store, onGo, onSkip = () => {}, onLeave = null, keys = () => true }) {
   const win = doc.defaultView || window;
   const label = el('p', { class: 'lc-label small muted' });
   // Version 8.1 (Track T, rulings 1206-1207): the card is Ipi speaking (the scribe's portrait beside the chapter's name), and the reaction to the chapter just finished leads it.
@@ -120,6 +120,8 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
       return;
     }
     if ((k === 'Enter' || k === ' ') && (on === go || on === skip)) return;   // a focused button keeps its own Enter and Space
+    // Version 9.2 (Track L, D11): Esc means Leave, with its question (a card given no onLeave keeps the old Esc: it docks the step).
+    if (k === 'Escape' && typeof onLeave === 'function') { ev.preventDefault(); ev.stopPropagation(); asker = go; onLeave(); return; }
     if (k === 'Enter' || k === ' ' || k === 'Escape') { ev.preventDefault(); ev.stopPropagation(); onGo(); return; }
     if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); ev.stopPropagation(); return; }
     // Version 7.1 (ruling 1060): every other game key stops here too (the clock, the minimap, Help, the layers, the categories, the pan keys), so the card is modal to the

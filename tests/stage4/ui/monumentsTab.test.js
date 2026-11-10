@@ -27,10 +27,10 @@ describe('s4 ui the Monuments tab', () => {
     expect(shownItems(w, 'monuments')).toEqual(['builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large']);
     expect(shownItems(w, 'monuments').every((t) => cardInfo(w, t).locked)).toBe(true);
     w.milestone = 'city';
-    expect(shownItems(w, 'monuments').map((t) => cardInfo(w, t).locked)).toEqual([false, false, false, false, false, true, true, true]);   // the great sphinx, the colossus and the small mastaba wait for Great city
+    expect(shownItems(w, 'monuments').map((t) => cardInfo(w, t).locked)).toEqual([false, false, false, false, false, true, true, true]);   // the great sphinx, the colossus and the small mastaba wait for Great City
   });
 
-  it('shows the small pyramid greyed from Great city and the great pyramid once the small one unlocks (ruling 243)', () => {
+  it('shows the small pyramid greyed from Great City and the great pyramid once the small one unlocks (ruling 243)', () => {
     const w = makeTestWorld();
     w.milestone = 'city';
     expect([cardShown(w, 'pyramid_small'), cardShown(w, 'pyramid_great')]).toEqual([false, false]);
@@ -47,18 +47,18 @@ describe('s4 ui the Monuments tab', () => {
     w.milestone = 'great_city';
     expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs Capital and 100 prestige');
     w.milestone = 'capital';
-    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige (you have 0)');
+    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige, from finished monuments (you have 0)');
     finished(w, 'colossus', 20, 20);
     finished(w, 'obelisk_small', 25, 25);
     expect([prestigeOf(w), cardInfo(w, 'pyramid_small').lockText]).toEqual([60, UI4_TEXT.needsPrestige(100, prestigeOf(w))]);
-    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige (you have 60)');
+    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige, from finished monuments (you have 60)');
     const before = cardsKey(w, 'monuments', null);
     finished(w, 'obelisk_large', 28, 28);                                          // +30: the count moves, so the card is built again
-    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige (you have 90)');
+    expect(cardInfo(w, 'pyramid_small').lockText).toBe('Needs 100 prestige, from finished monuments (you have 90)');
     expect(cardsKey(w, 'monuments', null) === before).toBe(false);
     w.prestigeUnlocks.pyramid_small = 10;
-    expect(lockTextOf(w, 'pyramid_great')).toBe('Needs 300 prestige (you have 90)');
-    expect(lockTextOf(w, 'colossus')).toBe('Unlocks at Great city');
+    expect(lockTextOf(w, 'pyramid_great')).toBe('Needs 300 prestige, from finished monuments (you have 90)');
+    expect(lockTextOf(w, 'colossus')).toBe('Unlocks at Great City');
   });
 
   it('says a monument stands anywhere but the fields, on its card and in its tooltip (ruling 299)', async () => {

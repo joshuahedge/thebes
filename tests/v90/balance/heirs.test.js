@@ -71,9 +71,9 @@ describe('v90 balance T4 each strength and each weakness shows, on the capital r
     const s = year6('steady'), u = year6('unconquered');
     expect(soldiersPayOf(s)).toBeGreaterThan(0);
     expect(Math.abs(soldiersPayOf(u) - soldiersPayOf(s) * 0.8)).toBeLessThanOrEqual(1);
-    expect([firstWarnAfterOf(s), firstWarnAfterOf(u)]).toEqual([300, 200]);
+    expect([firstWarnAfterOf(s), firstWarnAfterOf(u)]).toEqual([300, 285]);   // 9.2 balance (ruling 1858): was [300, 200], the first warning 100 days sooner; every warning 15 days sooner now (Track S had 30: 270)
     const steady = capitalOf('steady'), heir = capitalOf('unconquered');
-    expect([steady.warns[0] - steady.r.w.raid.clockDay, heir.warns[0] - heir.r.w.raid.clockDay]).toEqual([300, 200]);
+    expect([steady.warns[0] - steady.r.w.raid.clockDay, heir.warns[0] - heir.r.w.raid.clockDay]).toEqual([300, 285]);   // 9.2 balance (ruling 1858): was [300, 200] (Track S: 270)
     expect([heir.r.w.tally.raidsLost, heir.r.w.tally.raidsBeaten >= steady.r.w.tally.raidsBeaten]).toEqual([0, true]);
   });
   it('the Bountiful: the farms make 15% more in a good flood, and a low flood\'s loss is half again as deep', () => {
@@ -109,14 +109,14 @@ describe('v90 balance T4 each strength and each weakness shows, on the capital r
     expect(Math.abs(monthlyArrivals(g) - monthlyArrivals(s) * 1.2)).toBeLessThanOrEqual(1.2);
     expect([taxFactorOf(s, 'high'), taxFactorOf(g, 'high')]).toEqual([1.25, 1.15]);
     const normal = monthFigures(s).taxesNormal;
-    expect(Math.abs(taxesAt(g, 'high', normal) - taxesAt(s, 'high', normal) * (1.15 / 1.25))).toBeLessThanOrEqual(1);
+    expect(Math.abs(taxesAt(g, 'high', normal) - taxesAt(s, 'high', normal) * (1.15 * 0.98 / 1.25))).toBeLessThanOrEqual(1);   // 9.2 (Track S): the Generous's taxes lower at every rate (x0.98, 9.2 balance ruling 1859)
   });
 });
 
 describe('v90 balance T5 the score at year 6 of the capital run', () => {
   it('scores every heir\'s own run within 8% of the Steady\'s, never below 0 gold', () => {
     const steady = scoreOf(capitalOf('steady').r.w).total;
-    expect(steady).toBe(360);
+    expect(steady).toBe(340);   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795, 1808): was 360 (score v2; v3 counts the terms that have started, and the crowded term dropped from the sickness risk)
     for (const heir of HEIRS) {
       const { r } = capitalOf(heir);
       const total = scoreOf(r.w).total;
@@ -132,7 +132,7 @@ describe('v90 balance T5 the score at year 6 of the capital run', () => {
 
 // 8.4's walk-through (tests/v84/r/lesson.test.js DAYS_83, measured on 8.3 and pinned through 8.4): each step's first and last day.
 // Version 9.1 (Track F, ruling 1657): the staged raid's raiders come LESSON_RAID_LEAD days after its warning, so the raid step ends on day 139.
-const DAYS_84 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // 9.1 balance (ruling 1728): was 'raid:65>199'
+const DAYS_84 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>143'];   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 'raid:94>168'; 9.1 balance (ruling 1728): was 'raid:65>199'; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'
 
 describe('v90 balance T7 the lesson keeps 8.4\'s days whatever heir the device holds', () => {
   const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
@@ -170,7 +170,7 @@ describe('v90 balance T7 the lesson keeps 8.4\'s days whatever heir the device h
         at = lessonAt(world, at + 1);
       }
       expect([heir, steps]).toEqual([heir, DAYS_84]);
-      expect([heir, world.raid.clockDay, world.raid.last && world.raid.last.won]).toEqual([heir, 63, true]);
+      expect([heir, world.raid.clockDay, world.raid.last && world.raid.last.won]).toEqual([heir, 92, true]);   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 63
     }
   });
 });

@@ -49,8 +49,8 @@ describe('v71 fa lesson: a step\'s card holds the game even when its own part is
       await frame();
       expect(place(s.g.world, 'firehouse', 12, 38).ok).toBe(true);                         // the player builds ahead: the firehouse step's part (a firehouse) is done before the step comes,
       s.io.did();                                                                        // one too far from the bazaar to end the step (Version 8.1: its crew comes in a day)
-      s.g.ui.speedControl.set(2);
-      expect([s.g.world.speed, rowOf(s).dataset.step]).toEqual([2, 'month']);
+      s.g.ui.speedControl.set(3);   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1772): was 2 (the month step now plays at 2x itself, so a 2x pick is the lesson's own and is taken back at its end; 3x is the player's)
+      expect([s.g.world.speed, rowOf(s).dataset.step]).toEqual([3, 'month']);
       for (let d = 0; d < 80 && rowOf(s).dataset.step === 'month'; d++) s.io.tick();      // the months pass: the next step begins
       await frame();
       expect(rowOf(s).dataset.step).toBe('firehouse');
@@ -58,7 +58,7 @@ describe('v71 fa lesson: a step\'s card holds the game even when its own part is
       s.io.tick();
       expect([Boolean(stepCard(s.root)), s.g.world.speed]).toEqual([true, 0]);
       goOf(s).click();
-      expect([stepCard(s.root), s.g.world.speed]).toEqual([null, 2]);                    // his part was done: the game plays again at his own speed once the card is gone
+      expect([stepCard(s.root), s.g.world.speed]).toEqual([null, 3]);                    // his part was done: the game plays again at his own speed once the card is gone
     } finally { s.cleanup(); }
   });
 });

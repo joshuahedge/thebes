@@ -18,14 +18,12 @@ const tick = () => new Promise((res) => setTimeout(res, 20));
 async function until(test, tries = 300) { for (let i = 0; i < tries && !test(); i++) await tick(); return test(); }
 
 describe('s3 score seal this reign', () => {
-  it('puts Seal this reign, Share score and Screenshot mode in the score section; Screenshot mode hides everything', async () => {
+  it('puts Seal this reign and Share score in the score section (9.2, Track Q: Screenshot mode moved to Options > Display)', async () => {
     const r = await rigUI();
     try {
       openSummary(r);
       const buttons = [...sheet(r).querySelectorAll('.score-actions button')].map((b) => b.textContent);
-      expect(buttons).toEqual([SCORE_TEXT.sealReign, SCORE_TEXT.shareScore, T.screenshotMode]);
-      fire(sheet(r).querySelector('.score-actions .screenshot-mode'), 'click');
-      expect([r.store.get().screenshot, r.store.get().sheet]).toEqual([true, null]);
+      expect(buttons).toEqual([SCORE_TEXT.sealReign, SCORE_TEXT.shareScore]);
     } finally { r.cleanup(); }
   });
   it('asks first in words that say what sealing does, and Not yet leaves everything as it was', async () => {
@@ -54,7 +52,7 @@ describe('s3 score seal this reign', () => {
       const s = scoreOf(r.world);
       r.store.set(openSheet(r.store.get(), 'sealReign'));
       fire(sheet(r).querySelector('.seal-confirm'), 'click');
-      expect(r.world.seals).toEqual([{ day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 2 }]);
+      expect(r.world.seals).toEqual([{ day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 3 }]);
       const [entry] = records.stamps();
       expect([entry.cityId, entry.score, entry.day, entry.date, entry.seed]).toEqual(['abc', s.total, 400, 1760000000000, r.world.seed]);
       expect(r.store.get().sheet.kind).toBe('summary');
@@ -92,7 +90,7 @@ describe('s3 score share score', () => {
       const link = shareLink({ seed: r.world.seed, difficulty: r.world.difficulty, parts: s.parts, splits: splitMonths(r.world) });
       expect(sheet(r).querySelector('h2').textContent).toBe(T.shareScore);
       expect(sheet(r).querySelector('.share-link-text').value).toBe(link);
-      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) }, version: 2, older: false, variant: r.world.mapVariant });
+      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) }, version: 3, older: false, variant: r.world.mapVariant });
       expect(sheet(r).querySelector('.emoji-row').textContent).toBe(emojiRow(s.parts));
       expect(sheet(r).querySelector('.honour').textContent).toBe(SHARE_TEXT.honourHelp);
     } finally { r.cleanup(); }

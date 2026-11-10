@@ -44,7 +44,7 @@ const PICTURES = {
   score: () => ['score', () => scoreIcon()],
 };
 
-// shortDate() says when the wide bar's date reads "Y2 M1" rather than "Year 2, month 1, day 1" (createUI: under 1000 px wide or at 150% text); a phone's
+// shortDate() says when the wide bar's date reads "Yr 2 Mo 1" rather than "Year 2, month 1, day 1" (createUI: under 1000 px wide or at 150% text); a phone's
 // reads the month alone, "M1" (ruling 1227: its name and explainer say the whole date). explain: the explainers' hands ({ advice, openSummary, selectBuilding }: src/ui/v81/stats.js explainStat); score() the city's score
 // (scoreOf's result) or null.
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = (section) => {}, onOpenMenu = () => {}, onOpenAdvice = () => {}, advice = () => ({ shown: false, dot: false }), shortDate = () => store.get().layout !== 'wide', explain = {}, score = createScoreReader(world), doc = document }) {

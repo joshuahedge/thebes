@@ -84,7 +84,7 @@ export function catchChance(world, from, to, ctx = plagueContext(world)) {
 // and a seeded jitter under 1 so two alike homes are told apart. Only homes that can fall ill (canFallIll) and are not sick count.
 export function plagueRisk(world, b, ctx = null) {
   const cover = ctx ? ctx.cover : healthCoverage(world), f = healthFactors(world, b, ctx ? ctx.watered : wateredHomes(world), ctx ? ctx.field : desirabilityField(world));
-  return (f.crowded ? 2 : 0) + ((cover.get(b.id) || 0) < HEALTH.staffedAt ? 2 : 0) + (f.well ? 1 : 0) + (f.poor ? 1 : 0)
+  return (crowded(b) ? 2 : 0) + ((cover.get(b.id) || 0) < HEALTH.staffedAt ? 2 : 0) + (f.well ? 1 : 0) + (f.poor ? 1 : 0)
     + 0.9 * hazardDraw(world, b.id, world.day, 'plagueStart');
 }
 

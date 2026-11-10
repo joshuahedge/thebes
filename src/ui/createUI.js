@@ -30,7 +30,7 @@ import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_
 import { createBackStack } from './backstack.js';
 import { createSettings, gentleTipDue } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
-import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
+import { createCameraControl, FRAME_MARGIN_PX, cityBounds, boundsOutside } from './cameraControl.js';
 import { ART } from '../render/art/registry.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
@@ -63,6 +63,7 @@ import { forMap, riverless, OASIS_TEXT } from './v82/oasisText.js';   // Version
 import { watchMapWords } from './v82/mapWords.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
+import { cityAdvice } from '../sim/advice.js';
 import { anotherFor, canCopy } from './another.js';
 import { areaKindOf } from '../data/areas.js';
 import { welcomeSheet } from './welcomeBack.js';
@@ -73,6 +74,7 @@ import { createCardDrag, createDragHost } from './v81/cardDrag.js';
 import { installNoZoom } from './v81/noZoom.js';
 import { palaceOf } from '../sim/palace.js';
 import { el, setText, clear } from './components.js';
+import { A92_TEXT } from './text.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
@@ -202,12 +204,13 @@ export function createUI({
   // whenever the start area lies east of the road: the Great oasis and seven river layouts, by seed). A view that already holds both does not move. The margin keeps the
   // whole ringed tile and a little of the road in sight (a tile is 64 px wide at the opening zoom).
   const OPEN_ROAD_MARGIN_PX = 96;
+  const openedAtFocus = Boolean(world.focus) && !hooks.lessonRun && cam.x === world.focus.x && cam.y === world.focus.y;   // Version 9.2 (Track V): a camera a test or a caller placed elsewhere is never reframed, nor the lesson's (it frames each step's own target)
   if (world.focus && Array.isArray(world.startRoad) && world.startRoad.length && cam.x === world.focus.x && cam.y === world.focus.y) {
     const f = world.focus, end = world.startRoad.reduce((a, t) => (Math.hypot(t[0] - f.x, t[1] - f.y) < Math.hypot(a[0] - f.x, a[1] - f.y) ? t : a));
     cameraControl.keepVisible(end[0] + 0.5, end[1] + 0.5, undefined, OPEN_ROAD_MARGIN_PX, 0);
   }
   const placement = createPlacement({ world, store, afterCommand, effects, now, look: () => ({ x: cam.x, y: cam.y }), roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
-  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden, { group: 'welcome' }), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
@@ -230,8 +233,8 @@ export function createUI({
   // rebuild between a press and its click would lose the click. A click from the keyboard has no pointer type and changes nothing.
   const onPress = (ev) => { if (ev.pointerType) store.set({ inputType: ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse' }); };
   root.addEventListener('click', onPress);
-  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
-  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
+  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
 
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
@@ -274,7 +277,7 @@ export function createUI({
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, layers: trayLayers });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });
-  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, onFrame: () => frameCity(), pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
   // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
   const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', 'M'); else b.removeAttribute('aria-keyshortcuts'); } };
   mapKeyHint();
@@ -286,10 +289,41 @@ export function createUI({
   };
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide, onToggle: () => toggleGuidance(), phone, barAllowed });
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
+  // Version 9.2 (Track Q, ruling 1777): on the wide layout the goals strip and the rank bar (both are #goals) sit in the side panel above the minimap, so the top left
+  // keeps one banner and one tip; phones, a compact screen and a folded panel keep them under the top bar as ever. It is the same element, so every hand on it keeps working.
+  const placeGoals = () => {
+    const g = $('goals'), s = store.get(), panel = $('panel'), under = $('under-bar');
+    const inPanel = g.parentNode === panel, want = s.layout === 'wide' && !s.panelFolded;
+    if (want && !inPanel) panel.insertBefore(g, panel.querySelector('.minimap'));
+    else if (!want && inPanel) under.insertBefore(g, $('tip'));
+  };
+  placeGoals();
+  const stopGoalsPlace = store.subscribe(placeGoals);
   // Stage 3 seams (the Stage 3 plan's contract): the danger interface (Track D, ui/danger.js) and the score interface
   // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
   // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
   const screenshotMode = () => store.set(enterScreenshot(store.get()));
+  // Version 9.2 (Track A, ruling 1833): screenshot mode used to end on a tap, a click or Esc with nothing on screen to say so (a keyboard or switch user had no way to find out). A small
+  // pinned "Show interface" button stays on the page in that mode, in the corner, 44 px, and does what the tap does.
+  const showInterface = el('button', { type: 'button', id: 'show-interface', class: 'show-interface', text: A92_TEXT.showInterface, onClick: () => store.set({ screenshot: false }) });
+  const interfaceHost = $('live') ? $('live').parentNode : null;
+  if (interfaceHost) interfaceHost.append(showInterface);
+  // Version 9.2 (fix wave, Track A, ruling 1878): the Screenshot mode button hides itself with the interface, so focus used to drop to the page. Entering puts focus on "Show interface"; leaving
+  // puts it on the Menu button (Options has closed with the interface, and the Menu is what opened it).
+  let screenshotWas = Boolean(store.get().screenshot);
+  const stopScreenshotFocus = store.subscribe(() => {
+    const on = Boolean(store.get().screenshot);
+    if (on === screenshotWas) return;
+    screenshotWas = on;
+    queueMicrotask(() => {
+      if (destroyed || Boolean(store.get().screenshot) !== on) return;
+      const a = document.activeElement;
+      const lost = !a || a === document.body || a === showInterface || !a.isConnected;
+      if (on) { if (showInterface.isConnected && showInterface.getClientRects().length) showInterface.focus({ preventScroll: true }); return; }
+      const menu = $('topbar') && $('topbar').querySelector('.menu');
+      if (menu && lost) menu.focus({ preventScroll: true });
+    });
+  });
   // Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source: the map with a bar (src/ui/s47/sourcePick.js); the store sheet's "from" starts it.
   const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }), freeTop: () => Math.max(TOPBAR_PX, freeTop(root, canvas, store.get().layout)) });
   const seamCtx = {
@@ -342,8 +376,15 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
-  createDialog({ container: $('dialog'), store });
+  // Version 9.2 (Track Q, ruling 1775): the Minimap sheet leads with City advice's top three; the advice is read once a game day (it asks every home), and only once the advice has begun.
+  let topAdvice = { day: -1, list: [] };
+  const adviceTop = () => {
+    if (!advice.on()) return [];
+    if (topAdvice.day !== world.day) topAdvice = { day: world.day, list: cityAdvice(world).slice(0, 3) };
+    return topAdvice.list;
+  };
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onFrame: () => { frameCity(); }, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
+  const dialog = createDialog({ container: $('dialog'), store });
   // Version 8.0 (ruling 1160): the number on the scroll button follows the tray, and an open tray sheet shows a message the moment it arrives (unless focus is inside it: a rebuild would drop it).
   const stopTray = tray.subscribe((why) => {
     hud.render();
@@ -679,7 +720,7 @@ export function createUI({
     trayLayers.refresh();                              // Version 8.1 (Track D): what the tray shows and says follows the advice just read
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
-    setText($('map-summary'), mapSummaryText(world, alerts.list()));
+    setText($('map-summary'), mapSummaryText(world, alerts.rows()));
     // Tips that follow the alerts: asked for whenever a problem marker is on the map or a labour shortage is on, not only when
     // one first appears, because the gap or a tool may have turned the tip away then. Seen tips and the first 10 s turn the
     // question down cheaply, so a saved city never meets a tip on load. Goal progress feeds the nudge.
@@ -893,7 +934,15 @@ export function createUI({
     },
   };
 
+  // Version 9.2 (Track V, ruling 1850): frame the city: the built area fitted to the map the panel, bars and tray leave free (zooming out to it where it is bigger, never in past the opening zoom).
+  const frameInsets = (s) => (s.layout === 'portrait' ? phoneInsets(s, { right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 }) : sheetInsets(s));
+  function frameCity(extra = [], ms = undefined) {
+    const bounds = cityBounds(world, extra);
+    if (!bounds) return false;
+    return cameraControl.frameCity(bounds, frameInsets(store.get()), FRAME_MARGIN_PX, ms);
+  }
   const keyActions = {
+    frame: () => { frameCity(); },
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
     category: (i) => {                                 // keys 1-7 keep their categories; one with no card to show does nothing (early-game pass 2.5, spec 4.14)
       const c = CATEGORIES[i];
@@ -1260,6 +1309,12 @@ export function createUI({
     nudgeLine.hidden = !text;
   }
 
+  // Version 9.2 (Track V, ruling 1852): a city opens framed on itself. When the built area and the start area do not all show at the opening zoom (an heir's first screen, a saved city whose
+  // streets reach past the screen), the camera fits them at once instead of opening on sand; a view that already holds them does not move (the start-road nudge above stands).
+  if (openedAtFocus && view().width > 0 && view().height > 0) {
+    const extra = [[world.focus.x, world.focus.y]], opening = cityBounds(world, extra), ins = frameInsets(store.get());
+    if (opening && boundsOutside(cam, view(), opening, { insets: ins, margin: FRAME_MARGIN_PX })) frameCity(extra, 0);
+  }
   syncDaily();
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
@@ -1285,6 +1340,8 @@ export function createUI({
       cardDrag.detach(); noZoom.detach();
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
+      stopGoalsPlace(); stopScreenshotFocus(); dialog.destroy();   // Version 9.2 (fix wave, rulings 1878, 1879)
+      if ($('goals').parentNode === $('panel')) $('under-bar').insertBefore($('goals'), $('tip'));   // Version 9.2 (Track Q): home again for the next UI
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
@@ -1298,6 +1355,7 @@ export function createUI({
       root.style.removeProperty('--guidance-max');
       root.style.removeProperty('--toast-low');
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot', 'toast-low');
+      showInterface.remove();
       store.dispose();                                 // last: every component's subscription to this interface's store
     },
   };

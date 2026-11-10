@@ -45,12 +45,12 @@ export const V81_B_TEXT = {
     costliest: (name, cost) => `The costliest building: ${name}, ${cost} a month`,
   },
   people: {
-    what: `People living in the city's homes. Newcomers arrive while the mood is ${MOOD.arrivalsMin} or more and homes have room; below ${MOOD.departuresBelow} people leave.`,
+    what: `People in the city's homes. At mood ${MOOD.arrivalsMin} or more newcomers arrive; below ${MOOD.departuresBelow} people leave.`,
     homes: 'Homes', workforce: 'Workforce', working: T.working, jobless: T.jobless, jobs: 'Jobs in workplaces',
     workingOf: (a, b) => `${a} of ${b}`,
   },
   mood: {
-    what: `How content the people are, from 0 to 100. Below ${MOOD.departuresBelow} people leave; at ${MOOD.arrivalsMin} or more newcomers arrive.`,
+    what: `How content people are, 0 to 100. Below ${MOOD.departuresBelow} they leave; at ${MOOD.arrivalsMin} or more newcomers arrive.`,
     head: 'What moves it now',
     none: 'Nothing moves it from the starting mood yet.',
     face: (face) => `Now: ${V81_B_TEXT.faceWords[face]}`,
@@ -67,7 +67,13 @@ export const V81_B_TEXT = {
   },
   score: {
     what: 'The city as it stands, from five parts of 100 each. It never changes what you can build.',
-    of: (n) => `${n} of 100`,
+    of: (n, cap = 100) => `${n} of ${cap}`,   // Version 9.2 (Track S, ruling 1795): a part's ceiling leaves out the terms that have not started
+    // What counts next, one line for each term that has not started (score.js waitingOf: from is a milestone id, { people } or null).
+    waiting: (w) => {
+      if (w.term === 'fire') return `Fire safety counts from ${milestoneName(w.from)}`;
+      if (w.from === null) return 'Defence does not count on this level: no raids come';
+      return `Defence counts once the city has ${w.from.people} people and raids can begin`;
+    },
     weakest: (name, reason) => `Weakest: ${name}${reason ? `. ${reason}` : ''}`,
   },
   // The one action: the city's own advice when it has some for this stat, else the City page at its section.

@@ -57,11 +57,12 @@ describe('v70 p the desktop\'s sheets fold the build tray and fill the panel', (
       const w = tradeWorld();
       const mon = addRaw(w, 'mastaba_small', 20, 14);
       const r = await rig({ width, height, world: w });
-      const mini = r.root.querySelector('#panel .minimap').getBoundingClientRect(), panel = r.root.querySelector('#panel').getBoundingClientRect(), box = r.root.getBoundingClientRect();
+      const panel = r.root.querySelector('#panel').getBoundingClientRect(), box = r.root.getBoundingClientRect();
       const well = Object.values(w.buildings).find((b) => b.type === 'well');
       const cases = [['info well', () => r.store.set(select(r.store.get(), well.id))], ['info monument', () => r.store.set(select(r.store.get(), mon.id))], ['summary', () => open(r, 'summary')], ['help', () => open(r, 'help')], ['menu', () => open(r, 'menu')]];
       for (const [name, go] of cases) {
         go();
+        const mini = r.root.querySelector('#panel .minimap').getBoundingClientRect();   // 9.2 (Track Q, ruling 1777): the goals strip steps aside while a sheet is open, so the minimap is measured with the sheet
         const sheet = sheetOf(r), s = sheet.getBoundingClientRect();
         expect([name, document.body.classList.contains('panel-sheet'), panelParts(r).some(shown)]).toEqual([name, true, false]);
         expect([name, s.top >= mini.bottom - 1, s.left >= panel.left - 1, s.right <= panel.right + 1, s.bottom <= box.bottom + 1, s.height > 80]).toEqual([name, true, true, true, true, true]);

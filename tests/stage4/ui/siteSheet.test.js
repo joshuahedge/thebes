@@ -59,7 +59,7 @@ describe('s4 ui the site sheet', () => {
     b.site.reason = 'no_stone';
     expect([cause().text, cause().fix.showMe.item]).toEqual(['Waiting for stone: no quarry or storehouse with stone within reach', 'quarry']);
     b.site.reason = 'no_gold';
-    expect([cause().text, cause().fix]).toEqual(['No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more', null]);
+    expect([cause().text, cause().fix]).toEqual(['No gold for the crews: they work a day only if the treasury stays at 0 or more', null]);
     b.paused = true;
     expect([cause().text, siteStatus(w, b).reason]).toEqual(['Paused: no work and no work gold until you resume it', 'paused']);
   });
@@ -94,7 +94,7 @@ describe('s4 ui the site sheet', () => {
     const pay = Math.floor(workGoldPerUnit(w) * (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH));   // a full crew's first day (no carry yet)
     w.gold = pay - 1;
     monumentDay(w);
-    expect([b.site.reason, w.gold, causeText(w, b, 'no_gold')]).toEqual(['no_gold', pay - 1, 'No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more']);
+    expect([b.site.reason, w.gold, causeText(w, b, 'no_gold')]).toEqual(['no_gold', pay - 1, 'No gold for the crews: they work a day only if the treasury stays at 0 or more']);
     w.gold = pay;                                                                    // the day's pay leaves exactly 0: it works
     monumentDay(w);
     expect([b.site.reason, w.gold]).toEqual([null, 0]);

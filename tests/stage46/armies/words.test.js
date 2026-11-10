@@ -101,7 +101,7 @@ describe('s46 armies words: the building sheets', () => {
     expect(armyRowsModel(w, bar).kind).toBe('soldier');
     expect(A.trains('chariot')).toBe(`Trains one chariot every ${UNIT_TYPES.chariot.trainDays} days at full staff, slower when short of workers`);
     expect(A.pay('archer')).toBe(`Each archer is paid ${UNIT_TYPES.archer.pay} gold a month at home, in peace too`);
-    expect(A.archerDoes).toBe(`Shoots a raider up to ${UNIT_TYPES.archer.range} tiles away; on a wall or tower it deals 2x to raiders on foot, half in melee`);
+    expect(A.archerDoes).toBe(`Shoots up to ${UNIT_TYPES.archer.range} tiles; on a wall or tower it deals 2x to raiders on foot, half in melee`);
     expect(A.chariotDoes).toBe(`Deals 2x in the open (no wall within ${ARMY.wallNear} tiles), half nearer a wall; it cannot pass a gate`);
     // The stables: the horses' grain, and the hungry line only after a month found the stores short.
     w.soldiers.push({ id: w.nextUnitId++, kind: 'chariot', barracks: stab.id, x: 7, y: 3, hp: 16, hit: false, task: 'wait' });

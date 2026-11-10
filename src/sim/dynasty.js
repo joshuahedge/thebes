@@ -19,8 +19,12 @@ export function heirFactor(world, lever) {
   return trait && FACTOR_LEVERS.includes(lever) && typeof trait[lever] === 'number' ? trait[lever] : 1;
 }
 
+// The days the Unconquered's every warning comes sooner (0 for any other city). Version 9.2 (Track S, ruling 1802): 30 days at every warning, the first and each later one
+// (laterWarnDay), where 9.0 took 100 days off the first only.
+export const warnSoonerOf = (world) => (TRAITS[world && world.heir] || {}).sooner || 0;
+
 // The days from the raid clock's start to the first warning: RAIDS.firstWarnAfter, less the Unconquered's `sooner` (raids.js sets nextWarnDay from it).
-export const firstWarnAfterOf = (world) => RAIDS.firstWarnAfter - ((TRAITS[world && world.heir] || {}).sooner || 0);
+export const firstWarnAfterOf = (world) => RAIDS.firstWarnAfter - warnSoonerOf(world);
 
 // The High tax rate's factor in place of the data's, or null: the Generous's (src/sim/palace.js taxFactorOf reads it).
 export const heirHighFactor = (world) => { const v = (TRAITS[world && world.heir] || {}).high; return typeof v === 'number' ? v : null; };

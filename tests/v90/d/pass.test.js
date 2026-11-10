@@ -22,7 +22,7 @@ import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 function capital() {
   const w = createWorld({ seed: 11 });
   buildSampleCity(w);
-  w.tally.stoneLaid = 5000;   // 9.0 wave 2 (ruling 1622, the Builder's bar 2,000 -> 4,600): was 2,500
+  w.tally.stoneLaid = 9000;   // 9.0 wave 2 (ruling 1622, the Builder's bar 2,000 -> 4,600): was 2,500; 9.2 (Track S, ruling 1804): bar 8,000, was 5,000
   return w;
 }
 
@@ -119,7 +119,7 @@ describe('v90 d pass: the interface', () => {
       expect(s.querySelector('.head h2').textContent).toBe(V90_D_TEXT.menuPass);
       expect(s.querySelector('.pass-title').textContent).toBe('Ramesses I will be remembered as the Builder.');
       expect(s.querySelector('.pass-why').textContent).toBe(V90_D_TEXT.whyLine('builder', titleOf(w).rows));
-      expect(s.querySelector('.pass-why').textContent).toBe('5,000 units of stone and brick laid on monuments');   // ruling 1622: was 2,500
+      expect(s.querySelector('.pass-why').textContent).toBe('9,000 units of stone and brick laid on monuments');   // ruling 1622: was 2,500
       expect(s.querySelector('.pass-runner').textContent).toBe('Close behind: the Merchant');
       expect(s.querySelector('.pass-heir').textContent).toBe("Your heir's city: monuments rise 15% faster; taxes 5% lower");
       expect(s.querySelector('.pass-score').textContent).toBe(V90_D_TEXT.sealedScore(kept.score, kept.medal));
@@ -140,13 +140,16 @@ describe('v90 d pass: the interface', () => {
       const before = serialize(w);
       r.api.hooks.passThrone(); await frame();
       fire(sheet().querySelector('.pass-confirm'), 'click'); await frame();
+      fire(sheet().querySelector('.sealed-found'), 'click'); await frame();   // 9.2 (Track D, ruling 1815): the sealed-ruler card sits between the sheet and the heir's card
       const s = sheet();
       expect(s.querySelector('.head h2').textContent).toBe("Your heir's city");
       const line = s.querySelector('.heir-trait-line');
       expect(line.textContent).toBe("Your heir's city: monuments rise 15% faster; taxes 5% lower");
       expect(line.nextElementSibling.classList.contains('actions')).toBe(true);
       expect(s.querySelector('.start-city')).toBeTruthy();
-      fire(s.querySelector('.guide-back'), 'click'); await frame();
+      fire(s.querySelector('.guide-back'), 'click'); await frame();           // Back from the heir's card is the sealed-ruler card; its Back the sheet; Not yet closes
+      fire(sheet().querySelector('.sealed-back'), 'click'); await frame();
+      fire(sheet().querySelector('.pass-not-yet'), 'click'); await frame();
       expect([r.api.game().world, r.api.game().ui.store.get().sheet, serialize(w) === before, r.api.records.rulers().length, r.api.records.dynasty().heir]).toEqual([w, null, true, 0, 'steady']);
     } finally { r.cleanup(); }
   });
@@ -161,6 +164,7 @@ describe('v90 d pass: the interface', () => {
       input.value = 'Ana'; fire(input, 'input');
       expect(sheet().querySelector('.pass-title').textContent).toBe('Ana I will be remembered as the Builder.');
       fire(sheet().querySelector('.pass-confirm'), 'click'); await frame();
+      fire(sheet().querySelector('.sealed-found'), 'click'); await frame();
       const kept = passScore(w);
       fire(sheet().querySelector('.start-city'), 'click'); await frame();
       const seal = w.seals.at(-1);
@@ -170,7 +174,7 @@ describe('v90 d pass: the interface', () => {
       expect(r.api.records.dynasty()).toEqual({ name: 'Ana', heir: 'builder' });
       const next = r.api.game().world;
       expect([next === w, next.heir, next.day]).toEqual([false, 'builder', 0]);
-      expect(document.querySelector('#toasts').textContent).toContain('Ana I is remembered as the Builder.');
+      expect(document.querySelector('#toasts').textContent).toBe('');   // 9.2 (Track D, ruling 1817): was the toast "Ana I is remembered as the Builder."; the heir's first line is Ipi's
     } finally { r.cleanup(); }
   });
   it('adds the regnal number by the rulers already of that name', async () => {

@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT, Q92_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { rulerNameRow, bringRulersRow } from './v90/rulerOptions.js';   // Version 9.0 (Track L): Options > Saves' ruler name and Bring rulers
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
@@ -67,7 +67,6 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { class: 'how-to-play-row', 'aria-keyshortcuts': settings.get().keyboardShortcuts !== false ? '?' : null, onClick: () => open('help') }),
-      typeof onScreenshot === 'function' ? button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }) : null,
       button(T.about, { onClick: () => open('about') }),
     ]));
   }
@@ -147,7 +146,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const D = DANGER_UI_TEXT, G = V80_U_TEXT.groups;
     // Version 8.0 (Track U, ruling 1149): the rows sit under four small headings, Sound, Display, Controls and Saves (each a labelled group), so the sheet reads as
     // four short lists instead of one long one.
-    const group = (key, name, ...rows) => el('section', { class: `options-group ${key}`, 'aria-labelledby': `options-${key}` }, [el('h3', { id: `options-${key}`, text: name }), ...rows]);
+    // Version 9.2 (Track Q, ruling 1792): each is a collapsible section (a details, its heading in the summary), open to begin with; Help has its own, and About is last.
+    const group = (key, name, ...rows) => el('details', { class: `options-group ${key}`, open: true, role: 'group', 'aria-labelledby': `options-${key}` }, [el('summary', { class: 'options-heading', id: `options-${key}`, text: name }), ...rows]);   // Version 9.2 (fix wave, ruling 1879): a summary's button role flattens an h3 inside it, so the plain words sit in the summary and the section is a labelled group
     // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
     // is back on); the note under them says why in words.
     const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
@@ -176,13 +176,15 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(
       group('sound', G.sound, switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote })),
       // Version 7.0 (Track S): Day and night on or off.
-      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
-        switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote })),
+      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%'], [200, '200%']]),
+        switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
+        // Version 9.2 (Track Q, ruling 1791): Screenshot mode lives here (it left the menu and the City summary); it hides the interface until a tap, Esc or Back.
+        typeof onScreenshot === 'function' ? el('div', { class: 'row' }, [button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }), el('p', { class: 'screenshot-note small muted', text: Q92_TEXT.screenshotNote })]) : null),
       group('controls', G.controls, switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'), switchRow(T.vibration, 'vibration'),
         // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
         choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
-        el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
-        choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]])),
+        el('p', { class: 'fire-note small muted', text: D.onAFireNote })),
+      group('help', G.help, choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]])),
       group('saves', G.saves, ...saves),
       el('details', { class: 'help-section options-about' }, [el('summary', {}, [el('h3', { text: V91_A_TEXT.about })]), ...aboutLines()]),   // Version 9.1 (Track A): shares the closed sections' 44 px summary
       el('div', { class: 'options-version' }, [versionLine({ version })]),   // the version and build, small and muted, at the foot (it left the title card in 8.0)
@@ -256,12 +258,36 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
 
 // The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm, extraLabel?, onExtra? } shows it; null hides it.
 // Cancel gets focus so a stray Enter never confirms; Esc reaches it through modes.back.
+// Version 9.2 (Track A, ruling 1825): it is a real modal. Cancel takes focus once, when the dialog comes up (not on every store change), Tab and Shift+Tab stay among
+// its buttons, and closing it hands focus back to the control that was focused when it opened.
 export function createDialog({ container, store }) {
   container.setAttribute('aria-labelledby', 'dialog-text');
+  let shown = null, opener = null;
+  // Version 9.2 (fix wave, Track A, ruling 1875): a confirm opened from a sheet re-renders that sheet, so the opener is a node that is gone by the time the dialog closes. The opener is kept
+  // with where it sat (its nearest container with an id), its class and its words, and a dead one is found again by those.
+  // An opener with its own id is found again by that id; a class alone is trusted only when one live button has it (re-review: never focus the wrong button).
+  const describe = (a) => { const scope = a.parentElement ? a.parentElement.closest('[id]') : null; return { node: a, id: a.id || null, scope: scope ? scope.id : null, cls: a.className, text: a.textContent }; };
+  const successor = (o) => {
+    if (o.node.isConnected) return o.node;
+    if (o.id) { const same = document.getElementById(o.id); if (same && !container.contains(same)) return same; }
+    const within = o.scope ? document.getElementById(o.scope) : null;
+    if (!within || container.contains(within)) return null;
+    const live = [...within.querySelectorAll('button')].filter((b) => !b.disabled);
+    const byClass = live.filter((b) => b.className === o.cls);
+    return byClass.find((b) => b.textContent === o.text) || (byClass.length === 1 ? byClass[0] : null);
+  };
   function render() {
     const d = store.get().confirmDialog;
+    if (d && d === shown && !container.hidden) return;   // the same question, still asked: leave its focus alone
     clear(container);
-    if (!d) { container.hidden = true; return; }
+    if (!d) {
+      const back = opener ? successor(opener) : null;
+      shown = null; opener = null; container.hidden = true;
+      if (back && typeof back.focus === 'function' && (!document.activeElement || document.activeElement === document.body || container.contains(document.activeElement))) back.focus({ preventScroll: true });
+      return;
+    }
+    if (!shown) { const a = document.activeElement; opener = a && a !== document.body && !container.contains(a) ? describe(a) : null; }
+    shown = d;
     const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
     const extra = d.extraLabel ? button(d.extraLabel, { class: 'extra', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onExtra === 'function') d.onExtra(); } }) : null;
     const ok = button(d.confirmLabel || T.confirm, { class: d.destructive === false ? 'ok primary' : 'ok danger', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onConfirm === 'function') d.onConfirm(); } });
@@ -269,7 +295,19 @@ export function createDialog({ container, store }) {
     container.hidden = false;
     cancel.focus();
   }
+  // Tab never leaves the dialog while it is up, wherever focus was (a click on the backdrop leaves it on the page).
+  const trap = (e) => {
+    if (e.key !== 'Tab' || !shown || container.hidden || !container.isConnected || e.defaultPrevented) return;
+    const list = [...container.querySelectorAll('button:not([disabled])')];
+    if (!list.length) return;
+    const at = list.indexOf(document.activeElement);
+    e.preventDefault();
+    list[e.shiftKey ? (at <= 0 ? list.length - 1 : at - 1) : (at < 0 || at === list.length - 1 ? 0 : at + 1)].focus();
+  };
+  document.addEventListener('keydown', trap, true);
   render();
-  store.subscribe(render);
-  return { render };
+  const unsubscribe = store.subscribe(render);
+  // Version 9.2 (fix wave, Track A, ruling 1879): the interface that made the dialog takes its document listener (and its store subscription) away when it is destroyed.
+  const destroy = () => { document.removeEventListener('keydown', trap, true); if (typeof unsubscribe === 'function') unsubscribe(); };
+  return { render, destroy };
 }

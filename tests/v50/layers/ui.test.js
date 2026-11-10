@@ -102,7 +102,7 @@ describe('v50 layers: the legend row', () => {
       const r = legendFor(kind, cityAt('town'));
       try {
         const strip = r.strip();
-        expect([kind, strip.classList.contains('layer'), strip.getAttribute('aria-label')]).toEqual([kind, true, `${OVERLAY_NAMES[kind]} overlay`]);
+        expect([kind, strip.classList.contains('layer'), strip.getAttribute('aria-label')]).toEqual([kind, true, `${OVERLAY_NAMES[kind]} layer`]);
         expect([kind, strip.querySelector('strong').textContent]).toEqual([kind, OVERLAY_NAMES[kind]]);
         const keys = [...strip.querySelectorAll('.key')];
         expect([kind, keys.map((k) => k.getAttribute('aria-label'))]).toEqual([kind, words.map((x) => x.words)]);

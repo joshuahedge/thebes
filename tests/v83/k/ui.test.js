@@ -449,7 +449,7 @@ describe('v83 k ui: the two Advice fixes', () => {
     const holder = addRaw(w, 'storehouse', 50, 11, { staff: 6, store: { stone: 90 } });
     staffAll(w);
     const alerts = alertsFor(w).filter((x) => x.code === 'site_stalled');
-    expect(alerts).toEqual([{ code: 'site_stalled', id: site.id, reason: 'no_stone' }]);
+    expect(alerts).toEqual([{ code: 'site_stalled', id: site.id, reason: 'no_stone', ids: [site.id], count: 1 }]);   // 9.2 wave 0: ids and count
     // no storehouse in reach: build one, at a spot the placing rule takes within the reach
     let f = siteKeepFix(w, site, 'stone');
     expect([f.from, f.spare, Boolean(f.build)]).toEqual([holder.id, 90, true]);

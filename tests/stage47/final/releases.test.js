@@ -7,7 +7,7 @@ import { FLOOD_LEVELS } from '../../../src/data/river.js';
 describe('s47 releases', () => {
   it('4.7 is the second entry with its merge commit, and 4.6 carries its own', () => {
     const at = RELEASES.findIndex((r) => r.version === '4.7');
-    expect([at, RELEASES[at].build, APP_VERSION]).toEqual([14, 'b541f9e', '9.1']);   // Version 9.1: fourteen newer entries now
+    expect([at, RELEASES[at].build, APP_VERSION]).toEqual([15, 'b541f9e', '9.2']);   // Version 9.2: fifteen newer entries now
     expect([RELEASES[at + 1].version, RELEASES[at + 1].build]).toEqual(['4.6', '5bb08e5']);
   });
   it('says the Fair flood as the data has it and names the old homes\' two months', () => {
@@ -17,6 +17,6 @@ describe('s47 releases', () => {
     const fixed = r47.fixed.join(' ');
     expect([fixed.includes('x1.0'), fixed.includes('two months')]).toEqual([true, true]);
     const notes = r47.new.join(' ');
-    for (const word of ['Fetch', 'oases', 'tribute', 'year 8', 'year 10', 'third kind of food']) expect([word, notes.includes(word)]).toEqual([word, true]);
+    for (const word of ['keep a good stocked', 'oases', 'tribute', 'year 8', 'year 10', 'third kind of food']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
 });

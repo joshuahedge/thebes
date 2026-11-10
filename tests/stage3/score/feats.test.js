@@ -34,7 +34,7 @@ describe('s3 score feats', () => {
       ['Garden city', 'Have 20 gardens and statues at once'],
       ['Full hands', 'Have 400 people or more with 5% or fewer out of work'],
       ['Merchant prince', 'Sell 1,000 goods to caravans'],
-      ['Swift Town', 'Become a Town before year 3 begins'],
+      ['Swift Town', 'Become a Town within 300 days'],                      // Version 9.2 (Track L, ruling 1760): was 'before year 3 begins'
     ]);
   });
   it('changes nothing for a plain city, and earns each feat once, with its event', () => {
@@ -54,16 +54,16 @@ describe('s3 score feats', () => {
   it('judges Debt-free founder, Grain alone and Swift Town on the day the city became each milestone', () => {
     const w = city();
     expect(checkFeats(w)).toEqual([]);
-    w.milestone = 'town'; w.splits.town = 690;
-    expect(checkFeats(w)).toEqual(['debt_free', 'swift_town']);            // Town in year 2, month 12: before year 3
+    w.milestone = 'town'; w.splits.town = 290;                              // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1760): was 690 (the feat's day was 720, now 300)
+    expect(checkFeats(w)).toEqual(['debt_free', 'swift_town']);            // Town on day 290: before day 300
     w.gold = -5;
     addRaw(w, 'farm_fig', 2, 11);
     checkFeats(w);
     expect([status(w, 'grain_alone'), status(w, 'debt_free')]).toEqual(['lost', 'earned']);   // an earned feat stays earned
     const late = city();
-    late.day = 720;
+    late.day = 300;                                                         // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1760): was 720
     checkFeats(late);
-    expect(status(late, 'swift_town')).toBe('lost');                        // year 3 began before Town
+    expect(status(late, 'swift_town')).toBe('lost');                        // day 300 came before Town
     const debt = city();
     debt.gold = -1;
     checkFeats(debt);

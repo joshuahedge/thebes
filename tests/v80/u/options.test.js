@@ -23,17 +23,19 @@ function sheet(hooks = {}) {
 }
 
 describe('v80 u options: four groups, smaller rows, the version at the foot', () => {
-  it('lists Sound, Display, Controls and Saves in that order, each a labelled group with its rows', () => {
+  it('lists Sound, Display, Controls, Help and Saves in that order, each a labelled group with its rows (9.2, Track Q: Help has its own section; each is a collapsible details)', () => {
     const r = sheet({ exportCity() {} });
     try {
       const groups = [...r.body.querySelectorAll('.options-group')];
-      expect(groups.map((g) => g.querySelector('h3').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Saves']);
-      for (const g of groups) expect([g.className, document.getElementById(g.getAttribute('aria-labelledby')) === g.querySelector('h3')]).toEqual([g.className, true]);
+      // fix wave (ruling 1879): the words are the summary's own (a summary flattens an h3 inside it), and the details is a group labelled by it
+      expect(groups.map((g) => g.querySelector('summary').textContent)).toEqual(['Sound', 'Display', 'Controls', 'Help', 'Saves']);
+      for (const g of groups) expect([g.className, document.getElementById(g.getAttribute('aria-labelledby')) === g.querySelector('summary')]).toEqual([g.className, true]);
       const has = (g, sel) => Boolean(groups[g].querySelector(sel));
       expect([has(0, '.switch.sound'), has(0, '.switch.music'), has(0, '.music-volume:not(.effects-volume)'), has(0, '.effects-volume')]).toEqual([true, true, true, true]);
       expect([has(1, '.choice.textSize'), has(1, '.switch.dayNight')]).toEqual([true, true]);
-      expect([has(2, '.switch.keyboardShortcuts'), has(2, '.switch.leftHanded'), has(2, '.switch.vibration'), has(2, '.choice.fireReaction'), has(2, '.choice.help')]).toEqual([true, true, true, true, true]);
-      expect([has(3, '.export-city'), has(3, '.choice.difficulty')]).toEqual([true, true]);
+      expect([has(2, '.switch.keyboardShortcuts'), has(2, '.switch.leftHanded'), has(2, '.switch.vibration'), has(2, '.choice.fireReaction')]).toEqual([true, true, true, true]);
+      expect(has(3, '.choice.help')).toBe(true);
+      expect([has(4, '.export-city'), has(4, '.choice.difficulty')]).toEqual([true, true]);
       expect(r.body.querySelector('.switch.keyboardShortcuts').textContent).toContain('Single keys');
       expect(r.body.querySelectorAll('.options-group .row').length).toBeGreaterThan(8);
     } finally { r.cleanup(); }
@@ -110,7 +112,7 @@ describe('v80 u words: short labels, place and lay', () => {
     const primary = [T.continueGame, T.newCity, V80_U_TEXT.play, V80_U_TEXT.start, T.settings, S46_UX_TEXT.whatsNew, D2_TEXT.titleStart, D2_TEXT.titleContinue, T.installMenu, T.install, D1_TEXT.lesson,
       V80_U_TEXT.resumeLesson, V80_U_TEXT.moreChoices, V80_U_TEXT.fewerChoices, CARDS4_TEXT.showCards, D2_TEXT.endNew, D2_TEXT.endStay, T.exportCity, T.back];
     for (const label of primary) expect([label, words(label) <= 2]).toEqual([label, true]);
-    expect([V711_TEXT.skip, words(V711_TEXT.skip)]).toEqual(["I've played before", 3]);   // the one secondary button the design names in three
+    expect([V711_TEXT.skip, words(V711_TEXT.skip)]).toEqual(['Skip the lesson', 3]);   // the one secondary button the design names in three
   });
   it('says place for plots and lay for roads where a player reads it, never paint', () => {
     const homes = D2_TEXT.steps.homes().text, workers = D2_TEXT.steps.workers({ labour: { jobs: 8, workforce: 4 }, paused: false }).text;

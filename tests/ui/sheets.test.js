@@ -6,7 +6,7 @@ import { createPlacement } from '../../src/ui/placement.js';
 import { createCameraControl } from '../../src/ui/cameraControl.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { select, openSheet } from '../../src/ui/modes.js';
-import { alertsFor } from '../../src/sim/alerts.js';
+import { alertsFor, rollUpAlerts } from '../../src/sim/alerts.js';
 import { createCamera } from '../../src/render/camera.js';
 import { T, alertText } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
@@ -46,8 +46,8 @@ describe('ui sheets', () => {
       expect(own.length).toBeGreaterThan(1);                                // a building sheet listing several problems
       expect(listed('.problems .view')).toEqual(own.map((a) => [T.view, `${T.view}: ${alertText(a, r.world).title}`]));
       r.store.set(openSheet(r.store.get(), 'minimap'));
-      const all = alertsFor(r.world);
-      expect(all.length).toBeGreaterThan(2);
+      const all = rollUpAlerts(alertsFor(r.world));   // 9.2 (Track Q, ruling 1775): the list is one row per cause
+      expect(all.length).toBeGreaterThan(1);
       const labels = listed('.alert-list .view');
       expect(labels).toEqual(all.map((a) => [T.view, `${T.view}: ${alertText(a, r.world).title}`]));
       const titles = new Set(all.map((a) => alertText(a, r.world).title));

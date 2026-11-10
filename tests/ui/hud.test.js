@@ -72,7 +72,7 @@ describe('ui hud', () => {
       };
     } finally { r.cleanup(); }
   }
-  // A city in its second year, as the sample city reads: "Gold 2493 People 317 Mood 60 Y2 M1 Income +233 Jobless 72 Food 7.3 mo".
+  // A city in its second year, as the sample city reads: "Gold 2493 People 317 Mood 60 Yr 2 Mo 1 Income +233 Jobless 72 Food 7.3 mo".
   const TYPICAL = { gold: 2493, people: 317, day: 360, income: 233, jobless: 72, food: 7.3 };
   const BIG = { gold: 123456, people: 1317, day: 11 * 360 + 300, income: -1234, jobless: 312, food: 12.5 };   // six-figure gold, a two-figure year
   it('keeps the numbers on one row at 100% text, on a phone as on every wide screen, each one whole', async () => {
@@ -127,7 +127,7 @@ describe('ui hud', () => {
         r.ui.settings.set({ textSize: size });
         r.world.day = 360;
         r.ui.refresh();
-        expect([w, size, r.root.querySelector('#topbar .stat.date .value').textContent]).toEqual([w, size, long ? 'Year 2, month 1, day 1' : 'Y2 M1']);
+        expect([w, size, r.root.querySelector('#topbar .stat.date .value').textContent]).toEqual([w, size, long ? 'Year 2, month 1, day 1' : 'Yr 2 Mo 1']);
       } finally { r.cleanup(); }
     }
     for (const [w, h] of [[900, 560], [920, 560], [1000, 600]]) {
@@ -146,7 +146,7 @@ describe('ui hud', () => {
       short = true;
       hud.render();
       expect(root.querySelector('.stat.date .value').textContent).toBe(shortDateText({ year: 2, month: 1 }));
-      expect(shortDateText({ year: 2, month: 1 })).toBe('Y2 M1');
+      expect(shortDateText({ year: 2, month: 1 })).toBe('Yr 2 Mo 1');
     } finally { cleanup(); }
   });
   // Version 8.1 (Track B, ruling 1225): a tap on a number opens its explainer (the summary is the City page now, the papyrus's second tab); the menu as before.

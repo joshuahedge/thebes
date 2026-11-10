@@ -36,7 +36,8 @@ function town({ manors = 0, granary = true, grain = 600 } = {}) {
   return { w, bazaar, store, homes };
 }
 const month = (w) => { restockBazaars(w); monthlyHousing(w); };   // runMonth's order (src/sim/clock.js)
-const foodAlerts = (w) => alertsFor(w).filter((a) => a.code === 'bazaar_empty' || a.code === 'bazaar_sold_out');
+// Version 9.2 wave 0 (ruling 1750): alertsFor adds ids and count to every alert; these tests read the alert as it was, so they are stripped here.
+const foodAlerts = (w) => alertsFor(w).filter((a) => a.code === 'bazaar_empty' || a.code === 'bazaar_sold_out').map(({ ids, count, ...a }) => a);
 
 describe('v821 b the bazaar food alert: no false alarm', () => {
   it('a bazaar whose homes eat its whole shelf each month, every home fed, raises nothing (8.2 said "Bazaar has no food" all month)', () => {

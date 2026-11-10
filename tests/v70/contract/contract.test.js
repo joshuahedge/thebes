@@ -87,7 +87,7 @@ describe('v70 contract world v10', () => {
     const v10 = MIGRATIONS[9](v9);
     expect(JSON.stringify(v9)).toBe(before);                                          // the migration copies, never edits the save
     expect(v10.version).toBe(10);
-    expect(Object.keys(v10).sort()).toEqual(REQUIRED.filter((k) => k !== 'luxuryFrom' && k !== 'heir').sort());   // Version 8.4's field comes with v11, 9.0's with v12
+    expect(Object.keys(v10).filter((k) => k !== 'letterGate').sort()).toEqual(REQUIRED.filter((k) => k !== 'luxuryFrom' && k !== 'heir').sort());   // 9.2 (Track Q, ruling 1777): the sample city's letters have made its optional gate   // Version 8.4's field comes with v11, 9.0's with v12
     for (const k of Object.keys(v9)) if (!['version', 'tally', 'trade'].includes(k)) expect([k, v10[k]]).toEqual([k, v9[k]]);
     expect(v10.trade).toEqual({ ...v9.trade, switches: {}, floors: {} });             // routes, orders, drift and quota used as they were
     const day = v9.day;                                                               // the sample city's own start, 90 days on

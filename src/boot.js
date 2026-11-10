@@ -5,7 +5,7 @@
 import { createWorld } from './sim/world.js';
 import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
-import { settleGoals } from './sim/goals.js';
+import { settleGoals, guideGoal } from './sim/goals.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
@@ -37,7 +37,7 @@ import { drawMonument } from './render/monuments.js';
 // Version 6.0 (Track D2): the guided first city, and the picture cards' first moments.
 import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
 import { TIPS } from './data/tips.js';
-import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/lesson.js';
+import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver, lessonTaughtTips } from './ui/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesson.js';
 import { seenKey, dueCards } from './ui/cardMoments.js';
 import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
@@ -186,7 +186,10 @@ export async function boot(doc, win, {
     const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), size: mapSize, difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant, heir });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
-    setGuide(world, settings.get().help === 'full' && !stress && !sample);
+    // Version 9.2 (Track D, ruling 1816): an heir's city (the dynasty has a ruler kept, or a trait to play) has no beginner's guide: its player has played a whole reign.
+    let kept = 0;
+    try { kept = records.rulers().length; } catch (e) { kept = 0; }
+    setGuide(world, settings.get().help === 'full' && !stress && !sample && heir === 'steady' && !kept);
     return world;
   }
 
@@ -264,7 +267,7 @@ export async function boot(doc, win, {
       current.ui.store.set(openSheet(current.ui.store.get(), 'passThrone'));
     },
     canPassThrone: () => Boolean(current && !current.lesson && canPassThrone(current.world).ok),
-    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice })); },
+    startHeir({ notice = null } = {}) { if (current && current.lesson) return; withCards(() => startGame(startPicked(), { notice, heirStart: true })); },   // Version 9.2 (Track D, ruling 1817): heirStart holds the install ask back for the heir's first game month
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -310,7 +313,9 @@ export async function boot(doc, win, {
   // The install ask, once, at the first start of a city after the first Pass (a ruler is kept and the device has not been asked): the storage is asked to persist again,
   // and a device that can install gets one toast with Install. The device remembers it was asked, installed or not.
   const askStore = (() => { try { return storage || win.localStorage || null; } catch (e) { return null; } })();
-  function noteFirstPass(ui) {
+  // Version 9.2 (Track D, ruling 1817): wait: the heir's own first start. The ask is held and returned as a function the game calls at the first month end, so the
+  // heir's first screen has one voice (Ipi's line); the Rulers list's top line asks at any time.
+  function noteFirstPass(ui, { wait = false } = {}) {
     let rulers = 0, asked = false;
     try { rulers = records.rulers().length; } catch (e) { rulers = 0; }
     try { asked = Boolean(askStore && askStore.getItem(INSTALL_ASK_KEY)); } catch (e) { asked = false; }
@@ -322,30 +327,36 @@ export async function boot(doc, win, {
     }
     // The flag is written only when the toast is shown, or the device is installed already: Chrome says canInstall() only once its prompt event has fired, so an early
     // start must not use the ask up (a start later in the session, or the next visit, shows it).
-    if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000 }); }
-    else if (flow.env.standalone) remember();
+    const ask = () => {
+      if (installAskDue(flow, { rulers, asked })) { remember(); ui.toasts.show(V90_L_TEXT.installAsk(flow.env.platform === 'ios'), { action: V90_L_TEXT.installButton, onAction: () => hooks.install(), ms: 12000, group: 'welcome', waits: true }); }
+      else if (flow.env.standalone) remember();
+    };
+    if (wait) return ask;
+    ask();
+    return null;
   }
   let persistAsked = false;
 
   // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
   // Export or Import in its menu, and ends back on the title (leaveLesson).
-  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null } = {}) {
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null, heirStart = false } = {}) {
     playUndo = null;                                    // a city starting keeps the choices Play this map made
+    let lateAsk = null;                                 // Version 9.2 (Track D): the install ask held for an heir's first game month
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: (force) => adoptLesson(force === true), canAdopt: () => !hasSavedCity(), exportSaved: async () => { exportLoaded(await loadSave(store)); } } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
-    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); if (lateAsk && events.some((e) => e.type === 'month')) { const ask = lateAsk; lateAsk = null; ask(); } }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
       onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
     current = { world, ui, loop, cam, lesson: Boolean(lesson) };
     rescue.attach(current);                             // the ?crash= dev hook (once a page)
-    if (!lesson) noteFirstPass(ui);
+    if (!lesson) lateAsk = noteFirstPass(ui, { wait: heirStart });
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
@@ -386,13 +397,15 @@ export async function boot(doc, win, {
   // device with no saved city (ruling 1209: the one slot is never written over by the lesson).
   // Version 9.1 (Track F, ruling 1655): what the lesson staged for its raid goes back first (src/sim/lesson.js handOverWorld): the rank the people earned, no staged splits,
   // the raid clock stopped until a real city's 250 people, the lesson's cards kept in world.lessonCards.
-  function adoptLesson() {
-    if (!current || !current.lesson || hasSavedCity()) return;
+  // Version 9.2 (Track L, ruling 1755): `force` is the end card's own Replace it, said after its question on a device with a saved city (the card asks first and offers Export).
+  function adoptLesson(force = false) {
+    if (!current || !current.lesson || (hasSavedCity() && !force)) return;
     const { world } = current;
     handOverWorld(world);
     delete world.lesson;
     setGuide(world, settings.get().help === 'full');
     settleGoals(world);                                 // Fix wave (ruling 1737): goals the city already meets complete quietly here, so none shows a toast or counts in Messages
+    { const g = guideGoal(world); if (g) world.handOverGoal = g.id; }   // Version 9.2 (design 2.7): the goal in view at the hand-over, which holds the tips until it is done (src/ui/lesson.js handOverHold)
     markLessonDone();
     // Fix wave (ruling 1735): the adopted city's records id is kept, so the new-city card does not count it as a city the player started (firstCityLayout).
     if (!world.cityId) setCityId(world, newCityId(clock()));
@@ -400,7 +413,11 @@ export async function boot(doc, win, {
     // Version 9.1 (Track F, ruling 1663): the picture cards whose moment the lesson itself taught (the Large plot, the raid) are seen, so none opens over the hand-over.
     const seen = Array.isArray(settings.get().seenTips) ? settings.get().seenTips : [];
     const taught = dueCards(world, seen).map((c) => seenKey(c.id));
+    // Version 9.2 (Track L, design 2.4): and the tips about what the lesson itself had the player place or meet (the Large plot, the firehouse, the raid and its tower) are seen: the
+    // Large plot's tip came up in the first month after the hand-over, about a plot the player had just laid.
+    for (const id of lessonTaughtTips(world)) if (!seen.includes(id) && !taught.includes(id)) taught.push(id);
     if (taught.length) settings.set({ seenTips: [...seen, ...taught] });
+    if (world.speed === 0) setSpeed(world, 1);          // the end card held the game; the city plays on as the player's own
     startGame(world, { lastSpeed: world.speed || 1 });
     sayHandOver();
   }
@@ -408,6 +425,9 @@ export async function boot(doc, win, {
     if (!current || !current.lesson) return;
     stopGame();
     showTitle(await loadSave(store), { note: finished ? D2_TEXT.standsNote : null });
+    // Version 9.2 (Track L, fix wave, ruling 1871): the end card's Start my own city goes on to the New city card, on the classic river (ruling 1672), not to the title's front card;
+    // Back there is the title. With a saved city the card's Start still asks the replace question first.
+    if (finished && title) { newCityLayout = 'classic'; title.card.setChoices({ layout: 'classic' }); title.card.showNewCity(); }
   }
 
   // A newer version's save in the slot must never be overwritten (spec 7.5), whichever way the game starts.

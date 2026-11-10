@@ -61,9 +61,9 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const t = sensible(w, a);
     expect([a.kind, a.count, a.fix.item, a.weight]).toEqual(['raid_towers', 3, 'tower', 3 * ADVICE.tower * ADVICE.towerWarned]);   // was ['raid_towers', 4, 'tower', 120]
     expect(t.what).toContain('needs 6 towers; 3 are working');                                  // was 'needs 7 towers; 3 are working'
-    expect(items.map((x) => x.kind)).toEqual(['raid_towers', 'home_need', 'illness', 'home_need']);
-    expect([items[1].data.need, items[1].fix.item, items[1].count]).toEqual(['desirability', 'sphinx', 4]);   // the four Manors' street: a Fine manor wants 35
-    expect([items[3].data.need, items[3].fix.item]).toEqual(['water', 'well']);
+    expect(items.map((x) => x.kind)).toEqual(['raid_towers', 'illness', 'home_need', 'demand']);   // 9.2 balance (ruling 1855): was ['raid_towers', 'home_need', 'illness', 'home_need'] (9.1); Track S's sickness now outranks the four Manors' street, and the court's gate (Track Q) moves a demand's offer to the run's end, ahead of the water
+    expect([items[2].data.need, items[2].fix.item, items[2].count]).toEqual(['desirability', 'sphinx', 4]);   // the four Manors' street: a Fine manor wants 35
+    expect(items[3].kind).toBe('demand');   // 9.2 balance (ruling 1855): was ['water', 'well'] (the fourth item, now a demand on offer)
   });
 
   // Version 6.0 (Track C): the same 18 raiders at the first warning (3 of 6 towers now: the run builds a third), first again. With Track A's costs and the court's due
@@ -94,7 +94,7 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const { w } = lateRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['crime', null, 16], ['home_need', 'water', 12]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 42], ['home_need', 'desirability', 28], ['crime', null, 18], ['home_need', 'water', 12]]);   // 9.2 Track S (kept by the balance check, ruling 1855) (ruling 1808): was illness 39, crime 16
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
@@ -109,6 +109,6 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['home_need', 'water', 6, 12], ['workers_short', null, 22, 11], ['raid_towers', null, 1, 10], ['crime', null, 3, 6]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['workers_short', null, 49, 24.5], ['home_need', 'pottery', 2, 13], ['crime', null, 6, 12], ['home_need', 'water', 6, 12]]);   // 9.2 balance (ruling 1855): 49 unfilled jobs (Track S alone 39; the court's gate, Track Q). Was water 6 (12), workers_short 22 (11), raid_towers 1 (10), crime 3 (6)
   });
 });

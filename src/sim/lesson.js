@@ -6,7 +6,7 @@
 // The lesson's city is a city like any other (the same sim, the same rules), on a fixed map, and is never saved (src/boot.js). Three
 // steps stage something a city this young would not have, and each says so in its words: the Large plot card (a Townhouse opens it in a real
 // city), a small blaze in the bazaar, and the Market town's tower with the raid clock (a real city meets raiders at 250 people).
-import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS, LESSON_RAID_LEAD } from '../data/lesson.js';
+import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS, LESSON_RAID_LEAD, LESSON_RAID_ENTRY } from '../data/lesson.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -17,7 +17,7 @@ import { idx } from './grid.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { igniteBuilding, staffedCover, burning } from './fire.js';
-import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget } from './raids.js';
+import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget, entryDir } from './raids.js';
 import { tickDay, monthIndex } from './clock.js';
 import { milestoneIndex, updateMilestone, isUnlocked } from './progression.js';
 
@@ -65,6 +65,32 @@ export function gateRoadTiles(world) {
   return laid;
 }
 
+// Version 9.2 (Track L, ruling 1757, design 2.3): where the lesson's road may begin: the ends of the road joined to the village gate (a tile of it with one road neighbour,
+// off the map's edge), as [x, y]. A drag that starts within LESSON_ROAD_SNAP tiles of one snaps to it; one further away is refused (lessonRoadStart).
+export const LESSON_ROAD_SNAP = 2;
+export function lessonRoadEnds(world) {
+  const n = world.size, start = world.startRoad.map(([x, y]) => idx(n, x, y)).filter((i) => world.road[i]);
+  const seen = new Set(start), queue = [...start], ends = [];
+  const near = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < n && ny < n && world.road[idx(n, nx, ny)]; });
+  while (queue.length) {
+    const i = queue.pop(), x = i % n, y = (i - x) / n, nb = near(x, y);
+    if (nb.length <= 1 && x > 0 && y > 0 && x < n - 1 && y < n - 1) ends.push([x, y]);
+    for (const [dx, dy] of nb) { const j = idx(n, x + dx, y + dy); if (!seen.has(j)) { seen.add(j); queue.push(j); } }
+  }
+  return ends;
+}
+
+// Where a lesson road drag that begins at (x, y) begins: { x, y, snapped } at the end of the road it is within LESSON_ROAD_SNAP tiles of (the nearest), or { refused: true } when none
+// is (the confirm bar says "Start on the diamond at the end of the road"). A city with no road end to start from (none standing) is not refused.
+export function lessonRoadStart(world, x, y) {
+  const ends = lessonRoadEnds(world);
+  if (!ends.length) return { x, y, snapped: false };
+  let best = null, bd = Infinity;
+  for (const [ex, ey] of ends) { const d = Math.max(Math.abs(ex - x), Math.abs(ey - y)); if (d < bd) { bd = d; best = [ex, ey]; } }
+  if (bd > LESSON_ROAD_SNAP) return { refused: true };
+  return { x: best[0], y: best[1], snapped: bd > 0 };
+}
+
 // The first building of a type, or null.
 export const firstOf = (world, type) => allBuildings(world).find((b) => b.type === type) || null;
 
@@ -98,6 +124,7 @@ export function stepDone(world, step) {
     case 'building': return goalMet(world, { kind: 'building', type: c.type, n: 1 });
     case 'working': return workingTypes(world, c.types).length === c.types.length;
     case 'months': return monthIndex(world) >= c.n;
+    case 'monthsSince': return monthsSinceEntry(world) >= c.n;   // Version 9.2 (Track L, ruling 1756)
     case 'tally': return (world.tally[c.key] || 0) >= c.n;
     case 'tallyAny': return c.keys.some((k) => (world.tally[k] || 0) >= c.n) || fireOver(world);   // a blaze put out, or the fire over some other way (it burned)
     case 'covered': { const b = firstOf(world, c.type); return Boolean(b) && staffedCover(world, b); }
@@ -106,6 +133,10 @@ export function stepDone(world, step) {
     default: return false;
   }
 }
+
+// Version 9.2 (Track L, ruling 1756): the months passed since the month step began (STAGES.month keeps the month it began in on the lesson's world). The lesson is never saved, and
+// handOverWorld deleting lessonMonth0 is what keeps it out of the adopted city's save (the adopted city is saved); for a world that never entered the step, the city's own count (the old absolute check).
+export const monthsSinceEntry = (world) => monthIndex(world) - (Number.isInteger(world.lessonMonth0) ? world.lessonMonth0 : 0);
 
 // The lesson's fire is over: one was staged (tally.fires) and nothing burns now.
 export const fireOver = (world) => world.tally.fires >= 1 && burning(world).length === 0;
@@ -127,6 +158,7 @@ export function stepProgress(world, step) {
     case 'people': return clip(population(world), c.n);
     case 'working': return clip(workingTypes(world, c.types).length, c.types.length);
     case 'months': return clip(monthIndex(world), c.n);
+    case 'monthsSince': return clip(monthsSinceEntry(world), c.n);
     default: return null;
   }
 }
@@ -178,6 +210,19 @@ export function raidTarget(world) {
   return { kind, building, entry };
 }
 
+// Version 9.2 (Track L, design 2.1): the tower the raid step lights beside its target (a second ring): the one standing nearest the target, or null. Only the raid step has one.
+export function stepTower(world, step) {
+  if (!step || !step.at || step.at.of !== 'raidTarget') return null;
+  const t = raidTarget(world).building;
+  let best = null, bd = Infinity;
+  for (const b of allBuildings(world)) {
+    if (b.type !== 'tower') continue;
+    const d = t ? Math.hypot(b.x - t.x, b.y - t.y) : 0;
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best ? { x: best.x, y: best.y, w: best.w, d: best.d } : null;
+}
+
 // Version 8.2 (Track L, ruling 1321): the box the camera frames for a step, { x, y, w, d } in tiles, or null for a step that frames its own spot: the raid step frames the target, the towers that stand
 // and the side the raiders come from (a point up to RAID_FRAME_REACH tiles from the target towards their entry), so what is under attack, what defends it and where the danger comes from are in
 // one view. The ring stays on the target (src/ui/v60/lesson.js ensureVisible keeps it in view).
@@ -189,7 +234,10 @@ export function stepFrame(world, step) {
   const b = t.building, cx = b.x + b.w / 2, cy = b.y + b.d / 2;
   const pts = [[b.x, b.y], [b.x + b.w, b.y + b.d]];
   for (const tw of allBuildings(world)) if (tw.type === 'tower') pts.push([tw.x, tw.y], [tw.x + tw.w, tw.y + tw.d]);
-  if (t.entry) {
+  // Version 9.2 (Track L, ruling 1755's design 2.1): once the band is on the map the frame holds its raiders too, so the camera follows them in (src/ui/v60/lesson.js).
+  const a = world.raid.active;
+  if (a && Array.isArray(a.raiders) && a.raiders.length) for (const r of a.raiders) pts.push([r.x, r.y]);
+  else if (t.entry) {
     const dx = t.entry.x - cx, dy = t.entry.y - cy, len = Math.hypot(dx, dy) || 1, k = Math.min(RAID_FRAME_REACH, len) / len;
     pts.push([cx + dx * k, cy + dy * k]);
   }
@@ -210,6 +258,10 @@ export const STAGES = {
   fire(world) {
     const b = firstOf(world, 'bazaar');
     if (b && world.tally.fires === 0 && igniteBuilding(world, b.id)) b.fire.staged = true;
+  },
+  // Version 9.2 (Track L, ruling 1756): the month step counts its two months from the month it begins in (kept once; entering it again keeps the first).
+  month(world) {
+    if (!Number.isInteger(world.lessonMonth0)) world.lessonMonth0 = monthIndex(world);
   },
   // The Market town's cards (the tower comes with it, as updateMilestone gives them: "New" tags and all), and the raid clock started today so
   // the first warning is raised on the next day. A real city starts both at 250 people.
@@ -236,8 +288,13 @@ export function enterStep(world, step) {
 // own city and only for its first warning. Idempotent; true when it changed the arrival.
 export function leadRaid(world) {
   const w = world.lesson ? world.raid.warning : null;
-  if (!w || w.index !== 0 || w.arrives === w.day + LESSON_RAID_LEAD) return false;
-  w.arrives = w.day + LESSON_RAID_LEAD;
+  if (!w || w.index !== 0) return false;
+  const at = w.day + LESSON_RAID_LEAD, e = LESSON_RAID_ENTRY;
+  // Version 9.2 (Track L, fix wave, ruling 1870): and it comes in by the lesson's own entry (src/data/lesson.js), a band the tower's frame can hold on a phone.
+  if (w.arrives === at && w.entry && w.entry.x === e.x && w.entry.y === e.y) return false;
+  w.arrives = at;
+  w.entry = { ...e };
+  w.dir = entryDir(world, e);
   return true;
 }
 
@@ -268,6 +325,7 @@ export function handOverWorld(world) {
   for (let k = earnedFrom + 1; k < MILESTONES.length; k++) delete world.splits[MILESTONES[k].id];
   world.milestone = MILESTONES[earnedFrom].id;
   delete world.lessonCards;
+  delete world.lessonMonth0;                                        // Version 9.2: the month step's count is the lesson's, not the city's
   const cards = lessonCardsOf(world);
   if (cards.length) world.lessonCards = cards;
   updateMilestone(world);                                           // the rank the people have earned (a city past 150 people is a Town at once, with its split today)

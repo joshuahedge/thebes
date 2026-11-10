@@ -21,7 +21,7 @@ describe('v91 f hand-over: the rank the people earned (P6)', () => {
   it('the lesson leaves a Market town at about 94 people; the hand-over makes it a Village, Town next and at most twice away', () => {
     const { world } = walkLesson();
     const people = population(world);
-    expect([world.milestone, Number.isInteger(world.splits.town), Number.isInteger(world.splits.market_town), world.raid.clockDay]).toEqual(['market_town', true, true, 63]);
+    expect([world.milestone, Number.isInteger(world.splits.town), Number.isInteger(world.splits.market_town), world.raid.clockDay]).toEqual(['market_town', true, true, 92]);   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 63 (the month step waits longer)
     handOverWorld(world);
     const next = MILESTONES[1];
     expect([world.milestone, next.id, people, next.population / people <= 2]).toEqual(['village', 'town', 94, true]);
@@ -76,7 +76,7 @@ describe('v91 f hand-over: the rank the people earned (P6)', () => {
     const { world } = walkLesson();
     delete world.lesson;                                                             // 9.0's hand-over: only the lesson mark went
     const again = deserialize(serialize(world));
-    expect([again.milestone, population(again) < 250, 'lessonCards' in again, 'handOverDay' in again, again.raid.clockDay, again.splits.market_town, serialize(again) === serialize(world)]).toEqual(['market_town', true, false, false, 63, world.splits.market_town, true]);
+    expect([again.milestone, population(again) < 250, 'lessonCards' in again, 'handOverDay' in again, again.raid.clockDay, again.splits.market_town, serialize(again) === serialize(world)]).toEqual(['market_town', true, false, false, 92, world.splits.market_town, true]);   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 63
   });
 
   it('marks its first game month (handOverMonth), and no other city', () => {

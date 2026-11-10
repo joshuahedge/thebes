@@ -121,13 +121,13 @@ describe('v70 e review: Opet offers the full festival only when incense can reac
 });
 
 describe('v70 e review: the placing and keyboard words match the rules (rulings 985, 986)', () => {
-  it('counts squares in the singular: one square is, several are', () => {
+  it('counts tiles in the singular: one tile is, several are', () => {
     for (const k of ['taken', 'inWater', 'hills', 'offMap']) {
-      expect([k, P_TEXT.place[k](1, 4).startsWith('1 of 4 squares is ')]).toEqual([k, true]);
-      expect([k, P_TEXT.place[k](2, 4).startsWith('2 of 4 squares are ')]).toEqual([k, true]);
+      expect([k, P_TEXT.place[k](1, 4).startsWith('1 of 4 tiles is ')]).toEqual([k, true]);
+      expect([k, P_TEXT.place[k](2, 4).startsWith('2 of 4 tiles are ')]).toEqual([k, true]);
     }
-    expect(P_TEXT.place.taken(1, 4)).toBe('1 of 4 squares is taken');
-    expect(P_TEXT.place.offMap(3, 4)).toBe('3 of 4 squares are off the map');
+    expect(P_TEXT.place.taken(1, 4)).toBe('1 of 4 tiles is taken');
+    expect(P_TEXT.place.offMap(3, 4)).toBe('3 of 4 tiles are off the map');
   });
 
   it('the Keyboard help quotes punctuation keys, says what Delete does and that Space closes a lesson card, all from KEYS and P_TEXT', () => {
@@ -139,15 +139,15 @@ describe('v70 e review: the placing and keyboard words match the rules (rulings 
     expect(kb).toContain('"[" or ","');
     expect(kb.includes('] or .')).toBe(false);                                   // never bare
     expect(kb.toLowerCase()).toContain(P_TEXT.removeRow.toLowerCase());
-    expect(P_TEXT.removeRow).toBe('Demolish the building whose sheet is open; with no sheet open, take back what you just placed while its Undo is offered');
+    expect(P_TEXT.removeRow).toBe('Demolish the open building; with none open, take back what you just placed');
     expect(kb).toContain('Space closes a lesson card');
     expect(kb).toContain('Delete or Backspace');
     expect(HELP_ROWS.find((row) => row[0] === 'remove')[1]).toBe(P_TEXT.removeRow);
   });
 
-  it('the colours help names the faint dashed square', () => {
-    const colours = V70_HELP.p.find((p) => p.head === 'Placing a building: the squares and the colours').text;
+  it('the colours help names the faint dashed tile', () => {
+    const colours = V70_HELP.p.find((p) => p.head === 'Placing a building: the tiles and the colours').text;
     expect(colours).toContain(P_TEXT.place.squarePlain);
-    expect(colours).toContain(`a faint dashed square is ${P_TEXT.place.squarePlain}`);
+    expect(colours).toContain(`a faint dashed tile is ${P_TEXT.place.squarePlain}`);
   });
 });

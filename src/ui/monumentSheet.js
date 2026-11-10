@@ -42,7 +42,7 @@ import { palaceQuote, enlargePalace, palaceMood, setTaxRate, taxRateOf } from '.
 import { TAX_ORDER } from '../data/palace.js';
 import { rushQuote, setRush } from '../sim/monuments.js';
 import { monthFigures, taxesAt } from '../sim/economy.js';
-import { V84_G_TEXT } from './text.js';
+import { V84_G_TEXT, S92_S_TEXT } from './text.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
 import { heirFactor } from '../sim/dynasty.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
@@ -500,10 +500,32 @@ export function createMonumentUi(ctx) {
     return rows.length ? [el('h3', { text: UI4_TEXT.monuments }), rowList('summary-monuments', rows)] : [];
   }
 
+  // Version 9.2 (Track S, ruling 1807): a site whose sheet has not been opened for a game month gets one caption with its percentage, once until it is opened again.
+  // The counter is the interface's own (day last opened or first met, and whether the caption has shown), never world state, so a save holds none of it.
+  const quiet = new Map();
+  const openSite = (id) => { const b = id === null || id === undefined ? null : world.buildings[id]; if (b && isSite(b)) quiet.set(b.id, { seen: world.day, told: false }); };
+  if (store && typeof store.subscribe === 'function') store.subscribe((s) => openSite(s.selectedId));
+  function quietSites() {
+    if (store) openSite(store.get().selectedId);
+    const due = [];
+    for (const b of allBuildings(world)) {
+      if (!isSite(b)) { quiet.delete(b.id); continue; }
+      const q = quiet.get(b.id);
+      if (!q) { quiet.set(b.id, { seen: world.day, told: false }); continue; }
+      if (q.told || world.day - q.seen < DAYS_PER_MONTH || !ctx.celebrations) continue;
+      q.told = true;
+      due.push(b);
+    }
+    // Ruling 1881: several sites due at one month end get one caption naming the count, not one caption each.
+    if (due.length === 1) ctx.celebrations.show({ tier: 'first', text: S92_S_TEXT.siteQuiet(due[0].type, Math.floor(monumentsSim.siteProgress(due[0]).done * 100)), why: S92_S_TEXT.siteQuietWhy });
+    else if (due.length > 1) ctx.celebrations.show({ tier: 'first', text: S92_S_TEXT.siteQuietMany(due.length), why: S92_S_TEXT.siteQuietWhy });
+  }
+
   return {
     sheets: {},
     sheetParts: { building: buildingPart, actions: actionsPart, summary: summaryPart },
     onEvents(events) {
+      if (events.some((e) => e.type === 'month')) quietSites();
       for (const e of events) {
         if (e.type !== 'palace_done') continue;
         const b = world.buildings[e.id];

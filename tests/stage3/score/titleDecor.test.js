@@ -13,7 +13,7 @@ function memory(start = null) {
   const data = start ? { [RECORDS_KEY]: JSON.stringify(start) } : {};
   return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
 }
-const row = (id, seed, difficulty, best, medal, updated = 1) => ({ id, seed, difficulty, scoreVersion: 2, best, bestDay: 900, medal, splits: {}, updated });
+const row = (id, seed, difficulty, best, medal, updated = 1) => ({ id, seed, difficulty, scoreVersion: 3, best, bestDay: 900, medal, splits: {}, updated });
 const entry = (n, seed, score, medal) => ({ id: `c:${n}:1`, cityId: 'c', seed, difficulty: 'normal', day: 1, score, parts: { people: 0, prosperity: 0, culture: 0, safety: 0 }, splits: {}, medal, feats: [], version: 1, date: n });
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };   // Stage 4: a t2 link's five parts
 
@@ -36,9 +36,9 @@ describe('s3 score title card', () => {
     try {
       const box = c.container.querySelector('.title-records');
       expect(box.previousElementSibling.classList.contains('continue')).toBe(true);
-      expect([...box.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best: 312, gold, seed 11, Normal', 'Best: 250, bronze, seed 7, Hard', 'Best: 120, seed 9, Relaxed']);
+      expect([...box.querySelectorAll('.best-line')].map((p) => p.textContent)).toEqual(['Best reign: 312, Gold', 'Best reign: 250, Bronze', 'Best reign: 120']);   // 9.2 (Track D, ruling 1819): was 'Best: 312, gold, seed 11, Normal' and so on; the seed and level are in the Rulers list
       const stamps = [...box.querySelectorAll('.stamp')];
-      expect(stamps.map((s) => s.getAttribute('aria-label'))).toEqual(['Sealed reign: score 300, gold, seed 7', 'Sealed reign: score 247, silver, seed 11']);
+      expect(stamps.map((s) => s.getAttribute('aria-label'))).toEqual(['Sealed reign: score 300, gold, map number 7', 'Sealed reign: score 247, silver, map number 11']);
       expect([stamps[0].getAttribute('role'), stamps[0].width]).toEqual(['img', 40]);
     } finally { c.cleanup(); }
   });
@@ -48,9 +48,9 @@ describe('s3 score title card', () => {
     const records = createRecords({ storage: memory({ version: 1, cities: [{ ...row('a', 5, 'normal', 200, 'bronze'), scoreVersion: 0 }], chronicle }) });
     const c = card({ records });
     try {
-      expect(c.container.querySelector('.best-line').textContent).toBe('Best: 200, bronze, seed 5, Normal, older scoring');
+      expect(c.container.querySelector('.best-line').textContent).toBe('Best reign: 200, Bronze, older scoring');   // 9.2 (Track D, ruling 1819): was 'Best: 200, bronze, seed 5, Normal, older scoring'
       expect(c.container.querySelectorAll('.stamp').length).toBe(8);
-      expect(c.container.querySelector('.stamp').getAttribute('aria-label')).toBe('Sealed reign: score 110, seed 5');
+      expect(c.container.querySelector('.stamp').getAttribute('aria-label')).toBe('Sealed reign: score 110, map number 5');
       expect(c.container.querySelector('.more-stamps').textContent).toBe('+2 more');
     } finally { c.cleanup(); }
   });
@@ -78,7 +78,7 @@ describe('s3 score title card', () => {
       const sec = c.container.querySelector('.shared-score');
       expect(sec.nextElementSibling.classList.contains('title-buttons')).toBe(true);
       expect([...sec.querySelectorAll('p')].map((p) => p.textContent)).toEqual([
-        `${total} on seed 202641, Hard. Friends' honour`, 'People 72 · Prosperity 65 · Culture 58 · Safety 40 · Monuments 36', 'Your best here: 230', `Beat ${total}?`,
+        `${total} on map number 202641, Hard. Friends' honour`, 'People 72 · Prosperity 65 · Culture 58 · Safety 40 · Monuments 36', 'Your best here: 230', `Beat ${total}?`,
         'It starts on Hard, the level of the shared score.',
       ]);
       expect(total).toBe(Math.round(271 * 1.25));
@@ -90,7 +90,7 @@ describe('s3 score title card', () => {
   });
   it('says a bad or newer link cannot be read and opens the card as usual; any other hash does nothing', () => {
     const hash = new URL(shareLink({ seed: 4, difficulty: 'normal', parts: PARTS, splits: {} })).hash;
-    for (const [shared, words] of [[hash.replace('72-65', '71-65'), TITLE_SCORE_TEXT.badLink], [hash.replace('#t2', '#t9'), TITLE_SCORE_TEXT.newerLink], ['#t1.junk', TITLE_SCORE_TEXT.badLink]]) {
+    for (const [shared, words] of [[hash.replace('72-65', '71-65'), TITLE_SCORE_TEXT.badLink], [hash.replace('#t3', '#t9'), TITLE_SCORE_TEXT.newerLink], ['#t1.junk', TITLE_SCORE_TEXT.badLink]]) {
       const c = card({ shared });
       try {
         expect([c.container.querySelector('.shared-bad').textContent, c.container.querySelector('.shared-score')]).toEqual([words, null]);

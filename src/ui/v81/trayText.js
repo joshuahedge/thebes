@@ -7,7 +7,7 @@ export const TRAY_V81_TEXT = {
   moreName: (n, category) => `More ${category.toLowerCase()}: ${n} more ${n === 1 ? 'building' : 'buildings'}`,
   fewerName: (category) => `Fewer ${category.toLowerCase()}: show the main ones only`,
   // The tag on the card the scribe suggests (words as well as the ring, so colour is never the only cue).
-  advised: 'Ipi suggests',
+  advised: 'Suggested',
   advisedName: (name) => `${name}, suggested by Ipi`,
   // Ipi's line when the Advice engine's top build changes: the item, then what holds the city back (the sim's own sentence; only its first, so the line stays at two, ruling 1265).
   suggestLine: (name, what) => `Try the ${name}. ${firstSentence(what)}.`,

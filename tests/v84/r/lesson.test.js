@@ -41,8 +41,9 @@ function walk() {
 // and the raid ends beaten on day 198.
 // Version 9.1 (Track F, ruling 1657): the lesson sets the staged warning's arrival LESSON_RAID_LEAD (30) days on once it is up, so its raiders come on day 93 and the raid
 // ends on day 138; the warning event still says what the sim raised (63 + RAIDS.warningDays), and every step before the raid keeps its day.
-const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139'];   // 9.1 balance (ruling 1728): was 'raid:65>199'
-const RAID_END = 138;   // 9.1 balance (ruling 1728): was 198
+const DAYS_83 = ['road:0>0', 'homes:0>0', 'largeplot:0>0', 'well:0>0', 'families:0>20', 'farm:20>20', 'granary:20>20', 'bazaar:20>20', 'workers:20>51', 'month:51>90', 'firehouse:90>91', 'fire:91>92', 'tower:92>94', 'raid:94>143'];   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 'raid:94>168' (the band comes in from the south, about 9 tiles from the tower, so the fight ends sooner); 9.1 balance (ruling 1728): was 'raid:65>199'; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 'month:51>60', 'firehouse:60>61', 'fire:61>63', 'tower:63>65', 'raid:65>139' (the month step waits two months from its entry)
+const RAID_END = 142;   // WAVE2-PIN 9.2 Track L fix wave (ruling 1870): was 167 (the lesson's band comes in by its own south entry); 9.1 balance (ruling 1728): was 198; 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 138
+const CLOCK_DAY = 92;   // 9.2 Track L (kept by the balance check, ruling 1855) (ruling 1756): was 63 (the day the tower step begins)
 
 describe('v84 r the lesson: the staged raid does not move', () => {
   for (const [name, numbers] of [['today\'s numbers', {}], ['8.4\'s numbers', NUMBERS_84]]) {
@@ -51,8 +52,8 @@ describe('v84 r the lesson: the staged raid does not move', () => {
         const r = walk();
         expect(r.steps).toEqual(DAYS_83);
         const warn = r.of('raid_warning'), start = r.of('raid_start'), end = r.of('raid_end');
-        expect([warn.length, warn[0].index, warn[0].first, warn[0].arrives, warn[0].size]).toEqual([1, 0, true, 63 + RAIDS.warningDays, 3]);
-        expect([r.world.raid.clockDay, start.length, start[0].size, end.length, end[0].won, end[0].report.day]).toEqual([63, 1, 3, 1, true, RAID_END]);
+        expect([warn.length, warn[0].index, warn[0].first, warn[0].arrives, warn[0].size]).toEqual([1, 0, true, CLOCK_DAY + RAIDS.warningDays, 3]);
+        expect([r.world.raid.clockDay, start.length, start[0].size, end.length, end[0].won, end[0].report.day]).toEqual([CLOCK_DAY, 1, 3, 1, true, RAID_END]);
         expect(stepDone(r.world, stepNamed('raid'))).toBe(true);
       }, numbers);
     });

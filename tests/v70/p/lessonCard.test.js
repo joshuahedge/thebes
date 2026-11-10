@@ -128,6 +128,8 @@ describe('v70 p the lesson\'s step card in the page', () => {
         expect([Boolean(stepCard(s.root)), s.g.world.speed]).toEqual([true, 0]);
         document.activeElement.blur();
         key(s.root, k);
+        // Version 9.2 (Track L, D11): Esc means Leave, with its question (was: dismissed like Enter and Space); the card stays up under the question
+        if (k === 'Escape') { expect([Boolean(stepCard(s.root)), Boolean(s.g.ui.store.get().confirmDialog), s.g.world.speed]).toEqual([true, true, 0]); continue; }
         expect([k, stepCard(s.root), s.g.world.speed]).toEqual([k, null, 0]);        // dismissed, and a step that waits for the player's building stays paused (Space did not play)
       } finally { s.cleanup(); }
     }

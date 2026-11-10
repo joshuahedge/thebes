@@ -89,7 +89,7 @@ export const V81T_TEXT = {
     ? `The king names Thebes the ${name}. Now crown your service with the ${site(GREAT_WORK.type)}.`
     : `The king has heard of Thebes: it is a ${name.toLowerCase()} now.`),
   // The Advice sheet's head and lead, in Ipi's voice (its ranking is the Advice engine's own).
-  adviceHead: `${SCRIBE_NAME} suggests`,
+  adviceHead: 'City advice',
   adviceLead: 'What I would see to first, the most pressing at the top.',
   // The first-time tips are Ipi's too: the row carries Ipi's portrait and name.
   tipVoice: `${SCRIBE_NAME}, the king's scribe`,

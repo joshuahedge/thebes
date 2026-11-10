@@ -179,3 +179,5 @@ import './v84/all.js';
 import './v90/all.js';
 // Version 9.1 "First hours": one aggregator (tests/v91/all.js); nothing is added here.
 import './v91/all.js';
+// Version 9.2 "A city you can read": one aggregator (tests/v92/all.js); nothing is added here.
+import './v92/all.js';

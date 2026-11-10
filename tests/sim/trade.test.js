@@ -49,7 +49,7 @@ describe('sim trade', () => {
     expect(w.trade.routes.memphis).toEqual({ since: 0, gifted: false });
     expect(openRoutes(w)).toBe(1);
     expect(openRoute(w, 'memphis').reason).toBe('already_open');
-    expect(openRoute(w, 'byblos').reason).toBe('locked');                 // Byblos waits for the Great city
+    expect(openRoute(w, 'byblos').reason).toBe('locked');                 // Byblos waits for the Great City
     w.milestone = 'great_city';
     w.difficulty = 'hard';
     expect(routeCostOf(w, 'byblos')).toBe(750);

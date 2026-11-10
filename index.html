@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F3E7CB">
 <meta name="description" content="A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders.">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -105,6 +106,7 @@ html{background:#F3E7CB}
 <link rel="stylesheet" href="./css/v83-k.css">
 <link rel="stylesheet" href="./css/v90.css">
 <link rel="stylesheet" href="./css/v91.css">
+<link rel="stylesheet" href="./css/v92.css">
 <!-- v91 preload -->
 <link rel="modulepreload" href="./src/main.js">
 <link rel="modulepreload" href="./src/boot.js">
@@ -211,6 +213,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/sim/court.js">
 <link rel="modulepreload" href="./src/sim/immigration.js">
 <link rel="modulepreload" href="./src/sim/armies.js">
+<link rel="modulepreload" href="./src/sim/letters.js">
 <link rel="modulepreload" href="./src/sim/scouts.js">
 <link rel="modulepreload" href="./src/sim/ferryFind.js">
 <link rel="modulepreload" href="./src/sim/ferryLay.js">
@@ -307,6 +310,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/render/carts.js">
 <link rel="modulepreload" href="./src/render/newcomers.js">
 <link rel="modulepreload" href="./src/render/overlays.js">
+<link rel="modulepreload" href="./src/sim/loneRoad.js">
 <link rel="modulepreload" href="./src/render/monuments.js">
 <link rel="modulepreload" href="./src/render/layers.js">
 <link rel="modulepreload" href="./src/sim/layers.js">
@@ -342,6 +346,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/nextStepText.js">
 <link rel="modulepreload" href="./src/ui/goalsList.js">
 <link rel="modulepreload" href="./src/ui/expand.js">
+<link rel="modulepreload" href="./src/sim/lesson.js">
 <link rel="modulepreload" href="./src/ui/scoreUi.js">
 <link rel="modulepreload" href="./src/ui/celebrate.js">
 <link rel="modulepreload" href="./src/save/exportImport.js">
@@ -357,6 +362,8 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/minimap.js">
 <link rel="modulepreload" href="./src/ui/s46/whatsNew.js">
 <link rel="modulepreload" href="./src/data/releases.js">
+<link rel="modulepreload" href="./src/ui/v92/cartouche.js">
+<link rel="modulepreload" href="./src/ui/v81/scribe.js">
 <link rel="modulepreload" href="./src/ui/s46/wonders.js">
 <link rel="modulepreload" href="./src/ui/placementWhy.js">
 <link rel="modulepreload" href="./src/ui/hud.js">
@@ -380,7 +387,6 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/layersPicker.js">
 <link rel="modulepreload" href="./src/ui/toasts.js">
 <link rel="modulepreload" href="./src/ui/tips.js">
-<link rel="modulepreload" href="./src/ui/v81/scribe.js">
 <link rel="modulepreload" href="./src/ui/nudge.js">
 <link rel="modulepreload" href="./src/ui/menu.js">
 <link rel="modulepreload" href="./src/ui/v90/rulerOptions.js">
@@ -410,7 +416,6 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/v60/largePlot.js">
 <link rel="modulepreload" href="./src/ui/v60/battle.js">
 <link rel="modulepreload" href="./src/ui/v60/lesson.js">
-<link rel="modulepreload" href="./src/sim/lesson.js">
 <link rel="modulepreload" href="./src/ui/lesson.js">
 <link rel="modulepreload" href="./src/ui/v81/lessonText.js">
 <link rel="modulepreload" href="./src/ui/cardMoments.js">
@@ -506,6 +511,7 @@ html{background:#F3E7CB}
   <div id="toasts" role="status" aria-live="polite"></div>
   <div id="dialog" role="dialog" aria-modal="true" hidden></div>
   <p id="live" class="sr-only" aria-live="polite"></p>
+  <p id="live-urgent" class="sr-only" aria-live="assertive"></p>
   <p id="map-summary" class="sr-only"></p>
   <div id="title" hidden></div>
 </div>

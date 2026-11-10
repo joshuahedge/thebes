@@ -8,12 +8,12 @@ const V1 = { people: 72, prosperity: 65, culture: 58, safety: 40 };
 const V1_SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null };
 
 describe('s3 score sharing', () => {
-  it('makes the t2 link with its check, and reads it back; a t1 link still opens as older scoring (Stage 4)', () => {
+  it('makes the t3 link (t2 until 9.2) with its check, and reads it back; a t1 link still opens as older scoring (Stage 4)', () => {
     const link = shareLink({ seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS });
-    const body = 't2.202641.n.72-65-58-40-36.14-20-x-x-x-x-x';
+    const body = 't3.202641.n.72-65-58-40-36.14-20-x-x-x-x-x';
     expect(link).toBe(`https://joshuahedge.github.io/thebes/#${body}.${shareCheck(body)}`);
     expect(/^[0-9a-z]{4}$/.test(shareCheck(body))).toBe(true);
-    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS, version: 2, older: false, variant: 'classic' });
+    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS, version: 3, older: false, variant: 'classic' });
     expect(sharedTotal(parseShareLink(new URL(link).hash))).toBe(271);
     const hard = parseShareLink(new URL(shareLink({ seed: 7, difficulty: 'hard', parts: PARTS, splits: {} })).hash);
     expect([hard.difficulty, hard.splits.town, sharedTotal(hard)]).toEqual(['hard', null, Math.round(271 * 1.25)]);
@@ -27,7 +27,7 @@ describe('s3 score sharing', () => {
     const hash = new URL(link).hash;
     expect([parseShareLink(''), parseShareLink('#x'), parseShareLink('#welcome'), parseShareLink(null)]).toEqual([null, null, null, null]);
     expect(parseShareLink(hash.replace('72-65', '73-65'))).toEqual({ ok: false, reason: 'bad_check' });
-    expect(parseShareLink(hash.replace('#t2', '#t3'))).toEqual({ ok: false, reason: 'newer_format' });
+    expect(parseShareLink(hash.replace('#t3', '#t4'))).toEqual({ ok: false, reason: 'newer_format' });
     expect(parseShareLink('#t2.202641.n.72-65-58-40.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });   // four parts in a t2 link
     expect(parseShareLink('#t1.202641.n.72-65-58-40-36.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });  // five parts in a t1 link
     expect(parseShareLink('#t2.202641.e.72-65-58-40-36.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });

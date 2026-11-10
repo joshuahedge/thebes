@@ -11,8 +11,11 @@ import { el } from '../components.js';
 import { titleOf, canPassThrone } from '../../sim/dynasty.js';
 import { atLeast } from '../../sim/progression.js';
 import { HEIR_LINE_DAYS, PASS_FROM } from '../../data/dynasty.js';
-import { V90_D_TEXT } from '../text.js';
+import { V90_D_TEXT, D92_D_TEXT } from '../text.js';
 import { createPassSheets } from './passSheet.js';
+import { mountScribe, unmountScribe, say } from '../v81/scribe.js';
+
+const HEIR_IPI_MS = 9000;   // long enough to read the trait's two sides once on a phone
 
 export function createDynastyUi(ctx) {
   const { world } = ctx;
@@ -45,10 +48,20 @@ export function createDynastyUi(ctx) {
     }
   }
 
+  // Version 9.2 (Track D, ruling 1817): the heir's first line is Ipi's, in his bubble under the top bar (src/ui/v81/scribe.js), and the only thing the first screen
+  // says (the Pass no longer toasts, boot.js no longer asks to install in the first month). Without an interface root (a test of the line alone) it stays the caption.
+  let mounted = false;
   function opening() {
-    if (!real() || heir() === 'steady' || world.day >= HEIR_LINE_DAYS || !ctx.celebrations) return;
+    if (!real() || heir() === 'steady' || world.day >= HEIR_LINE_DAYS) return;
+    if (ctx.root) {
+      mountScribe(ctx.root); mounted = true;
+      say(D92_D_TEXT.heirIpi(heir()), { ms: HEIR_IPI_MS });
+      return;
+    }
+    if (!ctx.celebrations) return;
     ctx.celebrations.show({ tier: 'info', text: W.heirCaption(heir()), why: W.heirCaptionWhy(heir()) });
   }
+  function destroy() { if (mounted) { mounted = false; unmountScribe(); } }
 
-  return { summary, onEvents, opening, sheets: world ? createPassSheets(ctx) : {} };
+  return { summary, onEvents, opening, destroy, sheets: world ? createPassSheets(ctx) : {} };
 }

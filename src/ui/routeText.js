@@ -10,7 +10,7 @@ export const ROUTE_TEXT = {
   group: 'Road shape',
   route: 'Route', straight: 'Straight',
   // Each button's name for a screen reader; it starts with the button's visible word, then says what the shape does.
-  routeLabel: 'Route: the road finds the cheapest way round hills, buildings and water, with a bridge where one fits',
+  routeLabel: 'Route: the cheapest road round hills, buildings and water, bridging where it fits',
   straightLabel: 'Straight: the road goes where you point or drag, in an L you can flip',
   // Before a start is set (the bar's first line): how to choose the two ends.
   idleTouch: 'Tap the start, then the end: the road finds its way',

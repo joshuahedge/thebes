@@ -35,7 +35,7 @@ describe('v60 a balance careless', () => {
     expect(r.yearly[LATE_YEARS].gold).toBeLessThan(0);
     expect(r.yearly[LATE_YEARS].favour).toBeLessThanOrEqual(FAVOUR.low);
     expect(r.dues.length).toBeGreaterThanOrEqual(8);
-    expect(r.dues.every((d) => d.band === 'low')).toBe(true);                      // every due doubled: the court's favour is gone
+    expect(r.dues.every((d) => d.band === 'low')).toBe(true);                      // every due doubled: the court's favour is gone (9.2 balance, ruling 1866: so again with each letter worth twice the favour)
     expect(r.quotas.filter((q) => q.result === 'met')).toEqual([]);
   });
 });
@@ -72,12 +72,12 @@ describe('v60 a balance great work', () => {
     expect(r.offerings.map((o) => o.stage)).toEqual([0, 1, 2, 3, 4]);
     expect(r.offerings.map((o) => o.good)).toEqual(GREAT_WORK.offerings.map((o) => o.good));
     expect(r.won !== null).toBe(true);
-    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(18);
+    expect(yearOf(r.won.day)).toBeGreaterThanOrEqual(17);   // 9.2 Track S (kept by the balance check, ruling 1855) (ruling 1808): was 18; won in year 17 now
     expect(yearOf(r.won.day)).toBeLessThanOrEqual(20);
     expect(r.w.reign.won).toBe(r.won.day);
     expect(r.w.reign.seal.won).toBe(true);
     expect(r.w.tally.greatWorkStages).toBe(GREAT_WORK.stages.length);
-    expect(r.lowestGold).toBeGreaterThan(0);
+    expect(r.lowestGold).toBeGreaterThan(0);   // 9.2 balance (ruling 1866): 250 the lowest, won on day 6,388 (9.1: 8,866 and 6,380); before the court's letters were made worth twice the favour (ruling 1865) it went to -6,413
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect(yearOf(r.ranks.seat)).toBe(11);
     expect(r.elapsed).toBeLessThan(60000);

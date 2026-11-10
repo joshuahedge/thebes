@@ -80,7 +80,7 @@ describe('v60 d2 the lesson\'s row fits a phone', () => {
     try {
       const row = w.root.querySelector('#lesson'), text = row.querySelector('.text');
       const body = row.querySelector('.body');
-      expect([body.scrollHeight <= body.clientHeight + 1, row.querySelector('.why'), row.querySelector('.more').hidden]).toEqual([true, null, true]);   // Version 8.2 (ruling 1330): Ipi's two lines, no detail under them
+      expect([body.scrollHeight <= body.clientHeight + 1, row.querySelector('.why'), row.querySelector('.more').hidden]).toEqual([true, null, false]);   // Version 8.2 (ruling 1330): Ipi's two lines, no detail under them; Version 9.2 (Track L, design 2.5): was [true, null, true]: More is there on every screen, since the why waits behind it
     } finally { w.cleanup(); }
   });
   it('lays the row, the ring and the dimming out on a laptop and a 1920 x 1080 screen, with the ring and dimming taking no taps', async () => {

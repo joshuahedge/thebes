@@ -31,7 +31,7 @@ function city(tally) {
 
 describe('v90 balance T6 the titles spread', () => {
   it('has the bars set from the runs (rulings 1621-1623)', () => {
-    expect(TITLES.map((t) => [t.id, t.bar])).toEqual([['unconquered', 5], ['builder', 4600], ['merchant', 0.40], ['bountiful', 0.90], ['generous', 0.50]]);
+    expect(TITLES.map((t) => [t.id, t.bar])).toEqual([['unconquered', 5], ['builder', 8000], ['merchant', 0.25], ['bountiful', 0.90], ['generous', 0.50]]);   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1804, 1805): was builder 4600, merchant 0.40
   });
   it('gives the great-work run the Builder, the dangers runs the Unconquered and the capital run the Bountiful: three titles', () => {
     const runs = {
@@ -42,9 +42,11 @@ describe('v90 balance T6 the titles spread', () => {
       lateDangers: lateDangerRun().r.w,
     };
     const ids = Object.fromEntries(Object.entries(runs).map(([k, w]) => [k, titleOf(w).id]));
-    expect(ids).toEqual({ great: 'builder', seed5: 'unconquered', seed10: 'unconquered', capital: 'bountiful', lateDangers: 'builder' });   // T6 asks the Unconquered of the late dangers run (ruling 1624)
-    expect(new Set(Object.values(ids)).size).toBe(3);
-    expect(titleOf(runs.great).runnerUp).toBe('unconquered');
+    // Track S (ruling 1804): was great 'builder' and lateDangers 'builder' (9.1); at the Builder's 8,000 the great-work run's fit is 1.71 against the Unconquered's 2.60.
+    // 9.2 balance (ruling 1866): as Track S measured, every raid of the four dangers and great-work runs beaten again with the court's letters worth twice the favour.
+    expect(ids).toEqual({ great: 'unconquered', seed5: 'unconquered', seed10: 'unconquered', capital: 'bountiful', lateDangers: 'unconquered' });   // T6 asks the Unconquered of the late dangers run (ruling 1624)
+    expect(new Set(Object.values(ids)).size).toBe(2);   // Track S (ruling 1804): was 3; no scripted run earns the Builder now (a fixture does), the Merchant and the Generous stay fixtures'
+    expect(titleOf(runs.great).runnerUp).toBe('builder');   // Track S (ruling 1804): was 'unconquered' (the Builder's fit 1.71 now trails)
   });
   it('lets a seeded fixture earn each title no run earns: the Merchant and the Generous', () => {
     expect(titleOf(city({ tradeGold: 450, billsPaid: 1000 })).id).toBe('merchant');

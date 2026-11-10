@@ -12,7 +12,7 @@ import { LESSON_STEPS } from '../../../src/data/lesson.js';
 import { LESSON_SCRIPT, LESSON_LENGTH, stepProgress, stepDone, chapterAt } from '../../../src/sim/lesson.js';
 import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
 import { lessonFacts, stepWords } from '../../../src/ui/lesson.js';
-import { D2_TEXT, T } from '../../../src/ui/text.js';
+import { D2_TEXT, V92L_TEXT, T } from '../../../src/ui/text.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
@@ -131,11 +131,15 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([g.ui.store.get().sheet && g.ui.store.get().sheet.kind, s.settings().lessonDone, s.settings().lessonStep, s.settings().cardsSeen]).toEqual(['lessonEnd', true, LESSON_LENGTH, true]);
       expect(document.querySelector('#sheet').textContent.includes(D2_TEXT.endTitle)).toBe(true);
       expect(g.world.speed).toBe(0);
-      // The row's way out is not live under the end sheet (a second button behind it), and is back once the sheet is closed with Keep looking around.
-      expect([row().dataset.step, row().querySelector('.lesson-new').hidden, document.querySelector('#lesson .text').textContent]).toEqual(['end', true, D2_TEXT.endRow]);
-      expect([D2_TEXT.endNew, document.querySelector('#sheet .lesson-new-city').textContent]).toEqual(['Title screen', 'Title screen']);
-      document.querySelector('#sheet .lesson-stay').click();
+      // Version 9.2 (Track L, ruling 1755; was D2_TEXT.endRow, "Title screen" and Look around): the end card has Keep building this city and Start my own city; the row's What next? is not
+      // live under it (a second button behind it) and brings it back once it is closed (Back).
+      expect([row().dataset.step, row().querySelector('.lesson-new').hidden, document.querySelector('#lesson .text').textContent]).toEqual(['end', true, V92L_TEXT.endRow]);
+      expect([V92L_TEXT.endOwn, document.querySelector('#sheet .lesson-new-city').textContent, document.querySelector('#sheet .lesson-keep').textContent]).toEqual(['Start my own city', 'Start my own city', 'Keep building this city']);
+      g.ui.store.set({ sheet: null });
       expect([g.ui.store.get().sheet, row().querySelector('.lesson-new').hidden]).toEqual([null, false]);
+      row().querySelector('.lesson-new').click();
+      expect(g.ui.store.get().sheet.kind).toBe('lessonEnd');
+      g.ui.store.set(openSheet(g.ui.store.get(), 'lessonEnd'));
       g.ui.store.set(openSheet(g.ui.store.get(), 'lessonEnd'));
       document.querySelector('#sheet .lesson-new-city').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
@@ -179,7 +183,7 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 7]);
       { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
-      expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
+      expect([dialog.hidden, dialog.textContent.includes('Your step is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
       dialog.querySelector('.ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect(titleButtons().includes(D2_TEXT.titleContinue)).toBe(true);

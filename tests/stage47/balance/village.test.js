@@ -26,9 +26,8 @@ describe('s47 balance village', () => {
     expect(asked.map((a) => a.year)).toEqual([QUOTA.fromYear, QUOTA.fromYear + 1, QUOTA.fromYear + 2, QUOTA.fromYear + 3]);   // the last at the run's final month end
     // Ruling 480: only goods that rested in a store at a month end are asked. The village's grain is eaten as made (never kept), so it is not asked; its game and fish are.
     for (const a of asked) expect([a.year, a.goods.includes('grain'), a.goods.includes('game') || a.goods.includes('fish'), a.gift > 0]).toEqual([a.year, false, true, true]);
-    expect(log.asked.filter((a) => a.missed).map((a) => a.year)).toEqual([QUOTA.fromYear + 1, QUOTA.fromYear + 2]);
-    expect(w.tally.quotasMissed).toBe(2);
-    expect(w.tally.quotasMet).toBe(2);                                               // the small asks (years 8 and 11) are sent as soon as the stores hold them
+    // 9.2 balance (ruling 1855): was years 9 and 10 missed, 2 met and 2 missed; the court's one gate (Track Q) moves the village's favour and stores, and now only year 10's ask is missed: 2 met, 1 missed, 1 not settled by the run's end
+    expect([log.asked.filter((a) => a.missed).map((a) => a.year), w.tally.quotasMissed, w.tally.quotasMet]).toEqual([[QUOTA.fromYear + 2], 1, 2]);
     const year = months.slice(-12);
     expect(share(year)).toBeGreaterThanOrEqual(0.6);
     expect(share(year)).toBeLessThanOrEqual(0.7);

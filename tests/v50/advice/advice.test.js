@@ -339,7 +339,7 @@ describe('v50 advice the button', () => {
       expect(btn.hidden).toBe(false);
       expect(r.ui.tips.current()).toBe('city_advice');
       expect(TIPS.find((x) => x.id === 'city_advice')).toEqual({ id: 'city_advice', trigger: 'cityAdvice', priority: false });
-      expect(TIP_TEXT.city_advice).toContain('scroll button');
+      expect(TIP_TEXT.city_advice).toContain('scroll');
       expect(TIP_HELP_TEXT.city_advice).toContain('Show me');
       expect(r.root.querySelector('#tip .tip-show-me')).toBeTruthy();       // its Show me opens the sheet
       click(r.root.querySelector('#tip .tip-show-me'));

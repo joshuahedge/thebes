@@ -29,6 +29,7 @@ import { greatWorkStatus, siteStatus, offeringOf, offeringsMade, rushQuote, setR
 import { SPEND } from '../../v84/balance/spending.js';
 import { setKeepAtLeast, setTradeOrder } from '../../../src/sim/trade.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
+import { BUILDINGS } from '../../../src/data/buildings.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
 import { eventPlayer } from '../../v70/balance/events.js';
@@ -95,6 +96,12 @@ function foundTemple(w) {
   if (!w.raid.warning && !w.raid.active) {
     const p = TEMPLE_PLOT;
     for (const b of allBuildings(w).filter((o) => o.type === 'tower' && o.x >= p.x && o.x < p.x + p.w && o.y >= p.y && o.y < p.y + p.d)) demolishAt(w, b.x, b.y);
+  }
+  // Version 9.2 (the balance check, ruling 1857): and whatever else stands on the temple's own footprint. The grand years keep no ground free (setReserved is the
+  // great-work years'), so the Builder's grand years' advice put a jeweller at 33,27 and the temple was refused ("occupied") every month for ten years.
+  const t = BUILDINGS[GREAT_WORK.type];
+  if (canPlace(w, GREAT_WORK.type, TEMPLE.x, TEMPLE.y, { roadLater: true }).reason === 'occupied') {
+    for (const b of allBuildings(w).filter((o) => o.x < TEMPLE.x + t.w && o.x + o.w > TEMPLE.x && o.y < TEMPLE.y + t.d && o.y + o.d > TEMPLE.y)) demolishAt(w, b.x, b.y);
   }
   // Round three sides of it. Version 6.0.1: when something already stands on the north side's road (the dangers-on run's towers and granaries, placed by Show me), the temple is
   // laid first (its placing rule's "needs a road") and the works road is taken down its west side instead (x 33, straight from the works road's end), else round what stands

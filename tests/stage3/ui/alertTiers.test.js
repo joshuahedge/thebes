@@ -263,13 +263,15 @@ describe('s3 ui alert tiers', () => {
       let alerts = [{ code: 'no_storage', id: r.farm.id }];
       const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, getAlerts: () => alerts });
       a.refresh();
-      expect(r.live.getAttribute('aria-live')).toBe('polite');
+      // Version 9.2 (Track A, ruling 1832): two regions, each with one politeness for good: #live polite, #live-urgent assertive.
+      const urgent = () => r.live.parentNode.querySelector('#live-urgent');
+      expect([r.live.getAttribute('aria-live'), urgent().getAttribute('aria-live'), r.live.textContent.includes('alert'), urgent().textContent]).toEqual(['polite', 'assertive', true, '']);
       alerts = [{ code: 'no_storage', id: r.farm.id }, { code: 'debt' }];
       a.refresh();
-      expect([r.live.getAttribute('aria-live'), r.live.textContent.includes(alertText({ code: 'debt' }, r.world).title)]).toEqual(['assertive', true]);
+      expect([r.live.getAttribute('aria-live'), urgent().getAttribute('aria-live'), urgent().textContent.includes(alertText({ code: 'debt' }, r.world).title), r.live.textContent]).toEqual(['polite', 'assertive', true, '']);
       alerts = [{ code: 'debt' }];                                                         // a warning cleared: no new critical
       a.refresh();
-      expect(r.live.getAttribute('aria-live')).toBe('polite');
+      expect([r.live.getAttribute('aria-live'), urgent().getAttribute('aria-live'), r.live.textContent.length > 0, urgent().textContent]).toEqual(['polite', 'assertive', true, '']);
       expect(r.banner.querySelectorAll('.critical').length).toBe(1);
     } finally { r.cleanup(); }
   });
