@@ -94,7 +94,7 @@ import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
 import { favourRaidSize, favourTributeFactor } from './court.js';
 import { footMix, ENEMY_TYPES } from '../data/armies.js';
-import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome, elephantRaid, upriverEntry, elephantsIn, raidStrength } from './armies.js';
+import { drawMix, boatLanding, raiderKinds, landable, mayCome, elephantRaid, upriverEntry, elephantsIn, raidStrength } from './armies.js';
 import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
 import { raidSpoils, spoilsMonth } from './spoils.js';
@@ -318,7 +318,7 @@ function raiseWarning(world, events) {
   const second = comesTwoSided(world, index, stage) ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
-  const landing = !first && !second && enemyMayCome('boat', stage) ? boatLanding(world, index) : null;
+  const landing = !first && !second && mayCome(world, 'boat', stage) ? boatLanding(world, index) : null;   // Version 9.3 (Track K, ruling 1989): a decree's boatsFrom
   const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
   // Version 8.4, Track E (rulings 1503, 1507): the tribute prices the raid's strength (an elephant counts as ELEPHANTS.weight raiders), and a
   // raid with war elephants says how many (warning.elephants, the event's too); one without is as in 8.3.

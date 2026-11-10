@@ -17,6 +17,8 @@ export function ruleReach(world, type, base) {
   return decreesOf(world).reduce((r, d) => (d.reach && Number.isFinite(d.reach[type]) ? Math.max(r, d.reach[type]) : r), base);
 }
 export const ruleElephantsFrom = (world, base) => decreesOf(world).reduce((r, d) => (Number.isInteger(d.elephantsFrom) ? Math.min(r, d.elephantsFrom) : r), base);
+// Version 9.3 (Track K, ruling 1989): the raid boats may come from, read against the raid's stage as elephants are (Sea Peoples 1: every raid after the first).
+export const ruleBoatsFrom = (world, base) => decreesOf(world).reduce((r, d) => (Number.isInteger(d.boatsFrom) ? Math.min(r, d.boatsFrom) : r), base);
 export const ruleBoatShare = (world, base) => decreesOf(world).reduce((r, d) => (Number.isFinite(d.boatShare) ? Math.max(r, d.boatShare) : r), base);
 export const ruleForbids = (world, type) => decreesOf(world).some((d) => Array.isArray(d.forbid) && d.forbid.includes(type));
 export const isDecreeRun = (world) => decreesOf(world).length > 0;
