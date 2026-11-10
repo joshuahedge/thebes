@@ -4817,3 +4817,6 @@ export const DECREE_SHARE_TEXT = {
   line: (mark, total, medal) => `${mark}: ${total} of 600${medal ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
   parts: { ...SCORE_TEXT.parts, bonus: 'Decree' },
 };
+
+// Version 9.3, Track M
+export const M93_TEXT = { rebuilds: 'The city rebuilds in the new style over the next months.' };   // ruling 1930: the rank-up caption's why, for a rank that brings a new look
