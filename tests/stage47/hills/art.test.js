@@ -82,8 +82,8 @@ describe('s47 hills art', () => {
     const order = (pred) => objects.findIndex(pred);
     const hill = order((o) => o.slot.startsWith('hill.') && o.x === 11 && o.y === 11);
     expect(hill >= 0).toBe(true);
-    expect(order((o) => o.slot === 'well' && o.y === 6) < hill).toBe(true);
-    expect(order((o) => o.slot === 'well' && o.y === 15) > hill).toBe(true);
+    expect(order((o) => o.slot.split('.')[0] === 'well' && o.y === 6) < hill).toBe(true);
+    expect(order((o) => o.slot.split('.')[0] === 'well' && o.y === 15) > hill).toBe(true);
     expect(order((o) => o.slot === 'fig.newcomer' && o.y === 8.5) < hill).toBe(true);
     expect(order((o) => o.slot === 'fig.newcomer' && o.y === 16.5) > hill).toBe(true);
     // the hill objects are never swayed like a tree, whatever the treeSlot seam says

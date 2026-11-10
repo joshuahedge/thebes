@@ -326,7 +326,7 @@ describe('s3 contract records, sharing and boot', () => {
     expect(unpackSave(JSON.stringify(w)).records).toBe(null);                          // a bare world
   });
   it('exports the records and sharing with their final shapes (shapes only; Track E owns the behaviour)', () => {
-    expect(emptyRecords()).toEqual({ version: 2, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: { name: '', heir: 'steady' } });   // Version 9.0: records version 2 (tests/v90/w0/records.test.js)
+    expect(emptyRecords()).toEqual({ version: 3, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: { name: '', heir: 'steady' }, decrees: [] });   // Version 9.3 Track S: records version 3 with the decree rows (was version 2, 9.0)
     const recs = createRecords({ storage: noStorage });
     expect(recs.load()).toEqual(emptyRecords());
     expect(Array.isArray(recs.bests())).toBe(true);
