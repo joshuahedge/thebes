@@ -14,7 +14,11 @@ import { moistureOf, moistureAt, decorDraw } from './grass.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
 import { drawBeltGround, beltScatter, screeScatter } from './rockBelts.js';
 import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
-import { drawRoads } from './terrainRoads.js';
+import { drawRoads, drawStreetFurniture } from './terrainRoads.js';
+import { drawYards, hasYard } from './yards.js';
+import { dotsFill, linesStroke, ellipsesFill } from './batch.js';
+import { lookOfRank } from './looks.js';
+import { lookReader } from './groundLooks.js';
 import { drawBridges } from './terrainBridges.js';
 import { drawWalls, wallCode } from './terrainWalls.js';
 
@@ -44,6 +48,7 @@ export function chunkSignature(world, cx, cy) {
   let h = (2166136261 ^ (world.seed | 0)) >>> 0;
   const mix = (v) => { h = Math.imul(h ^ (v | 0), 16777619) >>> 0; };
   mix(world.size);
+  const top = lookOfRank(world.milestone), looks = top > 0 ? lookReader(world) : null;   // Village all over: no look to read
   for (let y = cy * CHUNK - 2; y <= cy * CHUNK + CHUNK + 1; y++) {
     for (let x = cx * CHUNK - 2; x <= cx * CHUNK + CHUNK + 1; x++) {
       if (!inBounds(world.size, x, y)) { mix(255); continue; }
@@ -53,6 +58,12 @@ export function chunkSignature(world, cx, cy) {
       const b = world.occ[i] ? world.buildings[world.occ[i]] : null;
       mix(b ? TYPE_INDEX.indexOf(b.type) + 1 : 0);
       mix(b && b.type === 'house' ? b.tier + 1 : 0);
+      // Version 9.3 (Track G, ruling 1914): what the yards and streets draw from. A building's tile: which of its four sides are the footprint's edge (the yard follows the
+      // footprint) and its look (the yard's materials). A road tile: its look (lookAt: it changes when the day crosses the tile's front).
+      if (b) {
+        mix(((x - 1 < b.x) | 0) | ((x + 1 >= b.x + b.w) << 1) | ((y - 1 < b.y) << 2) | ((y + 1 >= b.y + b.d) << 3));
+        if (looks && hasYard(b)) mix(looks.building(b));
+      } else if (looks && world.road[i]) mix(looks.tile(x, y));
       mix(wallCode(world, x, y));
     }
   }
@@ -80,22 +91,29 @@ export function cornerShare(world, x, y, test) {
 // The tile's diamond as 8 art points (corners and edge midpoints), each pushed out from the tile centre
 // where the terrain continues and pulled in where it stops, plus value noise. `expand` adds a uniform
 // push (tiles) for the soft outer pass.
+// Version 9.3 (Track G, ruling 1910): sixteen points a diamond (a corner, a quarter, the middle and a quarter on each side) instead of eight, and a second,
+// finer octave of the same seeded noise, so an edge between grounds is a soft uneven curve that never runs along the tile diagonal for more than a
+// fraction of a tile. The noise hangs off the point's own position (a shared edge's points are the same in both tiles), so chunks agree at a border.
+export const EDGE_DETAIL = 1.7;   // the fine octave's share of BLEND
+const EDGE_STEPS = [[0, 0], [0.25, 3], [0.5, 7], [0.75, 3]];
+const INNER_STEPS = [[0, 0], [0.5, 7]];   // a tile with the ground all round it is covered by its neighbours: the eight points of old are enough   // [how far along the side, the noise's shift]; the shift hangs off the position so both tiles agree
 export function blobFor(world, x, y, code, salt, expand, test = null, wander = 1) {
   const cx = x + 0.5, cy = y + 0.5;
   const seed = world.seed + salt + code * 101;
   const push = (px, py, w, k) => {
     const n = valueNoise(px * 3.1 + k, py * 3.1, seed, 1.3) - 0.5;
-    const amt = (w - 0.5) * BLEND * 1.5 * wander + n * BLEND * wander + expand;
+    const fine = w < 1 ? hash2(Math.round(px * 4), Math.round(py * 4), seed + 31) - 0.5 : 0;   // deep inside a ground the blob is covered by its neighbours: no need for the fine octave; the points lie on a quarter-tile grid, so one hash each is the noise
+    const amt = (w - 0.5) * BLEND * 1.5 * wander + n * BLEND * wander + fine * BLEND * EDGE_DETAIL * wander + expand;
     const f = 1 + 2 * amt;
     return p(cx + (px - cx) * f, cy + (py - cy) * f);
   };
   const corners = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]];
   const weights = corners.map(([ax, ay]) => (test ? cornerShare(world, ax, ay, test) : cornerWeight(world, ax, ay, code)));
-  const out = [];
+  const out = [], steps = weights[0] === 1 && weights[1] === 1 && weights[2] === 1 && weights[3] === 1 ? INNER_STEPS : EDGE_STEPS;
   for (let k = 0; k < 4; k++) {
     const [ax, ay] = corners[k], [bx, by] = corners[(k + 1) % 4];
-    out.push(push(ax, ay, weights[k], 0));
-    out.push(push((ax + bx) / 2, (ay + by) / 2, (weights[k] + weights[(k + 1) % 4]) / 2, 7));
+    const wa = weights[k], wb = weights[(k + 1) % 4];
+    for (const [u, shift] of steps) out.push(push(ax + (bx - ax) * u, ay + (by - ay) * u, wa + (wb - wa) * u, shift));
   }
   return out;
 }
@@ -142,15 +160,13 @@ const isFree = (world, i) => !world.occ[i] && !world.road[i];
 function fertileSpeckle(g, world, x, y) {
   for (let j = 0; j < FERTILE_SPECKS; j++) {
     const q = p(x + hash2(x, y, 110 + j), y + hash2(x, y, 120 + j));
-    if (j % 3 === 2) g.circ(q, 0.6, TERRAIN.fertileSecond, { alpha: 0.7 });
-    else g.circ(q, 0.5 + hash2(x, y, 130 + j) * 0.4, TERRAIN.fertileSpeck, { alpha: 0.55 });
+    if (j % 3 === 2) FR.fCrumb.push(q); else FR.fSpeck.push(q);   // 9.3 (Track G): collected, and drawn in batches with the edge details (flushFringe)
   }
   if (hash2(x, y, world.seed + 140) >= FERTILE_TUFT_SHARE) return;
   for (let j = 0; j < 2; j++) {
     const q = p(x + 0.15 + hash2(x, y, 150 + j) * 0.7, y + 0.15 + hash2(x, y, 160 + j) * 0.7);
-    g.line(q, [q[0] - 0.7, q[1] - 2.6], TERRAIN.fertileTuft, 0.7);
-    g.line(q, [q[0] + 0.5, q[1] - 3], LEAF2, 0.6);
-    g.line(q, [q[0] + 1.2, q[1] - 1.9], TERRAIN.fertileTuft, 0.6);
+    FR.fTuft.push([q, [q[0] - 0.7, q[1] - 2.6]], [q, [q[0] + 1.2, q[1] - 1.9]]);
+    FR.fLeaf.push([q, [q[0] + 0.5, q[1] - 3]]);
   }
 }
 
@@ -305,6 +321,7 @@ export function drawGround(g, world, range) {
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond });
   drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond });
   forTiles(world, range, (x, y, i) => scatterTile(g, world, x, y, i));
+  flushFringe(g);
 }
 
 // Which shrub a desert tile of draw r (the scatter's hash) carries: 'scrub' (vivid green), 'dry' (the drab olive-grey bush) or null. Task 3b: on a new map vivid scrub only
@@ -313,6 +330,54 @@ export function shrubKind(world, i, r) {
   if (r < 0.05 || r >= 0.11) return null;
   if (!hasNewLand(world) || moistureAt(world, i) >= GRASS.tiers[0]) return 'scrub';
   return r < 0.08 ? 'dry' : null;
+}
+
+// Version 9.3 (Track G, ruling 1911): the transition details of an edge between grounds. Along each side of a tile whose neighbour is another ground, a few small marks
+// lie within a third of a tile of the side, on this tile's own ground: grass tufts at a meadow's edge (both sides of it), wet-sand flecks and a reed by the water, loam
+// crumbs where the floodplain meets sand, a pebble or two at rock. Positions hang off the tile and the side, so a map always draws the same and chunks agree at a border.
+const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // north (y), east (x + 1), south (y + 1), west (x)
+const sidePoint = (x, y, side, u, d) => {          // a point on this tile at u along the side and d tiles in from it
+  if (side === 0) return [x + u, y + d];
+  if (side === 1) return [x + 1 - d, y + u];
+  if (side === 2) return [x + u, y + 1 - d];
+  return [x + d, y + u];
+};
+// The marks are collected as the tiles are walked and drawn at the end of drawGround and drawIsle in a handful of batched fills (see batch.js).
+const FR = { fCrumb: [], fSpeck: [], fTuft: [], fLeaf: [], dk: [], lt: [], md: [], soft: [], sec: [], sand: [], mud: [], mudDot: [], crumb: [], pebD: [], pebL: [] };
+function grassTuft(q, s) {
+  FR.dk.push([q, [q[0] - 0.7, q[1] - 2.2 * s]]);
+  FR.lt.push([q, [q[0] + 0.5, q[1] - 2.6 * s]]);
+  FR.md.push([q, [q[0] + 1.2, q[1] - 1.7 * s]]);
+}
+function flushFringe(g) {
+  dotsFill(g, FR.fSpeck, 0.7, TERRAIN.fertileSpeck, 0.55); dotsFill(g, FR.fCrumb, 0.6, TERRAIN.fertileSecond, 0.7);
+  linesStroke(g, FR.fTuft, TERRAIN.fertileTuft, 0.65, 1); linesStroke(g, FR.fLeaf, LEAF2, 0.6, 1);
+  linesStroke(g, FR.dk, '#4F7A2C', 0.6, 1); linesStroke(g, FR.lt, '#A6CC5E', 0.55, 1); linesStroke(g, FR.md, '#6E9E3A', 0.55, 1);
+  dotsFill(g, FR.soft, 0.6, TERRAIN.grassSoft, 0.8); dotsFill(g, FR.sec, 0.5, TERRAIN.grassSecond, 0.6); dotsFill(g, FR.sand, 0.5, TERRAIN.dotLight, 0.8);
+  ellipsesFill(g, FR.mud, TERRAIN.mud, 0.28); dotsFill(g, FR.mudDot, 0.5, TERRAIN.mudDark, 0.4);
+  dotsFill(g, FR.crumb, 0.6, TERRAIN.fertileSecond, 0.7); dotsFill(g, FR.pebD, 0.8, TERRAIN.pebble, 0.8); dotsFill(g, FR.pebL, 0.6, TERRAIN.pebbleLight, 0.9);
+  for (const k of Object.keys(FR)) FR[k].length = 0;
+}
+function edgeFringe(world, x, y, t) {
+  for (let side = 0; side < 4; side++) {
+    const n = terrainAt(world, x + SIDES[side][0], y + SIDES[side][1], t);
+    if (n === t) continue;
+    const at = (j, depth = 0.3) => p(...sidePoint(x, y, side, 0.1 + hash2(x, y, 700 + side * 10 + j) * 0.8, 0.04 + hash2(x, y, 740 + side * 10 + j) * depth));
+    if (n === T.MEADOW && t !== T.BANK && t !== T.WATER) {                           // the grass reaches out: tufts and green flecks in the sand
+      for (let j = 0; j < 2; j++) grassTuft(at(j), 0.8 + hash2(x, y, 780 + side * 4 + j) * 0.5);
+      FR.soft.push(at(2, 0.22)); FR.sec.push(at(3, 0.22));
+    } else if (t === T.MEADOW) {                                                     // the grass gives out: a few tufts at the rim and sand specks in it
+      grassTuft(at(0, 0.22), 0.9);
+      FR.sand.push(at(1, 0.22));
+    } else if ((n === T.BANK || n === T.WATER) && t !== T.WATER) {                   // wet sand: dark damp flecks along the shore
+      FR.mud.push([at(0, 0.18), 2.4, 0.8]);
+      FR.mudDot.push(at(1, 0.2));
+    } else if (n === T.FERTILE && t === T.DESERT) {                                  // loam crumbs thrown out into the sand
+      for (let j = 0; j < 3; j++) FR.crumb.push(at(j, 0.28));
+    } else if ((n === T.ROCKY || n === T.HILLS) && t === T.DESERT) {                // a pebble or two, light and dark
+      FR.pebD.push(at(0)); FR.pebL.push(at(1));
+    }
+  }
 }
 
 // The scatter on one tile that sells the blend (see drawGround); an island's tiles take it again after the river is drawn.
@@ -335,6 +400,7 @@ function scatterTile(g, world, x, y, i) {
     g.ell([q[0] - 1, q[1] - 0.4], 3.5 + r * 3, 1.1, TERRAIN.mudDark, { alpha: 0.6 });
   }
   if (t === T.CLAY) claySpeckle(g, x, y);
+  edgeFringe(world, x, y, t);
   if (hasNewLand(world)) bandScatter(g, world, x, y, i, t);
   if (t === T.DESERT) {
     const bits = shapeLayer(world)[i];
@@ -358,6 +424,7 @@ function drawIsle(g, world, range) {
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond, only });
   drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond, only });
   for (const [x, y] of isle) scatterTile(g, world, x, y, idx(world.size, x, y));
+  flushFringe(g);
 }
 
 // Pools (an oasis's lake, Stage 4.5): each water tile that is not the river drawn as a wavering blob in the river's own layers, a
@@ -410,7 +477,7 @@ export function drawPlots(g, world, range) {
     if (!id || seen.has(id)) return;
     seen.add(id);
     const b = world.buildings[id];
-    if (!b) return;
+    if (!b || hasYard(b)) return;   // 9.3 (Track G): a building with a yard has its own trodden patch (yards.js)
     const c = p(b.x + b.w / 2, b.y + b.d / 2);
     g.radial(c, 15 * (b.w + b.d) / 2, 7.5 * (b.w + b.d) / 2, TERRAIN.plot, 0.6);
   });
@@ -440,7 +507,9 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   drawPools(g, world, range);
   drawIsle(g, world, range);
   drawPlots(g, world, range);
+  drawYards(g, world, range);   // Version 9.3 (Track G): the trodden yards, paths and contact shadows, under the roads
   drawRoads(g, world, range);
+  drawStreetFurniture(g, world, range);
   drawBridges(g, world, range);
   drawWalls(g, world, range);
   // Cut the chunk to its diamond, dilated by about one device pixel so anti-aliased edges leave no hairline
