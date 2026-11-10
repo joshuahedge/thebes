@@ -20,7 +20,8 @@ describe('v93 r the decree score', () => {
     w.tally.fedMonths = 5000;
     expect(bonusPart(w)).toBe(100);
     const p = dw('low_nile', 'golden_caravans');
-    p.tally.fedMonths = DECREES.low_nile.bar; p.tally.tradeGold = 1; p.tally.billsPaid = 2;
+    // 9.3 Track K (ruling 1986): the Caravans' measure is half its bar whatever the bar (was tradeGold 1, billsPaid 2, half of the first bar of 1).
+    p.tally.fedMonths = DECREES.low_nile.bar; p.tally.tradeGold = DECREES.golden_caravans.bar * 10; p.tally.billsPaid = 20;
     expect(bonusPart(p)).toBe(75);
     expect(bonusPart(createWorld({ seed: 4 }))).toBe(0);
   });
