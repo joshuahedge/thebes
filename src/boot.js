@@ -70,7 +70,7 @@ export async function boot(doc, win, {
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
   // Version 9.3 (Track U, ruling 1976): the decree run's own slot (Track S's createSaveStore slot option). A test may hand one in.
-  const decreeSlot = decreeStore || createSaveStore({ slot: 'decree' });   // U93-SEAM: until Track S merges the option is ignored and this is the main slot, so nothing here writes to it without a decree run
+  const decreeSlot = decreeStore || createSaveStore({ slot: 'decree' });   // 'decree.current' and its backup; the main slot's keys are never touched (Track S, ruling 1965)
   let api = null;
   let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
   let title = null;          // { card, loop, backdrop } while the title shows
@@ -442,7 +442,8 @@ export async function boot(doc, win, {
     const before = weekBest(records, week);
     const fresh = !world.decree.noted;
     if (fresh) {
-      if (typeof records.noteDecree === 'function') { try { records.noteDecree(world, { now: clock() }); } catch (e) { /* records never stop the end card */ } }   // U93-SEAM
+      // Track S's noteDecree takes the score from its caller (the end card has read Track R's decreeScore) and the mark's words.
+      try { records.noteDecree(world, { now: clock(), score: result, mark: U93_TEXT.markOf(world.decree.ids, week) }); } catch (e) { /* records never stop the end card */ }
       world.decree.noted = true;
       saveDecree();
     }

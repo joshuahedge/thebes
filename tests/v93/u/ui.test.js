@@ -215,7 +215,20 @@ describe('v93 u wall: a forbidden building shows locked', () => {
     expect(cardInfo(plain, 'wall').locked).toBe(false);
     expect(reasonText('decree')).toBe(U.locked);
   });
-it('the tray draws the wall card locked, saying the line, and a click picks nothing', () => {    const w = createWorld({ seed: 1, decree: { week: weekOf('open_city'), ids: ['open_city'] } });    w.milestone = 'capital';    const box = document.createElement('div');    document.body.append(box);    const picked = [];    try {      renderCards(box, { world: w, category: 'defence', onPick: (item) => picked.push(item) });      const wall = box.querySelector('.card[data-item="wall"]');      expect([wall.classList.contains('locked'), wall.getAttribute('aria-disabled'), wall.textContent.includes(U.locked)]).toEqual([true, 'true', true]);      wall.click();      expect(picked).toEqual([]);    } finally { box.remove(); }  });
+  it('the tray draws the wall card locked, saying the line, and a click picks nothing', () => {
+    const w = createWorld({ seed: 1, decree: { week: weekOf('open_city'), ids: ['open_city'] } });
+    w.milestone = 'capital';
+    const box = document.createElement('div');
+    document.body.append(box);
+    const picked = [];
+    try {
+      renderCards(box, { world: w, category: 'defence', onPick: (item) => picked.push(item) });
+      const wall = box.querySelector('.card[data-item="wall"]');
+      expect([wall.classList.contains('locked'), wall.getAttribute('aria-disabled'), wall.textContent.includes(U.locked)]).toEqual([true, 'true', true]);
+      wall.click();
+      expect(picked).toEqual([]);
+    } finally { box.remove(); }
+  });
 });
 
 describe('v93 u end: the end card', () => {
