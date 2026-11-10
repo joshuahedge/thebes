@@ -15,6 +15,7 @@ import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { V70_TALLY } from '../data/v70.js';
 import { V84_TALLY } from '../data/v84.js';
 import { V90_TALLY, HEIR_DEFAULT, isHeir } from '../data/v90.js';
+import { DECREES, DECREE } from '../data/decrees.js';
 import { newTradeSettings } from '../data/trade.js';
 import { newEventState } from '../data/cityEvents.js';
 import { generateMap, variantFor } from './mapgen.js';
@@ -108,7 +109,11 @@ export const newSite = () => ({
 // is the id the interface gives a new city for its records (spec 4.19: the sim never reads the clock); null until then.
 // heir (Version 9.0, ruling 1560) is one of HEIRS (src/data/v90.js), the trait the city plays under for its life; boot.js passes the dynasty's
 // heir (records.dynasty().heir), the lesson always 'steady' (ruling 1564); anything else starts the Steady.
-export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic', heir = HEIR_DEFAULT } = {}) {
+export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic', heir = HEIR_DEFAULT, decree = null } = {}) {
+  // Version 9.3 (the decree, ruling 1953): a decree run plays the Steady heir at Normal for everyone; world.decree is optional (WORLD_VERSION stays 12).
+  const ids = decree && Array.isArray(decree.ids) ? decree.ids.filter((id) => Object.prototype.hasOwnProperty.call(DECREES, id)) : [];
+  const run = ids.length && typeof decree.week === 'string' ? { week: decree.week, ids, endDay: DECREE.endDay, ended: false } : null;
+  if (run) { heir = HEIR_DEFAULT; difficulty = 'normal'; }
   const variant = mapVariant === 'auto' ? variantFor(seed) : MAP_VARIANTS.includes(mapVariant) ? mapVariant : 'classic';
   const m = map || generateMap(seed, Number.isInteger(size) && size > 0 ? size : DEFAULT_MAP_SIZE, variant);
   const n = m.size * m.size;
@@ -188,6 +193,7 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     // Version 9.0 (world version 12, ruling 1560): the heir's trait (src/data/v90.js HEIRS), 'steady' for a plain start and for every v11 city.
     heir: isHeir(heir) ? heir : HEIR_DEFAULT,
   };
+  if (run) world.decree = run;
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;
 }
