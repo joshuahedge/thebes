@@ -10,7 +10,7 @@
 //   measure      the bonus part's measure (src/sim/score.js decreeMeasure)   bar  the measure at which the part is 100 (Track K)
 //   medals       [bronze, silver, gold] out of 600 (Track K); a pair's are in PAIR_MEDALS
 export const DECREES = {
-  sea_peoples: { factors: { raidGap: 0.5, raidSize: 1.5 }, cost: { wall: 0.5, gate: 0.5 }, boatShare: 0.5, boatsFrom: 1, measure: 'raidsBeaten', bar: 8, medals: [400, 460, 520] },
+  sea_peoples: { factors: { raidGap: 0.5, raidSize: 1.5 }, cost: { wall: 0.5, gate: 0.5 }, boatShare: 0.5, boatsFrom: 1, needsRiver: true, measure: 'raidsBeaten', bar: 8, medals: [400, 460, 520] },
   low_nile: { factors: { farms: 0.7, granaryHold: 2 }, floodStep: -1, measure: 'fedMonths', bar: 33, medals: [300, 360, 420] },
   plague: { factors: { sickSpread: 3 }, cost: { physician: 0.5 }, measure: 'wellMonths', bar: 9, medals: [210, 270, 330] },
   stone_famine: { rate: { quarry: 0.5, brickworks: 2 }, measure: 'monumentUnits', bar: 4200, medals: [240, 300, 360] },
