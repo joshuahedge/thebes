@@ -9,7 +9,30 @@
 
 export const RELEASES = [
   {
-    version: '9.2', date: '2026-11-10', title: 'A city you can read', build: 'live',
+    version: '9.3', date: '2026-11-10', title: 'A city that grows, and the decree', build: 'live',
+    new: [
+      'A city that grows: your buildings, ground and streets change look as the city ranks up. Town, City and Capital each bring a new look, so a Village of mud and thatch becomes whitewash, then warm stone, then pale limestone and gold.',
+      'The new look spreads from the palace outward and takes 4 months to reach the farthest building. Full motion shows a gold ring sweeping out over 3 seconds, and the rank-up line says the city rebuilds.',
+      'Homes come in three shapes at every tier: a single block, a stepped house with an outside stair, and a courtyard with a palm. The big homes differ in their outline and their own shadows. Zoomed out they draw as clean blocks.',
+      'Services and workshops follow the look: painted bands, lamps and pots by the door. The granary, bazaar, temple, kiln, brickworks, weaver, well and firehouse each gain a landmark shape in the City and the Capital. The granary keeps its four domes, and awnings keep their colours.',
+      'A workshop short of workers shows no goods in its yard. A shut one has a barred door and closed shutters, no figure and no smoke, so short and shut read apart at a glance.',
+      'The ground has soft edges, trodden yards and worn paths. Roads step from a dirt track to gravel, then kerbs, then paving. A Capital street is warm cream stone with a gold kerb, palms and planters, and paving only where it is built up.',
+      'Palms, rocks, reeds, people, animals, boats, carts and monuments all stand in soft shadow now, and the palace, rubble and the flood pool are redrawn to match.',
+      'The decree: every Monday brings a decree, a six-year run on one map, scored out of 600 with a bonus part, with Bronze, Silver and Gold medals. A fourth week pairs two decrees. The first is week 47, starting 16 November 2026.',
+      'Nine decrees: Sea Peoples, Low Nile, Year of the Plague, Stone famine, The Vizier\'s Levy, Open city, Golden caravans, Fire season and The Southern Host. Each says what changes, with real numbers: raids twice as often, farms 30% less, the court asking twice as much and paying double.',
+      'The decree card sits on the title once your city has reached Town or you have passed the throne, or on a friend\'s decree link. Start opens the card over a paused game, and Begin starts the clock. A chip under the top bar shows Year 1 of 6 and the mark, and opens the card.',
+      'A forbidden building stays in the tray, locked, with Not under this decree. A decree run has no guide, no daily goals and no chapter goals, and the top bar\'s score reads out of 600.',
+      'At the end of year 6 the end card shows your six parts, the medal bars and your best, with Share, Try again and Back to your city. Your decree scores sit in Rulers beside your rulers, with the tries and the week\'s map.',
+      'Share a decree score as a link and a picture. A friend who opens it sees your score as a rival on that week, kept on their device, and a link cannot be checked.',
+      'A decree is saved apart from your city, so it never touches your own save or your records. Continue returns to a run in progress.',
+    ],
+    fixed: [
+      'A better start for slower devices: the sprite memory is 32 MB on a computer and 24 MB on a phone, up from 16 MB for both, so a big city redraws less.',
+      'A decree run\'s date holds at the last day of year 6 once the decree has ended.',
+    ],
+  },
+  {
+    version: '9.2', date: '2026-11-10', title: 'A city you can read', build: '853310a',
     new: [
       'The lesson\'s raid comes in from the south, so the tower, the target and the raiders fit on a phone from the first moment. A road that does not start at the marked end is refused, and the bar says where to start.',
       'In any city, a piece of road that joins nothing is outlined in amber and says so. The lesson now ends on a card with your city\'s numbers and what you learned: Keep building this city or Start my own city.',
