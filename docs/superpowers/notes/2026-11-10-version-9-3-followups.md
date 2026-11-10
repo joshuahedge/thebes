@@ -24,19 +24,23 @@ Nothing since 7.0 has been tried on a real device. The first group is carried fr
 - [ ] **The Health layer's legend in sunlight:** the solid and dashed edges read at arm's length. (carried from 9.2)
 - [ ] **Day and night, and the music, on a phone in sunlight.** (carried from 9.2)
 - [ ] **Does the tab reload on a Capital mid-rebuild?** A phone, a Large map, the Capital rank just reached, panning and zooming while the front crosses the city (ruling 1936: 24 MB of sprites and 72 MB with terrain on a phone).
-- [ ] **An iPad on a Capital mid-rebuild.** Safari reports no `deviceMemory`, and an iPad's short side is 768 px or more, so it gets the desktop's budgets (32 MB and 80 MB), which 9.1 cut for exactly the tab reloads seen on Apple tablets (review P1, left).
+- [ ] **An iPad on a Capital mid-rebuild.** Safari reports no `deviceMemory`, and an iPad's short side is 768 px or more, so it would have had the desktop's budgets; ruling 1944 gives a touch device with no `deviceMemory` the phone's (24 MB and 72 MB). Check that no tab reloads.
 - [ ] **A decree run on a real phone, start to finish:** the title card, Start and Begin, the chip, 150% text, a forbidden card in the tray, the end card with Share, Try again and Back to your city, and Continue after leaving mid-run.
 - [ ] **A decree link from a friend** opened on the phone, and sharing your own: the picture and the `#d1` link.
 - [ ] **A look change seen on a phone:** the ring under Full motion, the front crossing homes, no flicker or stutter, and the Capital's street at play zoom.
 
 ## What 9.3 left
-- **The speed fix is not merged.** Rulings 1940 to 1944 (the slot cache, measured against 9.2) are a placeholder in Part 30. The 112 map was slower than 9.2 at p50 (20 to 37 ms desktop, 33 to 50 ms phone, known item 1); until it lands, that number is open.
-- **Ruling 1989, a question for Josh (known item 11).** Josh ruled that Sea Peoples never falls on the Great oasis, so the first rotation's Sea Peoples weeks have a river. Whether the launch week, 2026-W47, should be Sea Peoples at all is still his call.
+- **Speed on the 112 map (known item 1).** Before the fix it was slower than 9.2 at p50 (20 to 37 ms desktop, 33 to 50 ms phone). Rulings 1940 to 1942 cache each building's slot and look. After the fix, on a quiet machine (600 frames, moving camera, lower of three):
+  - **Phone, DPR 2:** p50 8 to 11% above 9.2, p95 11 to 12% above.
+  - **Desktop, DPR 1:** p50 +29 to 41% (17.7 to 25.0 ms on the Capital), p95 within 5 to 14%.
+  - **Desktop, DPR 2:** level or faster.
+
+  A still camera costs only 0.5 ms more than 9.2, so what remains is sprites drawn fresh as the camera moves (more slots a building: variants, looks, states). Next: warm the sprites of the buildings just outside the view in idle time, or draw a building's far sprite while its near one is drawn. Check it on a real phone first (headless Edge draws without a graphics card).
+- **Ruling 1989 (known item 11), settled.** Josh: "Sea Peoples cannot be on Oasis". `decreeMapOf` gives a Sea Peoples week the classic river on the same seed, so the launch week, 2026-W47, has a river and its boats.
 - **Ruling 1988, the script or the game (known item 12).** The scripted six-year city declines in its last year (drought from month 61, mood 14, culture to 1), so a bronze is 210 on Plague and 410 on the Host. The review's collapsed city scored 108, which says it is the game with no play, not the script; the medals were left as measured.
-- **The 13 known items.** 1 (speed) is open; 2 (the bar) is paid by 2005 to 2009; 3 and 4 (big homes, the Capital's street) by 2010 to 2013; 5 to 10 and 12's evidence by 1993 to 2004; 11 and 12 as above; 13 (U's sed edit of `src/ui/s47/carts.js`) was reviewed and is correct.
+- **The 13 known items.** 1 (speed) by 1940 to 1942; 2 (the bar) is paid by 2005 to 2009; 3 and 4 (big homes, the Capital's street) by 2010 to 2013; 5 to 10 and 12's evidence by 1993 to 2004; 11 and 12 as above; 13 (U's sed edit of `src/ui/s47/carts.js`) was reviewed and is correct.
 - **The review's findings left.**
-  - **M1 (should), `src/render/looks.js` `lookCentre`:** the centre and the farthest distance are recomputed from every standing building, so placing or demolishing one building at the edge moves the front for the whole city (65 homes turned Town at once in the review's test). No fix ruling covers it; check it and fix it before the merge if it still holds.
-  - **P1 (could):** the iPad, as above.
+  - **M1 and P1** are fixed by rulings 1943 and 1944.
   - **X1 (could), `tests/screenshot.ps1`:** the page domain was not enabled, so injected scripts did not run. A commit on the fix wave (e18f608) answers it; the 8.0 "shots under Gentle" rig has been off since 8.0, so old shots labelled 150% may be at 100%.
 - **Left by the tracks, by ruling.**
   - 1929: the raider chariot, elephant and raider boat shadows, the ibis, heron and hippo shadows, the fishing wharf and the charred stump have no foot shadow.
