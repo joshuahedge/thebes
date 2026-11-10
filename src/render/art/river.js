@@ -6,9 +6,15 @@
 // the wharf. Animals are told apart by shape (a gazelle's horns, an ostrich's long neck and white tail, an ibis's curved bill, a
 // heron's long legs, a hippo's back and ears showing above the water, a crocodile's long ridged back), never by colour alone.
 // Figures face right; `_l` slots face left (the same drawing mirrored), so a herd that steps the other way turns.
-import { box, crs, qd, door, p, U, quad, hs } from './primitives.js';
+import { box, crs, qd, door, p, U, quad, hs, shadeWall, contactLine, silhouette } from './primitives.js';
 import { pennant } from './services.js';
-import { fig } from './figures.js';
+import { fig, footShadow } from './figures.js';
+
+// Version 9.3 (Track N, ruling 1925): the river's buildings and animals at the bar: a soft shade down a wall's two faces.
+const wallShade = (g, F, h) => {
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, h), F.L(0, h)], h);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, h), F.R(0, h)], h);
+};
 import { STONE, MUD2, GOLDC, THATCH, TEAL, TEAL_DARK, WOOD, LEAF2, SHADOW, TERRAIN, BLUE, GOLD } from './palette.js';
 import { boundsFor } from '../iso.js';
 import { T } from '../../sim/terrain.js';
@@ -26,7 +32,9 @@ export function nilometer(g, X, Y) {
   for (let k = 0; k < 3; k++) box(g, X + 0.22 + k * 0.1, Y + 0.76 + 0.0, 0.1, 0.2, 1.2 + k * 0.0, 0, STONE, 0);   // the stair's steps, lowest in front
   const P = box(g, X + 0.12, Y + 0.12, 0.76, 0.62, 3, 0, STONE);
   crs(g, P, 3, '#A89AA8', 1.5);
+  wallShade(g, P, 3); contactLine(g, [X + 0.12, Y + 0.12, 0.76, 0.62]);      // Version 9.3 (Track N): shaded walls, and the line where they meet the ground
   const C = box(g, gx - 0.1, gy - 0.1, 0.2, 0.2, 17, 3, STONE);
+  wallShade(g, C, 17);
   for (let k = 0; k < 5; k++) {                                     // the cubits marked up the column
     const a = 1.2 + k * 3.2, b = a + 1.2;
     qd(g, C.L, 0, 1, a, b, k % 2 ? TEAL_DARK : TEAL);
@@ -50,6 +58,7 @@ export function huntingLodge(g, X, Y, stage = 0) {
   for (let i = 0; i < 7; i++) g.circ(p(X + 0.2 + hs(i, 3, 5) * 1.6, Y + 0.9 + hs(i, 4, 5) * 0.95), 0.6, TERRAIN.dotDark, { alpha: 0.55 });
   const B = box(g, X + 0.1, Y + 0.1, 1.3, 0.95, 7, 0, MUD2);          // the hall
   crs(g, B, 7, '#9A7A5A', 2.4);
+  wallShade(g, B, 7); silhouette(g, X + 0.1, Y + 0.1, 1.3, 0.95, 7); contactLine(g, [X + 0.1, Y + 0.1, 1.3, 0.95]);
   box(g, X + 0.02, Y + 0.02, 1.46, 1.11, 3.4, 7, THATCH, 0);           // the thatched roof, a low block
   for (let k = 0; k < 5; k++) g.line(U(p(X + 0.02 + k * 0.3, Y + 1.13), 7), U(p(X + 0.02 + k * 0.3, Y + 1.13), 10.4), '#AC9070', 0.4, 0.5);
   door(g, B, 0.34, 0.62, 5);
@@ -135,7 +144,7 @@ const at = (gx, gy) => { const c = p(gx, gy); return [c[0], c[1]]; };
 // A gazelle: a tawny body with a pale belly and a dark flank stripe, four thin legs, a raised neck and head, and two curved horns.
 export function gazelle(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  g.ell([X, Y], 4.2, 1.1, SHADOW, { alpha: 0.25 });
+  footShadow(g, X, Y, 1, 4.2, 0.2);
   for (const [dx, c] of [[-2.8, '#A6753F'], [-1.6, '#B9884F'], [1.7, '#A6753F'], [2.9, '#B9884F']]) g.line([X + dx, Y - 0.2], [X + dx, Y - 3.8], c, 0.7);
   g.ell([X, Y - 5.2], 4.3, 1.9, '#C99A5E', { outline: true });
   g.ell([X, Y - 4.3], 3.4, 0.8, '#F1E2C2');
@@ -151,7 +160,7 @@ export function gazelle(g0, gx, gy, left = false) {
 // An ostrich: a dark round body with a fan of white tail plumes, long pinkish legs, a very long pale neck and a small head with a yellow beak.
 export function ostrich(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  g.ell([X, Y], 4.6, 1.2, SHADOW, { alpha: 0.25 });
+  footShadow(g, X, Y, 1, 4.6, 0.2);
   g.line([X - 1.2, Y], [X - 0.8, Y - 7.2], '#C9A58E', 0.8);
   g.line([X + 1.4, Y], [X + 1.1, Y - 7.2], '#B58F78', 0.8);
   g.ell([X, Y - 9.4], 4.2, 3.1, '#3B3340', { outline: true });
@@ -211,7 +220,7 @@ export function hippo(g0, gx, gy, left = false) {
 // A crocodile on the bank: a long low dark-green body with a ridge of bumps, a pale belly line, a long snout and a tapering tail.
 export function croc(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  g.ell([X, Y], 7.4, 1.4, SHADOW, { alpha: 0.25 });
+  footShadow(g, X, Y, 1, 7.4, 0.22);
   g.path([['M', [X - 8, Y - 0.6]], ['Q', [X - 4, Y - 2.8], [X + 1, Y - 2.4]], ['L', [X + 7.6, Y - 1.6]], ['L', [X + 8.4, Y - 0.8]], ['L', [X + 2, Y]], ['Q', [X - 4, Y + 0.4], [X - 8, Y - 0.6]], ['Z']], '#4E6B3A', { outline: true });
   for (let k = 0; k < 6; k++) g.circ([X - 5.4 + k * 1.8, Y - 2.2 - (k % 2) * 0.2], 0.5, '#3A5230');
   g.line([X - 4, Y - 0.5], [X + 5, Y - 0.2], '#B7C58A', 0.4, 0.8);
@@ -250,6 +259,9 @@ export function boat(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
   g.ell([X, Y + 0.4], 8.6, 2.4, TERRAIN.foam, { alpha: 0.3 });
   g.path([['M', [X - 8.4, Y - 3]], ['Q', [X - 5, Y + 1.2], [X, Y + 1.2]], ['Q', [X + 5, Y + 1.2], [X + 8.4, Y - 3.4]], ['Q', [X + 4, Y - 1], [X, Y - 1]], ['Q', [X - 4, Y - 1], [X - 8.4, Y - 3]], ['Z']], '#C9A36B', { outline: true });
+  g.path([['M', [X - 8, Y - 2.4]], ['Q', [X - 5, Y + 1], [X, Y + 1]], ['Q', [X + 5, Y + 1], [X + 8.2, Y - 2.6]], ['Q', [X + 4, Y - 0.2], [X, Y - 0.2]], ['Q', [X - 4, Y - 0.2], [X - 8, Y - 2.4]], ['Z']], '#8D6A44', { alpha: 0.55 });   // Version 9.3 (Track N): the hull's shaded strake, its lit gunwale and the dark water under it
+  g.stroke([['M', [X - 8.2, Y - 3]], ['Q', [X - 4, Y - 1.2], [X, Y - 1.2]], ['Q', [X + 4, Y - 1.2], [X + 8.4, Y - 3.4]]], '#F3DDB0', 0.5, 0.8);
+  g.stroke([['M', [X - 7, Y + 1.8]], ['Q', [X, Y + 3], [X + 7, Y + 1.8]]], '#1E6A7C', 1, 0.35);
   g.line([X - 7.6, Y - 2.6], [X + 7.6, Y - 3], '#8D6A44', 0.5, 0.8);
   for (const dx of [-4, -1.5, 1.2, 3.8]) g.line([X + dx, Y + 0.4], [X + dx + 0.2, Y - 1.2], '#E2C27E', 0.5);    // reed lashings
   // the fisher, standing amidships

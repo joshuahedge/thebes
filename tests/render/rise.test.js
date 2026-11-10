@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { createEffects, EFFECT_MS } from '../../src/render/effects.js';
 import { hauler, fig } from '../../src/render/art/figures.js';
-import { ART } from '../../src/render/art/registry.js';
+import { ART, slotFor } from '../../src/render/art/registry.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
 import { createRenderer } from '../../src/render/renderer.js';
 import { createCamera } from '../../src/render/camera.js';
@@ -38,7 +38,7 @@ function templeInk(t) {
   const renderer = createRenderer({
     canvas, dpr: 1,
     baker: { peek: () => ({ sprite: null, fresh: false }), get: () => null },
-    registry: { temple: { ...ART.temple, shadows: [] } },
+    registry: { [slotFor(temple, w)]: { ...ART[slotFor(temple, w)], shadows: [] } },   // 9.3 Track B: the temple's slot carries its look and state
   });
   const rising = t === null ? undefined : new Map([[temple.id, t]]);
   renderer.renderFrame(w, createCamera({ x: 16, y: 16, zoom: 1 }), { view: { width: 240, height: 240 }, rising });

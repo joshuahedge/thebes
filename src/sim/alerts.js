@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings.js';
+import { capacityOf } from './rules.js';
 import { MOOD } from '../data/mood.js';
 import { bazaarFoodProblem } from './bazaarFood.js';
 import { bazaarsByHouse } from './distribution.js';
@@ -53,7 +54,7 @@ export function alertsFor(world) {
     if (b.blocked === 'no_storage') alerts.push({ code: 'no_storage', id: b.id });
     if (b.blocked === 'storage_full') alerts.push({ code: 'storage_full', id: b.id });
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
-    if (def.stores && storeTotal(b) >= def.capacity) alerts.push({ code: 'storage_full', id: b.id });   // any full store
+    if (def.stores && storeTotal(b) >= capacityOf(world, b.type)) alerts.push({ code: 'storage_full', id: b.id });   // any full store
     if (def.workers && road && !b.paused && !(b.fire && b.fire.stage === 'fire') && hasMonumentWork(world, b) && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
     // No food on the shelf (Version 8.2.1, rulings 1360-1364): an alert only when it is trouble, worded by its cause (bazaarFoodProblem).
     if (def.sells) { const food = bazaarFoodProblem(world, b, served); if (food) alerts.push(food); }

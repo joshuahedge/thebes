@@ -790,12 +790,13 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
   .title-buttons { flex-direction: row; flex-wrap: wrap; }
   .title-buttons > * { flex: 1 1 100%; }
 }
-.shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
-.shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
-.shared-score p { margin: 0; }
+/* Version 9.3 (Track U): the title's decree card (.decree-card) is this panel too. */
+:is(.shared-score, .decree-card) { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+:is(.shared-score, .decree-card) h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+:is(.shared-score, .decree-card) p { margin: 0; }
 .shared-score .beat { font-weight: 700; font-size: calc(20px * var(--ui-scale)); }
-.shared-score .start-seed { margin-top: 4px; }
-.title-card:has(> .guide) .shared-score { display: none; }   /* one panel at a time: the install guide or the new-city question */
+.shared-score .start-seed, .decree-card .decree-go { margin-top: 4px; }
+.title-card:has(> .guide) :is(.shared-score, .decree-card) { display: none; }   /* one panel at a time: the install guide or the new-city question */
 .shared-bad { margin: 0; }
 /* Feats (spec 4.19): their own group above the achievements, laid out as the achievements are. */
 .feats-section { margin-top: 12px; }

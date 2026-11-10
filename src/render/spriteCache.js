@@ -35,7 +35,27 @@ const imageReady = (img) => Boolean(img.complete && img.naturalWidth > 0);
 // begins; with no frames, nothing is evicted): at DPR 2 and zoom 2 a slot draws at 8 device px per art px, and a Large city's every slot there
 // was about 100 MB, where one view needs about 13.
 export const SPRITE_IDLE_MS = 30000;
-export const SPRITE_BUDGET_BYTES = 16 * 1024 * 1024;
+// Version 9.3 Track P (rulings 1935-1937, spec section 7): the four looks, a home's three variants and a service's three states multiply the
+// slots, so the budgets are set by device from the measured scenes (tests/v93/p): a desktop and a phone, by the memory the browser reports
+// (navigator.deviceMemory, Chromium's 0.25 to 8 GB) where it does, else by the screen's short side. The sprites' budget is SPRITE_BUDGET_BYTES;
+// the terrain and sprites together keep CACHES_BUDGET_BYTES (terrainBaker.js), which rises with it so the terrain is not starved.
+const MB = 1024 * 1024;
+export const DEVICE_BUDGETS = {
+  desktop: { sprites: 32 * MB, caches: 80 * MB },
+  phone: { sprites: 24 * MB, caches: 72 * MB },
+};
+export function deviceKind({ deviceMemory, screenWidth, screenHeight, maxTouchPoints } = {}) {
+  if (typeof deviceMemory === 'number' && deviceMemory > 0) return deviceMemory >= 8 ? 'desktop' : 'phone';
+  if (maxTouchPoints > 0) return 'phone';   // 9.3 speed fix (ruling 1944): Safari reports no deviceMemory, and an iPad's tab reloads under desktop budgets; touch with no memory figure is a phone's
+  const side = Math.min(screenWidth || Infinity, screenHeight || Infinity);
+  return side < 768 ? 'phone' : 'desktop';
+}
+const thisDevice = () => {
+  const nav = typeof navigator !== 'undefined' ? navigator : {}, scr = typeof screen !== 'undefined' ? screen : {};
+  return deviceKind({ deviceMemory: nav.deviceMemory, maxTouchPoints: nav.maxTouchPoints, screenWidth: scr.width, screenHeight: scr.height });
+};
+export const DEVICE_KIND = thisDevice();
+export const SPRITE_BUDGET_BYTES = DEVICE_BUDGETS[DEVICE_KIND].sprites;   // 9.1: 16 MB on every device
 const SWEEP_EVERY = 4096;
 export const canvasBytes = (canvas) => canvas.width * canvas.height * 4;
 

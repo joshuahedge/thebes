@@ -7,8 +7,8 @@
 //
 // The house style: white-washed dressed stone with lavender shadows, weathered planks and rope; the Industry category's pennant. A trade boat
 // is told from a fishing skiff by its shape (a long hull with a raised stern, a tall mast and a broad sail, bales on deck), never by colour.
-import { box, crs, p, U, quad } from './primitives.js';
-import { pennant } from './services.js';
+import { box, crs, p, U, quad, shadeWall, contactLine } from './primitives.js';
+import { pennant, styled, lookSlot, isShut, isBusy, shutFront } from './services.js';
 import { fig } from './figures.js';
 import { wharfSide } from './river.js';
 import { STONE, MUD2, WASH, WOOD, SHADOW, TERRAIN, TEAL, GOLD, RED, BLUE, INDUSTRY_TINT } from './palette.js';
@@ -40,6 +40,9 @@ export function quay(g, X, Y, side = 's') {
   for (let k = 0; k < 3; k++) bx(0.7, 1.0 + k * 0.15, 0.6, 0.15, 2 - k * 0.6, 0, STONE, 0);
   const L = bx(0.02, 0.04, 1.96, 0.96, 2.4, 0, STONE);
   crs(g, L, 2.4, '#B9AEBF', 1.2);
+  shadeWall(g, [L.L(0, 0), L.L(1, 0), L.L(1, 2.4), L.L(0, 2.4)], 2.4);   // 9.3 fix wave: the bar, as every wall has it: a soft shade and the contact line
+  shadeWall(g, [L.R(0, 0), L.R(1, 0), L.R(1, 2.4), L.R(0, 2.4)], 2.4);
+  contactLine(g, rect(0.02, 0.04, 1.96, 0.96));
   g.poly(quad(...rect(0.08, 0.1, 1.84, 0.84), 2.4), '#EFE6D6', { alpha: 0.6 });
   // the mooring posts at the water's edge, rope looped between them
   const posts = [[0.18, 0.92], [1.82, 0.92]];
@@ -48,12 +51,15 @@ export function quay(g, X, Y, side = 's') {
   // the customs shed on the land side, at one end: mud brick under a striped awning on poles
   const H = bx(0.1, 0.08, 0.62, 0.5, 6.2, 2.4, MUD2);
   crs(g, H, 6.2, '#9A7A5A', 2);
+  shadeWall(g, [H.L(0, 0), H.L(1, 0), H.L(1, 6.2), H.L(0, 6.2)], 6.2);
+  shadeWall(g, [H.R(0, 0), H.R(1, 0), H.R(1, 6.2), H.R(0, 6.2)], 6.2);
+  if (isShut()) shutFront(g, H.L, 6.2, [[0.28, 0.72, 4.6]], WOOD);   // Version 9.3: a shut customs shed has its door barred, a wide door and closed shutters
   g.poly(quad(...rect(0.04, 0.02, 0.74, 0.62), 8.6), WASH[0], { outline: true });
   for (const [u, v] of [[0.86, 0.12], [0.86, 0.58]]) { const q = U(pt(u, v), 2.4); g.line(q, U(q, 6.8), WOOD, 0.7); }
   g.poly([U(pt(0.72, 0.1), 9.2), U(pt(1.08, 0.1), 9.2), U(pt(1.08, 0.6), 9.2), U(pt(0.72, 0.6), 9.2)], RED, { alpha: 0.9, outline: true });
   // goods waiting: bales and jars on the landing
-  for (const [u, v, c] of [[1.22, 0.3, BALES], [1.5, 0.3, BALES], [1.36, 0.3, PLANK]]) bx(u - 0.12, v - 0.1, 0.24, 0.2, 2.6, 2.4 + (c === PLANK ? 2.6 : 0), c);
-  for (const [u, v] of [[1.7, 0.56], [1.56, 0.66]]) {
+  if (isBusy()) for (const [u, v, c] of [[1.22, 0.3, BALES], [1.5, 0.3, BALES], [1.36, 0.3, PLANK]]) bx(u - 0.12, v - 0.1, 0.24, 0.2, 2.6, 2.4 + (c === PLANK ? 2.6 : 0), c);
+  if (isBusy()) for (const [u, v] of [[1.7, 0.56], [1.56, 0.66]]) {
     const q = U(pt(u, v), 2.4);
     g.ell([q[0], q[1] - 2.2], 1.3, 2.3, '#C96A3C', { outline: true });
     g.ell([q[0], q[1] - 4.6], 0.6, 0.3, '#E9D8B4');
@@ -81,6 +87,10 @@ export function tradeBoat(g0, gx, gy, left = false, moored = false) {
   if (!moored) for (const k of [1, 2]) g.ell([X - 13 - k * 3, Y + 0.4], 2.6 + k, 0.8 + k * 0.2, TERRAIN.foam, { alpha: 0.4 - k * 0.12 });   // the wake
   g.path([['M', [X - 13, Y - 6.4]], ['Q', [X - 9, Y + 1.6], [X, Y + 1.6]], ['Q', [X + 9, Y + 1.6], [X + 13.4, Y - 4]],
     ['Q', [X + 7, Y - 1.6], [X, Y - 1.6]], ['Q', [X - 8, Y - 1.6], [X - 13, Y - 6.4]], ['Z']], PLANK[0], { outline: true });
+  g.path([['M', [X - 12.2, Y - 4.6]], ['Q', [X - 9, Y + 0.9], [X, Y + 0.9]], ['Q', [X + 9, Y + 0.9], [X + 12.8, Y - 2.8]],                            // Version 9.3 (Track N): the hull's shaded lower strake,
+    ['Q', [X + 8, Y - 0.1], [X, Y - 0.1]], ['Q', [X - 8, Y - 0.1], [X - 12.2, Y - 4.6]], ['Z']], PLANK[2], { alpha: 0.6 });                              // a lit gunwale and the dark water under it
+  g.stroke([['M', [X - 12.6, Y - 6]], ['Q', [X - 8, Y - 1.8], [X, Y - 1.8]], ['Q', [X + 8, Y - 1.8], [X + 13, Y - 4]]], '#F3DDB0', 0.6, 0.8);
+  g.stroke([['M', [X - 12, Y + 1.8]], ['Q', [X, Y + 3.2], [X + 12, Y + 1.8]]], '#1E6A7C', 1.2, 0.35);
   g.stroke([['M', [X - 13, Y - 6.4]], ['Q', [X - 15, Y - 9], [X - 12.6, Y - 9.6]]], PLANK[2], 1.2);                       // the curled stern post
   g.line([X - 11.6, Y - 3.2], [X + 12.4, Y - 3.4], PLANK[2], 0.6, 0.9);
   for (const dx of [-7, -2, 3, 8]) g.line([X + dx, Y + 1.2], [X + dx + 0.3, Y - 1.4], PLANK[1], 0.5);
@@ -108,6 +118,8 @@ export function tradeBoat(g0, gx, gy, left = false, moored = false) {
     g.path([['M', [X - 7.2, Y - 25.6]], ['L', [X + 10.4, Y - 26.4]], ['Q', [X + 12.2, Y - 16], [X + 9.8, Y - 6.8]], ['L', [X - 6.6, Y - 6.2]],
       ['Q', [X - 4.2, Y - 16], [X - 7.2, Y - 25.6]], ['Z']], '#F4EFE2', { outline: true });
     for (const k of [0.33, 0.66]) g.line([X - 6.4 + k * 0.2, Y - 25.6 + k * 19.6], [X + 10.4 - k * 0.4, Y - 26.4 + k * 19.6], '#D8CFB8', 0.4);
+    g.path([['M', [X + 1.6, Y - 26]], ['L', [X + 10.4, Y - 26.4]], ['Q', [X + 12.2, Y - 16], [X + 9.8, Y - 6.8]], ['L', [X + 1.4, Y - 6.4]], ['Z']], '#C9BCCD', { alpha: 0.5 });   // the sail's shaded half
+    g.stroke([['M', [X - 6.6, Y - 24.6]], ['Q', [X - 3.8, Y - 16], [X - 6, Y - 7]]], '#FFFFFF', 0.6, 0.6);
   }
   g.line([X + 1.4, Y - 27], [X + 13.4, Y - 4.4], ROPE, 0.3, 0.8);                                                      // the forestay
   g.poly([[X + 1.4, Y - 27], [X + 5.6, Y - 26.2], [X + 1.4, Y - 25]], BLUE);                                               // a streamer at the masthead
@@ -160,6 +172,14 @@ export const TRADE_ART = {
   ...both('pack_donkey_b', (g, x, y, left) => packDonkey(g, x, y, left, BLUE), 12),
   ...both('trader', trader, 18),
 };
+
+// Version 9.3, Track B: the Quay in four looks and three states (registry.js runs this through withLooks): the wharf's own stone and mud, so only the shed's
+// walls follow the look; shut, its shed door is barred, the bales and jars are gone and the flag is down.
+export const TRADE_LOOKS = {};
+for (const side of ['s', 'n', 'e', 'w']) {
+  const S = SIDES[side], bounds = boundsFor(S.w, S.d, QUAY_HEIGHT, 24);
+  TRADE_LOOKS[`${QUAY_TYPE}.${side}`] = { ...lookSlot(S.w, S.d, QUAY_HEIGHT, [[0.1, 0.08, 0.7, 0.5, 9]], styled((g, x, y) => quay(g, x, y, side), { mud: true })), bounds, boundsFor: () => bounds };
+}
 
 // The slot a Track T building shows: a Quay facing its water ('quay.<side>'), else null.
 export const tradeSlot = (b, world) => (b.type === QUAY_TYPE && world ? `${QUAY_TYPE}.${wharfSide(world, b)}` : null);

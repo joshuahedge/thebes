@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings.js';
+import { capacityOf, ruleRate, decreeEnded, endedFail } from './rules.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
 import { buildingsInReach, touchesRoad } from './reach.js';
@@ -11,12 +12,12 @@ import { huntHerd, takeGame } from './wildlife.js';
 import { HARVEST_NOW } from '../data/hazards.js';
 import { droughtFactor, cropFactor, warnedBand, isFarm, cropShare } from './crops.js';
 import { plagueHalted } from './plague.js';
-import { heirFactor } from './dynasty.js';
+import { ruleFactor } from './rules.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
 
 // A store has room while all its goods together are under its capacity.
-export const hasSpace = (s) => storeTotal(s) < BUILDINGS[s.type].capacity;
+export const hasSpace = (s, world) => storeTotal(s) < capacityOf(world, s.type);   // Version 9.3 (Track R, ruling 1956): a granary's hold under a decree
 
 // Whether a store takes deliveries of a good (spec 4.10): it is built to hold the good and, for a storehouse, the
 // player has not refused it (b.accepts[good] === false, set by setAccept). A refused good it already holds stays
@@ -53,8 +54,8 @@ function inputStores(world, b, input) {
 
 // The store a workshop takes its next unit of input from: the nearest holding it. When no store that takes the output
 // has room, only one of those stores can help (the nearest holding the input): giving up its input frees the room.
-function inputSource(sources, targets, input) {
-  if (targets.some(hasSpace)) return sources.find((s) => stocked(s, input));
+function inputSource(world, sources, targets, input) {
+  if (targets.some((t) => hasSpace(t, world))) return sources.find((s) => stocked(s, input));
   return sources.find((s) => stocked(s, input) && targets.includes(s));
 }
 
@@ -67,7 +68,7 @@ function makeOne(world, good, input, sources, targets, sites = []) {
   const site = sites.find((s) => stockRoom(s)[good] >= 1 - 1e-6);
   let from = null;
   if (input) {
-    from = site ? sources.find((s) => stocked(s, input)) : inputSource(sources, targets, input);
+    from = site ? sources.find((s) => stocked(s, input)) : inputSource(world, sources, targets, input);
     if (!from) return sources.some((s) => stocked(s, input)) ? 'storage_full' : 'no_input';
     from.store[input] -= 1;
   }
@@ -77,7 +78,7 @@ function makeOne(world, good, input, sources, targets, sites = []) {
     world.tally.made[good] = (world.tally.made[good] || 0) + 1;
     return null;
   }
-  const to = targets.find(hasSpace);
+  const to = targets.find((t) => hasSpace(t, world));
   if (!to) {
     if (from) from.store[input] += 1;
     return 'storage_full';
@@ -115,11 +116,11 @@ export function produceDay(world) {
     const targets = outputStores(world, b, good);
     const sites = material ? deliverySites(world, b) : [];
     // A full store that gives up its input counts as having room: each unit takes its input first (see makeOne).
-    if (!sites.length && !targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
+    if (!sites.length && !targets.some((t) => hasSpace(t, world)) && !(input && inputSource(world, sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
     // Stage 4.6 (River track, ruling 360): a floodplain farm's harvest follows the last flood; a wharf's boat lands more in the flood months.
     // Version 9.0 (Track D, ruling 1567): times the heir's rate factor (heirRate: the Bountiful's farms, the Merchant's workshops; 1 for any other city).
-    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * harvestFactor(world, b) * crop * (def.fishes ? fishFactor(world) : 1) * heirRate(world, b);
+    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * harvestFactor(world, b) * crop * (def.fishes ? fishFactor(world) : 1) * heirRate(world, b) * ruleRate(world, b.type);   // Version 9.3 (Track R, ruling 1956): a decree's rate for this type (the Stone famine's quarry and brickworks)
     b.progress += rate;
     while (b.progress >= 1 - 1e-9) {
       // A hunting lodge (rulings 364, 460) makes each unit of game from the animal in hand (b.gameLeft); with none, its hunters take one animal
@@ -150,7 +151,7 @@ export function harvestFactor(world, b) {
 
 // Version 9.0 (Track D, ruling 1567): the heir's factor on a producer's rate: the Bountiful's on a farm, the Merchant's on anything that makes one good
 // from another (a workshop, the brickworks); 1 for anything else and in any other city.
-export const heirRate = (world, b) => (isFarm(b.type) ? heirFactor(world, 'farms') : BUILDINGS[b.type].consumes ? heirFactor(world, 'workshops') : 1);
+export const heirRate = (world, b) => (isFarm(b.type) ? ruleFactor(world, 'farms') : BUILDINGS[b.type].consumes ? ruleFactor(world, 'workshops') : 1);
 
 // The days a farm still rests after Harvest now: 0 before the rest begins (the day after the strike) and once it is over.
 export const restDaysLeft = (world, b) => (b.restUntil > world.day && world.day >= (b.restFrom || 0) ? b.restUntil - world.day : 0);
@@ -170,7 +171,7 @@ export function harvestQuote(world, b) {
   if ((w.early || []).includes(b.id)) return { ok: false, reason: 'done', ...base };
   if (!isWorking(world, b)) return { ok: false, reason: 'idle', ...base };
   const want = Math.max(1, Math.round(def.produces.perMonth * HARVEST_NOW.share * staffRatio(world, b) * harvestFactor(world, b) * heirRate(world, b)));   // Version 9.0: the Bountiful's crop too
-  const room = outputStores(world, b, base.good).reduce((s, t) => s + Math.max(0, BUILDINGS[t.type].capacity - storeTotal(t)), 0);
+  const room = outputStores(world, b, base.good).reduce((s, t) => s + Math.max(0, capacityOf(world, t.type) - storeTotal(t)), 0);
   const units = Math.min(want, Math.floor(room));
   if (units < 1) return { ok: false, reason: 'no_room', ...base, want };
   return { ok: true, reason: null, ...base, units, want };
@@ -179,6 +180,7 @@ export function harvestQuote(world, b) {
 // The Harvest now command: the quote's units into the stores, the farm resting (b.restUntil), the farm named among those harvested early
 // (the warning's early list, which the swarm's record keeps), tally harvestsEarly. { ok, reason, units, ... } as the quote.
 export function harvestNow(world, id) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   const q = harvestQuote(world, b);
   if (!q.ok) return q;

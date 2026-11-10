@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
-import { H1, H2, H3, H4, HOUSE_ART } from '../../src/render/art/housing.js';
+import { H1, H2, H3, H4 } from '../../src/render/art/housing.js';
 import { ART, boundsFor, slotFor } from '../../src/render/art/registry.js';
 import { groundShadow } from '../../src/render/art/primitives.js';
 import { makeCanvas, pixelAt, canvasHash } from '../helpers/canvas.js';
@@ -30,13 +30,13 @@ describe('house art', () => {
     expect(hashes.size).toBe(4);
   });
   it('grows taller up the ladder', () => {
-    expect(HOUSE_ART['house.t2'].height).toBeLessThan(HOUSE_ART['house.t3'].height);
-    expect(HOUSE_ART['house.t3'].height).toBeLessThan(HOUSE_ART['house.t4'].height);
-    expect(HOUSE_ART['house.t1'].height).toBeLessThan(HOUSE_ART['house.t4'].height);
+    expect(ART['house.t2.v0.l0'].height).toBeLessThan(ART['house.t3.v0.l0'].height);   // Version 9.3 (Track H): the slots carry a variant and a look
+    expect(ART['house.t3.v0.l0'].height).toBeLessThan(ART['house.t4.v0.l0'].height);
+    expect(ART['house.t1.v0.l0'].height).toBeLessThan(ART['house.t4.v0.l0'].height);
   });
   it('registers the four tiers with footprints, bounds and shadows', () => {
     for (const t of [1, 2, 3, 4]) {
-      const e = ART[`house.t${t}`];
+      const e = ART[`house.t${t}.v0.l0`];
       expect(e.w).toBe(1);
       expect(e.d).toBe(1);
       expect(e.bounds.length).toBe(4);
@@ -48,7 +48,7 @@ describe('house art', () => {
     expect(ART['house.t0']).toBe(undefined);
   });
   it('draws its shadows inside the footprint area', () => {
-    const c = drawAlone((g) => { for (const [dx, dy, w, d, h] of HOUSE_ART['house.t4'].shadows) groundShadow(g, dx, dy, w, d, h); });
+    const c = drawAlone((g) => { for (const [dx, dy, w, d, h] of ART['house.t4.v0.l0'].shadows) groundShadow(g, dx, dy, w, d, h); });
     expect(inked(c)).toBeGreaterThan(20);
   });
   it('computes bounds that contain a 1x1 footprint of the given height', () => {
@@ -56,7 +56,7 @@ describe('house art', () => {
     expect(boundsFor(2, 2, 20, 10)).toEqual([-42, -30, 42, 42]);
   });
   it('names slots by tier for houses and by type otherwise', () => {
-    expect(slotFor({ type: 'house', tier: 3 })).toBe('house.t3');
-    expect(slotFor({ type: 'well' })).toBe('well');
+    expect(slotFor({ type: 'house', tier: 3 })).toBe('house.t3.v0.l0');   // Version 9.3 (Track H): a home's slot names its variant and look (no world: the Village look)
+    expect(slotFor({ type: 'well' })).toBe('well.l0.work');   // Version 9.3 (Track B): a well carries its look and state
   });
 });

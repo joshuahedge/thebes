@@ -5,7 +5,8 @@
 // banded plinth, its head in a striped headcloth, facing the nearest road (sphinxFacing: four slots); with no road near
 // it faces the viewer's left (+y).
 import { box, tb, qd, p, U, quad } from './primitives.js';
-import { STONE, TEAL, TEAL_DARK, BLUE, GOLD, GOLDC, DOOR, SHADOW } from './palette.js';
+import { STONE, TEAL, TEAL_DARK, BLUE, GOLD, GOLDC, DOOR, SHADOW, INK } from './palette.js';
+import { shadeWall, contactLine } from './primitives.js';
 import { idx, inBounds } from '../../sim/grid.js';
 import { boundsFor } from '../iso.js';
 
@@ -48,6 +49,12 @@ export function plaza(g, x, y, joined = 0) {
   if (open(8)) g.line(U(p(x0, y0), h), U(p(x0, y1), h), GOLD, 0.6);
   if (open(2)) g.line(U(p(x1, y0), h), U(p(x1, y1), h), GOLD, 0.6);
   if (open(4)) g.line(U(p(x0, y1), h), U(p(x1, y1), h), GOLD, 0.6);
+  // Version 9.3 (Track N, ruling 1923): a court's open edges at the bar: the kerb's shaded drop, the dark line where it meets the ground, a lit lip
+  // on top, and a faint inner shade where the paving meets the kerb. Joined edges stay clean so the court still reads as one.
+  const a = p(x, y + 1), b = p(x + 1, y + 1), c = p(x + 1, y);
+  if (open(4)) { g.line([a[0], a[1] + 0.5], [b[0], b[1] + 0.5], INK, 1.0, 0.45); g.line(U(p(x, y + 1), h), U(p(x + 1, y + 1), h), '#FFFFFF', 0.6, 0.55); g.line(U(p(x0, y1 - 0.02), h), U(p(x1, y1 - 0.02), h), INK, 0.8, 0.1); }
+  if (open(2)) { g.line([b[0], b[1] + 0.5], [c[0], c[1] + 0.5], INK, 1.0, 0.45); g.line(U(p(x1 - 0.02, y0), h), U(p(x1 - 0.02, y1), h), INK, 0.8, 0.1); }
+  if (open(4) || open(2)) { g.line([a[0], a[1] + 1.2], [b[0], b[1] + 1.2], SHADOW, 1.8, 0.07); g.line([b[0], b[1] + 1.2], [c[0], c[1] + 1.2], SHADOW, 1.8, 0.07); }
 }
 
 // The four ways a sphinx faces: 0 +x (the viewer's right), 1 +y (the viewer's left), 2 -x, 3 -y (away).
@@ -100,6 +107,9 @@ export function sphinx(g, x, y, f = 1) {
   qd(g, P.R, 0, 1, 1.1, 2, TEAL_DARK);
   qd(g, P.L, 0, 1, 2.6, 3.2, GOLD);
   qd(g, P.R, 0, 1, 2.6, 3.2, GOLDC[2]);
+  shadeWall(g, [P.L(0, 0), P.L(1, 0), P.L(1, 3.2), P.L(0, 3.2)], 3.2);       // Version 9.3 (Track N): a soft shade down the plinth, and its line on the ground
+  shadeWall(g, [P.R(0, 0), P.R(1, 0), P.R(1, 3.2), P.R(0, 3.2)], 3.2);
+  contactLine(g, rect(0.06, 0.94, 0.2, 0.8));
   const towards = fx > 0 || fy > 0;                                            // the head is nearer the viewer than the tail
   const body = () => {
     part(0.12, 0.6, 0.34, 0.66, 3.4, 3.2, LION, 0.03);                         // the back

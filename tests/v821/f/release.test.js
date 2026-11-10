@@ -4,8 +4,8 @@ import { RELEASES } from '../../../src/data/releases.js';
 
 describe('v821 f release: What\'s new for 8.2.1', () => {
   it('is the third entry with its merge commit, and says pick a crossing, the road it brings and the forgiving drag', () => {
-    const r = RELEASES[5], text = [...r.new, ...r.fixed].join(' ');
-    expect([RELEASES[4].version, r.version, r.title, r.build, RELEASES[6].version, RELEASES[6].build]).toEqual(['8.3', '8.2.1', 'Easier ferries', '87b5ec3', '8.2', 'c4bff18']);
+    const r = RELEASES[6], text = [...r.new, ...r.fixed].join(' ');
+    expect([RELEASES[5].version, r.version, r.title, r.build, RELEASES[7].version, RELEASES[7].build]).toEqual(['8.3', '8.2.1', 'Easier ferries', '87b5ec3', '8.2', 'c4bff18']);
     for (const words of ['shows the best crossings near your roads', 'tap one, then ✓', 'short road', 'snaps to the nearest crossing', 'Show me', 'bazaar no longer says it has no food'])expect([words, text.includes(words)]).toEqual([words, true]);
   });
 });

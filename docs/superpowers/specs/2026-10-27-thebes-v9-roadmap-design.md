@@ -86,7 +86,7 @@ The full design is `2026-10-27-thebes-version-8-3-lines-design.md`. In short:
    - **During the game:** each new rank compares the two, for example "Town: 2 months ahead of your rival". Today the game compares only against your own best.
    - **At the end:** the two scores are shown side by side.
 
-## 5. 9.3 "Weekly decree" (note 6; it was 9.1 until 9.1 "First hours" came in front of it, ruling 1650, and 9.2 until 9.2 "A city you can read" did)
+## 5. 9.3 "Weekly decree" (note 6; it was 9.1 until 9.1 "First hours" came in front of it, ruling 1650, and 9.2 until 9.2 "A city you can read" did). Built in 9.3 beside "A city that grows"; the design is `2026-11-10-thebes-version-9-3-the-weekly-decree-design.md`; the Levy is renamed below.
 
 - **The map.** Every Monday everyone gets the same map, seeded from the week, with one or two decrees. The weekly seed code was removed in 6.0 (ruling 742) and is a few lines to bring back.
 - **The decrees.** These are hand-written, not drawn at random:
@@ -97,7 +97,7 @@ The full design is `2026-10-27-thebes-version-8-3-lines-design.md`. In short:
   | Low Nile | weak floods, farms yield 30% less, granaries hold double |
   | Year of the Plague | sickness spreads fast, physicians cost half |
   | Stone famine | quarries at half speed, brickworks at double |
-  | Pharaoh's levy | the court asks twice as much, its favour pays double |
+  | The Vizier's Levy (was "Pharaoh's levy"; renamed in 9.3, because "Pharaoh" never appears in game text) | the court asks twice as much, its rewards pay double (the reward follows the doubled ask, ruling 1992) |
   | Open city | no walls allowed |
   | Golden caravans | trade pays double, workshops make half |
   | Fire season | fires far more often, firehouses reach further |
@@ -118,7 +118,7 @@ The full design is `2026-10-27-thebes-version-8-3-lines-design.md`. In short:
 | 9.0 Dynasty | medium | It reuses the seal, the scores, the feats and the share links |
 | 9.1 First hours | medium, mostly polish | Josh asked for broad polish and fewer refunds in the first two hours, so it goes before new content: the lesson, the first city, never stuck, runs well, the heirs retuned |
 | 9.2 A city you can read | medium, mostly polish | the two design reviews of 9.1 (8 Nov), before new content |
-| 9.3 Weekly decree | medium, mostly content | It reuses 9.0's trait, rivals and ruler list, and adds the second save slot |
+| 9.3 A city that grows, and the weekly decree | medium: a visual rebuild by rank, then content | It reuses 9.0's trait, rivals and ruler list, and adds the second save slot |
 
 **Later, not in v9:**
 - **Past cities as neighbours.** A retired city becomes a trade partner on a later map.

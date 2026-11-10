@@ -4,7 +4,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { soldiersPayOf, costScale } from './costs.js';
 import { taxRateOf, taxFactorOf } from './palace.js';
-import { heirFactor } from './dynasty.js';
+import { ruleFactor } from './rules.js';
 import { lacksRoad } from './reach.js';
 
 // Version 6.0 (Track 0, ruling 622): a building's monthly upkeep and one worker's monthly wage in this city, after costScale's upkeep
@@ -39,7 +39,7 @@ export function monthFigures(world) {
 // Version 9.0 (Track D): the month's taxes at one rate, whole gold, from taxesNormal: the rate's factor (taxFactorOf), then the heir's (the Builder's
 // x0.95). monthFigures takes it at the rate in force; the palace's Taxes row quotes each choice from it.
 export function taxesAt(world, rate, taxesNormal) {
-  const heir = heirFactor(world, 'taxes');
+  const heir = ruleFactor(world, 'taxes');
   return Math.round(heir === 1 ? taxesNormal * taxFactorOf(world, rate) : taxesNormal * taxFactorOf(world, rate) * heir);
 }
 

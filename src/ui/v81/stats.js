@@ -14,7 +14,7 @@ import { isUnlocked } from '../../sim/progression.js';
 import { seasonAt } from '../../sim/seasons.js';
 import { costOf } from '../../sim/costs.js';
 import { housesOf, buildingsVersion } from '../../sim/world.js';
-import { scoreOf } from '../../sim/score.js';
+import { scoreOf, decreeScore } from '../../sim/score.js';
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { summaryData } from '../hud.js';
 import { adviceWords } from '../adviceText.js';
@@ -22,7 +22,7 @@ import { T as TILE } from '../../sim/terrain.js';
 import { closeSheet } from '../modes.js';
 import { el, button, clear } from '../components.js';
 import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText, T } from '../text.js';
-import { V84R_TEXT } from '../text.js';
+import { V84R_TEXT, U93_TEXT } from '../text.js';
 import { spoilsSaving } from '../../sim/spoils.js';
 import { V81_B_TEXT as B, moodFace } from './bText.js';
 import { goldPile, peopleCrowd } from './statIcons.js';
@@ -36,7 +36,11 @@ export function createScoreReader(world) {
   let key = null, score = null;
   return () => {
     const k = `${world.day}|${buildingsVersion(world)}|${world.gold}`;
-    if (k !== key) { key = k; score = scoreOf(world); }
+    if (k !== key) {
+      key = k; score = scoreOf(world);
+      // Version 9.3 fix wave (known 7): a decree run's score is out of 600 with the bonus part (decreeScore), and its medal the decree's; the five parts and their reasons stay scoreOf's.
+      if (world.decree) { const d = decreeScore(world); score = { ...score, total: d.total, medal: d.medal, bonus: d.parts.bonus }; }   // final fix: the bonus for the chip's popover, kept out of parts
+    }
     return score;
   };
 }
@@ -157,12 +161,14 @@ export function explainStat(world, kind, deps = {}) {
     }
   } else if (kind === 'score') {
     const s = deps.score ? deps.score() : null;
-    Object.assign(out, { title: s ? `${name} ${s.total}` : name, what: B.score.what });
+    const decree = Boolean(world.decree);   // Version 9.3 (final fix): in a decree run the chip reads decreeScore, so its popover says so and shows the bonus
+    Object.assign(out, { title: s ? `${name} ${s.total}` : name, what: decree ? U93_TEXT.chipWhat : B.score.what });
     if (s) {
       const cap = (p) => (s.ceilings ? s.ceilings[p] : 100);   // Version 9.2 (Track S): the part's ceiling, without the terms not started
       for (const p of SCORE_PARTS) out.lines.push([SCORE_TEXT.parts[p], B.score.of(Math.round(s.parts[p]), cap(p))]);
+      if (decree && Number.isFinite(s.bonus)) out.lines.push([U93_TEXT.bonusPart, B.score.of(Math.round(s.bonus), 100)]);
       const weakest = SCORE_PARTS.reduce((a, p) => (cap(p) - s.parts[p] > cap(a) - s.parts[a] ? p : a), SCORE_PARTS[0]);
-      out.notes.push(B.score.weakest(SCORE_TEXT.parts[weakest], score4ReasonText(s.reasons[weakest])));
+      out.notes.push(B.score.weakest(SCORE_TEXT.parts[weakest], score4ReasonText(s.reasons ? s.reasons[weakest] : null)));
       for (const w of s.waiting || []) out.notes.push(B.score.waiting(w));
     }
   }

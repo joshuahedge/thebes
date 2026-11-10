@@ -35,14 +35,21 @@ import { HEIR_DEFAULT, isHeir } from '../data/v90.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
 import { hasNewLand } from '../data/s47.js';
+import { isWeekKey, decreeMapOf } from '../data/week.js';
 
-export const RECORDS_VERSION = 2;
+// Version 9.3 (Track S, rulings 1965-1974; records version 3): `decrees` beside the rulers:
+//   decrees: [ { id, week, ids, mark, score, parts, medal, day, map, feats, title, name, tries, date } ]
+// One row per week (the best ended run of that week, kept for good): week an ISO week key ('2026-47'), ids the decree ids, mark its name ("Sea Peoples, week 47"), score out of
+// 600, parts the six parts (the five and the bonus, each 0-100), medal, day the run's end, map the 32 x 32 map square, name the dynasty's name then, tries every ended run of
+// that week. A rival row takes an optional `week` (a friend's decree score, kept apart from the main-game rivals). A version 2 blob reads with `decrees: []`.
+export const DECREE_PARTS = [...SCORE_PARTS, 'bonus'];
+export const RECORDS_VERSION = 3;
 export const RIVALS_MAX = 50;                 // rulers are never capped; rivals at most this many (ruling 1561)
 export const RULER_NAME_MAX = 16;             // a ruler's name, here and on a link: letters, digits, spaces and '-. (design section 6)
 export const RULER_NAME_DEFAULT = 'Ramesses'; // the name a ruler takes before the dynasty has one (the first Pass asks, prefilled with it)
 export const MAP_SQUARE = 32;                 // a ruler row's map square: MAP_SQUARE x MAP_SQUARE cells
 export const newDynasty = () => ({ name: '', heir: HEIR_DEFAULT });
-export const emptyRecords = () => ({ version: RECORDS_VERSION, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: newDynasty() });
+export const emptyRecords = () => ({ version: RECORDS_VERSION, cities: [], chronicle: [], rulers: [], rivals: [], dynasty: newDynasty(), decrees: [] });
 
 // A ruler's or a rival's name as kept: letters and digits of any script, spaces and '-. only, spaces run together, at most RULER_NAME_MAX; ''
 // when nothing is left.
@@ -184,7 +191,33 @@ function cleanParts(parts, version) {
 }
 const MILESTONE_IDS = MILESTONES.map((m) => m.id);
 // A rival's id: its name and its map's key, so the same name on the same map is the same rival (ruling 1561).
-const rivalId = (r) => `${r.name}@${keyOf(r)}`;
+const rivalId = (r) => (r.week ? `${r.name}@decree.${r.week}` : `${r.name}@${keyOf(r)}`);   // a decree rival is one per name and week
+
+// A decree's six parts as stored (each a whole number 0-100), or null when any is missing or out of range.
+function cleanDecreeParts(parts) {
+  if (!isObj(parts)) return null;
+  const out = {};
+  for (const p of DECREE_PARTS) { if (!isInt(parts[p]) || parts[p] < 0 || parts[p] > 100) return null; out[p] = parts[p]; }
+  return out;
+}
+
+// A decree row as stored, or null (a bad week, bad parts or no score). The id is always the week's.
+function cleanDecree(x) {
+  if (!isObj(x) || !isWeekKey(x.week) || !isNum(x.score)) return null;
+  const parts = cleanDecreeParts(x.parts);
+  if (!parts) return null;
+  return {
+    id: typeof x.id === 'string' && x.id.startsWith(`decree:${x.week}:`) ? x.id : `decree:${x.week}:${isNum(x.date) ? x.date : 0}`, week: x.week, ids: Array.isArray(x.ids) ? x.ids.filter((i) => typeof i === 'string') : [], mark: typeof x.mark === 'string' ? x.mark.slice(0, 60) : '',
+    score: x.score, parts, medal: isMedal(x.medal) ? x.medal : null, day: isInt(x.day) && x.day >= 0 ? x.day : 0, map: typeof x.map === 'string' && MAP_RE.test(x.map) ? x.map : '',
+    feats: Array.isArray(x.feats) ? x.feats.filter((f) => typeof f === 'string') : [], title: typeof x.title === 'string' ? x.title.slice(0, 40) : '', name: cleanName(x.name),
+    tries: isInt(x.tries) && x.tries >= 1 ? x.tries : 1, date: isNum(x.date) ? x.date : 0,
+  };
+}
+// Two rows of one week made one: the higher score's row, a tie to `a` (this device's), the tries added.
+// Same id (this device's own row, re-imported from its export): the larger tries; different ids (two devices): the tries added. The kept row keeps a's id.
+const mergeDecree = (a, b) => ({ ...(b.score > a.score ? b : a), id: a.id, tries: a.id === b.id ? Math.max(a.tries, b.tries) : a.tries + b.tries });
+// The fallback mark when the caller gives none: the decree ids as words, then the week ("Sea peoples, week 47").
+const markOf = (ids, week) => `${ids.map((i) => i.replace(/_/g, ' ')).join(' and ').replace(/^./, (c) => c.toUpperCase())}, week ${Number(week.slice(5))}`;
 
 // The rival a ruler row keeps (the newest on its map at the Pass), or null.
 function cleanRivalSnap(v) {
@@ -216,6 +249,12 @@ function cleanRuler(r) {
 
 // A rival as stored, or null. Its id is always its name and map's.
 function cleanRival(v) {
+  if (isObj(v) && isWeekKey(v.week)) {     // Version 9.3: a friend's decree score; the seed is the week's, Normal, and the parts are the six
+    const name = cleanName(v.name), parts = cleanDecreeParts(v.parts);
+    if (!name || !parts || !isNum(v.score)) return null;
+    const out = { name, heir: isHeir(v.heir) ? v.heir : HEIR_DEFAULT, ...decreeMapOf(v.week), difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, score: v.score, parts, splits: cleanSplits(v.splits), version: SCORE_VERSION, added: isNum(v.added) ? v.added : 0, week: v.week };
+    return { id: rivalId(out), ...out };
+  }
   if (!isObj(v) || !isInt(v.seed) || v.seed < 0 || !isLevel(v.difficulty) || !isNum(v.score)) return null;
   const name = cleanName(v.name);
   if (!name) return null;
@@ -251,6 +290,9 @@ export function normalizeRecords(raw) {
   for (const x of Array.isArray(raw.rivals) ? raw.rivals : []) { const r = cleanRival(x); if (r) addRivalTo(rivals, r); }
   out.rivals = [...rivals.values()];
   out.dynasty = cleanDynasty(raw.dynasty);
+  const weeks = new Map();
+  for (const x of Array.isArray(raw.decrees) ? raw.decrees : []) { const r = cleanDecree(x); if (r) weeks.set(r.week, weeks.has(r.week) ? mergeDecree(weeks.get(r.week), r) : r); }
+  out.decrees = [...weeks.values()];
   return out;
 }
 
@@ -281,7 +323,7 @@ function cap(list, max, kept, age) {
   return list.filter((x) => !drop.has(x.id));
 }
 // The rivals on one map (a world, or anything with seed, difficulty, mapVariant and mapSize): their ids, which no cap drops.
-const rivalsOnMap = (rivals, map) => new Set(map ? rivals.filter((v) => keyOf(v) === keyOf(map)).map((v) => v.id) : []);
+const rivalsOnMap = (rivals, map) => new Set(map ? rivals.filter((v) => !v.week && keyOf(v) === keyOf(map)).map((v) => v.id) : []);
 // playing: the map being played, whose rivals the rivals' cap never drops (ruling 1561). Rulers are never capped.
 function capped(r, max = RECORDS_MAX, playing = null) {
   const rivals = r.rivals || [];
@@ -292,6 +334,7 @@ function capped(r, max = RECORDS_MAX, playing = null) {
     rulers: r.rulers || [],
     rivals: cap(rivals, RIVALS_MAX, rivalsOnMap(rivals, playing), (v) => v.added),
     dynasty: r.dynasty || newDynasty(),
+    decrees: r.decrees || [],
   };
 }
 
@@ -327,7 +370,9 @@ export function mergeRecords(a, b) {
   const rivals = new Map(x.rivals.map((v) => [v.id, v]));
   for (const v of y.rivals) addRivalTo(rivals, v);
   const dynasty = mergedDynasty(x, y);
-  return capped({ cities: [...cities.values()], chronicle, rulers, rivals: [...rivals.values()], dynasty });
+  const weeks = new Map(x.decrees.map((d) => [d.week, d]));   // by week: the higher score, this device's row on a tie, the tries added
+  for (const d of y.decrees) weeks.set(d.week, weeks.has(d.week) ? mergeDecree(weeks.get(d.week), d) : d);
+  return capped({ cities: [...cities.values()], chronicle, rulers, rivals: [...rivals.values()], dynasty, decrees: [...weeks.values()] });
 }
 
 // A month-end row's score version (a row without one is a score v1 row: MIGRATIONS[4] marks them, ruling 253).
@@ -349,7 +394,7 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     try { if (storage) storage.setItem(key, JSON.stringify(capped(r, max, playing))); return true; } catch (e) { return false; }
   }
   // A map's kept rivals, newest added first.
-  const rivalsOf = (r, map) => r.rivals.filter((v) => keyOf(v) === keyOf(map)).sort((p, q) => q.added - p.added);
+  const rivalsOf = (r, map) => r.rivals.filter((v) => !v.week && keyOf(v) === keyOf(map)).sort((p, q) => q.added - p.added);
   return {
     // What the device holds, or emptyRecords() when nothing, unreadable or blocked.
     load: read,
@@ -455,7 +500,20 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     // older row there; returns the row, or null when the link has no name or is not a good one. playing: the map being played (a world), whose
     // rivals the cap of RIVALS_MAX never drops. The score is the link's own when it has one, else its parts' total times its level's factor
     // (share.js sharedTotal's sum).
-    addRival(link, now, { playing = null } = {}) {
+    addRival(link, now, { playing = null, week = null } = {}) {
+      const wk = isWeekKey(week) ? week : isObj(link) && isWeekKey(link.week) ? link.week : null;   // Version 9.3: a decree link (or the week given) keeps the rival on that week
+      if (wk) {
+        if (!isObj(link) || link.ok === false) return null;
+        const six = cleanDecreeParts(link.parts);
+        if (!six) return null;
+        const score = isNum(link.score) ? link.score : Object.values(six).reduce((s, n) => s + n, 0);
+        const row = cleanRival({ ...link, week: wk, score, added: now });
+        if (!row) return null;
+        const r = read();
+        r.rivals = [...r.rivals.filter((v) => v.id !== row.id), row];
+        write(r, playing);
+        return row;
+      }
       if (!isObj(link) || link.ok === false || !isObj(link.parts) || !isLevel(link.difficulty)) return null;
       const score = isNum(link.score) ? link.score : Math.round(Object.values(link.parts).reduce((s, v) => s + (isNum(v) ? v : 0), 0) * SCORE_FACTOR[link.difficulty]);
       const row = cleanRival({ ...link, mapVariant: link.mapVariant || link.variant, mapSize: link.mapSize || link.size, score, added: now });
@@ -469,5 +527,32 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     rivalsFor(seed, difficulty, variant = 'classic', size = DEFAULT_MAP_SIZE) {
       return rivalsOf(read(), { seed, difficulty, mapVariant: variant, mapSize: size });
     },
+
+    // Version 9.3 (Track S, rulings 1965-1974): the decree's rows and rivals.
+    // At a decree run's end: the week's row, replaced when this score is higher, with `tries` always one more. world: the ended decree world (world.decree has week and ids).
+    // score: decreeScore(world)'s { total, parts (six), medal } (the caller passes it: the sim's score is track R's); mark: the week's name when the caller has the words ("Sea Peoples, week 47"),
+    // title: the heir's title. Returns the stored row, or null when this is no decree world or the score is not a good one.
+    noteDecree(world, { now = 0, score = null, mark = '', title = '' } = {}) {
+      const d = world && world.decree;
+      if (!d || !isWeekKey(d.week) || !isObj(score)) return null;
+      const r = read();
+      const old = r.decrees.find((x) => x.week === d.week);
+      const ids = Array.isArray(d.ids) ? d.ids : [];
+      const row = cleanDecree({
+        week: d.week, ids, mark: mark || markOf(ids, d.week), score: score.total, parts: score.parts, medal: score.medal, day: world.day, map: mapSquareOf(world),
+        feats: world.feats && world.feats.earned ? [...world.feats.earned] : [], title, name: r.dynasty.name, tries: 1, date: now,
+      });
+      if (!row) return null;
+      const next = old ? { ...(row.score > old.score ? row : old), id: old.id, tries: old.tries + 1 } : row;
+      r.decrees = [...r.decrees.filter((x) => x.week !== d.week), next];
+      write(r);
+      return next;
+    },
+    // Every decree row, newest date first (the later week first on the same date).
+    decrees() { return read().decrees.sort((a, b) => b.date - a.date || (a.week < b.week ? 1 : -1)); },
+    // One week's row, or null.
+    decreeOf(week) { return read().decrees.find((x) => x.week === week) || null; },
+    // The rivals kept on one week, best score first.
+    rivalsForWeek(week) { return read().rivals.filter((v) => v.week === week).sort((p, q) => q.score - p.score || q.added - p.added); },
   };
 }

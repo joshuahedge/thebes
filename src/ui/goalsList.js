@@ -10,10 +10,12 @@ import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { MEDALS } from '../data/scoring.js';
-import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
+import { openGoals as openChapterGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
+// Version 9.3 fix wave (known 6): a decree run has no chapter goals (the guide and the daily goals are off too); its bar is the decree's medal.
+const openGoals = (world, n) => (world.decree ? [] : openChapterGoals(world, n));
 import { desirabilityFix, herdNear } from '../sim/advice.js';
 import { milestoneIndex } from '../sim/progression.js';
-import { scoreOf } from '../sim/score.js';
+import { scoreOf, decreeScore, decreeMedals } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { stalledGuild } from '../sim/monuments.js';
@@ -169,6 +171,14 @@ export function thresholdFor(world) {
     const n = Math.min(next.population, Math.max(world.tally.peakPeople, population(world)));
     return { kind: 'milestone', text: thresholdMilestoneText(next.name, n, next.population), share: clamp((n - from) / (next.population - from)) };
   }
+  // Version 9.3 (Track U, ruling 1981): a decree run's next medal is the decree's own, on its score out of 600 (Track R's decreeScore and decreeMedals).
+  if (world.decree) {
+    const total = decreeScore(world).total, scale = decreeMedals(world) || [];
+    const k = scale.findIndex((at) => total < at);
+    if (k < 0) return null;
+    const from = k > 0 ? scale[k - 1] : 0;
+    return { kind: 'medal', text: thresholdMedalText({ medal: ['bronze', 'silver', 'gold'][k], points: scale[k] - total }), share: clamp((total - from) / (scale[k] - from)) };
+  }
   const s = scoreOf(world);
   if (!s.next) return null;
   const k = MEDALS.findIndex((m) => m.id === s.next.medal);
@@ -305,7 +315,7 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
   function draw(body) {
     const chain = chainGoals(world);                   // Stage 3: a Peaceful city's chain has no raid goals
     const done = chain.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
-    body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
+    if (!world.decree) body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // (a decree run has no chain to count) Founded Thebes is done from the start
     if (skipHere() && guideActive(world)) body.append(el('p', { class: 'skip-row' }, [button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() })]));   // one tap, no confirm (spec 3.2)
     const open = openGoals(world, 3);
     if (!open.length) body.append(el('p', { text: done === chain.length ? T.goalsDone : T.goalsNone }));   // a goal waiting on its `when` is hidden, not done

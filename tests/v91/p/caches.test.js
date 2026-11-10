@@ -4,8 +4,8 @@
 // (the renderer's cacheBytes) reports both. Target P3's bound on a Large map at DPR 2, panned over every chunk at every zoom bucket.
 import { describe, it, expect } from '../../harness.js';
 import { createRenderer } from '../../../src/render/renderer.js';
-import { createSpriteCache, ZOOM_BUCKETS, SPRITE_IDLE_MS, SPRITE_BUDGET_BYTES, canvasBytes } from '../../../src/render/spriteCache.js';
-import { createTerrainBaker, TERRAIN_BUDGET_BYTES, CACHES_BUDGET_BYTES, TERRAIN_FLOOR_BYTES, terrainBudgetFor, chunkBytes, chunkScaleFor, CHUNK } from '../../../src/render/terrainBaker.js';
+import { createSpriteCache, ZOOM_BUCKETS, SPRITE_IDLE_MS, DEVICE_BUDGETS, canvasBytes } from '../../../src/render/spriteCache.js';
+import { createTerrainBaker, TERRAIN_BUDGET_BYTES, TERRAIN_FLOOR_BYTES, terrainBudgetFor, chunkBytes, chunkScaleFor, CHUNK } from '../../../src/render/terrainBaker.js';
 import { createCamera } from '../../../src/render/camera.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
@@ -13,7 +13,10 @@ import { setRoad } from '../../helpers/testWorld.js';
 import { makeCanvas } from '../../helpers/canvas.js';
 
 const MB = 1024 * 1024;
-const P3_CANVAS_BYTES = 64 * MB;   // design section 9, P3: canvas held by the caches at DPR 2
+// Version 9.3 Track P (ruling 1936): the P3 tests below run a phone's view, so they run on the phone's budgets whatever the test machine is; P3
+// is the phone's caches budget. WAVE2-PIN 9.3 Track P (ruling 1936): was 64 MB (and the sprites' 16 MB).
+const PHONE = DEVICE_BUDGETS.phone;
+const P3_CANVAS_BYTES = PHONE.caches;   // design section 9, P3: canvas held by the caches at DPR 2
 
 // A clock the sprite cache reads, moved by hand.
 const fakeClock = () => { const c = { t: 0, now: () => c.t }; return c; };
@@ -157,11 +160,11 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     const w = buildSampleCity(createWorld({ seed: 11, size: 80 }), { days: 120, stageTwoDays: 60 });
     const clock = fakeClock();
     const V = { width: 390, height: 844 };
-    const cache = createSpriteCache({ now: clock.now });
+    const cache = createSpriteCache({ now: clock.now, maxBytes: PHONE.sprites });
     const realGet = cache.get;
     let drawn = new Map();                                            // this frame's sprites and their bytes
     cache.get = (slot, zoom, dpr) => { const s = realGet(slot, zoom, dpr); if (s) drawn.set(slot, canvasBytes(s.canvas)); return s; };
-    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: cache });
+    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: cache, cachesBudget: PHONE.caches });
     const cam = createCamera({ x: 40, y: 40, zoom: 1 });
     const n = Math.ceil(w.size / CHUNK);
     let maxTerrain = 0, maxSprites = 0, maxBoth = 0, frames = 0, over = 0;
@@ -179,8 +182,8 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
           if (both > P3_CANVAS_BYTES) {                               // over: only what this frame shows is held
             over++;
             const need = [...drawn.values()].reduce((a, b) => a + b, 0);
-            expect([zoom, cx, cy, c.spriteBytes <= Math.max(SPRITE_BUDGET_BYTES, need)]).toEqual([zoom, cx, cy, true]);
-            expect([zoom, cx, cy, c.terrainBytes <= Math.max(terrainBudgetFor(c.spriteBytes), renderer.stats.chunks * chunkBytes(3))]).toEqual([zoom, cx, cy, true]);
+            expect([zoom, cx, cy, c.spriteBytes <= Math.max(PHONE.sprites, need)]).toEqual([zoom, cx, cy, true]);
+            expect([zoom, cx, cy, c.terrainBytes <= Math.max(terrainBudgetFor(c.spriteBytes, PHONE.caches), renderer.stats.chunks * chunkBytes(3))]).toEqual([zoom, cx, cy, true]);
           }
           k++; frames++;
         } while ((renderer.stats.bakes > 0 || renderer.stats.stale > 0) && k < 24);
@@ -188,9 +191,10 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
       }
     }
     expect(maxTerrain).toBeLessThanOrEqual(TERRAIN_BUDGET_BYTES);
-    expect(maxSprites).toBeGreaterThan(SPRITE_BUDGET_BYTES);       // a hilly view at zoom 2 draws more than the sprite budget in one frame
+    expect(maxSprites).toBeGreaterThan(PHONE.sprites);             // a hilly view at zoom 2 draws more than the sprite budget in one frame
     expect(over / frames).toBeLessThan(0.1);   // 9.1 balance (ruling 1730): new, design target 64 MB (P3 holds in nine frames of ten)
-    expect(maxBoth).toBeLessThan(80 * MB);     // 9.1 balance (ruling 1730): new, design target 64 MB (the worst view measured 77 MB)
+    // WAVE2-PIN 9.3 Track P (ruling 1936): was 80 MB (64 MB and 16 over); the 16 MB over P3 is kept as P3 rises to the phone's caches budget
+    expect(maxBoth).toBeLessThan(P3_CANVAS_BYTES + 16 * MB);
     const c = renderer.cacheBytes();
     expect(c).toEqual({ terrainBytes: renderer.baker.bytes(w), spriteBytes: renderer.spriteCache.bytes() });
     expect(renderer.spriteCache.buckets().length).toBe(3);            // zoom 2, and 1.5 and 1 left under SPRITE_IDLE_MS ago; 0.5 and 0.75 dropped
@@ -202,10 +206,11 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     const counter = {};
     // Sprites past 48 MB (64 less the floor): the hilliest view's own (about 41 MB here) and the whole city's at zoom 2, kept by an unbounded cache.
     const sprites = createSpriteCache({ maxBytes: Infinity });
-    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: sprites, baker: createTerrainBaker({ counter }) });
+    // Version 9.3 Track P (ruling 1936): on the phone's caches budget, so past 56 MB (72 less the floor).
+    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: sprites, baker: createTerrainBaker({ counter }), cachesBudget: PHONE.caches });
     const cam = createCamera({ x: 40, y: 40, zoom: 2 });
     for (let y = 4; y < w.size; y += 8) for (let x = 4; x < w.size; x += 8) { cam.x = x; cam.y = y; renderer.renderFrame(w, cam, { view: V }); }
-    expect(terrainBudgetFor(sprites.bytes())).toBe(TERRAIN_FLOOR_BYTES);
+    expect(terrainBudgetFor(sprites.bytes(), PHONE.caches)).toBe(TERRAIN_FLOOR_BYTES);
     cam.x = 3 * CHUNK + CHUNK / 2; cam.y = 2 * CHUNK + CHUNK / 2;    // the hilliest view of this city at zoom 2
     let quiet = 0;
     for (let i = 0; i < 120 && quiet < 5; i++) {
@@ -214,7 +219,7 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     }
     expect(quiet).toBe(5);                                           // settled: the view and what of the ring fits are baked
     const c = renderer.cacheBytes();
-    expect(c.spriteBytes).toBeGreaterThan(CACHES_BUDGET_BYTES - TERRAIN_FLOOR_BYTES);   // the sprites alone would leave the terrain under the floor
+    expect(c.spriteBytes).toBeGreaterThan(PHONE.caches - TERRAIN_FLOOR_BYTES);   // the sprites alone would leave the terrain under the floor
     expect(c.terrainBytes).toBeGreaterThan(Math.max(TERRAIN_FLOOR_BYTES - chunkBytes(3), renderer.stats.chunks * chunkBytes(3) - 1));   // the floor (or the view, if more) is held
     const bakes = counter.bakes;
     for (let i = 0; i < 20; i++) {

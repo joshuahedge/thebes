@@ -4,13 +4,13 @@
 // the sprite shows, and the shadow grows with it.
 import { ART_SCALE, p, depthKey, compareDepth } from './iso.js';
 import { visibleTileRange, visibleChunks, artToScreen, CHUNK } from './camera.js';
-import { ART, slotFor } from './art/registry.js';
+import { ART, slotFor, FAR_ZOOM } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
 import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
 import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
-import { createTerrainBaker, drawTileGrid, terrainBudgetFor } from './terrainBaker.js';
+import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -21,7 +21,7 @@ import { hillsIn } from './hills.js';
 import { buildingsInRange } from './chunkIndex.js';
 import { effectsV90 } from './v90/effects.js';
 import { v90Off, spend } from './v90/dropper.js';
-import { scaffoldsAt, drawScaffold } from './v90/scaffold.js';
+import { scaffoldsAt, drawScaffold, watchLooks } from './v90/scaffold.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -90,11 +90,13 @@ const TREE_REACH = 64;   // art px a tree or hill tile can reach past its tile's
 
 // Version 5.0 (Task 0): the buildings in range come from the chunk index (src/render/chunkIndex.js), the same ones in the same order as a
 // pass over every building, so a large city draws only what is near the view. Task 6: with `screen` ({ cam, view }) the objects the view cannot show are left out (viewCull).
+const FAR_SLOT = { far: true }, NEAR_SLOT = { far: false };
 export function collectObjects(world, range, walkers = [], registry = ART, screen = null) {
   const out = [];
   const cull = screen && cullControl.on ? viewCull(screen.cam, screen.view) : null;
+  const slotOpts = Boolean(screen) && screen.cam.zoom <= FAR_ZOOM ? FAR_SLOT : NEAR_SLOT;   // 9.3 speed fix: two options objects, not one a building
   for (const b of buildingsInRange(world, range)) {
-    const slot = slotFor(b, world);
+    const slot = slotFor(b, world, slotOpts);   // Version 9.3 (Track H): a home at far zoom is its plain far drawing
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
     if (cull && !def.live && !cull.sees(b.x, b.y, def.bounds, def.height)) continue;
@@ -147,6 +149,7 @@ export function drawRising(ctx, sprite, px, py, zoom, dpr, t) {
 export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
   dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
+  cachesBudget = CACHES_BUDGET_BYTES,   // Version 9.3 Track P (ruling 1936): the terrain and sprites together, by device; a test may pass another's
 }) {
   const rawDpr = typeof dpr === 'function' ? dpr : () => dpr;
   const dprOf = () => Math.min(DPR_CAP, rawDpr());   // V0a: the canvas's ratio, capped
@@ -194,7 +197,7 @@ export function createRenderer({
     // its byte budget never evicts.
     const shown = visibleChunks(range).filter(({ cx, cy }) => !cullControl.on || chunkShows(cam, view, cx, cy));
     lastWorld = world;
-    if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0));   // ruling 1687: the terrain gives way to the sprites, to a floor
+    if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0, cachesBudget));   // ruling 1687: the terrain gives way to the sprites, to a floor
     if (spriteCache.frame) spriteCache.frame();   // and the sprites this frame gets are never evicted for the sprite budget
     let bakes = 0, chunks = 0, stale = 0;
     for (const { cx, cy } of shown) {
@@ -253,7 +256,8 @@ export function createRenderer({
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0, live = 0;
-    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world);                // Version 9.0 (V3): the scaffolds up this frame, by building id
+    if (!v90Off('scaffold')) { const t0 = performance.now(); watchLooks(world, objects); spend(performance.now() - t0); }   // Version 9.3 (Track M): a changed look raises poles
+    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world, range);             // Version 9.0 (V3): the scaffolds up this frame, by building id
     const scaffolds = standing.length ? new Map(standing.map((s) => [s.b.id, s])) : null;
     for (const o of objects) {
       // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set
@@ -301,7 +305,7 @@ export function createRenderer({
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes()));   // Version 9.1: again for the sprites this frame drew
+    if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes(), cachesBudget));   // Version 9.1: again for the sprites this frame drew
 
     stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;

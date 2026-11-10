@@ -12,6 +12,7 @@
 // what came home this month and lastMonth what came home last month (for the Supply lines layer), gone set for the rest of the month once a
 // chosen store has gone and the order is Nearest again. Every field but fetch is optional and absent means today's behaviour (ruling 1388).
 // A chosen source never falls back by itself (ruling 1384): while it cannot spare the good the order is 'dry' and its cart waits.
+import { capacityOf, decreeEnded, endedFail } from './rules.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { CARTS } from '../data/s47.js';
@@ -106,7 +107,7 @@ export function findSource(world, home, good, stores = storesOf(world)) {
 
 const holdsGoods = (c) => c.state === 'out' || c.state === 'back' || (c.state === 'return' && c.dest === 'source');
 // Room a store has for more goods (all its goods share the capacity).
-export const roomOf = (b) => Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b));
+export const roomOf = (b, world) => Math.max(0, capacityOf(world, b.type) - storeTotal(b));
 
 // A store can send a cart when it works (not paused, not burning, enough of its staff) and a road touches it.
 export const canStaff = (world, b) => isWorking(world, b) && touchesRoad(world, b);
@@ -118,13 +119,14 @@ export const canStaff = (world, b) => isWorking(world, b) && touchesRoad(world, 
 // (a whole number from 1 to the store's capacity; max in the result), 'no_source' (no other store linked by road holds the good above its own
 // order; a store that already has the order may change its amount with none). { ok: true, fetch, source: { id, len } | null, warnings: [] }.
 export function setFetch(world, id, good, amount = CARTS.defaultFetch) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
   if (!isStore(b)) return fail('not_storage');
   const def = BUILDINGS[b.type];
   if (!def.stores.includes(good)) return fail('cannot_store', { good });
   if (!storeAccepts(b, good)) return fail('refuses', { good });
-  if (!Number.isInteger(amount) || amount < 1 || amount > def.capacity) return fail('bad_amount', { good, max: def.capacity });
+  if (!Number.isInteger(amount) || amount < 1 || amount > capacityOf(world, b.type)) return fail('bad_amount', { good, max: capacityOf(world, b.type) });
   const source = findSource(world, b, good);
   if (!source && !orderOf(b, good)) return fail('no_source', { good });
   if (!b.orders) b.orders = {};
@@ -137,6 +139,7 @@ export function setFetch(world, id, good, amount = CARTS.defaultFetch) {
 // source cannot hold the good) and 'unlinked' (no road or running ferry joins the two). A source with none to spare is a choice all the same: the order
 // waits on it ('dry'). { ok: true, from, len, spare, warnings: [] }; from null for Nearest.
 export function setSource(world, storeId, good, fromId) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[storeId];
   if (!isStore(b) || !BUILDINGS[b.type].stores.includes(good)) return fail('not_storage', { good });
   const order = orderOf(b, good);
@@ -201,6 +204,7 @@ export function sourceChoices(world, id, good) {
 
 // Takes an order off. A cart already on the road finishes its trip and brings what it carries home.
 export function clearFetch(world, id, good) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
   if (!isStore(b)) return fail('not_storage');
@@ -256,7 +260,7 @@ export function fetchPreview(world, id, good, amount = CARTS.defaultFetch) {
   const dry = chosen && !found ? dryWhy(world, b, chosen, good) : null;
   return {
     good, fetch: amount, perTrip: CARTS.perTrip, speed: CARTS.speed,
-    held, state: held >= amount ? 'full' : roomOf(b) < 1 ? 'no_room' : dry ? 'dry' : null,   // the live status's 'full' and 'no_room' (fetchStatus), so the line before the tap and the line after agree
+    held, state: held >= amount ? 'full' : roomOf(b, world) < 1 ? 'no_room' : dry ? 'dry' : null,   // the live status's 'full' and 'no_room' (fetchStatus), so the line before the tap and the line after agree
     source: found ? {
       id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), roundTrip: roundTripDays(found.len), dir: directionTo(b, found.b),
       spare: found.surplus, keeps: orderOf(found.b, good) ? orderOf(found.b, good).fetch : 0,   // what it can give, and what it keeps for its own order (0: no order of its own, so it can be emptied)
@@ -298,12 +302,12 @@ export function fetchStatus(world, id, good) {
   if (out.held >= order.fetch) return { ...out, state: 'full' };
   if (!storeAccepts(b, good)) return { ...out, state: 'refused' };
   if (!canStaff(world, b)) return { ...out, state: 'unstaffed' };
-  if (roomOf(b) < 1) return { ...out, state: 'no_room' };
+  if (roomOf(b, world) < 1) return { ...out, state: 'no_room' };
   const found = findSource(world, b, good);
   if (!found) return { ...out, state: 'no_source' };
   const next = nextTrip(world, b);
   if (next && next.good !== good) return { ...out, state: 'other' };   // another order goes first: this one waits its turn
-  return { ...out, state: 'ready', amount: Math.min(CARTS.perTrip, order.fetch - out.held, found.surplus, roomOf(b)), days: legDays(found.len), source: describe(found.b, found.len) };
+  return { ...out, state: 'ready', amount: Math.min(CARTS.perTrip, order.fetch - out.held, found.surplus, roomOf(b, world)), days: legDays(found.len), source: describe(found.b, found.len) };
 }
 
 // The store the order's goods come from, for Show me: the cart's source while one is on the road for the good, else the store it would draw on.
@@ -377,7 +381,7 @@ function land(world, cart, targets) {
   let left = cart.amount;
   const puts = targets.map((t) => {
     if (!t || left <= 0) return 0;
-    const put = Math.min(left, roomOf(t));
+    const put = Math.min(left, roomOf(t, world));
     if (put <= 0) return 0;
     t.store[cart.good] = heldOf(t, cart.good) + put;
     left -= put;
@@ -443,7 +447,7 @@ function advance(world, c, events) {
 // the words name the order that really goes first.
 export function nextTrip(world, home, stores = storesOf(world)) {
   if (cartOf(world, home.id) || !canStaff(world, home)) return null;
-  const room = roomOf(home);
+  const room = roomOf(home, world);
   if (room < 1) return null;
   const wanting = ordersOf(home)
     .map((o) => ({ ...o, gap: o.fetch - heldOf(home, o.good) }))

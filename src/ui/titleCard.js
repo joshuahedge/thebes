@@ -139,7 +139,7 @@ export const isWideTitle = (v) => Boolean(v) && v.width >= WIDE_TITLE && v.heigh
 // saved city, Play starts the lesson (the lesson alone, as ruling 617 had it, with I've played before under it); with the lesson done and no city, Play opens
 // the new-city card; with a saved city, New city does. difficulty is a level or a function that gives the device's level now; mapSize a size id and layout
 // a layout id ('auto' is Surprise me), both kept here once chosen so the card shows them when it opens again.
-export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {}, onNewCityBack = () => {} }) {
+export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {}, onNewCityBack = () => {}, decree = null }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
   const primaryNew = !hasSave && !lessonOnly;
@@ -165,8 +165,11 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
   else if (typeof onHowToPlay === 'function' && !lessonOnly) more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   if (typeof renderSettings === 'function') more.push(button(T.settings, { class: 'title-settings', onClick: () => showSettings() }));
   more.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
+  // Version 9.3 (Track U, ruling 1977): this week's decree card, after the main buttons and before the rest (boot gives it once a city has reached Town or a ruler is kept).
+  const decreeNode = typeof decree === 'function' && !lessonOnly ? decree() : null;
   const buttonBox = el('div', { class: 'title-buttons' }, [
     ...buttons,
+    decreeNode,
     ...lessonExtras,
     el('div', { class: 'title-more', role: 'group', 'aria-label': D1_TEXT.titleGroup }, more),
     install,

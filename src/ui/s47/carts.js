@@ -12,6 +12,7 @@
 // (UX rule 1): the panel is the sheet. Goods on the road are shown by the sheet's stock rows (src/ui/sheets.js, roadGoods).
 import { seamBase } from '../s46/seam.js';
 import { BUILDINGS } from '../../data/buildings.js';
+import { capacityOf } from '../../sim/rules.js';   // Version 9.3 (Track U): a store's room as the sim counts it (Low Nile's granary holds double)
 import { CARTS } from '../../data/s47.js';
 import { FOOD_GOODS } from '../../data/goods.js';
 import { cartsUnlocked, isStore, ordersOf, setFetch, clearFetch, setSource, fetchPreview, fetchStatus, fetchSourceId, holderOf, orderSource, storesOf } from '../../sim/carts.js';
@@ -65,7 +66,7 @@ export function createCartsUi(ctx) {
   const refused = new Map();       // `${store}|${good}` -> { result, day } the last refusal, shown the rest of that game day
   let refocus = null;              // `${store}|${good}` whose "from" button takes focus again when the pick ends
   const keyOf = (b, good) => `${b.id}|${good}`;
-  const draftOf = (b, good) => drafts.get(keyOf(b, good)) || Math.min(CARTS.defaultFetch, BUILDINGS[b.type].capacity);
+  const draftOf = (b, good) => drafts.get(keyOf(b, good)) || Math.min(CARTS.defaultFetch, capacityOf(world, b.type));
   const refresh = () => ctx.refresh();
 
   function showMeButton(label, id) {
@@ -83,7 +84,7 @@ export function createCartsUi(ctx) {
   // One good's row (an order's, or another good's that is not kept stocked). Returns a list item.
   function goodRow(b, good) {
     const key = keyOf(b, good), order = b.orders && b.orders[good] ? b.orders[good] : null;
-    const cap = BUILDINGS[b.type].capacity;
+    const cap = capacityOf(world, b.type);
     const amount = order ? order.fetch : draftOf(b, good);
     const name = goodName(good);
     const on = Boolean(order);

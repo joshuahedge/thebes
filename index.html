@@ -107,6 +107,7 @@ html{background:#F3E7CB}
 <link rel="stylesheet" href="./css/v90.css">
 <link rel="stylesheet" href="./css/v91.css">
 <link rel="stylesheet" href="./css/v92.css">
+<link rel="stylesheet" href="./css/v93.css">
 <!-- v91 preload -->
 <link rel="modulepreload" href="./src/main.js">
 <link rel="modulepreload" href="./src/boot.js">
@@ -136,6 +137,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/data/s47.js">
 <link rel="modulepreload" href="./src/data/v84.js">
 <link rel="modulepreload" href="./src/data/v90.js">
+<link rel="modulepreload" href="./src/data/decrees.js">
 <link rel="modulepreload" href="./src/sim/mapgen.js">
 <link rel="modulepreload" href="./src/sim/rng.js">
 <link rel="modulepreload" href="./src/sim/grid.js">
@@ -155,18 +157,19 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/data/labour.js">
 <link rel="modulepreload" href="./src/data/dynasty.js">
 <link rel="modulepreload" href="./src/sim/commands.js">
-<link rel="modulepreload" href="./src/sim/layerVersion.js">
-<link rel="modulepreload" href="./src/sim/reach.js">
-<link rel="modulepreload" href="./src/sim/ferries.js">
-<link rel="modulepreload" href="./src/sim/costs.js">
-<link rel="modulepreload" href="./src/data/fire.js">
-<link rel="modulepreload" href="./src/data/palace.js">
-<link rel="modulepreload" href="./src/sim/spoils.js">
+<link rel="modulepreload" href="./src/sim/rules.js">
 <link rel="modulepreload" href="./src/sim/dynasty.js">
 <link rel="modulepreload" href="./src/sim/progression.js">
 <link rel="modulepreload" href="./src/sim/feats.js">
 <link rel="modulepreload" href="./src/data/feats.js">
+<link rel="modulepreload" href="./src/sim/costs.js">
+<link rel="modulepreload" href="./src/data/fire.js">
+<link rel="modulepreload" href="./src/data/palace.js">
+<link rel="modulepreload" href="./src/sim/spoils.js">
 <link rel="modulepreload" href="./src/sim/palace.js">
+<link rel="modulepreload" href="./src/sim/reach.js">
+<link rel="modulepreload" href="./src/sim/ferries.js">
+<link rel="modulepreload" href="./src/sim/ferryFind.js">
 <link rel="modulepreload" href="./src/sim/money.js">
 <link rel="modulepreload" href="./src/sim/score.js">
 <link rel="modulepreload" href="./src/data/scoring.js">
@@ -215,7 +218,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/sim/armies.js">
 <link rel="modulepreload" href="./src/sim/letters.js">
 <link rel="modulepreload" href="./src/sim/scouts.js">
-<link rel="modulepreload" href="./src/sim/ferryFind.js">
+<link rel="modulepreload" href="./src/sim/layerVersion.js">
 <link rel="modulepreload" href="./src/sim/ferryLay.js">
 <link rel="modulepreload" href="./src/sim/spots.js">
 <link rel="modulepreload" href="./src/sim/goals.js">
@@ -239,6 +242,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/render/art/palette.js">
 <link rel="modulepreload" href="./src/render/art/nature.js">
 <link rel="modulepreload" href="./src/data/ambient.js">
+<link rel="modulepreload" href="./src/render/art/materials.js">
 <link rel="modulepreload" href="./src/render/art/services.js">
 <link rel="modulepreload" href="./src/render/art/figures.js">
 <link rel="modulepreload" href="./src/render/art/industry.js">
@@ -260,6 +264,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/render/art/seasons.js">
 <link rel="modulepreload" href="./src/sim/seasons.js">
 <link rel="modulepreload" href="./src/render/art/ferry.js">
+<link rel="modulepreload" href="./src/render/looks.js">
 <link rel="modulepreload" href="./src/render/art/ctx.js">
 <link rel="modulepreload" href="./src/render/spriteCache.js">
 <link rel="modulepreload" href="./src/render/terrainBaker.js">
@@ -267,8 +272,11 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/render/rockBelts.js">
 <link rel="modulepreload" href="./src/render/terrainWater.js">
 <link rel="modulepreload" href="./src/render/terrainRoads.js">
-<link rel="modulepreload" href="./src/render/terrainBridges.js">
+<link rel="modulepreload" href="./src/render/groundLooks.js">
 <link rel="modulepreload" href="./src/render/terrainWalls.js">
+<link rel="modulepreload" href="./src/render/yards.js">
+<link rel="modulepreload" href="./src/render/batch.js">
+<link rel="modulepreload" href="./src/render/terrainBridges.js">
 <link rel="modulepreload" href="./src/render/hills.js">
 <link rel="modulepreload" href="./src/render/chunkIndex.js">
 <link rel="modulepreload" href="./src/render/v90/effects.js">
@@ -295,6 +303,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/render/procession.js">
 <link rel="modulepreload" href="./src/render/ferryPace.js">
 <link rel="modulepreload" href="./src/render/light.js">
+<link rel="modulepreload" href="./src/render/v93/sweep.js">
 <link rel="modulepreload" href="./src/render/v90/scaffold.js">
 <link rel="modulepreload" href="./src/render/loop.js">
 <link rel="modulepreload" href="./src/sim/clock.js">
@@ -351,9 +360,11 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/celebrate.js">
 <link rel="modulepreload" href="./src/save/exportImport.js">
 <link rel="modulepreload" href="./src/save/records.js">
+<link rel="modulepreload" href="./src/data/week.js">
 <link rel="modulepreload" href="./src/save/serialize.js">
 <link rel="modulepreload" href="./src/save/migrate.js">
 <link rel="modulepreload" href="./src/ui/share.js">
+<link rel="modulepreload" href="./src/ui/week.js">
 <link rel="modulepreload" href="./src/ui/v90/dynastyUi.js">
 <link rel="modulepreload" href="./src/ui/v90/passSheet.js">
 <link rel="modulepreload" href="./src/ui/v90/sideBySide.js">
@@ -428,6 +439,7 @@ html{background:#F3E7CB}
 <link rel="modulepreload" href="./src/ui/v70/seasons.js">
 <link rel="modulepreload" href="./src/ui/v70/adviceFixes.js">
 <link rel="modulepreload" href="./src/ui/v71/ferries.js">
+<link rel="modulepreload" href="./src/ui/v93/decree.js">
 <link rel="modulepreload" href="./src/render/s46.js">
 <link rel="modulepreload" href="./src/render/flood.js">
 <link rel="modulepreload" href="./src/render/wildlife.js">

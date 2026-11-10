@@ -42,7 +42,7 @@ describe('render problem markers', () => {
     const marks = problemMarkers(w, alerts, null);
     expect(marks).toEqual([
       { id: bazaar.id, x: 10, y: 12, lift: liftOf(bazaar, 'bazaar'), kind: 'problem', cause: 'bazaar_empty' },
-      { id: shack.id, x: 12.5, y: 9.5, lift: liftOf(shack, 'house.t2'), kind: 'down', cause: 'down' },
+      { id: shack.id, x: 12.5, y: 9.5, lift: liftOf(shack, 'house.t2.v0.l0'), kind: 'down', cause: 'down' },
     ]);
     const noisy = [...alerts, { code: 'no_road', id: shack.id }, { code: 'no_road', id: 999 }, { code: 'debt' }, { code: 'plots_no_road', count: 2, ids: [shack.id] }];
     expect(problemMarkers(w, noisy, null)).toEqual(marks);                            // one per building; homes, missing ids, city-wide and many-plot alerts add nothing

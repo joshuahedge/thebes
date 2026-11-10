@@ -29,7 +29,7 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld(size = SIZE, dangers = false, seed = 5, events = false, heir = 'steady') {
+function capitalWorld(size = SIZE, dangers = false, seed = 5, events = false, heir = 'steady', decree = null) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
@@ -41,7 +41,7 @@ function capitalWorld(size = SIZE, dangers = false, seed = 5, events = false, he
   if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  const world = createWorld({ seed, size, map, heir });
+  const world = createWorld({ seed, size, map, heir, decree });
   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
   // Version 7.0 (wave 3): `events` is a run's player of the city events (tests/v70/balance/events.js): a run that has one plays with the events on from day 0, as a new city has them.
   const graced = dangers ? world : noNewDangers(world);
@@ -157,9 +157,10 @@ function insanity(w, m) {
 // Version 9.0 (wave 2, tests/v90/balance): heir the trait the city plays under from day 0 (src/data/v90.js HEIRS); the Steady, the run as it always was.
 // Version 9.1 (Track H, rulings 1710, 1714): adapt gives the city its heir's habit (tests/v91/h/habits.js heirHabit: none for the Steady), called after onMonth at each
 // month end and returned as `habit` for the runs that take this city on; off, the run as it always was.
-export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5, events: eventsPlayer = null, heir = 'steady', adapt = false } = {}) {
+// Version 9.3 (Track K, ruling 1985): decree, { week, ids }, is handed to createWorld (world.decree: the weekly decree's rules); none, the run as it always was.
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5, events: eventsPlayer = null, heir = 'steady', adapt = false, decree = null } = {}) {
   const started = performance.now();
-  const w = capitalWorld(size, dangers, seed, Boolean(eventsPlayer), heir);
+  const w = capitalWorld(size, dangers, seed, Boolean(eventsPlayer), heir, decree);
   const habit = adapt ? heirHabit(heir) : null;
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];

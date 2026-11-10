@@ -4,7 +4,8 @@ import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS, SHOW_ME_MIN_ZOOM } from '../data/ui.js';
-import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
+import { goalById, nextItemFor, guideActive, openGoals as openChapterGoals, goalProgress } from '../sim/goals.js';
+const openGoals = (world, n) => (world.decree ? [] : openChapterGoals(world, n));   // 9.3 fix wave (known 6): a decree run has no chapter goals
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
@@ -81,6 +82,8 @@ import { createS47Seams } from './s47/index.js';
 import { createV60Seams } from './v60/index.js';
 import { createV70Seams } from './v70/index.js';
 import { createFerryUi } from './v71/ferries.js';
+import { createDecreeUi } from './v93/decree.js';   // Version 9.3 (Track U): the decree's chip, card and end card (a no-op without hooks.decreeRun)
+import { ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): the reach shown is the reach the sim uses
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { v70Ground, v70Walkers, v70Light } from '../render/v70.js';
 import { createScoreUi } from './scoreUi.js';
@@ -91,7 +94,8 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT, M93_TEXT } from './text.js';
+import { bringsNewLook } from '../render/v93/sweep.js';   // Version 9.3 (Track M)
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 import { SPLITS } from '../data/scoring.js';
@@ -337,7 +341,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx), createDecreeUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -407,7 +411,7 @@ export function createUI({
     const def = BUILDINGS[b.type];
     const parts = [buildingName(b.type)];
     if (def.workers) parts.push(`${T.workers.toLowerCase()} ${b.staff} of ${def.workers}`);
-    if (reachOf(def)) parts.push(`${T.reach.toLowerCase()} ${reachOf(def)}`);
+    if (reachOf(def)) parts.push(`${T.reach.toLowerCase()} ${ruleReach(world, b.type, reachOf(def))}`);
     const land = CONDITION_TEXT.terrainLine(b.type);   // a farm or a mine says what ground it stands on (placement review P15)
     if (land) parts.push(land.toLowerCase());
     return parts.join(', ');
@@ -594,7 +598,7 @@ export function createUI({
   function skipGuide() { setGuide(world, false); refresh(); }
   // startDaily does nothing before the opening chain is done or once that date's goals exist, so calling it at
   // start, after every command and on every new game day is cheap: it draws the moment the chain finishes.
-  function syncDaily() { startDaily(world, sessionDate); }
+  function syncDaily() { if (hooks.decreeRun) return; startDaily(world, sessionDate); }   // Version 9.3 (Track U): a decree run has no daily goals
   // The top bar's numbers open the summary; the gold chip's forecast opens it at its forecast section (Stage 4.5, Task 4b), and a tap
   // on whichever is open closes it.
   function openSummary(section = null) {
@@ -791,7 +795,7 @@ export function createUI({
   function cheerFor(e) {
     if (e.type === 'milestone') {
       const m = MILESTONES.find((x) => x.id === e.id);
-      return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), onShow: () => { sfx.play('milestone'); sfx.buzz(40); } };
+      return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), why: bringsNewLook(e.id) ? M93_TEXT.rebuilds : '', onShow:() => { sfx.play('milestone'); sfx.buzz(40); } };
     }
     if (e.type === 'goal') {                           // on a phone it reads as the strip itself changing: "✓ Lay a road +25 gold"
       const g = goalById(e.id);

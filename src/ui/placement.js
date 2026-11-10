@@ -25,7 +25,7 @@ import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf, buildingsVersion } from '../sim/world.js';
 import { unitsAwayFrom } from '../sim/armies.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
-import { heirFactor } from '../sim/dynasty.js';
+import { ruleFactor, ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): the heir's factor, and the firehouse's reach, with the decree's
 import { monthlyBill, balanceWith } from '../sim/economy.js';
 import { prestigeByKind } from '../sim/prestige.js';
 import { setPlacingRot } from '../render/overlays.js';
@@ -253,7 +253,7 @@ const bad = (reason, cost, count, tiles = [], text = reasonText(reason)) => ({ s
 // were staffed. Uncached, like homesServedFrom, so a moving ghost leaves nothing in the reach cache.
 export function firehouseReachFrom(world, x, y) {
   const def = BUILDINGS.firehouse;
-  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, FIRE.reach, { cache: false });
+  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, ruleReach(world, 'firehouse', FIRE.reach), { cache: false });
   if (!reach.size) return 0;
   let n = 0;
   for (const b of Object.values(world.buildings)) if (canBurn(b) && adjacentRoadTiles(world, b).some((t) => reach.has(t))) n++;
@@ -679,7 +679,7 @@ export function monumentLine(world, type, x, y, rot = 0, style = null) {
   const U = UI4_TEXT;
   const parts = [];
   if (held) parts.push(U.oneOfEach);
-  parts.push(U.crewGold(workGoldPerUnit(world, style) * MONUMENT.unitsPerCrewMonth * heirFactor(world, 'crews')));   // Version 9.0: the Builder's crews lay more (crews factor), so are paid more a month   // Stage 4.6: a gilded site pays 10% more a crew
+  parts.push(U.crewGold(workGoldPerUnit(world, style) * MONUMENT.unitsPerCrewMonth * ruleFactor(world, 'crews')));   // Version 9.0: the Builder's crews lay more (crews factor), so are paid more a month   // Stage 4.6: a gilded site pays 10% more a crew
   const done = desirabilityPreview(world, type, x, y, { rot, style });
   if (done.better) parts.push(U.finishedNicer(done.better));
   const site = desirabilityPreview(world, type, x, y, { rot, site: true });

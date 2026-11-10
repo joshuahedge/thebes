@@ -11,6 +11,7 @@
 //   4. the warnings a year ahead: at QUOTA.warnYear (court open) { type: 'quota_warning' }, at RAIDS_LATE.warnYear (raids on) { type: 'raids_grow' }.
 // Events: { type: 'court_quota', result: 'asked' | 'met' | 'missed', quota, favour, gift, early }, { type: 'quota_warning', year },
 // { type: 'raids_grow', year, cap, goldPer, peoplePer }.
+import { decreeEnded, endedFail } from './rules.js';
 import { QUOTA, RAIDS_LATE } from '../data/s47.js';
 import { GOOD_VALUE, COURT } from '../data/court.js';
 import { FOOD_SLOTS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
@@ -122,6 +123,7 @@ export function quotaStatus(world, q = quotaOf(world)) {
 // up to what is owed. Meeting the whole quota adds QUOTA.favourEarly by the end of month QUOTA.early, else QUOTA.favourMet, and pays the
 // gift. Fails with 'none' (no quota open), 'done' (met or missed already) or 'empty' (the stores hold none of what is owed).
 export function sendQuota(world, events = null) {
+  if (decreeEnded(world)) return endedFail();   // Version 9.3 (Track R, ruling 1962): after a decree's end every command is refused
   const q = quotaOf(world);
   if (!q) return fail('none');
   if (q.result !== null) return fail('done');

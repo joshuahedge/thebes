@@ -12,7 +12,7 @@ import { UNIT_TYPES, UNIT_OF_BUILDING } from '../../data/armies.js';
 import { MIN_STAFF_RATIO } from '../../data/labour.js';
 import { isWorking } from '../../sim/labour.js';
 import { horseGrainOf, grainHeld, isMixed } from '../../sim/armies.js';
-import { heirFactor } from '../../sim/dynasty.js';
+import { ruleFactor, ruleUnitPay } from '../../sim/rules.js';   // Version 9.3 (Track U): the heir's factor with the decree's
 import { el } from '../components.js';
 import { S46_ARMY_TEXT as A, DANGER_UI_TEXT as D } from '../text.js';
 
@@ -20,7 +20,7 @@ const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: '
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 // Version 9.0 (fix wave, Track D): a unit's pay a month as this city pays it, the heir of the Unconquered's pay factor on the data's (soldiersPayOf rounds the
 // whole bill once; one unit's is shown to a tenth of a gold).
-export const unitPayNow = (world, kind) => Math.round(UNIT_TYPES[kind].pay * heirFactor(world, 'pay') * 10) / 10;
+export const unitPayNow = (world, kind) => Math.round(UNIT_TYPES[kind].pay * ruleFactor(world, 'pay') * ruleUnitPay(world, kind) * 10) / 10;
 const needed = (type) => Math.ceil(BUILDINGS[type].workers * MIN_STAFF_RATIO);
 
 // The rows' model, pure for the tests: { kind, n, cap, away: [{ n, days }], status: 'full' | 'burning' | 'paused' | 'short' | 'training',

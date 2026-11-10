@@ -15,6 +15,7 @@ import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { V70_TALLY } from '../data/v70.js';
 import { V84_TALLY } from '../data/v84.js';
 import { V90_TALLY, HEIR_DEFAULT, isHeir } from '../data/v90.js';
+import { DECREES, DECREE } from '../data/decrees.js';
 import { newTradeSettings } from '../data/trade.js';
 import { newEventState } from '../data/cityEvents.js';
 import { generateMap, variantFor } from './mapgen.js';
@@ -74,6 +75,7 @@ export const newTally = () => ({
   ...Object.fromEntries(STAGE70_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE84_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE90_TALLY.map((k) => [k, 0])),
+  wellMonths: 0, fireSafeMonths: 0,   // Version 9.3 (Track R, ruling 1963): the decree's two counts; optional in a save (not in TALLY_KEYS), read as 0 when missing
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -108,7 +110,11 @@ export const newSite = () => ({
 // is the id the interface gives a new city for its records (spec 4.19: the sim never reads the clock); null until then.
 // heir (Version 9.0, ruling 1560) is one of HEIRS (src/data/v90.js), the trait the city plays under for its life; boot.js passes the dynasty's
 // heir (records.dynasty().heir), the lesson always 'steady' (ruling 1564); anything else starts the Steady.
-export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic', heir = HEIR_DEFAULT } = {}) {
+export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic', heir = HEIR_DEFAULT, decree = null } = {}) {
+  // Version 9.3 (the decree, ruling 1953): a decree run plays the Steady heir at Normal for everyone; world.decree is optional (WORLD_VERSION stays 12).
+  const ids = decree && Array.isArray(decree.ids) ? decree.ids.filter((id) => Object.prototype.hasOwnProperty.call(DECREES, id)) : [];
+  const run = ids.length && typeof decree.week === 'string' ? { week: decree.week, ids, endDay: DECREE.endDay, ended: false } : null;
+  if (run) { heir = HEIR_DEFAULT; difficulty = 'normal'; }
   const variant = mapVariant === 'auto' ? variantFor(seed) : MAP_VARIANTS.includes(mapVariant) ? mapVariant : 'classic';
   const m = map || generateMap(seed, Number.isInteger(size) && size > 0 ? size : DEFAULT_MAP_SIZE, variant);
   const n = m.size * m.size;
@@ -188,6 +194,7 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     // Version 9.0 (world version 12, ruling 1560): the heir's trait (src/data/v90.js HEIRS), 'steady' for a plain start and for every v11 city.
     heir: isHeir(heir) ? heir : HEIR_DEFAULT,
   };
+  if (run) world.decree = run;
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;
 }
@@ -217,7 +224,8 @@ export function makeBuilding(world, type, x, y, rot = 0, { style = null } = {}) 
   const def = BUILDINGS[type];
   const dims = dimsOf(type, rot);
   // risk: fire risk points (spec 4.12); fire: null, or the blaze or fire burning in it (src/sim/fire.js).
-  const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null };
+  const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null,
+    day: world.day };   // Version 9.3 (ruling 1886): the game day it was placed, so a building put up after a rank-up starts in the new look (src/render/looks.js); absent on an older save's buildings
   // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; src/sim/health.js and crime.js build them) and its illness (null, or the illness it has).
   if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)

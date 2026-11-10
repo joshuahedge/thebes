@@ -1,0 +1,23 @@
+/* Version 9.3, Track U (the decree's interface; rulings 1975-1984). The decree's screens are the game's own parts: the title's card is the friend's-score panel
+   (css/ui.css lists .decree-card beside .shared-score), the end card is the score sheet's .score-section (src/ui/scoreUi.js scoreTotalLine and scorePartRow),
+   the ruler-list rows are the ruler rows, and every line uses .small and .muted. What is left here is layout the game has no part for. */
+
+/* The twists: one decree a line, no bullets. */
+.decree-twists { margin: 0; padding: 0; list-style: none; }
+/* The title's twists are the friend's-score panel's small lines, left-aligned (fix wave U5). */
+.decree-card { text-align: left; }
+.decree-card .decree-twists { margin: 2px 0; }
+
+/* After the end the city cannot act: the alerts, tips and scribe stop (fix wave U8). */
+.decree-over :is(#banner, #tip, .nudge, .scribe-bubble) { display: none; }   /* final fix: the scribe's bubble too (re-review) */
+
+/* The chip: the first row under the top bar, a button. It has the top bar's .score-chip look (its radius, teal-soft ground, ink and weight; #topbar .score-chip
+   in css/ui.css is scoped to the bar), with a tap target's height because it opens the decree card. */
+.decree-chip { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; max-width: 100%; min-height: 36px; padding: 2px 8px; pointer-events: auto; text-align: left;
+  border: 0; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-weight: 600; }
+.decree-chip .chip-year { white-space: nowrap; }
+.decree-chip .chip-sep { margin: 0 -2px; }   /* the dot between the year and the mark (known 8) */
+.decree-chip .chip-mark { overflow-wrap: anywhere; }
+
+/* The rivals on the end card: a short list under its h4. */
+.decree-rivals { margin: 0; padding-left: 18px; }

@@ -77,7 +77,7 @@ describe('renderer', () => {
     for (let i = 1; i < objs.length; i++) expect(objs[i - 1].key <= objs[i].key).toBe(true);
     const walker = objs.find((o) => o.slot === 'fig.water');
     expect(walker.key).toBe(27.01);
-    expect(objs.some((o) => o.slot === 'temple')).toBe(true);
+    expect(objs.some((o) => o.slot.split('.')[0] === 'temple')).toBe(true);   // 9.3 Track B: the temple's slot carries its look and state (temple.l<look>.<state>)
   });
   it('draws shadows before sprites and calls the hooks in order', () => {
     const w = riverWorld();
