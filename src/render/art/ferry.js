@@ -5,7 +5,7 @@
 // The house style: weathered planks, rope and reed, white-washed stone; the Services category's blue pennant. The boat is told from a trade boat by
 // its shape (a flat, open barge with a standing ferryman and his pole, no mast or sail), never by colour.
 import { box, crs, p, U, quad } from './primitives.js';
-import { pennant } from './services.js';
+import { pennant, styled, lookSlot, planks, isShut, isBusy } from './services.js';
 import { WOOD, WASH, SHADOW, TERRAIN, BLUE, STONE } from './palette.js';
 import { boundsFor } from '../iso.js';
 import { FERRY_LANDING } from '../../data/ferries.js';
@@ -29,10 +29,11 @@ export function ferryLanding(g, x, y) {
   crs(g, S, 1.2, '#B9AEBF', 1.2);
   const H = box(g, x + 0.18, y + 0.12, 0.42, 0.34, 5, 1.2, WASH);
   crs(g, H, 5, '#C4B8CC', 2.5);
+  if (isShut()) planks(g, H.L, 0.28, 0.72, 0, 4);   // Version 9.3: a shut landing has its shed barred and its flag down
   g.poly([U(p(x + 0.1, y + 0.04), 8.4), U(p(x + 0.68, y + 0.04), 8.4), U(p(x + 0.68, y + 0.5), 8.4), U(p(x + 0.1, y + 0.5), 8.4)], REED[0], { outline: true });
   g.poly(quad(x + 0.1, y + 0.04, 0.58, 0.46, 7.4), REED[1], { alpha: 0.5 });
   // a coil of rope and a pole against the shed
-  g.ell(U(p(x + 0.78, y + 0.34), 0.6), 2.4, 1.2, ROPE, { outline: true });
+  if (isBusy()) g.ell(U(p(x + 0.78, y + 0.34), 0.6), 2.4, 1.2, ROPE, { outline: true });
   g.line(U(p(x + 0.9, y + 0.2), 0), U(p(x + 0.9, y + 0.2), 11), WOOD, 0.8);
   pennant(g, U(p(x + 0.9, y + 0.2), 11), 5, BLUE);
 }
@@ -72,6 +73,13 @@ export function ferryBoat(g0, gx, gy, left = false) {
   g.circ([sx, sy - 8.2], 1.5, '#1E150E'); g.circ([sx + 0.3, sy - 7.8], 1.2, '#A0663F');
   g.line([sx + 1.2, sy - 7], [sx - 4.6, Y + 3.4], WOOD, 0.8);                                                                  // the pole, down into the water
 }
+
+// Version 9.3, Track B: the landing in four looks and three states (registry.js runs this through withLooks).
+export const FERRY_LOOKS = {
+  [FERRY_LANDING]: lookSlot(1, 1, FERRY_HEIGHT, [[0.1, 0.06, 0.6, 0.46, 8]], styled((g, x, y) => ferryLanding(g, x, y), {})),
+};
+FERRY_LOOKS[FERRY_LANDING].bounds = boundsFor(1, 1, FERRY_HEIGHT, 14);
+FERRY_LOOKS[FERRY_LANDING].boundsFor = () => boundsFor(1, 1, FERRY_HEIGHT, 14);
 
 const UNIT = (h, wide = 14) => ({ w: 0, d: 0, height: h, bounds: [-wide - 4, -h - 12, wide + 4, 8], shadows: [] });
 export const FERRY_ART = {

@@ -4,14 +4,25 @@
 // Each service and farm carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
 // Granaries and bazaars show their stock and farms their crop (early-game pass 2.2, 2.3): each draws a stage
 // chosen by stages.js, and SERVICE_ART registers one slot per stage beside the plain type slot.
-import { box, tb, qd, crs, door, win, parapet, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
-import { palmAt, tufts } from './nature.js';
-import { fig } from './figures.js';
 import {
-  WASH, WASH2, MUD2, STONE, THATCH, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, ORANGE, GREEN, GREEN_DARK,
-  LEAF, LEAF2, LEAF3, TRUNK, WOOD, DOOR, SHADOW, TERRAIN, INDUSTRY_TINT,
+  box, tb, qd, crs, door, win, parapet, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs,
+  shadeWall, silhouette, contactLine, insetOpening, band, cornice, groundShadow, gildedCap, porch,
+} from './primitives.js';
+import { palmAt, tufts } from './nature.js';
+import { fig as figDraw } from './figures.js';
+import {
+  WASH, WASH2, MUD, MUD2, STONE, SST, LIME, THATCH, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, ORANGE, GREEN, GREEN_DARK,
+  LEAF, LEAF2, LEAF3, TRUNK, WOOD, DOOR, SHADOW, TERRAIN, INDUSTRY_TINT, INK, WINDOW, PARAPET, OUTLINE, POT, POT_LIGHT,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
+import { MATERIALS, BAND2 } from './materials.js';
+
+// Version 9.3, Track B: the building being drawn right now, set by styled() below (and read by the workshops' own helpers in industry.js, supply.js, defence.js
+// and trade.js): its look (0 village .. 3 capital) and its state ('work', 'short' or 'shut'). A drawing outside styled() is a working Town building, as before.
+export const DRAWING = { look: 1, state: 'work' };
+export const isShut = () => DRAWING.state === 'shut';
+export const isBusy = () => DRAWING.state === 'work';   // goods in the yard show only when the place works at full staff
+const fig = (...a) => { if (!isShut()) figDraw(...a); };
 
 export const SERVICE_EMBLEM = {
   well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD,
@@ -19,6 +30,11 @@ export const SERVICE_EMBLEM = {
 };
 
 export function pennant(g, q, h, color) {
+  if (isShut()) {   // Version 9.3: a shut place flies its flag lowered: a short pole, the cloth hanging
+    g.line(q, U(q, h * 0.62), WOOD, 0.7);
+    g.poly([U(q, h * 0.62), [q[0] + 0.5, q[1] - h * 0.62 + 4.6], [q[0] + 1.7, q[1] - h * 0.62 + 1.2]], color, { alpha: 0.9 });
+    return;
+  }
   g.line(q, U(q, h), WOOD, 0.7);
   g.poly([U(q, h), [q[0] + 6, q[1] - h + 1.5], U(q, h - 3)], color);
 }
@@ -459,3 +475,320 @@ for (const [type, draw] of Object.entries(FARM_DRAW)) {
   SERVICE_ART[type] = { ...FARM_SLOT, draw: (g, x, y) => draw(g, x, y, PLAIN_STAGE[type]) };
   for (let s = 0; s < 4; s++) SERVICE_ART[`${type}.g${s}`] = { ...FARM_SLOT, draw: (g, x, y) => draw(g, x, y, s) };
 }
+
+// ---- Version 9.3, Track B (spec sections 2, 4 and 6): services and workshops in four looks and three states ------------------------------------------
+// styled(draw, cfg) turns one of today's drawings into a look-and-state drawing without changing its silhouette: the drawing runs through a recolouring
+// pen (a Village's mud for whitewash, a City's sandstone roofs, a Capital's limestone) so the materials follow MATERIALS[look]; stalls, awnings, pennants
+// and every other colour keep theirs. DRAWING tells the workshops' own helpers what to leave out: nothing is shown in the yard and no figure stands about
+// when shut, goods only when working. dress() then adds what a look and a state add on top: a painted band (City, Capital), a pot or a lamp by the door,
+// a warm-lit doorway (working, short) or a barred plank door and shutters (shut). cfg = { body: [dx, dy, w, d, h] of the main wall block in tiles and art
+// px, doors: [[u0, u1, h]...] on its lit face, by: [dx, dy] a spot by the door, band: the band's height or null, shutters: false, cover(g, x, y, look),
+// behind(g, x, y, look, state) and front(...) for a landmark's own shape }.
+const M = MATERIALS;
+
+export const bodyF = (x, y, w, d) => ({ L: (u, s) => U(p(x + w * u, y + d), s), R: (u, s) => U(p(x + w, y + d * u), s) });
+
+// A wall block at the new bar: the faces, a soft shade down each, the 1.0 px silhouette and the contact line where it meets the ground.
+export function block(g, x, y, w, d, h, z, C) {
+  const F = box(g, x, y, w, d, h, z, C);
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, h), F.L(0, h)], h);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, h), F.R(0, h)], h);
+  silhouette(g, x, y, w, d, h, z);
+  if (z === 0) contactLine(g, [x, y, w, d]);
+  return F;
+}
+
+// A shut plank door or shutter, barred across.
+export const planks = (g, F, u0, u1, s0, s1) => {
+  qd(g, F, u0, u1, s0, s1, '#6A4A38');
+  for (let u = u0 + (u1 - u0) / 4; u < u1 - 0.001; u += (u1 - u0) / 4) g.line(F(u, s0), F(u, s1), INK, 0.4, 0.55);
+  g.line(F(u0, s0 + (s1 - s0) * 0.3), F(u1, s0 + (s1 - s0) * 0.7), '#B08A5A', 0.8, 0.95);
+  g.line(F(u0, s0 + (s1 - s0) * 0.7), F(u1, s0 + (s1 - s0) * 0.3), '#B08A5A', 0.8, 0.95);
+};
+
+// A puff of kiln smoke (none when shut: the callers check isShut()).
+export const smokePuff = (g, q, r, a) => { g.circ(q, r, '#FFFFFF', { alpha: a }); g.circ([q[0] - r * 0.3, q[1] - r * 0.25], r * 0.65, '#FFFFFF', { alpha: a * 0.6 }); };
+
+// A drum with a lit side and a shaded side (the kiln, the granary's silo ring): centre of its base c, radius r, height h, C = [top, lit, shade].
+export function drum(g, c, r, h, C, cap = true) {
+  const ry = r * 0.5, s = g.scale;
+  const gr = g.ctx.createLinearGradient((c[0] - r) * s, 0, (c[0] + r) * s, 0);
+  gr.addColorStop(0, C[1]); gr.addColorStop(0.45, C[1]); gr.addColorStop(1, C[2]);
+  g.path([['M', [c[0] - r, c[1] - h]], ['L', [c[0] - r, c[1]]], ['Q', [c[0], c[1] + 2 * ry], [c[0] + r, c[1]]], ['L', [c[0] + r, c[1] - h]], ['Z']], gr);
+  g.path([['M', [c[0] - r, c[1] - h]], ['L', [c[0] - r, c[1]]], ['Q', [c[0], c[1] + 2 * ry], [c[0] + r, c[1]]], ['L', [c[0] + r, c[1] - h]]], 'none', { stroke: OUTLINE, strokeWidth: 1, strokeAlpha: 0.55 });
+  g.path([['M', [c[0] - r, c[1]]], ['Q', [c[0], c[1] + 2 * ry], [c[0] + r, c[1]]]], 'none', { stroke: INK, strokeWidth: 1.1, strokeAlpha: 0.45 });
+  if (cap) g.ell([c[0], c[1] - h], r, ry, C[0], { stroke: OUTLINE, strokeWidth: 1, strokeAlpha: 0.55 });
+}
+
+// A dome in the look's stone: a lit shoulder fading to the shaded side. c is its base centre, C = [lit, shade].
+export function domeC(g, c, rx, ryT, ryB, C) {
+  const { ctx, scale: s } = g;
+  ctx.beginPath();
+  ctx.ellipse(c[0] * s, c[1] * s, rx * s, ryT * s, 0, Math.PI, Math.PI * 2);
+  ctx.ellipse(c[0] * s, c[1] * s, rx * s, ryB * s, 0, 0, Math.PI);
+  ctx.closePath();
+  const gr = ctx.createRadialGradient((c[0] - rx * 0.3) * s, (c[1] - ryT * 0.4) * s, 0, c[0] * s, c[1] * s, rx * 1.7 * s);
+  gr.addColorStop(0, C[0]); gr.addColorStop(1, C[1]);
+  ctx.fillStyle = gr; ctx.fill();
+  ctx.globalAlpha = 0.55; ctx.strokeStyle = OUTLINE; ctx.lineWidth = s; ctx.lineJoin = 'round'; ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+// A water jar and a street lamp, the Town's and the City's doorside extras.
+export const potK = (g, q, c = POT, sc = 1) => {
+  g.ell([q[0], q[1] + 0.2], 1.7 * sc, 0.6 * sc, SHADOW, { alpha: 0.18 });
+  g.ell(U(q, 1.7 * sc), 1.7 * sc, 1.9 * sc, c, { outline: true });
+  g.ell([q[0] - 0.55 * sc, q[1] - 2.2 * sc], 0.5 * sc, 0.8 * sc, POT_LIGHT, { alpha: 0.75 });
+  g.ell(U(q, 3.5 * sc), 1 * sc, 0.4 * sc, '#6A3A24');
+};
+export function lampK(g, gx, gy, sc = 1) {
+  const c = p(gx, gy);
+  g.ell([c[0] + 1, c[1] + 0.3], 2.2 * sc, 0.8 * sc, SHADOW, { alpha: 0.2 });
+  g.line(c, [c[0], c[1] - 11 * sc], '#5A4A5A', 1 * sc);
+  g.line([c[0] - 1.3 * sc, c[1] - 0.3], [c[0] + 1.3 * sc, c[1] - 0.3], '#5A4A5A', 1.6 * sc);
+  g.poly([[c[0] - 1.8 * sc, c[1] - 11 * sc], [c[0] + 1.8 * sc, c[1] - 11 * sc], [c[0] + 1.4 * sc, c[1] - 14.4 * sc], [c[0] - 1.4 * sc, c[1] - 14.4 * sc]], '#F6D46A', { outline: true });
+  g.poly([[c[0] - 2.2 * sc, c[1] - 14.4 * sc], [c[0] + 2.2 * sc, c[1] - 14.4 * sc], [c[0], c[1] - 16.4 * sc]], '#5A4A5A');
+  g.circ([c[0], c[1] - 12.7 * sc], 3.4 * sc, '#FFE9A0', { alpha: 0.22 });
+}
+
+// The recolouring pen: today's whitewash and thatch become the look's own. Village: mud brick for whitewash. City: sandstone roofs. Capital: dressed
+// limestone walls and roofs. Town is today's colours. Only the wall and roof palettes move; every other colour (awnings, doors, goods) keeps its own.
+const recolours = {};
+function recolourMap(look, mud) {
+  const key = `${look}${mud ? 'm' : ''}`;
+  if (recolours[key]) return recolours[key];
+  const m = new Map();
+  const put = (from, to) => from.forEach((c, i) => m.set(c.toUpperCase(), to[i]));
+  if (look === 0) { put(WASH, MUD); put(WASH2, MUD2); m.set(PARAPET.toUpperCase(), MUD2[0]); }
+  if (look >= 2) put(THATCH, M[look].roof);
+  if (look === 3) { put(WASH, M[3].wall); put(WASH2, M[3].wall); m.set(PARAPET.toUpperCase(), LIME[0]); }
+  if (mud && look >= 1) { put(MUD, M[look].wall); put(MUD2, M[look].wall); }   // a mud-brick building (the tower, the barracks, the kiln) is faced with the look's wall
+  recolours[key] = m;
+  return m;
+}
+export function recolour(g, look, mud = false) {
+  const map = recolourMap(look, mud);
+  if (!map.size) return g;
+  const c = (v) => (typeof v === 'string' && map.get(v.toUpperCase())) || v;
+  const r = Object.create(g);
+  r.poly = (pts, fill, o) => g.poly(pts, c(fill), o);
+  r.polys = (list, fill, o) => g.polys(list, c(fill), o);
+  r.circ = (q, rad, fill, o) => g.circ(q, rad, c(fill), o);
+  r.ell = (q, rx, ry, fill, o) => g.ell(q, rx, ry, c(fill), o);
+  r.path = (segs, fill, o) => g.path(segs, c(fill), o);
+  r.line = (a, b, col, w, al) => g.line(a, b, c(col), w, al);
+  r.stroke = (segs, col, w, al) => g.stroke(segs, c(col), w, al);
+  return r;
+}
+
+function dress(g, x, y, cfg, look, state) {
+  const m = M[look], trim = look === 0 ? WOOD : m.trim;
+  if (cfg.body) {
+    const [bx, by, bw, bd, bh] = cfg.body, F = bodyF(x + bx, y + by, bw, bd);
+    if (look >= 2 && cfg.band !== null) {                                      // the painted bands of a City and a Capital
+      const s = cfg.band || bh - 2.4;
+      band(g, F, s, m.band, 1.1);
+      if (look === 2) band(g, F, s - 1.7, BAND2[2], 0.7);
+    }
+    for (const [u0, u1, h] of cfg.doors || []) {
+      if (state === 'shut') { qd(g, F.L, u0 - 0.03, u1 + 0.03, 0, h + 0.5, trim); planks(g, F.L, u0, u1, 0, h); }   // a plank door, barred
+      else insetOpening(g, { F: F.L, u: u0, s: 0 }, u1 - u0, h, { lintel: trim, lit: true });                  // a warm-lit doorway
+    }
+    if (state === 'shut' && cfg.shutters !== false) planks(g, F.R, 0.28, 0.5, bh * 0.4, bh * 0.72);             // a closed, barred shutter
+  }
+  if (state === 'shut' && cfg.cover) cfg.cover(g, x, y, look);
+  if (state !== 'shut' && cfg.open) cfg.open(g, x, y, look);
+  if (look >= 1 && cfg.by) {                                                    // the Town's pots, the City's lamp, the Capital's palm
+    const [bx, by] = cfg.by;
+    potK(g, p(x + bx, y + by), look === 1 ? '#E9C08A' : POT, 0.85);
+    if (look >= 2) lampK(g, x + bx + 0.1, y + by - 0.16, 0.85);
+    if (look === 3 && !cfg.noPalm) palmAt(g, x + bx - 0.62, y + by + 0.02, 0.38);
+  }
+}
+
+export function styled(draw, cfg = {}) {
+  return (g, x, y, opt = {}) => {
+    const look = opt.look || 0, state = opt.state || 'work';
+    const was = [DRAWING.look, DRAWING.state];
+    DRAWING.look = look; DRAWING.state = state;
+    try {
+      if (cfg.behind) cfg.behind(g, x, y, look, state);
+      draw(cfg.plain ? g : recolour(g, look, cfg.mud), x, y, look, state);
+      dress(g, x, y, cfg, look, state);
+      if (cfg.front) cfg.front(g, x, y, look, state);
+    } finally { DRAWING.look = was[0]; DRAWING.state = was[1]; }
+  };
+}
+
+// An entry of a look table: bounds and height by look where the look grows the building.
+export const lookSlot = (w, d, heights, shadows, draw) => {
+  const hs_ = Array.isArray(heights) ? heights : [heights, heights, heights, heights];
+  return { w, d, height: hs_[1], bounds: boundsFor(w, d, hs_[1]), boundsFor: (look) => boundsFor(w, d, hs_[look]), heightFor: (look) => hs_[look], shadows, draw };
+};
+
+// ---- the granary: four domes in every look; City raises them on drums with a loading porch, Capital adds gilded finials and a pillared one ------------
+// work: the door open on a warm doorway, grain in the hatches by the stock (stage), sacks and a heap in the yard, the flag up. short: as work with an empty
+// yard. shut: a plank door, capped hatches, no sacks, the flag down.
+function granaryNew(g, x, y, look, state, stage) {
+  const m = M[look], shut = state === 'shut';
+  const WALL = [MUD, WASH, SST, LIME][look];
+  const DOME = [['#E0BC88', '#A68A78'], ['#FFFAEE', '#CDBFC4'], ['#F1E2BC', '#B8A892'], ['#FBF6E8', '#CFC2C6']][look];
+  const band1 = [TRUNK, TEAL, BLUE, TEAL][look];
+  const lift = [0, 0, 2.6, 4.2][look];
+  const F = block(g, x + 0.1, y + 0.1, 1.8, 1.8, 10, 0, WALL);
+  if (look === 0) crs(g, F, 10, '#9C7A54', 2.6);
+  if (look === 3) cornice(g, { x: x + 0.1, y: y + 0.1, w: 1.8, d: 1.8, z: 10 }, [TEAL, TEAL, TEAL_DARK]);
+  else { qd(g, F.L, 0, 1, 8.2, 9.4, band1); qd(g, F.R, 0, 1, 8.2, 9.4, band1); qd(g, F.R, 0, 1, 8.2, 9.4, INK, { alpha: 0.18 }); }
+  if (look === 2) { qd(g, F.L, 0, 1, 6.9, 7.5, GOLD); qd(g, F.R, 0, 1, 6.9, 7.5, GOLD); }
+  const trim = look === 0 ? WOOD : m.trim;
+  if (!shut) insetOpening(g, { F: F.L, u: 0.42, s: 0 }, 0.18, 6.4, { lintel: trim, lit: true });
+  else { qd(g, F.L, 0.4, 0.62, 0, 6.8, trim); planks(g, F.L, 0.43, 0.59, 0, 6.2); g.line(F.L(0.42, 3.1), F.L(0.6, 3.1), INK, 1, 0.8); }
+  if (look >= 2) {   // the loading porch over the door
+    const at = F.L(0.37, 0);
+    porch(g, at, 16, look === 2 ? 7.4 : 8.6, look === 2 ? [m.roof[0], m.roof[1], m.roof[2]] : undefined);
+  }
+  const top = 10;
+  [[0.6, 0.6], [1.4, 0.6], [0.6, 1.4], [1.4, 1.4]].forEach(([u, v], i) => {
+    const base = U(p(x + u, y + v), top);
+    if (lift) drum(g, base, 8.2, lift, [WALL[0], WALL[1], WALL[2]], false);
+    const c = U(base, lift);
+    domeC(g, c, 8.2, 8.6, 4, DOME);
+    const t = [c[0], c[1] - 8.4];
+    const filled = !shut && SILO_RANK[i] < SILOS_FILLED[stage];
+    if (!filled) { g.ell(t, 3.4, 1.7, '#5A4A5A'); g.line([t[0] - 3.4, t[1]], [t[0] + 3.4, t[1]], INK, 0.5, 0.6); }
+    else if (stage === 3) grainHeap(g, [t[0], t[1] + 0.3], 4, 3.8);
+    else { g.ell(t, 4.4, 2.2, GRAIN_SHADE, { outline: true }); g.ell([t[0], t[1] - 0.3], 3.8, 1.8, GRAIN); g.ell([t[0] - 1.2, t[1] - 0.8], 1.8, 0.7, GRAIN_LIGHT, { alpha: 0.9 }); }
+    if (look === 3) gildedCap(g, [t[0], t[1] - (filled ? 2.6 : 1.2)], 1.9);
+  });
+  if (state === 'work') {
+    SACK_SPOTS.slice(0, SACKS_AT[stage]).forEach((sx, i) => sack(g, p(x + sx, y + 2.06), SACKS[i % 2]));
+    if (YARD_HEAP[stage]) grainHeap(g, p(x + 1, y + 2.16), ...YARD_HEAP[stage]);
+  }
+  pennant(g, U(p(x + 1.9, y + 0.12), 10 + lift), 7, SERVICE_EMBLEM.granary);
+}
+
+// ---- the bazaar: four stalls in every look (awnings keep their red, gold, blue and green); the City roofs the middle as a covered market, the Capital
+// colonnades the front and the side ------------------------------------------------------------------------------------------------------------------
+function bazaarNew(g, x, y, look, state, stage) {
+  const m = M[look], shut = state === 'shut', work = state === 'work';
+  const cs = [[RED, '#933E2B'], [GOLD, '#B08436'], [BLUE, '#245A88'], [GREEN, GREEN_DARK]];
+  const GOODS = ['#C9552F', GOLD, '#6E9E3A'];
+  [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j], k) => {
+    const cx = x + i, cy = y + j;
+    const C = look === 0 ? ['#D9B47A', '#C49E66', '#A08478'] : m.wall;
+    const F = block(g, cx + 0.24, cy + 0.3, 0.52, 0.4, 3.2, 0, C);
+    if (look >= 2) { const bc = look === 2 ? m.band : GOLD; qd(g, F.L, 0, 1, 2.0, 2.8, bc); qd(g, F.R, 0, 1, 2.0, 2.8, bc); qd(g, F.R, 0, 1, 2.0, 2.8, INK, { alpha: 0.18 }); }
+    if (!shut && stage > 0) GOODS.forEach((c, n) => g.ell(U(p(cx + 0.28 + 0.44 * (n / 2.4), cy + 0.55), 3.5), 1.35, 0.9, GOODS[(n + k) % 3], { outline: true }));
+    if (shut) planks(g, F.L, 0.08, 0.92, 0.2, 2.9);
+    awningStall(g, cx, cy, cs[k], look, shut);
+    if (work) {   // baskets in front of the counter by the stock: one heaped basket from stage 1, two and a jar at stage 2
+      if (stage >= 1) { g.ell(U(p(cx + 0.5, cy + 0.9), 0.9), 2.3, 1.35, '#B08436', { outline: true }); g.ell(U(p(cx + 0.5, cy + 0.9), 1.9), 1.8, 1.05, GOODS[k % 3], { outline: true }); }
+      if (stage === 2) {
+        g.ell(U(p(cx + 0.74, cy + 0.9), 0.9), 2.3, 1.35, '#B08436', { outline: true }); g.ell(U(p(cx + 0.74, cy + 0.9), 1.9), 1.8, 1.05, GOODS[(k + 1) % 3], { outline: true });
+        pots(g, p(cx + 0.24, cy + 0.88), 1);
+      }
+      if (stage === 0) g.ell(U(p(cx + 0.5, cy + 0.9), 0.9), 2.3, 1.35, 'none', { stroke: '#B08436', strokeWidth: 0.7 });
+    }
+  });
+  if (look === 2) {   // a covered market: a cloth-and-timber roof on four posts over the middle lane
+    for (const [a, b] of [[0.62, 0.62], [1.38, 0.62], [0.62, 1.38], [1.38, 1.38]]) { const q = p(x + a, y + b); g.line(q, U(q, 12.5), WOOD, 0.9); }
+    const R = tb(g, x + 0.46, y + 0.46, 1.08, 1.08, 3.4, 12, 0.36, [m.roof[0], m.roof[1], m.roof[2]]);
+    for (let u = 0.1; u < 0.95; u += 0.2) { qd(g, R.L, u, u + 0.09, 0, 3.4, '#F6ECD6', { alpha: 0.55 }); }
+    qd(g, R.L, 0, 1, 0, 0.7, RED); qd(g, R.R, 0, 1, 0, 0.7, '#933E2B');
+  }
+  if (look === 3) {   // a colonnade along the front and the side, under a gilt-edged architrave
+    const cols = [0.2, 0.7, 1.2, 1.7];
+    for (const cxx of cols) col(g, x + cxx, y + 1.94, 11, 0, [LIME[0], LIME[1], LIME[2]]);
+    for (const cyy of [0.2, 0.7, 1.2]) col(g, x + 1.94, y + cyy, 11, 0, [LIME[0], LIME[1], LIME[2]]);
+    box(g, x + 0.12, y + 1.9, 1.84, 0.08, 1.4, 11.6, [GOLDC[0], '#EBE1CE', '#CBBFCB'], 0);
+    box(g, x + 1.9, y + 0.14, 0.08, 1.76, 1.4, 11.6, [GOLDC[0], '#EBE1CE', '#CBBFCB'], 0);
+  }
+  const pole = p(x + 1.95, y + 0.08);
+  if (look >= 2) {
+    g.line(pole, U(pole, 13), look === 2 ? WOOD : GOLDC[2], 0.8);
+    if (look === 3) gildedCap(g, U(pole, 13), 1.8); else if (shut) pennant(g, pole, 13, RED); else g.poly([U(pole, 13), [pole[0] + 5, pole[1] - 11.4], U(pole, 9.6)], RED);
+  } else pennant(g, U(p(x + 1.9, y + 0.1), 0), 9, SERVICE_EMBLEM.bazaar);
+  if (!shut) fig(g, x + 1.0, y + 1.0, 'citizen', 0, 0.85);
+}
+// A stall's awning on its posts: striped in the stall's own colour whatever the look. furled = rolled up (a shut stall).
+function awningStall(g, cx, cy, c, look, furled = false) {
+  const z = 7.5, post = [WOOD, '#E9DECB', '#E7DDCC', GOLDC[1]][look];
+  for (const [a, b] of [[cx + 0.14, cy + 0.86], [cx + 0.86, cy + 0.86], [cx + 0.86, cy + 0.14]]) { const q = U(p(a, b), z - 4.2); g.line(q, U(q, 4.2), post, look >= 2 ? 1 : 0.7); }
+  if (furled) { tb(g, cx + 0.12, cy + 0.12, 0.76, 0.76, 0.9, z - 0.4, 0.2, [c[0], c[0], c[1]]); return; }
+  const A = tb(g, cx + 0.1, cy + 0.1, 0.8, 0.8, 1.2, z, 0.05, [c[0], c[0], c[1]]);
+  const st = '#F6ECD6';
+  for (let u = 0.1; u < 0.95; u += 0.25) { qd(g, A.L, u, u + 0.12, 0, 1.2, st, { alpha: 0.85 }); qd(g, A.R, u, u + 0.12, 0, 1.2, st, { alpha: 0.6 }); }
+  if (look >= 2) { qd(g, A.L, 0, 1, 0, 0.35, look === 2 ? GOLD : TEAL); qd(g, A.R, 0, 1, 0, 0.35, look === 2 ? GOLD : TEAL_DARK); }
+}
+
+// ---- the temple: the same hall and pylons; the City flanks the court with two obelisks, the Capital adds a pillared forecourt and gilded pinnacles ----
+const templeFront = (g, x, y, look) => {
+  const m = M[look];
+  if (look < 2) return;
+  const obelisk = (ox, oy, h) => {
+    const F = tb(g, ox, oy, 0.16, 0.16, h, 2, 0.05, look === 2 ? SST : LIME);
+    qd(g, F.L, 0.3, 0.7, h * 0.3, h * 0.8, look === 2 ? BLUE : TEAL, { alpha: 0.7 });
+    if (look === 3) gildedCap(g, U(p(ox + 0.08, oy + 0.08), 2 + h), 1.6);
+    else g.poly([U(p(ox + 0.03, oy + 0.03), 2 + h), U(p(ox + 0.13, oy + 0.03), 2 + h), U(p(ox + 0.08, oy + 0.08), 2 + h + 3)], GOLD);
+  };
+  obelisk(x + 0.04, y + 1.78, look === 2 ? 17 : 20);
+  obelisk(x + 1.8, y + 1.78, look === 2 ? 17 : 20);
+  if (look === 3) {   // the forecourt colonnade
+    for (const cx of [0.4, 0.62, 1.38, 1.6]) col(g, x + cx, y + 1.94, 8, 2, [LIME[0], LIME[1], LIME[2]]);
+    box(g, x + 0.3, y + 1.9, 0.44, 0.08, 1.2, 12, [GOLDC[0], '#EBE1CE', '#CBBFCB'], 0);
+    box(g, x + 1.26, y + 1.9, 0.44, 0.08, 1.2, 12, [GOLDC[0], '#EBE1CE', '#CBBFCB'], 0);
+  } else if (m) {
+    for (const cx of [0.4, 1.6]) col(g, x + cx, y + 1.94, 6, 2);
+  }
+};
+
+// ---- the well: the frame of today; the City roofs it as a well house, the Capital sets it in a stone basin under a gilded cap ----------------------------
+function wellBehind(g, x, y, look) {
+  if (look < 3) return;
+  const F = box(g, x + 0.1, y + 0.1, 0.8, 0.8, 2.4, 0, [LIME[0], LIME[1], LIME[2]]);
+  void F;
+  g.poly(quad(x + 0.18, y + 0.18, 0.64, 0.64, 2.4), TERRAIN.water, { alpha: 0.85 });
+}
+function wellFront(g, x, y, look) {
+  if (look < 2) return;
+  const gx = x + 0.5, gy = y + 0.5;
+  for (const [a, b] of [[-0.24, 0.2], [0.24, 0.2], [0.24, -0.2]]) { const q = U(p(gx + a, gy + b), 4); g.line(q, U(q, 8), look === 2 ? WOOD : GOLDC[2], 0.9); }
+  const R = tb(g, gx - 0.34, gy - 0.34, 0.68, 0.68, 4.2, 11.5, 0.22, [M[look].roof[0], M[look].roof[1], M[look].roof[2]]);
+  if (look === 2) qd(g, R.L, 0, 1, 0, 0.8, BLUE);
+  if (look === 3) { qd(g, R.L, 0, 1, 0, 0.8, TEAL); gildedCap(g, U(p(gx, gy), 15.7), 2.2); }
+  else g.line(U(p(gx, gy), 15.7), U(p(gx, gy), 19), WOOD, 0.8);
+}
+
+// ---- the table: every service in four looks and three states (registry.js runs it through withLooks) -----------------------------------------------------
+const GRANARY_H = [22, 22, 26, 30], BAZAAR_H = [16, 16, 19, 22];
+export const SERVICE_LOOKS = {
+  well: lookSlot(1, 1, [18, 18, 22, 26], [[0.28, 0.28, 0.44, 0.44, 6]], styled((g, x, y) => well(g, x, y), {
+    behind: wellBehind, front: wellFront, body: null, by: [0.86, 0.9], noPalm: true,
+    cover: (g, x, y) => {   // shut: boards laid over the water and the rope drawn up
+      const gx = x + 0.5, gy = y + 0.5;
+      g.poly(quad(gx - 0.17, gy - 0.17, 0.34, 0.34, 4.5), '#6A4A38', { outline: true });
+      g.line(U(p(gx - 0.17, gy - 0.17), 4.5), U(p(gx + 0.17, gy + 0.17), 4.5), '#B08A5A', 0.9);
+      g.line(U(p(gx + 0.17, gy - 0.17), 4.5), U(p(gx - 0.17, gy + 0.17), 4.5), '#B08A5A', 0.9);
+    },
+  })),
+  temple: lookSlot(2, 2, [40, 40, 40, 44], [[0.25, 0.2, 1.5, 1, 15], [0.1, 1.2, 1.8, 0.7, 23]], styled((g, x, y) => temple(g, x, y), {
+    front: templeFront, by: [1.4, 1.98], noPalm: true,
+    open: (g, x, y, look) => insetOpening(g, { F: bodyF(x + 0.85, y + 1.35, 0.3, 0.45).L, u: 0.14, s: 2 }, 0.72, 8.4, { lintel: GOLD, lit: true }),   // the gateway open and lit
+    cover: (g, x, y, look) => {                                                                                                                      // shut: the gateway barred
+      const F = bodyF(x + 0.85, y + 1.35, 0.3, 0.45).L;
+      qd(g, F, 0.1, 0.9, 2, 11, look === 0 ? WOOD : M[look].trim);
+      planks(g, F, 0.14, 0.86, 2, 10.4);
+    },
+  })),
+  booth: lookSlot(1, 1, 21, [[0.16, 0.14, 0.68, 0.6, 3], [0.14, 0.12, 0.72, 0.3, 13]], styled((g, x, y) => booth(g, x, y), {
+    body: [0.16, 0.14, 0.68, 0.6, 3], band: null, shutters: false, by: [0.9, 0.88],
+    cover: (g, x, y) => planks(g, bodyF(x + 0.16, y + 0.14, 0.68, 0.6).L, 0.1, 0.9, 0.2, 2.8),
+  })),
+  physician: lookSlot(1, 1, 19, [[0.12, 0.12, 0.62, 0.6, 10]], styled((g, x, y) => physician(g, x, y), {
+    body: [0.12, 0.12, 0.62, 0.6, 10], doors: [[0.16, 0.42, 6]], by: [0.84, 0.82],
+  })),
+  police_post: lookSlot(1, 1, 22, [[0.14, 0.12, 0.6, 0.58, 11]], styled((g, x, y) => policePost(g, x, y), {
+    body: [0.14, 0.12, 0.6, 0.58, 11], doors: [[0.18, 0.46, 6.2]], by: [0.84, 0.86],
+  })),
+};
+for (let s = 0; s < 4; s++) SERVICE_LOOKS[`granary.s${s}`] = lookSlot(2, 2, GRANARY_H, [[0.1, 0.1, 1.8, 1.8, 16]], styled((g, x, y, look, state) => granaryNew(g, x, y, look, state, s), { plain: true }));
+for (let s = 0; s < 3; s++) SERVICE_LOOKS[`bazaar.s${s}`] = lookSlot(2, 2, BAZAAR_H, BAZAAR_SLOT.shadows, styled((g, x, y, look, state) => bazaarNew(g, x, y, look, state, s), { plain: true }));

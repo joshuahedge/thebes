@@ -8,7 +8,7 @@
 // The house style: white-washed dressed stone with lavender shadows, weathered planks and rope; the Industry category's pennant. A trade boat
 // is told from a fishing skiff by its shape (a long hull with a raised stern, a tall mast and a broad sail, bales on deck), never by colour.
 import { box, crs, p, U, quad } from './primitives.js';
-import { pennant } from './services.js';
+import { pennant, styled, lookSlot, planks, isShut, isBusy } from './services.js';
 import { fig } from './figures.js';
 import { wharfSide } from './river.js';
 import { STONE, MUD2, WASH, WOOD, SHADOW, TERRAIN, TEAL, GOLD, RED, BLUE, INDUSTRY_TINT } from './palette.js';
@@ -48,12 +48,13 @@ export function quay(g, X, Y, side = 's') {
   // the customs shed on the land side, at one end: mud brick under a striped awning on poles
   const H = bx(0.1, 0.08, 0.62, 0.5, 6.2, 2.4, MUD2);
   crs(g, H, 6.2, '#9A7A5A', 2);
+  if (isShut()) planks(g, H.L, 0.28, 0.72, 0, 5);   // Version 9.3: a shut customs shed has its door barred
   g.poly(quad(...rect(0.04, 0.02, 0.74, 0.62), 8.6), WASH[0], { outline: true });
   for (const [u, v] of [[0.86, 0.12], [0.86, 0.58]]) { const q = U(pt(u, v), 2.4); g.line(q, U(q, 6.8), WOOD, 0.7); }
   g.poly([U(pt(0.72, 0.1), 9.2), U(pt(1.08, 0.1), 9.2), U(pt(1.08, 0.6), 9.2), U(pt(0.72, 0.6), 9.2)], RED, { alpha: 0.9, outline: true });
   // goods waiting: bales and jars on the landing
-  for (const [u, v, c] of [[1.22, 0.3, BALES], [1.5, 0.3, BALES], [1.36, 0.3, PLANK]]) bx(u - 0.12, v - 0.1, 0.24, 0.2, 2.6, 2.4 + (c === PLANK ? 2.6 : 0), c);
-  for (const [u, v] of [[1.7, 0.56], [1.56, 0.66]]) {
+  if (isBusy()) for (const [u, v, c] of [[1.22, 0.3, BALES], [1.5, 0.3, BALES], [1.36, 0.3, PLANK]]) bx(u - 0.12, v - 0.1, 0.24, 0.2, 2.6, 2.4 + (c === PLANK ? 2.6 : 0), c);
+  if (isBusy()) for (const [u, v] of [[1.7, 0.56], [1.56, 0.66]]) {
     const q = U(pt(u, v), 2.4);
     g.ell([q[0], q[1] - 2.2], 1.3, 2.3, '#C96A3C', { outline: true });
     g.ell([q[0], q[1] - 4.6], 0.6, 0.3, '#E9D8B4');
@@ -160,6 +161,14 @@ export const TRADE_ART = {
   ...both('pack_donkey_b', (g, x, y, left) => packDonkey(g, x, y, left, BLUE), 12),
   ...both('trader', trader, 18),
 };
+
+// Version 9.3, Track B: the Quay in four looks and three states (registry.js runs this through withLooks): the wharf's own stone and mud, so only the shed's
+// walls follow the look; shut, its shed door is barred, the bales and jars are gone and the flag is down.
+export const TRADE_LOOKS = {};
+for (const side of ['s', 'n', 'e', 'w']) {
+  const S = SIDES[side], bounds = boundsFor(S.w, S.d, QUAY_HEIGHT, 24);
+  TRADE_LOOKS[`${QUAY_TYPE}.${side}`] = { ...lookSlot(S.w, S.d, QUAY_HEIGHT, [[0.1, 0.08, 0.7, 0.5, 9]], styled((g, x, y) => quay(g, x, y, side), { mud: true })), bounds, boundsFor: () => bounds };
+}
 
 // The slot a Track T building shows: a Quay facing its water ('quay.<side>'), else null.
 export const tradeSlot = (b, world) => (b.type === QUAY_TYPE && world ? `${QUAY_TYPE}.${wharfSide(world, b)}` : null);

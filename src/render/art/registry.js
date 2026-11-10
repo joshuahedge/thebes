@@ -4,20 +4,21 @@
 // and shadows as ground-shadow blocks relative to the origin tile. A slot can later point at a PNG by
 // replacing `draw` with `png: { src, ax, ay, scale }` (see spriteCache.js); nothing else changes.
 import { HOUSE_ART } from './housing.js';
-import { SERVICE_ART } from './services.js';
-import { INDUSTRY_ART } from './industry.js';
+import { SERVICE_ART, SERVICE_LOOKS } from './services.js';
+import { INDUSTRY_ART, INDUSTRY_LOOKS } from './industry.js';
 import { NATURE_ART } from './nature.js';
 import { FIGURE_ART } from './figures.js';
-import { DEFENCE_ART, RUBBLE_VARIANTS } from './defence.js';
+import { DEFENCE_ART, DEFENCE_LOOKS, RUBBLE_VARIANTS } from './defence.js';
 import { MONUMENT_ART } from './monuments.js';
-import { SUPPLY_ART, SUPPLY_TYPES, supplySlot } from './supply.js';
+import { SUPPLY_ART, SUPPLY_LOOKS, SUPPLY_TYPES, supplyBase } from './supply.js';
 import { PLAZA_ART, plazaEdges, sphinxFacing } from './plaza.js';
 import { PALACE_ART } from './palace.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
 import { S46_ART, s46Slot } from './s46.js';
 import { S47_ART } from './s47.js';
 import { V70_ART, v70Slot } from './v70.js';
-import { FERRY_ART } from './ferry.js';
+import { TRADE_LOOKS } from './trade.js';
+import { FERRY_ART, FERRY_LOOKS } from './ferry.js';
 import { BUILDINGS } from '../../data/buildings.js';
 import { lookOfBuilding, LOOKS } from '../looks.js';
 
@@ -53,7 +54,7 @@ function baseSlotFor(b, world) {
   if (v70) return v70;
   if (b.type === 'house') return b.large === true && b.tier === 0 ? 'house.lot' : `house.t${b.tier}`;   // Version 6.0 (Track C): an empty Large plot is drawn as a marked lot
   if (b.type === 'palace') return `palace.s${b.style || 0}${b.works ? '.w' : ''}`;   // spec 4.20; live monuments are their type
-  if (SUPPLY_TYPES.includes(b.type)) return supplySlot(b);
+  if (SUPPLY_TYPES.includes(b.type)) return supplyBase(b);   // 9.3 Track B: idle is the shut state now, not a slot of its own
   if (b.type === 'plaza') return world ? `plaza.e${plazaEdges(world, b)}` : 'plaza';
   if (b.type === 'sphinx') return world ? `sphinx.f${sphinxFacing(world, b)}` : 'sphinx';
   if (b.type === 'rubble') return `rubble.v${b.id % RUBBLE_VARIANTS}`;
@@ -100,6 +101,13 @@ export const homeVariant = (b) => (((b.x * 73856093) ^ (b.y * 19349663)) >>> 0) 
 export function serviceState(b) {
   const workers = (BUILDINGS[b.type] && BUILDINGS[b.type].workers) || 0;
   if (workers === 0) return b.paused ? 'shut' : 'work';   // a building that needs nobody (a well) is never short
-  if (b.paused || !(b.staff > 0)) return 'shut';
+  if (b.paused || !(b.staff > 0) || b.blocked === 'idle') return 'shut';   // 9.3 Track B: a supply building no site needs (blocked 'idle') employs nobody and is shut
   return b.staff < workers ? 'short' : 'work';
 }
+
+// ---- Version 9.3, Track B: services and workshops in four looks and three states ----
+// Each of these art files exports a table whose draws take opt = { look, state }; it is expanded here (after EXPANDED above exists: the art files cannot call
+// withLooks themselves, they are imported before it) into '<base>.l<look>.<state>' slots, which slotFor then names. The old plain and stage keys ('granary.s2',
+// 'storehouse.s1', 'potter', ...) stay as they were for cards and older callers; '<type>.idle' now resolves to the Town look shut.
+for (const table of [SERVICE_LOOKS, INDUSTRY_LOOKS, DEFENCE_LOOKS, SUPPLY_LOOKS, TRADE_LOOKS, FERRY_LOOKS]) Object.assign(ART, withLooks(table, { states: true }));
+for (const type of SUPPLY_TYPES) ART[`${type}.idle`] = ART[type === 'brickworks' ? 'brickworks.s1.l1.shut' : `${type}.l1.shut`];
