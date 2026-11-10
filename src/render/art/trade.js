@@ -81,6 +81,10 @@ export function tradeBoat(g0, gx, gy, left = false, moored = false) {
   if (!moored) for (const k of [1, 2]) g.ell([X - 13 - k * 3, Y + 0.4], 2.6 + k, 0.8 + k * 0.2, TERRAIN.foam, { alpha: 0.4 - k * 0.12 });   // the wake
   g.path([['M', [X - 13, Y - 6.4]], ['Q', [X - 9, Y + 1.6], [X, Y + 1.6]], ['Q', [X + 9, Y + 1.6], [X + 13.4, Y - 4]],
     ['Q', [X + 7, Y - 1.6], [X, Y - 1.6]], ['Q', [X - 8, Y - 1.6], [X - 13, Y - 6.4]], ['Z']], PLANK[0], { outline: true });
+  g.path([['M', [X - 12.2, Y - 4.6]], ['Q', [X - 9, Y + 0.9], [X, Y + 0.9]], ['Q', [X + 9, Y + 0.9], [X + 12.8, Y - 2.8]],                            // Version 9.3 (Track N): the hull's shaded lower strake,
+    ['Q', [X + 8, Y - 0.1], [X, Y - 0.1]], ['Q', [X - 8, Y - 0.1], [X - 12.2, Y - 4.6]], ['Z']], PLANK[2], { alpha: 0.6 });                              // a lit gunwale and the dark water under it
+  g.stroke([['M', [X - 12.6, Y - 6]], ['Q', [X - 8, Y - 1.8], [X, Y - 1.8]], ['Q', [X + 8, Y - 1.8], [X + 13, Y - 4]]], '#F3DDB0', 0.6, 0.8);
+  g.stroke([['M', [X - 12, Y + 1.8]], ['Q', [X, Y + 3.2], [X + 12, Y + 1.8]]], '#1E6A7C', 1.2, 0.35);
   g.stroke([['M', [X - 13, Y - 6.4]], ['Q', [X - 15, Y - 9], [X - 12.6, Y - 9.6]]], PLANK[2], 1.2);                       // the curled stern post
   g.line([X - 11.6, Y - 3.2], [X + 12.4, Y - 3.4], PLANK[2], 0.6, 0.9);
   for (const dx of [-7, -2, 3, 8]) g.line([X + dx, Y + 1.2], [X + dx + 0.3, Y - 1.4], PLANK[1], 0.5);
@@ -108,6 +112,8 @@ export function tradeBoat(g0, gx, gy, left = false, moored = false) {
     g.path([['M', [X - 7.2, Y - 25.6]], ['L', [X + 10.4, Y - 26.4]], ['Q', [X + 12.2, Y - 16], [X + 9.8, Y - 6.8]], ['L', [X - 6.6, Y - 6.2]],
       ['Q', [X - 4.2, Y - 16], [X - 7.2, Y - 25.6]], ['Z']], '#F4EFE2', { outline: true });
     for (const k of [0.33, 0.66]) g.line([X - 6.4 + k * 0.2, Y - 25.6 + k * 19.6], [X + 10.4 - k * 0.4, Y - 26.4 + k * 19.6], '#D8CFB8', 0.4);
+    g.path([['M', [X + 1.6, Y - 26]], ['L', [X + 10.4, Y - 26.4]], ['Q', [X + 12.2, Y - 16], [X + 9.8, Y - 6.8]], ['L', [X + 1.4, Y - 6.4]], ['Z']], '#C9BCCD', { alpha: 0.5 });   // the sail's shaded half
+    g.stroke([['M', [X - 6.6, Y - 24.6]], ['Q', [X - 3.8, Y - 16], [X - 6, Y - 7]]], '#FFFFFF', 0.6, 0.6);
   }
   g.line([X + 1.4, Y - 27], [X + 13.4, Y - 4.4], ROPE, 0.3, 0.8);                                                      // the forestay
   g.poly([[X + 1.4, Y - 27], [X + 5.6, Y - 26.2], [X + 1.4, Y - 25]], BLUE);                                               // a streamer at the masthead

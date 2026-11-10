@@ -60,7 +60,9 @@ export function rubble(g, x, y, v = 0) {
   for (const [u, h] of steps) bx(u, 0.18, 0.14, 0.14, h + (v === 2 ? -0.8 : 0), 0, MUD2);
   g.line(P(0.15, 0.32, 2.6), P(0.66, 0.32, 1.4), BURNT, 0.6, 0.55);                 // scorch along its foot
   const ring = [[0.2, 0.66], [0.3, 0.44], [0.52, 0.38], [0.74, 0.46], [0.84, 0.66], [0.66, 0.86], [0.38, 0.84]];
+  g.ell(P(0.6, 0.86, 0), 10, 2.2, SHADOW, { alpha: 0.14 });                       // Version 9.3 (Track N, ruling 1926): the heap's cast shadow, and its lit crest below
   g.poly(ring.map(([u, w2]) => P(u, w2, 0)), HEAP[2], { outline: true });          // the heap's footing in shade
+  g.line(P(0.3, 0.46, 3.4), P(0.74, 0.46, 3.2), '#F3DDB0', 0.5, 0.6);
   g.poly(ring.map(([u, w2]) => { const d = Math.hypot(u - 0.52, w2 - 0.64); return P(u + (0.52 - u) * 0.2, w2 + (0.64 - w2) * 0.2, 2.6 - d * 3); }), HEAP[1]);
   g.poly([P(0.36, 0.56, 3.2), P(0.52, 0.5, 3.8), P(0.66, 0.58, 3.2), P(0.52, 0.7, 2.6)], HEAP[0]);
   const chunks = [[0.32, 0.6, 0.14, 0.1, 1.4, 2.2], [0.5, 0.52, 0.12, 0.12, 1.6, 2.8], [0.62, 0.66, 0.1, 0.14, 1.2, 1.8], [0.42, 0.72, 0.12, 0.08, 1, 1.4]];
@@ -303,6 +305,7 @@ export function shell(g, x, y, cause, mask, tall, v = 0) {
   };
   for (const edge of [0, 1]) if (mask & (1 << edge)) for (let i = 0; i < 3; i++) stub(edge, i, false);   // the back walls first
   const ring = [[0.2, 0.62], [0.3, 0.4], [0.52, 0.34], [0.74, 0.42], [0.84, 0.62], [0.68, 0.84], [0.4, 0.84]];
+  g.ell(P(0.6, 0.86, 0), 10, 2.2, SHADOW, { alpha: fire ? 0.2 : 0.14 });                          // Version 9.3 (Track N, ruling 1926): the heap's cast shadow
   g.poly(ring.map(([u, w2]) => P(u, w2, 0)), HP[2], { outline: true });                           // the heap's footing in shade
   g.poly(ring.map(([u, w2]) => { const d = Math.hypot(u - 0.52, w2 - 0.62); return P(u + (0.52 - u) * 0.18, w2 + (0.62 - w2) * 0.18, (fire ? 3.4 : 2.2) - d * 3); }), HP[1]);
   g.poly([P(0.38, 0.54, 3.6), P(0.54, 0.48, 4.2), P(0.68, 0.56, 3.6), P(0.54, 0.68, 3)], HP[0]);

@@ -11,6 +11,7 @@ import { FARM_TYPES, farmStage } from './stages.js';
 import { SEASON_IDS, SEASON_LOOK } from '../../data/seasons.js';
 import { seasonAt } from '../../sim/seasons.js';
 import { p, hs } from './primitives.js';
+import { SHADOW } from './palette.js';
 
 // The field's tiles (offsets in the farm's 2x2) a mark may stand on, and how far across each: the farmhouse stands in the near corner of the
 // last tile, so that one keeps only its far third.
@@ -24,6 +25,7 @@ function wet(g, x, y) {
   for (const [i, j, reach] of FIELD) {
     const c = p(x + i + 0.3 + 0.2 * reach, y + j + 0.3 + 0.2 * reach);
     g.ell(c, 6.2 * reach + 1, 2.3 * reach + 0.6, '#5FB6C4', { alpha: 0.42 });
+    g.stroke([['M', [c[0] - 5.6 * reach, c[1] + 0.8]], ['Q', [c[0], c[1] + 2.4 * reach + 0.6], [c[0] + 5.6 * reach, c[1] + 0.8]]], '#2E8C96', 0.8, 0.4);   // Version 9.3 (Track N): the pool's darker near rim
     g.line([c[0] - 2.4, c[1] - 0.2], [c[0] + 1.6, c[1] - 0.2], '#DDF4F1', 0.6, 0.7);
   }
 }
@@ -48,7 +50,9 @@ function gold(g, x, y, type) {
         g.circ([q[0] - 0.6, q[1] - 1.6], 0.5, '#A0588E');
         continue;
       }
+      g.ell([q[0] + 1.4, q[1] + 0.7], 3.6, 1, SHADOW, { alpha: 0.18 });                     // Version 9.3 (Track N, ruling 1927): a sheaf's cast shadow, a shaded right side
       g.poly([[q[0] - 2.2, q[1] + 0.6], [q[0] + 2.2, q[1] + 0.6], [q[0] + 0.5, q[1] - 5], [q[0] - 0.4, q[1] - 5]], '#E3B94A', { outline: true });
+      g.poly([[q[0] + 0.1, q[1] + 0.6], [q[0] + 2.2, q[1] + 0.6], [q[0] + 0.5, q[1] - 5], [q[0] + 0.1, q[1] - 5]], '#9A6A22', { alpha: 0.35 });
       g.line([q[0] - 1.6, q[1] - 1.4], [q[0] + 1.6, q[1] - 1.4], '#9A6A22', 0.6);
       g.line([q[0] - 0.4, q[1] - 5], [q[0] - 1.4, q[1] - 6.2], '#F6D46A', 0.6);
       g.line([q[0] + 0.5, q[1] - 5], [q[0] + 1.4, q[1] - 6.2], '#F6D46A', 0.6);
