@@ -9,20 +9,20 @@ import { BRIDGE_MAX } from '../../../src/sim/bridges.js';
 
 describe('v83 docs release: What\'s new for 8.3', () => {
   it('is the second entry with its merge commit 26dfa6d, and 8.2.1 below it carries its merge commit', () => {
-    const r = RELEASES[3];
-    expect([APP_VERSION, r.version, r.date, r.title, r.build]).toEqual(['9.1', '8.3', '2026-10-27', 'Lines', '26dfa6d'])   // Version 8.4: 8.3 keeps its last commit on main;
-    expect([RELEASES[4].version, RELEASES[4].title, RELEASES[4].build]).toEqual(['8.2.1', 'Easier ferries', '87b5ec3']);
-    expect([RELEASES[5].version, RELEASES[5].build]).toEqual(['8.2', 'c4bff18']);
+    const r = RELEASES[4];
+    expect([APP_VERSION, r.version, r.date, r.title, r.build]).toEqual(['9.2', '8.3', '2026-10-27', 'Lines', '26dfa6d'])   // Version 9.2: 8.3 keeps its last commit on main;
+    expect([RELEASES[5].version, RELEASES[5].title, RELEASES[5].build]).toEqual(['8.2.1', 'Easier ferries', '87b5ec3']);
+    expect([RELEASES[6].version, RELEASES[6].build]).toEqual(['8.2', 'c4bff18']);
   });
   it('says the crossings, Keep stocked, Supply lines, the far guilds and the camp, each note one plain sentence', () => {
-    const r = RELEASES[3], text = [...r.new, ...r.fixed].join(' ');
+    const r = RELEASES[4], text = [...r.new, ...r.fixed].join(' ');
     for (const words of ['bridge over up to 4 tiles', 'ferry over 5 to 12', 'the bar says why', 'Crossing card', 'Keep stocked', 'Fetch is now', 'Takes in', 'pick on the map', 'Supply lines', 'amber and dashed', 'Builders\' guilds', 'down to half speed', 'workers\' camp', 'a tenth', 'full speed', 'can\'t be undone'])
       expect([words, text.includes(words)]).toEqual([words, true]);
     for (const line of [...r.new, ...r.fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
     expect(/ruling|track [a-z]\b|\b1[0-9]{3}\b/.test(text.toLowerCase())).toBe(false);
   });
   it('says what the sim does: the limits, the full-speed distance, the floor and the camp\'s share', () => {
-    const text = RELEASES[3].new.join(' ');
+    const text = RELEASES[4].new.join(' ');
     expect([BRIDGE_MAX, text.includes(`bridge over up to ${BRIDGE_MAX} tiles`)]).toEqual([4, true]);
     expect([FERRY.min, FERRY.max, text.includes(`ferry over ${FERRY.min} to ${FERRY.max}`)]).toEqual([5, 12, true]);
     expect([MONUMENT.crewReach, text.includes(`full speed within ${MONUMENT.crewReach} road tiles`)]).toEqual([12, true]);

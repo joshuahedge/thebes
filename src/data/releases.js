@@ -9,11 +9,36 @@
 
 export const RELEASES = [
   {
-    version: '9.1', date: '2026-11-08', title: 'First hours', build: 'live',
+    version: '9.2', date: '2026-11-10', title: 'A city you can read', build: 'live',
+    new: [
+      'The lesson\'s raid comes in from the south, so the tower, the target and the raiders fit on a phone from the first moment. A road that does not start at the marked end is refused, and the bar says where to start.',
+      'In any city, a piece of road that joins nothing is outlined in amber and says so. The lesson now ends on a card with your city\'s numbers and what you learned: Keep building this city or Start my own city.',
+      'Alerts roll up by cause: one row for every unstaffed workplace or every fire, and View steps through them. The Minimap sheet opens with Fix these first, the top three of City advice.',
+      'The court sends one letter at a time, five to eight months apart, and each request or demand now weighs twice as much on its favour.',
+      'On a wide screen the goals sit in the side panel above the minimap. Zoomed far out, a cause shows one marker instead of one for every building.',
+      'Screenshot mode is now in Options, under Display, and keeps a small Show interface button. The debt sheet says why a lever is closed, with Show me where there is something to show.',
+      'Score v3: a term that has not started counts nothing, so a new village is no longer close to Bronze. Fire safety counts from Town and defence from the raid clock, and the score sheet says so.',
+      'The Villa pays more tax, and Great City has a new goal: open a route that sells a luxury. A monument site you have not looked at for a month gets one reminder.',
+      'Titles and heirs are retuned: the Builder needs 8,000 monument units and the Merchant a quarter of the bills paid by trade. The Unconquered\'s heir sees every raid warning 15 days sooner; the Generous heir\'s taxes are 2% lower.',
+      'Pass the throne shows a sealed-ruler card first, and nothing is sealed until the heir\'s Start. An heir starts with no guide, on the sealed city\'s layout. The title shows your Best reign, and Rulers rows lead with the name.',
+      'Pinch zoom works on a phone, and Options has a 200% text step. A sheet opened from the keyboard takes focus, a confirm holds focus until you answer, and the minimap moves with the arrow keys.',
+      'At large text the Layers legend, the tip and the lesson show their words, the rail names each icon, and small coloured words are darker so they read on parchment.',
+      'One name per thing: map number, pleasantness, Great City and Skip the lesson read the same everywhere, and What\'s new no longer prints a build.',
+      'Far roads and plots are easier to read, burnt rubble shows a charred wall and bricks, and the score chip wears a medal. The Health layer edges a home in a solid line when a physician reaches it and a dashed one when none does.',
+      'Fit the city, with F or the Minimap\'s button, zooms out to show every building, and a city opens framed.',
+    ],
+    fixed: [
+      'A confirm opened from a sheet gives focus back to where you were, and Screenshot mode keeps focus when you enter or leave it.',
+      'A lost raid\'s line says the raid got through and that staffed towers stop it, instead of quoting the treasury.',
+      'The end card shows both choices at 150% text on a phone, and a long ruler\'s name wraps instead of ending in dots.',
+    ],
+  },
+  {
+    version: '9.1', date: '2026-11-08', title: 'First hours', build: '42b1dce',
     new: [
       'The lesson now hands you a Village city with no surprise raid. A marker shows where to lay the first road, and the waits are shorter: the raid step runs at triple speed, then double, and its card says so.',
       'Toasts that only repeat what you just did no longer pile up in Messages, and the goals your city already meets at the hand-over complete quietly.',
-      'Your first own city starts on the classic river, and Surprise me comes from the second. I\'ve played before skips the lesson and starts a city at once.',
+      'Your first own city starts on the classic river, and Surprise me comes from the second. Skip the lesson starts a city at once.',
       'A loading screen shows while the game starts and says so when the connection is slow. If something breaks, a card keeps your city safe and offers Reload, Export this city and Copy the details. Nothing is sent anywhere.',
       'When gold runs out, the debt sheet\'s Back to gold lists what the month costs, the dearest kinds of building with a Pause for each, and how many months the fix gives you.',
       'About, in Options, says who made the game ("Made by Josh"), that all rights are reserved, and that nothing is sent anywhere.',

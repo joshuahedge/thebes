@@ -1934,3 +1934,143 @@ Josh asked for broad polish after 9.0 and for fewer refunds in a store's first w
 ### The controller
 
 1740. No bundled build in 9.1 (Josh, 8 Nov 2026: "No, ship without"): P1 misses at 16.6 s, and one bundle would give an estimated 8-10 s while the boot alone is 6.7 s at 4x; smaller JS and a cheaper boot come first. — Cost if wrong: a slow first load on a phone until the next release.
+
+## Part 29: Version 9.2 "A city you can read" (10 Nov 2026)
+
+The two design reviews of 9.1 (8 Nov) came before new content, so the weekly decree moves to 9.3. The design is specs/2026-11-08-thebes-version-9-2-design.md; the full text of each ruling is in notes/2026-11-08-version-9-2-rulings-<track>.md (w0, l, q, s, d, a, w, v, balance, fl, fa, fw). One line each here, in number order; gaps say "unused".
+
+1750. Wave 0 adds seams only (the roll-up shape, the court's gate, score v3's slot, the text sections, the rigs); the suite passes as on 9.1. — Cost if wrong: a seam that changes behaviour moves a 9.1 pin before any track owns it.
+1751. No world-version bump (WORLD_VERSION stays 12): every new world field is optional and absent means today's behaviour. — Cost if wrong: old saves refuse to open or a migration is needed late.
+1752. SCORE_VERSION 3 is flipped by Track S with the formula, not by wave 0. — Cost if wrong: a best is labelled "older scoring" while its formula is unchanged.
+1753. The six-year Capital fixture is built once per suite run from `runCapital(72, { dangers: true })`; tests that change it take a fresh copy. — Cost if wrong: a test that changes the shared world leaks into the next.
+1754. D13 moves from Track L to Track D (the Pass's files, `passSheet.js` and `boot.js` `startHeir`). — Cost if wrong: Tracks L and D both edit `boot.js` and merge badly.
+1755. The end card (the city's numbers, one line per thing learned, Keep building this city, Start my own city) ends both lesson paths; it waits for a sheet, the confirm or a step card, and Back closes it with the row's What next? to bring it back. — Cost if wrong: a player who closes it by Back needs one tap more.
+1756. The month step stores its entry month on the lesson world (`lessonMonth0`, never saved) and counts two months from it; its wait grows by 30 days. — Cost if wrong: a longer wait (the lesson waits test is re-pinned).
+1757. In the lesson a road drag begins at the end of the road (a start further off is refused in the bar); in every city a piece of road that joins no road, edge or building gets the roadless plots' amber outline, a badge and a toast. — Cost if wrong: a free player who lays roads ahead of plots sees amber until the first building touches one.
+1758. Services rank ahead of safety until Town (`priorityOrder`); from Town 9.1's order. — Cost if wrong: a Village's firehouse is staffed later; balance scenes with a firehouse in a Village move.
+1759. At the hand-over the tips about what the lesson placed or met are marked seen (`LESSON_TAUGHT_TIPS`). — Cost if wrong: a player who skipped a part never sees that tip (How to play has it).
+1760. Swift Town is judged on day 300 (was 720); the scripted city becomes a Town on day 180. — Cost if wrong: a plain good start misses a feat it used to earn at 690 days.
+1761. The raid step's frame follows the band, pulls out to hold tower, target and band, and on a phone puts the band first leaning to the tower; the scrim has two holes and the tower wears a ring. — Cost if wrong: the camera moves a few times in a 25-second step.
+1762. The fire step plays at 1x until the camera has settled on the blaze, then returns to the player's speed. — Cost if wrong: none (a second or two at 1x).
+1763. Esc on a lesson card means Leave (with its question); Enter and Space stay Go. — Cost if wrong: a player who presses Esc to dock the card gets a question.
+1764. The lesson row is the bold instruction and its count; Ipi's why is behind More. — Cost if wrong: one more control in the row.
+1765. Chapter 2's card says "About four in ten people here will work." (from `ECONOMY.workerShare`). — Cost if wrong: none.
+1766. After the hand-over the tips wait until the goal in view is done and 600 game days have passed, never beyond 1,800 days. — Cost if wrong: tips come ten to thirty minutes later in a first city.
+1767. A short workplace's alert names who took its workers: the kind of building holding the most workers on the level just ahead of its own. — Cost if wrong: a wrong building named when two levels both compete.
+1768. The lone-road predicate lives in `src/sim/loneRoad.js` (memoised, never saved); a road reaching the map's edge counts as joined. — Cost if wrong: a road to the edge that goes nowhere is not marked.
+1769. The homes step stays at six plots (only seven fit on the road's west side). — Cost if wrong: the lesson city runs a little short of workers in chapters 4 and 5.
+1770. Nine plots dropped (controller): D1's labour order already removes the bazaar's shortage they were for. — Cost if wrong: the same short workers in chapters 4 and 5.
+1771. The post-hand-over tip hold's 1,800-day cap is accepted. — Cost if wrong: a player who ignores the goal for half an hour gets tips again.
+1772. The month step plays at 2x and says "at double speed", so its wait is 19.5 s at the walk-through's pace. — Cost if wrong: a player who changes speed during the step waits longer; the step still ends.
+1773. Unused.
+1774. Unused.
+1775. Alerts roll up by cause (`rollUpAlerts`, one row per code with its count and ids); the flat per-building list stays for markers and advice; letters and one-off notices never merge. — Cost if wrong: two different reasons under one code read as one problem, and View steps through the lot.
+1776. The Map badge counts rows; the Minimap sheet opens with City advice's top three under Fix these first, then the rows; View on a rolled row steps through its buildings. — Cost if wrong: a phone player with one row per fire sees one badge number less than before.
+1777. One gate over the four letter streams (`letterGate`, optional): one letter at a time, 5 to 8 months apart, the stream served longest ago first, each open letter holding the gate for at most 6 months. — Cost if wrong: an old city gets its first letter on the old schedule and the gate from then on.
+1778. The goals strip and rank bar move into the side panel above the minimap on the wide layout while the panel is unfolded. — Cost if wrong: a folded panel on a wide screen shows the strip over the map again.
+1779. The far zoom for markers is 0.6 and under: one badge per rolled row on its frontmost building, one for homes about to lose a tier, no footprint rings. — Cost if wrong: at 0.6 a city shows a count where it showed single badges.
+1780. The ring's white halo is lighter at every zoom. — Cost if wrong: a ring is harder to see on pale ground.
+1781. Unused (reserved).
+1782. Unused (reserved).
+1783. Unused (reserved).
+1784. Unused (reserved).
+1785. Unused (reserved).
+1786. Unused (reserved).
+1787. Unused (reserved).
+1788. Unused (reserved).
+1789. Unused (reserved).
+1790. Unused (reserved).
+1791. Screenshot mode moves into Options > Display; Share score stays. — Cost if wrong: a player who knew the menu entry looks in Options.
+1792. Interface tidies: one badge to a tray card, the card shows the price alone, toasts are parchment with an ink outline, Options is Sound, Display, Controls, Help, Saves, About, New city's replace note is amber. — Cost if wrong: a test or a habit that read the upkeep line on a card.
+1793. The debt sheet's closed levers say why, with Show me only where there is something to show. — Cost if wrong: a reason the sim cannot tell apart reads as the nearer one.
+1794. Toasts never stack: a toast of a group never shows beside another of it, and one that waits shows once when there is room (the install ask waits). — Cost if wrong: the install ask on a phone shows later than its 12 s window suggests.
+1795. Score v3: a term that has not started counts nothing and is out of its part's ceiling; growth runs to the Seat; Monuments divide by every kind's prestige (1,280). — Cost if wrong: the score reads lower than v2 for the same city (Capital 338 against 360), so a Bronze is harder.
+1796. Medals 240, 320 and 400 of 500 (v2: 200, 300, 400; v1 and v2 keep theirs by version). — Cost if wrong: Gold at 400 is out of reach of every scripted run (best 353).
+1797. SCORE_VERSION 3, the share link writes `t3`; `t2` and `t1` open as "older scoring". — Cost if wrong: a friend on 9.1 cannot open a `t3` link ("newer format").
+1798. Villa tax 6 to 7. — Cost if wrong: Villas pay 17% more, so a late treasury is a little easier.
+1799. Peaceful's defence never starts (ceiling 460 raw), so its medals are no longer free. — Cost if wrong: Peaceful's Gold needs 87% of a lower ceiling.
+1800. Superseded by 1810: the middle monuments' shorter durations (small mastaba 72, colossus 42 crew-months) were undone. — Cost if wrong: none (superseded).
+1801. Great City goal "Open a route that sells a luxury" (`luxury_route`), met by `world.tally.luxuryBought`. — Cost if wrong: a route with no Buy order leaves it open (the why line says to set one).
+1802. The Unconquered's weakness: every raid warning 30 days sooner (9.0: the first only); changed to 15 by 1858. — Cost if wrong: later raids come sooner for the heir for the whole reign.
+1803. The Generous's lasting cost: taxes x0.95 at every rate; changed to x0.98 by 1859. — Cost if wrong: a lower tax for the whole reign.
+1804. The Builder's bar 4,600 to 8,000 monument units. — Cost if wrong: the Builder is rare; no scripted run earns it.
+1805. The Merchant's bar 0.40 to 0.25. — Cost if wrong: a city that trades modestly now earns it.
+1806. Peaceful's words say what still comes, rarer ("No raids, sickness or thefts. Low Niles, locusts and fires still come, rarer."), from `HAZARD_LEVELS`. — Cost if wrong: none (words).
+1807. A monument site whose sheet has not been opened for a month gets one caption, once until it is opened again. — Cost if wrong: a site left alone on purpose gets one reminder a month after each look.
+1808. The health "crowded" term is dropped from the daily risk (it was true of every home of every tier); the plague keeps its own use. — Cost if wrong: grand homes catch illness at 0.15 a day where they caught 0.45, so late illness is rarer.
+1809. The score chip's explainer shows each part against its ceiling and one line for each term not started. — Cost if wrong: none.
+1810. (Controller.) The middle monuments keep 9.1's durations (108 and 48 crew-months): shortening them cascaded through every scripted run. — Cost if wrong: the design's D7 is not answered; a later track can shorten one at a time.
+1811. The two v70 "Keep at least keeps the great temple's offerings" tests test something again (the great-work run is won as in 9.1). — Cost if wrong: none.
+1812. The score does not fall when a term starts; the scripted Town-to-Market-town dip is the Culture part's staffing flicker, and a test checks the score with the clock never under the score without it. — Cost if wrong: none for the formula.
+1813. The City summary's part bars draw each part against its own ceiling under v3; a score with no ceilings is drawn against 100. — Cost if wrong: none (display only).
+1814. Review of the diff: the plague's rules keep `crowdedPerTile`, and the trait, difficulty, explainer and luxury-goal words were checked against the sim. — Cost if wrong: none.
+1815. The sealed-ruler card is a sheet kind `passSealed` between the Pass sheet and the heir card; nothing is sealed until the heir card's Start. — Cost if wrong: one extra tap before the heir's city.
+1816. An heir's city starts with no beginner's guide, on the sealed city's layout (Surprise me when it is not offered). — Cost if wrong: a returning player who wants the guide has Resume guide in How to play.
+1817. The heir's first screen has one voice (Ipi's line); the "is remembered as" toast is gone and the install ask waits for the first month end. — Cost if wrong: the ask lands a month later than before.
+1818. A Rulers row is headed by the cartouche on its own line, drawn once (`cartouche.js`); a name of 16 characters or more is `long`. — Cost if wrong: a 15-character line may still be tight at 150%.
+1819. The title's record line is "Best reign" with the score and the medal of the best's own version. — Cost if wrong: a player with several bests cannot tell them apart by line.
+1820. The install ask appears once, at the top of the Rulers list. — Cost if wrong: none (the heir's toast is held, not removed).
+1821. Unused.
+1822. Unused.
+1823. Unused.
+1824. Unused.
+1825. The confirm dialog is a real modal: Cancel takes focus once, Tab cycles, closing returns focus to the opener, `z-index: 100`. — Cost if wrong: a sheet that rebuilds the opener leaves focus on the body (fixed by 1875).
+1826. A sheet opened from the keyboard takes focus at its title and makes the chrome behind it inert; a sheet opened by a tap or click does not take focus in. — Cost if wrong: a mouse player using a screen reader gets no focus move on a click-opened sheet.
+1827. Words return at large text for the Layers legend, Goods supply, the tip's label and the lesson's label; the Ground legend's words and the cheer's why stay hidden. — Cost if wrong: Josh may want words under the top-bar pictures or the Ground title back.
+1828. A fourth text step, 200%, with its own mobile budget (70% of the height on a 667 px phone). — Cost if wrong: landscape phones at 200% are not budgeted.
+1829. Pinch zoom is allowed (the viewport no longer forbids it; the map canvas cancels iOS gestures). — Cost if wrong: an accidental two-finger touch on the bars can zoom the page.
+1830. Teal text is #1A5F57 and `TEXT_PAIRS` grows from 14 to 28, all at 4.5:1; small sizes scale with the text setting. — Cost if wrong: coral and amber words on parchment-3 are not listed.
+1831. The minimap canvas is a control (role, name, tabindex), and the arrow keys move the view by a sixteenth of the city. — Cost if wrong: some screen readers pass keys through.
+1832. The alerts' live region is two: `#live` polite and `#live-urgent` assertive. — Cost if wrong: a rig without the second element gets one made beside the first.
+1833. Screenshot mode keeps a small pinned Show interface button; `color-scheme` is light. — Cost if wrong: the button is in the picture of a screenshot.
+1834. The compact rail names each icon in a 12 px word inside the 56 px rail. — Cost if wrong: "Monuments" may clip a pixel or two on a wider font.
+1835. One name per thing, by the glossary in the Track W note (the lesson, Skip the lesson, City advice, the title screen, Layers, Options, Keep stocked, plot, tile, Great City, map number, pleasantness, Yr 1 Mo 3). — Cost if wrong: a name a player prefers is one string away.
+1836. A What's new heading prints the version and the date only; the build stays in Options and About. — Cost if wrong: none for a player.
+1837. The error card's "Where:" line is in the copied details only. — Cost if wrong: a bug report from a screenshot lacks it.
+1838. The short date is "Yr 1 Mo 3". — Cost if wrong: two tokens longer than "Y1 M3".
+1839. Map number, pleasantness and the prestige lock line, as in the glossary. — Cost if wrong: players who knew "seed" find "map number" once.
+1840. Figures typed into sentences are read from the data, each with a test that sets the data both ways. — Cost if wrong: a text getter that throws on a missing id.
+1841. T13: no player string in the words files is over 90 characters outside listed exemptions, and a second test fails if an exemption covers nothing. — Cost if wrong: a long function-built row can still slip in.
+1842. "Skip the lesson" replaces "I've played before"; older release notes keep the old label, and the docs step rewrites the newest. — Cost if wrong: a returning player learns a new label for a button they used twice.
+1843. Release notes before 9.1 are edited in place for the same words and cut where a sentence is no longer true or cannot be felt. — Cost if wrong: none.
+1844. How to play sentences a player cannot act on were cut; the leave-the-lesson confirm is one sentence. — Cost if wrong: none.
+1845. Track V is cut first if the weekly limit nears 90% before wave 3. — Cost if wrong: none (built).
+1846. Roads get a kerb shadow and a darker cart track, baked into the terrain chunk. — Cost if wrong: roads a shade busier at near zoom.
+1847. At the far zoom an unbuilt plot or monument site is a sand square with a shadow, not halo, string and stakes. — Cost if wrong: a far plot reads less like "pegged out".
+1848. Burnt rubble is a soot patch, a charred wall stump and seven blackened bricks. — Cost if wrong: the stump is hidden where a front neighbour stands over it.
+1849. The Health layer draws a home's footprint edge solid when a staffed physician reaches it and dashed when none does; the ring and dot go. — Cost if wrong: a busier map in a big city.
+1850. Fit the city: `cityBounds`, `fitCamera` and `frameCity` zoom to every building, never in past zoom 1; the Map button's double tap and a key frame the city. — Cost if wrong: a double tap flickers the Minimap sheet shut and open.
+1851. The key is F (and Shift+F); Ctrl+F stays the browser's. — Cost if wrong: one line in `KEYS` moves it.
+1852. A city whose built area does not show at the opening zoom opens framed. — Cost if wrong: a very big city opens at the least zoom.
+1853. The score chip's icon is a medal. — Cost if wrong: none.
+1854. Cartouche headings wrap, balanced over two lines (superseding an ellipsis). — Cost if wrong: a taller heading on a very narrow row.
+1855. Track L's labour order moves no long run; the Steady pins that moved came from Track Q's court gate and were re-pinned as measured (superseded in part by 1866). — Cost if wrong: the long scripts are thin-margin, and Josh may want more favour per letter.
+1856. Superseded by 1866: the Steady's great-work run goes to -6,413 under Q and S together. — Cost if wrong: a careful player at the Seat can owe the court for a month or two.
+1857. A bug in the great-work script (the temple's footprint was never cleared), fixed in `greatWorkRun.js`. — Cost if wrong: none to the game.
+1858. The Unconquered's warning is 15 days sooner at every warning (was 30). — Cost if wrong: the weakness is half what the design said.
+1859. The Generous's taxes are x0.98 at every rate (was x0.95). — Cost if wrong: a 2% weakness is small; High's 1.15 is still the felt part.
+1860. Superseded by 1866: the careless city's dues. — Cost if wrong: none.
+1861. Numbers superseded by 1867: the Builder, no number changed. — Cost if wrong: the Builder's great work is late in the scripted run.
+1862. Numbers superseded by 1867: the Merchant, unchanged. — Cost if wrong: as 9.1's.
+1863. Numbers superseded by 1867: the Bountiful, unchanged. — Cost if wrong: as 9.1's.
+1864. The medals (240, 320, 400) hold on the merged code, month by month on the scripted capital run; no scripted run reaches Gold. — Cost if wrong: Gold stays out of reach of a scripted Capital (best 341).
+1865. (Controller.) Each request and demand is worth twice the favour, won or lost (`REQUESTS` and `DEMANDS` doubled). — Cost if wrong: one letter now moves favour 20 to 40 points, so the court's mood swings in bigger steps.
+1866. The Steady's runs re-pinned with 1865: the great work won on day 6,388 with 250 the lowest, B3 1.64, the late run's 2.54 years of profit. — Cost if wrong: the great-work run's lowest is thin (250).
+1867. The heirs re-measured with 1865: the Unconquered meets every target, the others as listed in the balance note. — Cost if wrong: the Builder's T1, met on 9.1, is missed.
+1868. The trait numbers re-tried and kept; the six-year Capital lists 13 alert rows (T5's bound is 12). — Cost if wrong: T5 is missed by one row on a city that never answers its letters.
+1869. The medals re-measured with 1865: the great-work run's sealed score is 352 (Silver). — Cost if wrong: none.
+1870. The lesson's raid comes in by its own entry on the south edge, (26, 47), so tower, target and band share a frame on a 375 px screen. — Cost if wrong: the raid always comes from the south and has less road to walk before the strike.
+1871. "Start my own city" opens the title's New city card on the classic river. — Cost if wrong: the front card's lesson note is not seen on that path.
+1872. The end card's order is the numbers line, the two choices over their hints, then the lines learned. — Cost if wrong: a player may act before reading what they learned.
+1873. The row's "n of m" chip sits before the step's words inside the clamped body. — Cost if wrong: the count reads between the label and the words.
+1874. A lost raid's line is "N people live here, with G gold. The raid got through; staffed towers stop it." — Cost if wrong: it no longer says "in the treasury".
+1875. A confirm opened from a sheet gives focus back to its opener's live successor after the sheet is rebuilt. — Cost if wrong: two rows with the same class and words give focus to the first.
+1876. The Minimap sheet's actions are +, - and Fit the city (key F) in both layouts; How to play names the button. — Cost if wrong: a third button in a row that wrapped at 200% text.
+1877. On the wide layout the Minimap sheet draws no minimap of its own, and the side panel keeps at least one card row and scrolls. — Cost if wrong: at 150% text the panel scrolls a little where it was clipped.
+1878. Screenshot mode focuses Show interface on entering and the Menu button on leaving. — Cost if wrong: a mouse user sees a focus ring only if the browser treats the focus as keyboard focus.
+1879. `createDialog` returns `destroy`, and Options' sections are labelled groups. — Cost if wrong: a screen reader's heading list still lacks the sections.
+1880. The Rulers rows wrap a long ruler name, balanced over two lines (superseding the ellipsis of 1818). — Cost if wrong: a row with a very long name is one line taller.
+1881. Several monument sites due their month caption at one month end get one caption naming the count. — Cost if wrong: the count says nothing of how far each is built.
+1882. The Health legend's two keys draw a 2 px edge, solid and dashed. — Cost if wrong: the swatch is a little heavier than the map's edge.
+1883. Ipi's bubble says the Generous heir as "Heir of the Generous. 20% more newcomers; taxes 2% lower." and drops "of the harvest" from the Bountiful's. — Cost if wrong: the bubble leaves out that High taxes take 1.15x.
+1884. The New city card's Peaceful line reads "No raids, sickness or thefts; rarer fires and Low Niles; buildings 20% cheaper." — Cost if wrong: locusts, also rarer, are left to the hint's full text.
