@@ -4867,7 +4867,10 @@ export const U93_TEXT = {
   // The end card
   endTitle: 'The decree ends',
   endLead: (mark) => `Six years are done. ${mark}.`,
-  total: (n) => `${n} of 600`,
+  // Under the total, as the score sheet's next-medal line: the scale and the decree's three medal bars (decreeMedals).
+  scale: (bars) => (Array.isArray(bars) && bars.length === 3
+    ? `Out of 600. ${['bronze', 'silver', 'gold'].map((m, i) => `${i ? SCORE_TEXT.medals[m].toLowerCase() : SCORE_TEXT.medals[m]} at ${bars[i]}`).join(', ')}.`
+    : 'Out of 600.'),
   medalWords: (medal) => (medal && SCORE_TEXT.medals[medal] ? `${SCORE_TEXT.medals[medal]} medal` : 'No medal'),
   newBest: 'A new best for this week',
   sameBest: 'Your best this week stands',

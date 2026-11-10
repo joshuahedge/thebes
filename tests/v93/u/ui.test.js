@@ -8,7 +8,8 @@ import { decreesOfWeek, weekKey } from '../../../src/ui/week.js';
 import { decreeTitleCard, decreeUnlocked, partsObject } from '../../../src/ui/v93/decree.js';
 import { renderRulers } from '../../../src/ui/v90/rulers.js';
 import { cardInfo, renderCards } from '../../../src/ui/cards.js';
-import { reasonText, U93_TEXT as U } from '../../../src/ui/text.js';
+import { reasonText, partBarLabel, U93_TEXT as U } from '../../../src/ui/text.js';
+import { decreeScore, decreeMedals } from '../../../src/sim/score.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { DEFAULT_MAP_SIZE } from '../../../src/data/map.js';
 import { titleAt, runAt, frame, waitFor, wait, MONDAY_47, MONDAY_48, MONDAY_50, WITH_TOWN } from './page.js';
@@ -36,7 +37,8 @@ describe('v93 u card: the title\'s decree card and its gate', () => {
     try {
       const card = b.root.querySelector('.decree-card');
       expect(Boolean(card)).toBe(true);
-      expect(card.querySelector('.decree-card-title').textContent).toBe(U.cardTitle);
+      expect(card.querySelector('h2').textContent).toBe(U.cardTitle);
+      expect(card.querySelector('.decree-go').classList.contains('primary')).toBe(true);   // the panel's go button, as the friend's-score panel's Start
       expect(card.querySelector('.decree-mark').textContent).toBe('Sea Peoples, week 47');
       expect(card.querySelector('.decree-twist').textContent).toContain(U.twists.sea_peoples);
       expect(card.querySelector('.decree-counts').textContent).toBe(U.counts(['sea_peoples']));
@@ -250,12 +252,20 @@ describe('v93 u end: the end card', () => {
     try {
       expect(t.kind()).toBe('decreeEnd');
       const sheet = t.root.querySelector('#sheet');
-      expect(/^[0-9]+ of 600$/.test(sheet.querySelector('.decree-total .total').textContent)).toBe(true);
-      expect(/medal$/.test(sheet.querySelector('.decree-total .medal').textContent)).toBe(true);
-      expect([...sheet.querySelectorAll('.decree-end-actions button')].map((b) => b.textContent)).toEqual([U.share, U.again, U.backToCity]);
-      expect(sheet.querySelectorAll('.decree-part').length).toBe(6);
-      expect(sheet.querySelector('.decree-part[data-part="bonus"] .part-name').textContent).toBe(U.bonusPart);
-      const actions = sheet.querySelector('.decree-end-actions'), parts = sheet.querySelector('.decree-parts');
+      // The score sheet's own parts (scoreUi.js scoreTotalLine and scorePartRow): the number, the medal with its dot class, a progress bar per part with its label.
+      const r = decreeScore(t.g().world);
+      const end = sheet.querySelector('.score-section.decree-end');
+      expect([end.querySelector('.score-total .score-number').textContent, end.querySelector('.score-total .medal').className, end.querySelector('.score-total .medal').textContent])
+        .toEqual([String(r.total), `medal ${r.medal || 'none'}`, U.medalWords(r.medal)]);
+      expect(end.querySelector('.next-medal').textContent).toBe(U.scale(decreeMedals(t.g().world)));
+      expect([...end.querySelectorAll('.actions button')].map((b) => [b.textContent, b.classList.contains('primary')])).toEqual([[U.share, false], [U.again, false], [U.backToCity, false]]);
+      expect(end.querySelectorAll('.score-parts .score-part').length).toBe(6);
+      const bonus = end.querySelector('.score-part[data-part="bonus"]');
+      expect([bonus.querySelector('.row span').textContent, bonus.querySelector('.part-bar').getAttribute('role'), bonus.querySelector('.part-bar').getAttribute('aria-label')])
+        .toEqual([U.bonusPart, 'progressbar', `${U.bonusPart}: ${r.parts.bonus} of 100`]);
+      expect(end.querySelector('.score-part[data-part="people"] .part-bar').getAttribute('aria-label')).toBe(partBarLabel('people', r.parts.people, 100));
+      expect([...end.querySelectorAll('h4')].map((h) => h.textContent)).toEqual([U.partsHead, U.rivalsHead]);
+      const actions = end.querySelector('.actions'), parts = end.querySelector('.score-parts');
       expect(Boolean(actions.compareDocumentPosition(parts) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);   // the choices are above the lines, as the lesson's end card has them
       expect(sheet.querySelector('.decree-counts').textContent).toBe(U.counts(['sea_peoples']));
       expect(sheet.textContent.includes('Pharaoh')).toBe(false);
@@ -286,10 +296,13 @@ describe('v93 u end: the end card', () => {
       g.ui.refresh();
       await frame();
       expect(t.kind()).toBe('decreeEnd');
-      const shown = Number(t.root.querySelector('#sheet .decree-total .total').textContent.split(' ')[0]);
+      const shown = Number(t.root.querySelector('#sheet .score-total .score-number').textContent);
       const rows = t.api.records.decrees();
       expect(rows.map((r) => [r.week, r.mark, r.score, r.tries])).toEqual([[W47, 'Sea Peoples, week 47', shown, 1]]);
       expect(t.root.querySelector('#sheet .decree-best').textContent).toBe(U.yourBest(shown, rows[0].medal));
+      const fresh = t.root.querySelector('#sheet .decree-new-best');   // marked as an earned feat is: the done tick, then the words, in the sheet's own ink
+      expect([fresh.classList.contains('small'), Boolean(fresh.querySelector('.tick')), fresh.textContent.endsWith(U.newBest)]).toEqual([true, true, true]);
+      expect(getComputedStyle(fresh).color).toBe(getComputedStyle(t.root.querySelector('#sheet .decree-best')).color);
       const shared = [];
       const was = Object.getOwnPropertyDescriptor(navigator, 'share');
       Object.defineProperty(navigator, 'share', { value: (d) => { shared.push(d.text); return Promise.resolve(); }, configurable: true });

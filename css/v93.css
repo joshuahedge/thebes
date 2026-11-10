@@ -1,38 +1,16 @@
-/* Version 9.3, Track U (the decree's interface; rulings 1975-1984). Everything here is sized in rem-like calc(... * var(--ui-scale)) as the other sheets are, so 150% and 200% text wrap and scroll, never clip. */
+/* Version 9.3, Track U (the decree's interface; rulings 1975-1984). The decree's screens are the game's own parts: the title's card is the friend's-score panel
+   (css/ui.css lists .decree-card beside .shared-score), the end card is the score sheet's .score-section (src/ui/scoreUi.js scoreTotalLine and scorePartRow),
+   the ruler-list rows are the ruler rows, and every line uses .small and .muted. What is left here is layout the game has no part for. */
 
-/* The title's decree card: inside the title buttons, after New city. */
-.decree-card { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; padding: 10px 12px; background: var(--parchment-2); border: 1px solid var(--ink-line); border-radius: var(--radius); text-align: left; }
-.decree-card-title { margin: 0; font-family: var(--serif); font-size: calc(17px * var(--ui-scale)); }
-.decree-card .decree-mark, .decree-sheet .decree-mark { margin: 0; font-size: calc(16px * var(--ui-scale)); color: var(--ink); font-family: var(--serif); }
-.decree-twists { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
-.decree-twist { font-size: calc(14px * var(--ui-scale)); line-height: 1.35; overflow-wrap: anywhere; }
-.decree-card p, .decree-sheet p, .decree-end p { margin: 0; overflow-wrap: anywhere; }
-.decree-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.decree-actions button { min-height: 44px; width: 100%; }
-.decree-unfinished { color: var(--ink); font-weight: 600; }
+/* The twists: one decree a line, no bullets. */
+.decree-twists { margin: 0; padding: 0; list-style: none; }
 
-/* The chip: the first row under the top bar, beside the date's column on a wide screen. */
-.decree-chip { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; max-width: 100%; min-height: 44px; padding: 4px 12px; pointer-events: auto; text-align: left; background: var(--parchment); border: 1px solid var(--ink-line); border-radius: 999px; box-shadow: var(--shadow); color: var(--ink); }
-.decree-chip .chip-year { font-weight: 700; white-space: nowrap; }
-.decree-chip .chip-mark { overflow-wrap: anywhere; color: var(--ink-soft); }
-.decree-chip:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
-body[data-layout="portrait"] .decree-chip { min-height: 36px; padding: 2px 10px; }
+/* The chip: the first row under the top bar, a button. It has the top bar's .score-chip look (its radius, teal-soft ground, ink and weight; #topbar .score-chip
+   in css/ui.css is scoped to the bar), with a tap target's height because it opens the decree card. */
+.decree-chip { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; max-width: 100%; min-height: 36px; padding: 2px 8px; pointer-events: auto; text-align: left;
+  border: 0; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-weight: 600; }
+.decree-chip .chip-year { white-space: nowrap; }
+.decree-chip .chip-mark { overflow-wrap: anywhere; }
 
-/* The first screen and the end card, in the shape of the lesson's end card: the numbers, the choices, then the lines under them. */
-.decree-sheet, .decree-end { display: flex; flex-direction: column; gap: 10px; }
-.decree-lead { font-weight: 600; }
-.decree-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
-.decree-total .total { font-family: var(--serif); font-size: calc(26px * var(--ui-scale)); }
-.decree-end-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
-.decree-end-actions button, .decree-sheet .actions button { min-height: 44px; }
-.decree-new-best { color: var(--teal); font-weight: 600; }   /* --teal-ink is the white for text on teal */
-.decree-end h3 { margin: 6px 0 0; }
-.decree-parts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.decree-part { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) 3ch; align-items: center; gap: 8px; }
-.decree-part .part-name { overflow-wrap: anywhere; }
-.decree-part .part-number { text-align: right; }
+/* The rivals on the end card: a short list under its h4. */
 .decree-rivals { margin: 0; padding-left: 18px; }
-
-/* The ruler list's decree rows. */
-.decree-row .decree-row-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.decree-row .decree-row-mark { overflow-wrap: anywhere; font-family: var(--serif); font-size: calc(16px * var(--ui-scale)); }

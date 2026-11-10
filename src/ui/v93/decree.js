@@ -4,14 +4,15 @@
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { DECREES } from '../../data/decrees.js';
 import { decreeEnded } from '../../sim/rules.js';
-import { decreeScore, splitMonths } from '../../sim/score.js';   // decreeScore: Track R
+import { decreeScore, decreeMedals, splitMonths } from '../../sim/score.js';   // decreeScore and decreeMedals: Track R
+import { scoreTotalLine, scorePartRow } from '../scoreUi.js';   // the score sheet's own total line and part rows
 import { decreeLink, decreeShareText } from '../share.js';   // Track S
 import { dateParts } from '../../sim/clock.js';
 import { setSpeed } from '../../sim/commands.js';
 import { el, button } from '../components.js';
 import { seamBase } from '../s46/seam.js';
 import { openSheet } from '../modes.js';
-import { U93_TEXT as U, SCORE_TEXT } from '../text.js';
+import { U93_TEXT as U, T, progressText } from '../text.js';
 import { sideBySide } from '../v90/sideBySide.js';
 
 const PART_IDS = [...SCORE_PARTS, 'bonus'];
@@ -58,14 +59,14 @@ export function decreeUnlocked(records) {
 
 // ---- the card --------------------------------------------------------------------------------------------------------------------------------------------------
 
-// What the decree does and what its bonus counts: the mark, each decree's twist, the bonus line.
-export function decreeFacts({ ids, week, headingLevel = 'h3' }) {
+// What the decree does and what its bonus counts: the mark, each decree's twist, the bonus line. mark: the mark's own node (the sheet's h3, the title panel's strong line).
+export function decreeFacts({ ids, week, mark = (text) => el('h3', { class: 'decree-mark', text }) }) {
   return [
-    el(headingLevel, { class: 'decree-mark', text: U.markOf(ids, week) }),
+    mark(U.markOf(ids, week)),
     el('ul', { class: 'decree-twists' }, ids.filter((id) => DECREES[id]).map((id) => el('li', { class: 'decree-twist', dataset: { decree: id } }, [
       el('strong', { text: `${U.names[id]}. ` }), el('span', { text: U.twists[id] }),
     ]))),
-    el('p', { class: 'decree-counts small', text: U.counts(ids) }),
+    el('p', { class: 'decree-counts small muted', text: U.counts(ids) }),
   ];
 }
 
@@ -77,18 +78,18 @@ export function decreeTitleCard({ week, ids, records = null, slot = null, onStar
   const live = Boolean(slot) && !slot.ended;
   const otherLive = live && !sameWeek;
   const label = sameWeek && live ? U.continue : (sameWeek && slot.ended) || best ? U.again : U.start;
-  const go = button(label, { class: `decree-go ${sameWeek && live ? 'continue-decree' : best || (sameWeek && slot.ended) ? 'again-decree' : 'start-decree'}`, onClick: () => (sameWeek && live ? onContinue(slot) : onStart()) });
+  // The go button is the panel's primary, as the friend's-score panel's Start on this map is (src/ui/scoreUi.js titleDecor).
+  const go = button(label, { class: `decree-go primary ${sameWeek && live ? 'continue-decree' : best || (sameWeek && slot.ended) ? 'again-decree' : 'start-decree'}`, onClick: () => (sameWeek && live ? onContinue(slot) : onStart()) });
   const id = 'decree-card-head';
+  // The title's panel look is the friend's-score panel's (.shared-score in css/ui.css, which lists .decree-card beside it): a small heading, plain lines, small muted notes.
   return el('section', { class: 'decree-card', role: 'group', 'aria-labelledby': id }, [
-    el('h2', { id, class: 'decree-card-title', text: U.cardTitle }),
-    ...decreeFacts({ ids, week }),
-    el('p', { class: 'decree-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
-    rival ? el('p', { class: 'decree-rival small muted', text: U.rivalLine(rival.name, rival.score) }) : null,
+    el('h2', { id, class: 'small', text: U.cardTitle }),
+    ...decreeFacts({ ids, week, mark: (text) => el('p', { class: 'decree-mark' }, [el('strong', { text })]) }),
+    el('p', { class: 'decree-best your-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
+    rival ? el('p', { class: 'decree-rival rival-line', text: U.rivalLine(rival.name, rival.score) }) : null,
     otherLive ? el('p', { class: 'decree-unfinished small', text: U.unfinished(slot.week) }) : null,
-    el('div', { class: 'decree-actions' }, [
-      go,
-      otherLive ? button(U.continue, { class: 'decree-continue-old', 'aria-label': `${U.continue}: ${U.unfinished(slot.week)}`, onClick: () => onContinue(slot) }) : null,
-    ]),
+    go,
+    otherLive ? button(U.continue, { class: 'decree-continue-old', 'aria-label': `${U.continue}: ${U.unfinished(slot.week)}`, onClick: () => onContinue(slot) }) : null,
   ]);
 }
 
@@ -138,7 +139,7 @@ export function createDecreeUi(ctx) {
     const first = !begun;
     const go = button(first ? U.begin : U.close, { class: 'decree-begin primary', onClick: () => { begun = true; close(); if (first && ctx.speedControl) ctx.speedControl.set(1); } });
     body.append(el('div', { class: 'decree-sheet' }, [
-      ...decreeFacts({ ids: decree.ids, week: decree.week, headingLevel: 'h3' }),
+      ...decreeFacts({ ids: decree.ids, week: decree.week }),
       el('p', { class: 'decree-length small muted', text: U.length }),
       el('div', { class: 'actions' }, [go]),
     ]));
@@ -159,23 +160,25 @@ export function createDecreeUi(ctx) {
       const clip = given('clipboard', () => nav().clipboard || null);
       if (clip && clip.writeText) clip.writeText(text).then(() => toasts.show(U.shared), () => {});
     } });
-    const again = button(U.again, { class: 'decree-again primary', onClick: () => { close(); run.again(); } });
+    const again = button(U.again, { class: 'decree-again', onClick: () => { close(); run.again(); } });
     const back = button(U.backToCity, { class: 'decree-back', onClick: () => run.back() });
-    const lines = el('ul', { class: 'decree-parts' }, PART_IDS.map((p) => el('li', { class: 'decree-part', dataset: { part: p } }, [
-      el('span', { class: 'part-name', text: p === 'bonus' ? U.bonusPart : SCORE_TEXT.parts[p] }),
-      el('span', { class: 'part-bar', 'aria-hidden': 'true' }, [el('span', { class: 'fill', style: { width: `${Math.max(0, Math.min(100, result.parts[p]))}%` } })]),
-      el('strong', { class: 'part-number', text: String(result.parts[p]) }),
-    ])));
     const top = rivals[0] || null;
-    body.append(el('div', { class: 'decree-end' }, [
-      el('p', { class: 'lead decree-lead', text: U.endLead(mark) }),
-      el('p', { class: 'decree-total', role: 'status' }, [el('strong', { class: 'total', text: U.total(result.total) }), ' ', el('span', { class: 'medal', text: U.medalWords(result.medal) })]),
+    // The score sheet's own parts (src/ui/scoreUi.js scoreTotalLine and scorePartRow, in a .score-section): the total and its medal, the medal bars, your best,
+    // the choices in an .actions row as the score sheet's Seal and Share are, then the six parts and the rivals under h4s, as the score sheet's Splits are.
+    body.append(el('section', { class: 'score-section decree-end' }, [
+      el('p', { class: 'decree-lead', text: U.endLead(mark) }),
+      scoreTotalLine(result.total, result.medal, U.medalWords(result.medal)),   // the run is over: "No medal", not the running score's "No medal yet"
+      el('p', { class: 'next-medal small muted', text: U.scale(decreeMedals(world)) }),
+      el('p', { class: 'decree-best your-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
+      // A new best is marked as an earned feat is on the score sheet: the done tick (teal in a sheet) before the words (scoreUi.js featsSection, sheets.js's done status).
+      noted && noted.isBest ? el('p', { class: 'decree-new-best small' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), U.newBest]) : null,
       el('div', { class: 'actions decree-end-actions' }, [share, again, back]),
-      el('p', { class: 'decree-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
-      noted && noted.isBest ? el('p', { class: 'decree-new-best small', text: U.newBest }) : null,
-      el('h3', { class: 'small', text: U.partsHead }), lines,
+      el('h4', { text: U.partsHead }),
+      el('ul', { class: 'score-parts' }, PART_IDS.map((p) => (p === 'bonus'
+        ? scorePartRow(p, result.parts[p], { name: U.bonusPart, label: `${U.bonusPart}: ${progressText(result.parts[p], 100)}` })
+        : scorePartRow(p, result.parts[p])))),
       el('p', { class: 'decree-counts small muted', text: U.counts(decree.ids) }),
-      el('h3', { class: 'small', text: U.rivalsHead }),
+      el('h4', { text: U.rivalsHead }),
       top ? sideBySide({ score: result.total, parts: result.parts, heir: 'steady' }, { name: top.name, score: top.score, parts: top.parts || {}, heir: top.heir || 'steady' }, { id: 'decree-side' }) : null,
       rivals.length ? el('ul', { class: 'decree-rivals small' }, rivals.slice(0, 5).map((r) => el('li', { class: 'decree-rival', text: U.rivalRow(r.name, r.score) }))) : el('p', { class: 'decree-no-rivals small muted', text: U.noRivals }),
     ]));

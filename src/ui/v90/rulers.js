@@ -27,9 +27,10 @@ function mapCanvas(row) {
 const featName = (id) => (FEAT_TEXT[id] ? FEAT_TEXT[id].name : id);
 
 // An opened row's parts: a bar with its number beside it (the number is the information; the bar is for sight).
-function partsList(row) {
-  return el('ul', { class: 'ruler-parts' }, (PARTS_BY_VERSION[row.version] || SCORE_PARTS).map((p) => el('li', { class: 'ruler-part', dataset: { part: p } }, [
-    el('span', { class: 'ruler-part-name', text: SCORE_TEXT.parts[p] || p }),
+// Version 9.3 (Track U): a decree row gives its six parts and their names (the bonus's) here, so its list is this one.
+function partsList(row, { ids = PARTS_BY_VERSION[row.version] || SCORE_PARTS, names = SCORE_TEXT.parts } = {}) {
+  return el('ul', { class: 'ruler-parts' }, ids.map((p) => el('li', { class: 'ruler-part', dataset: { part: p } }, [
+    el('span', { class: 'ruler-part-name', text: names[p] || p }),
     el('span', { class: 'part-bar', 'aria-hidden': 'true' }, [el('span', { class: 'fill', style: { width: `${Math.max(0, Math.min(100, row.parts[p]))}%` } })]),
     el('strong', { class: 'part-number', text: String(row.parts[p]) }),
   ])));
@@ -77,9 +78,10 @@ export function decreeRow(row, { onPlay = () => {} } = {}) {
   const parts = partsObject(row.parts);
   const names = { ...SCORE_TEXT.parts, bonus: U93_TEXT.bonusPart };
   const toggle = el('button', { type: 'button', class: 'ruler-row decree-row', 'aria-expanded': 'false', 'aria-controls': detailId, 'aria-label': U93_TEXT.rowName(row) }, [
-    el('span', { class: 'decree-row-head' }, [
-      el('span', { class: 'decree-row-kind small muted', text: U93_TEXT.rowKind }),
-      el('strong', { class: 'decree-row-mark', text: row.mark }),
+    // A ruler's own line parts: the name's place holds the mark, the rank-and-years line says Decree (no cartouche: a decree has no regnal number).
+    el('span', { class: 'ruler-text' }, [
+      el('span', { class: 'ruler-name decree-row-mark', text: row.mark }),
+      el('span', { class: 'ruler-sub small muted', text: U93_TEXT.rowKind }),
     ]),
     el('span', { class: 'ruler-score-box' }, [
       el('strong', { class: 'ruler-score', text: String(row.score) }),
@@ -89,11 +91,7 @@ export function decreeRow(row, { onPlay = () => {} } = {}) {
   ]);
   const detail = el('div', { class: 'ruler-detail', id: detailId, hidden: true }, [
     el('h4', { class: 'small', text: V90_L_TEXT.partsHead }),
-    el('ul', { class: 'ruler-parts' }, Object.keys(parts).map((p) => el('li', { class: 'ruler-part', dataset: { part: p } }, [
-      el('span', { class: 'ruler-part-name', text: names[p] || p }),
-      el('span', { class: 'part-bar', 'aria-hidden': 'true' }, [el('span', { class: 'fill', style: { width: `${Math.max(0, Math.min(100, parts[p]))}%` } })]),
-      el('strong', { class: 'part-number', text: String(parts[p]) }),
-    ]))),
+    partsList({ parts }, { ids: Object.keys(parts), names }),
     Number.isInteger(row.tries) ? el('p', { class: 'ruler-feats small', text: U93_TEXT.rowTries(row.tries) }) : null,
     el('div', { class: 'actions' }, [button(U93_TEXT.playMap, { class: 'play-map', 'aria-describedby': `${detailId}-note`, onClick: () => onPlay({ seed: weeklySeed(row.week), difficulty: 'normal', mapSize: DEFAULT_MAP_SIZE, mapVariant: 'auto' }) })]),
     el('p', { class: 'ruler-play-note small muted', id: `${detailId}-note`, text: U93_TEXT.playMapNote }),
