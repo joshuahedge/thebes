@@ -21,7 +21,7 @@ import { hillsIn } from './hills.js';
 import { buildingsInRange } from './chunkIndex.js';
 import { effectsV90 } from './v90/effects.js';
 import { v90Off, spend } from './v90/dropper.js';
-import { scaffoldsAt, drawScaffold } from './v90/scaffold.js';
+import { scaffoldsAt, drawScaffold, watchLooks } from './v90/scaffold.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -253,7 +253,8 @@ export function createRenderer({
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0, live = 0;
-    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world);                // Version 9.0 (V3): the scaffolds up this frame, by building id
+    if (!v90Off('scaffold')) { const t0 = performance.now(); watchLooks(world, objects); spend(performance.now() - t0); }   // Version 9.3 (Track M): a changed look raises poles
+    const standing = v90Off('scaffold') ? [] : scaffoldsAt(world, range);             // Version 9.0 (V3): the scaffolds up this frame, by building id
     const scaffolds = standing.length ? new Map(standing.map((s) => [s.b.id, s])) : null;
     for (const o of objects) {
       // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set

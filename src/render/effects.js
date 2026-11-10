@@ -30,6 +30,7 @@ import { hauler, UNIT_SCALE } from './art/figures.js';
 import { raiderElephant } from './art/armies.js';
 import { noteStampede } from './units.js';
 import { noteBuilt, noteUpgrade } from './v90/scaffold.js';
+import { noteSweep } from './v93/sweep.js';
 import { resetV90Dropper } from './v90/dropper.js';
 
 export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot, stampede: 1800 };
@@ -129,7 +130,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
           if (ev.lost > 0) fx.label(ev.x, ev.y, ivoryLostLabel(ev.lost), UI.bad, now);
           continue;
         }
-        if (ev.type === 'milestone') { if (onMilestone) onMilestone(ev.id); continue; }
+        if (ev.type === 'milestone') { noteSweep(world, ev.id, now, level()); if (onMilestone) onMilestone(ev.id); continue; }   // Version 9.3 (Track M): the ring, for a rank that brings a new look
         if (ev.type !== 'upgrade' && ev.type !== 'downgrade') continue;
         const b = world.buildings[ev.id];
         if (!b) continue;

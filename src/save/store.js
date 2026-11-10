@@ -36,10 +36,13 @@ function inTx(db, mode, fn) {
 const isNewer = (e) => e && e.message === 'newer_version';
 const quotaCode = (e) => (e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || '')) ? 'storage_full' : 'write_failed');
 
-export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), dbName = 'thebes', key = 'thebes.save' } = {}) {
+// Version 9.3 (Track S, ruling 1965): `slot` names a second save in the same stores. '' (the default) is the main slot with exactly the keys it always had;
+// 'decree' prefixes the IndexedDB keys ('decree.current') and the localStorage ones ('thebes.save.decree.current'), so neither slot ever touches the other's.
+export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), dbName = 'thebes', key = 'thebes.save', slot: slotName = '' } = {}) {
   let dbPromise = null;
   const api = { backend: idb ? 'idb' : local ? 'local' : 'none' };
-  const localKey = (slot) => `${key}.${slot}`;
+  const idbKey = (slot) => (slotName ? `${slotName}.${slot}` : slot);
+  const localKey = (slot) => (slotName ? `${key}.${slotName}.${slot}` : `${key}.${slot}`);
 
   // Opening IndexedDB can fail (private mode, blocked storage); then localStorage takes over for good.
   async function db() {
@@ -49,15 +52,15 @@ export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), db
 
   async function idbSave(text) {
     const d = await db();
-    await inTx(d, 'readwrite', (s) => s.put(text, SLOTS.staging));
-    const staged = await inTx(d, 'readonly', (s) => s.get(SLOTS.staging));
+    await inTx(d, 'readwrite', (s) => s.put(text, idbKey(SLOTS.staging)));
+    const staged = await inTx(d, 'readonly', (s) => s.get(idbKey(SLOTS.staging)));
     unpackSave(staged);                                    // the stored bytes must read back as a save
     await inTx(d, 'readwrite', (s) => {
-      const cur = s.get(SLOTS.current);
+      const cur = s.get(idbKey(SLOTS.current));
       cur.onsuccess = () => {
-        if (typeof cur.result === 'string') s.put(cur.result, SLOTS.backup);
-        s.put(text, SLOTS.current);
-        s.delete(SLOTS.staging);
+        if (typeof cur.result === 'string') s.put(cur.result, idbKey(SLOTS.backup));
+        s.put(text, idbKey(SLOTS.current));
+        s.delete(idbKey(SLOTS.staging));
       };
       return cur;
     });
@@ -73,7 +76,7 @@ export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), db
   }
 
   async function readSlot(slot) {
-    if (api.backend === 'idb') { const d = await db(); return await inTx(d, 'readonly', (s) => s.get(slot)); }
+    if (api.backend === 'idb') { const d = await db(); return await inTx(d, 'readonly', (s) => s.get(idbKey(slot))); }
     return local.getItem(localKey(slot));
   }
 
@@ -103,7 +106,7 @@ export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), db
   };
 
   api.clear = async () => {
-    if (api.backend === 'idb') { try { const d = await db(); await inTx(d, 'readwrite', (s) => { s.delete(SLOTS.staging); s.delete(SLOTS.current); return s.delete(SLOTS.backup); }); return; } catch (e) { /* fall through */ } }
+    if (api.backend === 'idb') { try { const d = await db(); await inTx(d, 'readwrite', (s) => { s.delete(idbKey(SLOTS.staging)); s.delete(idbKey(SLOTS.current)); return s.delete(idbKey(SLOTS.backup)); }); return; } catch (e) { /* fall through */ } }
     if (api.backend === 'local') for (const slot of Object.values(SLOTS)) local.removeItem(localKey(slot));
   };
 

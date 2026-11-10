@@ -10,8 +10,8 @@
 // The look of a site is siteLook(b): { type, n, course, frac, blocks, laid, done, stock, crews }. The live draw passes
 // it with the moving parts (the newest block's fade and drop) to drawSite; drawFinished draws the finished monument
 // (also the card's thumbnail and the fallback sprite). Heights are in art px, places in tiles.
-import { box, tb, qd, p, U, quad, groundShadow } from './primitives.js';
-import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, WOOD, DOOR, OUTLINE, INK } from './palette.js';
+import { box, tb, qd, p, U, quad, groundShadow, shadeWall, silhouette, contactLine, insetOpening } from './primitives.js';
+import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, WOOD, DOOR, OUTLINE, INK, SHADOW } from './palette.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from '../../data/monuments.js';
 import { MONUMENT_STYLE_IDS } from '../../data/wonders.js';
 import { boundsFor } from '../iso.js';
@@ -134,6 +134,13 @@ function slab(g, x, y, w, d, h, z, i, C, ink) {
   ink.light.push(['M', F.L(0, h)], ['L', F.L(1, h)], ['L', F.R(0, h)]);
   ink.dark.push(['M', F.L(1, 0)], ['L', F.L(1, h)]);
   return F;
+}
+
+// Version 9.3 (Track N, ruling 1922): a finished body at the bar: a soft shade down each face of a block (F from slab), and its silhouette. Only the finished
+// monument draws it (the courses of a site rising stay as they were), and only on its main bodies, since a monument is drawn live every frame.
+function barShade(g, F, h) {
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, h), F.L(0, h)], h);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, h), F.R(0, h)], h);
 }
 
 // A block drawn at an alpha (the newest block fading in): three plain faces.
@@ -343,8 +350,13 @@ export function pyramidFinished(g, x, y, w, type, style = 'classic') {
   }
   g.stroke(segs, '#B8AAB8', 0.45, 0.4);
   for (const [f0, f1, k] of PYRAMID_BANDS[style] || []) pyramidBand(g, A, Bp, C, apex, f0, f1, T[k][0], T[k][1]);
+  shadeWall(g, [A, Bp, apex], L.height);                                     // a soft shade from the apex to the foot of each face
+  shadeWall(g, [Bp, C, apex], L.height);
+  g.poly([A, Bp, C, apex], 'none', { stroke: OUTLINE, strokeWidth: 1.0, strokeAlpha: 0.5 });   // the heavier silhouette
   g.stroke([['M', A], ['L', apex], ['L', C]], OUTLINE, 0.6, 0.4);
   foot(g, A, Bp, C);
+  g.line([A[0], A[1] + 0.9], [Bp[0], Bp[1] + 0.9], SHADOW, 2.4, 0.1);        // the contact band on the apron
+  g.line([Bp[0], Bp[1] + 0.9], [C[0], C[1] + 0.9], SHADOW, 2.4, 0.1);
   g.line(Bp, apex, '#FFFFFF', 1.2, 0.85);                                    // the lit edge
   // the gold capstone: the top sixth, a separate stone with a dark gold joint under it
   const t = 1 / 6, cap = (q) => [apex[0] + (q[0] - apex[0]) * t, apex[1] + (q[1] - apex[1]) * t];
@@ -394,11 +406,12 @@ export function mastabaFinished(g, x, y, w, d, type, style = 'classic') {
     const [tx, ty, tw, td] = tier(G, i);
     const F = slab(g, tx, ty, tw, td, G.ch, i * G.ch, 0.04, i % 2 ? T.wall2 : T.wall, ink);
     if (i === 0) F0 = F;
+    barShade(g, F, G.ch);
     if (banded) { flush(g, ink); qd(g, F.L, 0, 1, G.ch * 0.5, G.ch * 0.5 + 2, T.a1[0]); qd(g, F.R, 0, 1, G.ch * 0.5, G.ch * 0.5 + 2, T.a1[1]); }
   }
   flush(g, ink);
-  qd(g, F0.L, 0.62, 0.74, 0, G.ch - 1.6, DOOR);                             // the false door and its lintel
-  qd(g, F0.L, 0.58, 0.78, G.ch - 1.6, G.ch - 0.8, T.door, { alpha: 0.8 });
+  contactLine(g, [G.bx, G.by, G.B.w, G.B.d]);
+  insetOpening(g, { F: F0.L, u: 0.62, s: 0 }, 0.12, G.ch - 1.6, { lintel: T.door, sill: false });   // the false door, set in under its lintel
   qd(g, F0.L, 0.2, 0.3, 0, G.ch * 0.6, '#E2D6C2');                           // the offering niche
   const [tx, ty, tw, td] = tier(G, G.tiers - 1);
   g.line(U(p(tx, ty + td), G.L.height), U(p(tx + tw, ty + td), G.L.height), T.a1[0], 0.9);   // a teal line along the cornice (its style's colour)
@@ -445,6 +458,7 @@ export function obeliskFinished(g, x, y, type, style = 'classic') {
   qd(g, P.L, 0, 1, 1.2, 2.2, T.a1[0]); qd(g, P.R, 0, 1, 1.2, 2.2, T.a1[1]);
   const F = obeliskShaft(g, G, 0, G.L.shaft, T.shaft, ink);
   flush(g, ink);
+  barShade(g, P, G.ped); barShade(g, F, G.L.shaft);
   for (const s of style === 'painted' ? [G.L.shaft * 0.34, G.L.shaft * 0.6, G.L.shaft * 0.82] : [G.L.shaft * 0.6, G.L.shaft * 0.82]) {   // painted bands, 2 px (a painted one has a third)
     qd(g, F.L, 0, 1, s, s + 2, T.a1[0]); qd(g, F.R, 0, 1, s, s + 2, T.a1[1]);
   }
@@ -514,6 +528,8 @@ export function colossusFinished(g, x, y, style = 'classic') {
   const parts = COLOSSUS.map(([px, py, pw, pd, z, h], i) => {
     const F = slab(g, x + px, y + py, pw, pd, h, z, i === 6 ? -0.02 : 0, i === 0 ? T.ped : i === 8 ? T.cap : T.stone, ink);
     flush(g, ink);
+    if (i === 0 || i === 1 || i === 3 || i === 6) barShade(g, F, h);
+    if (i === 0) contactLine(g, [x + px, y + py, pw, pd]);
     return F;
   });
   const [P, Th, , Tr, , , Hc] = parts;
@@ -551,6 +567,8 @@ export function sphinxFinished(g, x, y, style = 'classic') {
   const parts = SPHINX.map(([px, py, pw, pd, z, h], i) => {
     const F = slab(g, x + px, y + py, pw, pd, h, z, i === 6 ? -0.02 : 0, i === 0 ? T.ped : i === 7 ? T.cap : T.stone, ink);
     flush(g, ink);
+    if (i === 0 || i === 1 || i === 4 || i === 6) barShade(g, F, h);
+    if (i === 0) contactLine(g, [x + px, y + py, pw, pd]);
     return F;
   });
   const [P, Ha, Bk, , Ch, , Hd] = parts;
@@ -600,6 +618,8 @@ export function templeFinished(g, x, y, style = 'classic') {
   const parts = TEMPLE.map(([px, py, pw, pd, z, h], i) => {
     const F = slab(g, x + px, y + py, pw, pd, h, z, i === 2 ? 0.1 : i === 3 || i === 4 ? 0.05 : 0, i === 6 ? T.cap : i === 1 || i === 5 ? T.wall2 : T.wall, ink);
     flush(g, ink);
+    if (i === 0 || i === 2 || i === 3 || i === 4) barShade(g, F, h);
+    if (i === 0) contactLine(g, [x + px, y + py, pw, pd]);
     return F;
   });
   const [P, Co, Pi, Pl, Pr, Li] = parts;
@@ -662,6 +682,8 @@ export function stepFinished(g, x, y, w, type, style = 'classic') {
     const [tx, ty, tw, td] = stepTier(G, t * G.per);
     const F = slab(g, tx, ty, tw, td, h, t * h, 0.05, t % 2 ? T.wall2 : T.wall, ink);
     flush(g, ink);
+    barShade(g, F, h);
+    if (t === 0) contactLine(g, [tx, ty, tw, td]);
     if (style === 'painted' || style === 'gilded' || style === 'classic') {      // a painted band round the middle of each tier; Whitewashed stays plain
       qd(g, F.L, 0, 1, h * 0.5, h * 0.5 + 2.4, t % 2 ? T.a2[0] : T.a1[0]); qd(g, F.R, 0, 1, h * 0.5, h * 0.5 + 2.4, t % 2 ? T.a2[1] : T.a1[1]);
     } else g.line(F.L(0, h - 0.8), F.L(1, h - 0.8), T.a1[0], 0.8, 0.8);          // Whitewashed: a thin lavender line under each cornice

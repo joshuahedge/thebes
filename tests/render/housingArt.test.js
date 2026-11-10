@@ -57,6 +57,6 @@ describe('house art', () => {
   });
   it('names slots by tier for houses and by type otherwise', () => {
     expect(slotFor({ type: 'house', tier: 3 })).toBe('house.t3');
-    expect(slotFor({ type: 'well' })).toBe('well');
+    expect(slotFor({ type: 'well' })).toBe('well.l0.work');   // Version 9.3 (Track B): a well carries its look and state
   });
 });

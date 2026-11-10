@@ -43,7 +43,7 @@ describe('v90 l bring: the file', () => {
     expect(readRecordsFile('not json at all')).toEqual({ ok: false, reason: 'unreadable' });
     for (const text of ['{}', '[]', '5', 'null', '{"version":1}', '{"version":1,"records":5}', '{"records":[]}']) expect([text, readRecordsFile(text).reason]).toEqual([text, 'bad']);
     expect(readRecordsFile(fileOf(recs({}), { version: 2 }))).toEqual({ ok: false, reason: 'newer' });                         // a newer save file
-    expect(readRecordsFile(fileOf({ ...recs({}), version: 3 }))).toEqual({ ok: false, reason: 'newer' });                     // newer records
+    expect(readRecordsFile(fileOf({ ...recs({}), version: 4 }))).toEqual({ ok: false, reason: 'newer' });                     // newer records (9.3 Track S, ruling 1966: was version 3, now the current one)
     expect(readRecordsFile(fileOf({ version: 1, cities: [], chronicle: [] })).records.rulers).toEqual([]);                     // a records version 1 file reads with none
   });
   it('counts what a merge adds: rulers by id, rivals by name and map, a rival the device has adding nothing', () => {
