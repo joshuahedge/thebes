@@ -5,7 +5,7 @@ import { p } from './iso.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
 import { T } from '../sim/terrain.js';
-import { TERRAIN, SHADOW, STONE, GOLD, LEAF, LEAF2, TRUNK } from './art/palette.js';
+import { TERRAIN, SHADOW, STONE, GOLD, LEAF, LEAF2, TRUNK, PINK } from './art/palette.js';
 import { lookReader } from './groundLooks.js';
 import { wallCode } from './terrainWalls.js';
 
@@ -42,8 +42,7 @@ export function builtUp(world, x, y) {
 export function surfaceOf(world, look, x, y) {
   if (look === 0) return 'dirt';
   if (look === 1) return 'gravel';
-  if (look === 3) return 'paved';
-  return builtUp(world, x, y) ? 'paved' : 'kerbed';
+  return builtUp(world, x, y) ? 'paved' : 'kerbed';   // 9.3 fix wave (G1): a Capital road too is paved only where it is built up (ruling 1916 said always); the rest keeps its kerbs
 }
 
 const SURFACES = {
@@ -52,6 +51,11 @@ const SURFACES = {
   kerbed: { rim: STONE[2], top: TERRAIN.road, edge: TERRAIN.roadEdge },
   paved: { rim: STONE[2], top: STONE[1], edge: STONE[2] },
 };
+// 9.3 fix wave (known item 4): a Capital street reads as its own at play zoom. Its stone is a warm sandstone cream (the City's is a cool white), its kerb is a gold-brown, and it is laid in
+// staggered slabs in three lanes (the City's has one joint across every tile), with a gold centre line, palms, planters and lamps along it.
+export const CAPITAL_STONE = { rim: '#C9A860', top: '#F2E6C8', edge: '#D9C79A', joint: '#C4AE80' };
+const surfaceFor = (kind, look) => (look === 3 && kind === 'paved' ? { rim: CAPITAL_STONE.rim, top: CAPITAL_STONE.top, edge: CAPITAL_STONE.edge }
+  : look === 3 && kind === 'kerbed' ? { ...SURFACES.kerbed, rim: CAPITAL_STONE.edge } : SURFACES[kind]);
 
 export function drawRoads(g, world, range) {
   const { segs, dots } = roadSegments(world, range);
@@ -79,7 +83,7 @@ export function drawRoads(g, world, range) {
 }
 
 function drawGroup(g, world, { look, kind, segs, dots }) {
-  const surf = SURFACES[kind], paved = kind === 'paved';
+  const surf = surfaceFor(kind, look), paved = kind === 'paved';
   const path = [];
   for (const [ax, ay, bx, by] of segs) path.push(['M', p(ax + 0.5, ay + 0.5)], ['L', p(bx + 0.5, by + 0.5)]);
   // Version 9.2 (Track V, ruling 1846): the far zoom has no room for ruts and pebbles, so the road reads from two broad strokes baked into the chunk (never drawn per frame): a kerb shadow
@@ -92,15 +96,20 @@ function drawGroup(g, world, { look, kind, segs, dots }) {
   }
   const layers = [[SHADOW, 15, 0.12]];
   if (surf.rim) layers.push([surf.rim, paved || kind === 'kerbed' ? 13 : 11.6, 1]);
-  layers.push([paved ? STONE[1] : surf.edge, paved ? 12 : 12, 1], [surf.top, paved ? 11 : 10, 1]);
+  layers.push([paved ? (look === 3 ? surf.edge : STONE[1]) : surf.edge, 12, 1], [surf.top, paved ? 11 : 10, 1]);
   for (const [c, w, a] of layers) {
     if (path.length) g.stroke(path, c, w, a);
     for (const [x, y] of dots) g.circ(p(x + 0.5, y + 0.5), w / 2 * 0.6, c, { alpha: a });
   }
   if (paved) {   // joints across the street at every tile, and a gold centre line on an avenue
-    for (const [ax, ay, , by] of segs) {
+    for (const [ax, ay, bx, by] of segs) {
       const alongX = ay === by, c = [ax + 0.5, ay + 0.5];
-      g.line(p(c[0] - (alongX ? 0 : 0.44), c[1] - (alongX ? 0.44 : 0)), p(c[0] + (alongX ? 0 : 0.44), c[1] + (alongX ? 0.44 : 0)), STONE[2], 0.45, 0.45);
+      const at = (a, o) => p(c[0] + (alongX ? a : o), c[1] + (alongX ? o : a));   // a along the street, o across it, from the tile's centre
+      if (look !== 3) { g.line(at(0, -0.44), at(0, 0.44), STONE[2], 0.45, 0.45); continue; }
+      // the Capital's slabs: a joint down each lane edge, the middle lane's cross joints at the tile's centre and the outer lanes' half a tile along, so no joint runs straight across
+      for (const o of [-0.17, 0.17]) g.line(at(0, o), at(bx - ax + by - ay, o), CAPITAL_STONE.joint, 0.4, 0.55);
+      g.line(at(0, -0.17), at(0, 0.17), CAPITAL_STONE.joint, 0.4, 0.55);
+      for (const o of [-0.44, 0.44]) g.line(at(0.5, o), at(0.5, o * 0.39), CAPITAL_STONE.joint, 0.4, 0.55);
     }
     if (look === 3 && path.length) g.stroke(path, GOLD, 0.8, 0.6);
     return;
@@ -136,8 +145,8 @@ export function drawStreetFurniture(g, world, range) {
       const rx = isRoad(world, x - 1, y) || isRoad(world, x + 1, y), ry = isRoad(world, x, y - 1) || isRoad(world, x, y + 1);
       if (rx === ry) continue;   // a junction or a lone tile: leave it clear
       const step = look === 3 ? 4 : 3, along = rx ? x : y, k = along % step;
-      const wantTree = look === 2 ? k === 0 : k === 2, wantLamp = look === 3 && k === 0;
-      if (!wantTree && !wantLamp) continue;
+      const wantTree = look === 2 ? k === 0 : k === 2, wantLamp = look === 3 && k === 0, wantPlanter = look === 3 && k === 1;
+      if (!wantTree && !wantLamp && !wantPlanter) continue;
       const sides = (rx ? [[0, -1], [0, 1]] : [[-1, 0], [1, 0]]).filter(([dx, dy]) => {
         const nx = x + dx, ny = y + dy;
         return inBounds(world.size, nx, ny) && !world.occ[idx(world.size, nx, ny)] && !isRoad(world, nx, ny) && world.terrain[idx(world.size, nx, ny)] !== T.WATER;
@@ -150,6 +159,16 @@ export function drawStreetFurniture(g, world, range) {
         g.line(q, [q[0], q[1] - 9], STONE[2], 0.9);
         g.circ([q[0], q[1] - 9.6], 2.6, GOLD, { alpha: 0.22 });
         g.circ([q[0], q[1] - 9.6], 1.2, GOLD);
+      } else if (wantPlanter) {   // a low stone planter with flowers (the Capital's street garden)
+        g.ell([q[0] + 0.8, q[1] + 0.5], 4.6, 1.6, SHADOW, { alpha: 0.2 });
+        g.poly([[q[0] - 3.2, q[1] - 1.6], [q[0], q[1] - 3.2], [q[0] + 3.2, q[1] - 1.6], [q[0] + 3.2, q[1] + 0.4], [q[0], q[1] + 2], [q[0] - 3.2, q[1] + 0.4]], CAPITAL_STONE.edge);
+        g.poly([[q[0] - 3.2, q[1] - 1.6], [q[0], q[1] - 3.2], [q[0] + 3.2, q[1] - 1.6], [q[0], q[1] - 0.1]], LEAF);
+        for (const [dx, dy, c] of [[-1.6, -2.6, PINK], [0.4, -3, GOLD], [1.8, -2, '#FFFFFF']]) g.circ([q[0] + dx, q[1] + dy], 0.9, c);
+      } else if (look === 3) {   // a palm: a leaning trunk and a crown of fronds
+        g.ell([q[0] + 1, q[1] + 0.4], 4.2, 1.5, SHADOW, { alpha: 0.22 });
+        g.line(q, [q[0] + 0.8, q[1] - 8], TRUNK, 1.2);
+        const top = [q[0] + 0.8, q[1] - 8.4];
+        for (const [dx, dy] of [[-5, 1.2], [-3.4, -2.2], [0, -3], [3.6, -2], [5, 1.4]]) g.line(top, [top[0] + dx, top[1] + dy], dx < 0 || dy < -2.5 ? LEAF : LEAF2, 1.5);
       } else {
         g.ell([q[0] + 1, q[1] + 0.4], 4.2, 1.5, SHADOW, { alpha: 0.22 });
         g.line(q, [q[0], q[1] - 5], TRUNK, 1.1);

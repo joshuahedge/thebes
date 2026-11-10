@@ -29,7 +29,8 @@ describe('v93 g streets: roads by look, trees and lamps from the City look', () 
     expect(surfaceOf(w, 1, 8, 10)).toBe('gravel');
     expect(surfaceOf(w, 2, 8, 10)).toBe('paved');       // between homes
     expect(surfaceOf(w, 2, 26, 10)).toBe('kerbed');     // a City road with nothing along it keeps its kerb but not its paving
-    expect(surfaceOf(w, 3, 26, 10)).toBe('paved');      // a Capital avenue is paved throughout
+    expect(surfaceOf(w, 3, 8, 10)).toBe('paved');       // a Capital avenue is paved between homes (9.3 fix wave G1: ruling 1916 said throughout)
+    expect(surfaceOf(w, 3, 26, 10)).toBe('kerbed');     // and kerbed only, where nothing stands along it
   });
   it('bakes a dirt road at the Village look and a paved one between homes at the City look', () => {
     const w = street();

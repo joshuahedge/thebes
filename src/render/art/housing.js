@@ -558,8 +558,18 @@ export const BIG_POOL = POOL_AT;
 const BIG_V = [
   { perg: { x: 0.2, y: 0.16, w: 0.52, d: 0.46 }, pool: ROOF_POOL, garden: ROOF_GARDEN, flag: [1.1, 0.25], palms: null },
   { perg: { x: 0.16, y: 0.14, w: 0.44, d: 0.4 }, pool: { x: 0.68, y: 0.5, w: 0.34, d: 0.3 }, garden: { x: 1.22, y: 0.9, w: 0.5, d: 0.36 }, flag: [1.5, 0.4], palms: [[1.55, 1.64]] },
-  { perg: { x: 0.34, y: 0.26, w: 0.46, d: 0.4 }, pool: { x: 1.04, y: 0.46, w: 0.22, d: 0.4 }, garden: ROOF_GARDEN, flag: [0.96, 0.26], palms: [[1.05, 1.62], [0.22, 1.72]] },
+  { perg: { x: 0.26, y: 0.26, w: 0.38, d: 0.36 }, pool: { x: 1.2, y: 0.2, w: 0.5, d: 0.26 }, garden: { x: 1.44, y: 0.82, w: 0.38, d: 0.36 }, flag: [0.5, 0.3], palms: [[1.05, 1.62], [0.22, 1.72]] },
 ];
+
+// The massing of a 2x2 home's three variants, one place for the drawing and for its shadow blocks: [dx, dy, w, d, h] per mass (the look's roof allowance is added when drawn).
+//   v0 an L: a tall block along the back and a wing down the right;  v1 a low wide block with a tall tower at the back right and a low pavilion in front of it;
+//   v2 a narrow tall block with a set-back storey on the left, and a low terrace range along the back right and a lower step in front of it.
+export const bigPlan = (O, v) => (v === 1
+  ? { A: [0.1, 0.1, 1.0, 0.84, O.hA * 0.72], T: [1.12, 0.1, 0.62, 0.62, O.hA + 6], C: [1.15, 0.78, 0.75, 0.6, O.hB * 0.62] }
+  : v === 2
+    ? { A: [0.1, 0.1, 0.78, 0.84, O.hA * 0.85], U: [0.2, 0.2, 0.5, 0.5, O.hA * 0.3], B: [0.95, 0.1, 0.95, 0.5, O.hB * 0.62], C: [1.38, 0.65, 0.52, 0.7, O.hB * 0.4] }
+    : { A: [0.1, 0.1, 1.2, 0.82, O.hA], B: [1.25, 0.1, 0.65, 1.25, O.hB] });
+const bigShadows = (t, v) => { const P = bigPlan(BIG[t], v); return ['A', 'T', 'B', 'C'].filter((k) => P[k]).map((k) => [...P[k].slice(0, 4), P[k][4] + (k === 'A' && P.U ? P.U[4] : 0) + 3]); };
 
 function bigHome(g, x, y, look, tier, v, far) {
   const m = M[look], O = BIG[tier], V = BIG_V[v], trim = look === 0 ? WOOD : m.trim;
@@ -567,10 +577,10 @@ function bigHome(g, x, y, look, tier, v, far) {
   const nb = tier >= 9 ? 3 : tier >= 8 ? 2 : 1;
   const dcA = DOORC[v], dcB = DOORC[(v + 1) % 3];
   const up = look >= 2 ? 0.7 : 0;                                  // a City or Capital roof surface sits lower than a Village slab; the walls make it up, so no look is shorter
-  const hA = (v === 2 ? O.hA * 0.78 : O.hA) + up, hB = (v === 2 ? O.hB * 0.8 : O.hB) + up, hC = O.hB * 0.62 + up, hT = O.hA + 5 + up, hU = O.hA * 0.22;
+  const P = bigPlan(O, v), hA = P.A[4] + up, hB = (P.B ? P.B[4] : 0) + up, hC = (P.C ? P.C[4] : 0) + up, hT = (P.T ? P.T[4] : 0) + up, hU = P.U ? P.U[4] : 0;
   const rows = O.hA > 20 ? [3.2, 9, 14.5] : O.hA > 15 ? [3.2, 9.5] : [3.2, 8];
   // ---- the back masses
-  const A0 = v === 1 ? [x + 0.1, y + 0.1, 1.0, 0.84] : [x + 0.1, y + 0.1, 1.2, 0.82];
+  const A0 = [x + P.A[0], y + P.A[1], P.A[2], P.A[3]];
   const A = block(g, ...A0, hA, 0, m.wall);
   skin(g, A, hA, look, nb);
   doorOn(g, A0, A, 0.42, 0.14, 7, dcA, trim);
@@ -584,14 +594,14 @@ function bigHome(g, x, y, look, tier, v, far) {
   const zA = hA + roofZ(look);
   let U0 = null, T0 = null;
   if (v === 2) {                                                  // the set-back top storey
-    U0 = [x + 0.28, y + 0.22, 0.74, 0.5];
+    U0 = [x + P.U[0], y + P.U[1], P.U[2], P.U[3]];
     const Uf = block(g, ...U0, hU, hA, m.wall);
     skin(g, Uf, hU, look, 0);
     for (const u of [0.16, 0.6]) openWin(g, Uf.L, u, 2, 0.2, 2.6, trim, look >= 2);
     roofTop(g, ...U0, hA + hU, look, 3);
   }
   if (v === 1) {                                                  // the tower behind
-    T0 = [x + 1.22, y + 0.1, 0.58, 0.58];
+    T0 = [x + P.T[0], y + P.T[1], P.T[2], P.T[3]];
     const T = block(g, ...T0, hT, 0, m.wall);
     skin(g, T, hT, look, 1);
     for (const s of [4, hT - 8]) { openWin(g, T.L, 0.3, s, 0.22, 3, trim); openWin(g, T.R, 0.35, s, 0.3, 3, trim); }
@@ -603,15 +613,14 @@ function bigHome(g, x, y, look, tier, v, far) {
     if (tier >= 9 && v !== 2) roofPool(g, x, y, zA - 0.2, V.pool);
     pergola(g, x, y, v === 2 ? hA + hU + roofZ(look) : zA, V.perg);
     if (tier >= 8 && look === 3) gildedCap(g, U(p(x + (v === 1 ? 0.3 : 0.28), y + (v === 2 ? 0.34 : 0.26)), v === 2 ? hA + hU + 1.8 : hA + 1.8), 2.8);
-    if (tier >= 9 && look === 2) { box(g, x + 0.9, y + 0.62, 0.22, 0.2, 2.4, zA, m.wall); box(g, x + 0.88, y + 0.6, 0.26, 0.24, 0.8, zA + 2.4, [TEAL, TEAL, TEAL_DARK], 0); }
-    pots(g, U(p(x + 0.95, y + 0.3), zA), 2);
+    if (tier >= 9 && look === 2) { const cx = v === 2 ? 0.66 : 0.9; box(g, x + cx, y + 0.62, 0.2, 0.2, 2.4, zA, m.wall); box(g, x + cx - 0.02, y + 0.6, 0.24, 0.24, 0.8, zA + 2.4, [TEAL, TEAL, TEAL_DARK], 0); }
+    if (v !== 2) pots(g, U(p(x + 0.95, y + 0.3), zA), 2);
     if (O.flag) {
       const q = U(p(x + V.flag[0], y + V.flag[1]), v === 1 ? hT + 0.9 : v === 2 ? hA + hU + 0.9 : zA);
       g.line(q, U(q, 14), WOOD, 0.7);
       g.poly([U(q, 14), [q[0] + 7, q[1] - 12.5], U(q, 11)], look === 3 ? GOLD : PINK);
     }
   }
-  if (v === 2 && tier >= 9 && !far) roofPool(g, x, y, hA + 0.2, V.pool);
   // ---- the courtyard, in front on the left
   g.poly(quad(x + 0.15, y + 0.95, 1.07, 0.91, 0), O.floor && look >= 2 ? O.floor : m.paving);
   box(g, x + 0.1, y + 0.95, 0.08, 0.9, 3.5, 0, wallC, 0);
@@ -628,7 +637,7 @@ function bigHome(g, x, y, look, tier, v, far) {
   if (O.statue && !far) statue(g, x + 0.28, y + 1.66);
   // ---- the right-hand mass
   if (v === 1) {
-    const C0 = [x + 1.15, y + 0.78, 0.75, 0.6];
+    const C0 = [x + P.C[0], y + P.C[1], P.C[2], P.C[3]];
     const C = block(g, ...C0, hC, 0, m.wall);
     skin(g, C, hC, look, 0);
     doorOn(g, C0, C, 0.3, 0.3, 5, dcB, trim, false);
@@ -636,18 +645,33 @@ function bigHome(g, x, y, look, tier, v, far) {
     roofTop(g, ...C0, hC, look, 3);
     if (tier >= 7 && !far) roofGarden(g, x, y, hC + roofZ(look), V.garden);
     if (!far) {
-      awning(g, { F: A.L, u: 0.3, s: 8.6 }, 0.34, O.awn || ORANGE);
+      awning(g, { F: A.L, u: 0.3, s: Math.min(8.6, hA - 1.2) }, 0.34, O.awn || ORANGE);
       if (look === 2) balcony(g, C0[0] + C0[2], C0[1] + 0.1, 0.4, hC * 0.45);
       if (look === 3 && tier < 8) doorPorch(g, C0[0] + C0[2] * 0.3, C0[1] + C0[3], 9, 5.4);
     }
   } else {
-    const B0 = [x + 1.25, y + 0.1, 0.65, 1.25];
+    const B0 = [x + P.B[0], y + P.B[1], P.B[2], P.B[3]];
     const B = block(g, ...B0, hB, 0, m.wall);
     skin(g, B, hB, look, 0);
-    doorOn(g, B0, B, 0.35, 0.3, 5.5, dcB, trim, false);
-    openWin(g, B.R, 0.2, 4, 0.15, 2.6, trim); openWin(g, B.R, 0.6, 4, 0.15, 2.6, trim);
+    const lowB = v === 2;
+    doorOn(g, B0, B, lowB ? 0.12 : 0.35, 0.3, lowB ? Math.min(5.5, hB - 1.4) : 5.5, dcB, trim, false);
+    if (lowB) openWin(g, B.R, 0.3, 2.2, 0.3, 2.4, trim);
+    else { openWin(g, B.R, 0.2, 4, 0.15, 2.6, trim); openWin(g, B.R, 0.6, 4, 0.15, 2.6, trim); }
     roofTop(g, ...B0, hB, look, 4);
-    if (!far) {
+    if (lowB) {   // a low range along the back with a lower step in front of it: the pool or the pots on the range, the garden on the step
+      const C0 = [x + P.C[0], y + P.C[1], P.C[2], P.C[3]];
+      const C = block(g, ...C0, hC, 0, m.wall);
+      skin(g, C, hC, look, 0);
+      openWin(g, C.L, 0.3, 2, 0.3, 2.2, trim); openWin(g, C.R, 0.4, 2, 0.3, 2.2, trim);
+      roofTop(g, ...C0, hC, look, 3);
+      if (!far) {
+        if (tier >= 9) roofPool(g, x, y, hB + roofZ(look) - 0.2, V.pool);
+        else pots(g, U(p(x + 1.4, y + 0.3), hB + roofZ(look)), 2);
+        if (tier >= 7) roofGarden(g, x, y, hC + roofZ(look), V.garden);
+        awn(g, x + 1.0, y + 0.62, 0.34, 0.2, hB + roofZ(look) + 2.6, O.awn || ORANGE, O.awn2 || '#B45F2A');
+        if (look === 2) balcony(g, B0[0] + B0[2], B0[1] + 0.1, 0.4, hB * 0.4);
+      }
+    } else if (!far) {
       awn(g, x + 1.32, y + 0.18, 0.5, 0.55, hB + roofZ(look) + 3.4, O.awn || ORANGE, O.awn2 || '#B45F2A');
       if (tier >= 7) roofGarden(g, x, y, hB + roofZ(look), V.garden);
       if (look === 2) balcony(g, B0[0] + B0[2], B0[1] + 0.9, 0.4, hB * 0.4);
@@ -694,7 +718,8 @@ const HOME_SHADOWS = {
 export const HOME_TIERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const homeEntry = (t) => {
   const n = t >= 6 ? 2 : 1;
-  return { w: n, d: n, height: HOME_H[t], bounds: boundsFor(n, n, HOME_H[t]), shadows: HOME_SHADOWS[t], draw: (g, x, y, opt) => drawHome(g, x, y, opt.look, t, opt.variant, false) };
+  // a 2x2 home's shadow blocks follow its variant's massing (shadowsFor, which registry.js's withLooks reads); shadows is the plain v0 set for a caller with no variant
+  return { w: n, d: n, height: HOME_H[t], bounds: boundsFor(n, n, HOME_H[t]), shadows: HOME_SHADOWS[t], ...(t >= 6 ? { shadowsFor: (opt) => bigShadows(t, opt.variant) } : {}), draw: (g, x, y, opt) => drawHome(g, x, y, opt.look, t, opt.variant, false) };
 };
 const FAR_ART = {};
 for (const t of HOME_TIERS) for (let l = 0; l < M.length; l++) FAR_ART[`house.t${t}.l${l}.far`] = { ...homeEntry(t), draw: (g, x, y) => drawHome(g, x, y, l, t, 0, true) };
