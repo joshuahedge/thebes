@@ -9,3 +9,4 @@ import './n/all.js';         // N: the rest of the art (palace, monuments, natur
 import './m/all.js';         // Track M: the rebuild's scaffolds, the level-up sweep, the notice's line
 import './h/all.js';         // Track H: homes in four looks and three variants, and the far drawing
 import './g/all.js';         // G: ground, yards and streets
+import './u/all.js';         // U: the decree's interface (the card, the chip, the end card, the wall, the ruler list)

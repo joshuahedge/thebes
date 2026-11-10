@@ -24,6 +24,23 @@ import {
   sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT, D92_D_TEXT,
 } from './text.js';
 
+// Version 9.3 (Track U): the score sheet's total line and part row, shared with the decree's end card (src/ui/v93/decree.js) so the two are one look.
+// The total and its medal (the medal's dot is the .medal class's). words: the medal's words when not the running score's ("No medal yet").
+export const scoreTotalLine = (total, medal, words = medalText(medal)) => el('p', { class: 'score-total' }, [
+  el('strong', { class: 'score-number', text: String(total) }), ' ',
+  el('span', { class: `medal ${medal || 'none'}`, text: words }),
+]);
+// One part's row: name, number, a bar against `cap` and an optional reason line. name and label default to the city score's words.
+export function scorePartRow(part, n, { cap = 100, name = SCORE_TEXT.parts[part], label = partBarLabel(part, n, cap), reason = null } = {}) {
+  return el('li', { class: 'score-part', dataset: { part } }, [
+    el('div', { class: 'row' }, [el('span', { text: name }), el('strong', { class: 'part-number', text: String(n) })]),
+    el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(cap), 'aria-valuenow': String(n), 'aria-label': label }, [
+      el('span', { class: 'fill', style: { width: `${Math.min(100, (n / cap) * 100)}%` } }),
+    ]),
+    reason ? el('p', { class: 'reason small muted', text: reason }) : null,
+  ]);
+}
+
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
 // destroy } (danger.js). Share score's screenshot button calls ctx.screenshotMode().
 export function createScoreUi(ctx) {
@@ -41,17 +58,10 @@ export function createScoreUi(ctx) {
 
   // One part: its name and number, a bar (the number again, for sight; never alone) and its reason line.
   function partRow(part, s) {
-    const n = s.parts[part];
     // Version 9.2 (Track S, ruling 1813): under score v3 a part is drawn against its own ceiling (the terms that have started), so a Village's Safety is 20 of 20,
     // not 20 of 100; a score with no ceilings (a v2 best's) is drawn against 100 as it was.
     const cap = s.ceilings && s.ceilings[part] > 0 ? s.ceilings[part] : 100;
-    return el('li', { class: 'score-part', dataset: { part } }, [
-      el('div', { class: 'row' }, [el('span', { text: SCORE_TEXT.parts[part] }), el('strong', { class: 'part-number', text: String(n) })]),
-      el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(cap), 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n, cap) }, [
-        el('span', { class: 'fill', style: { width: `${Math.min(100, (n / cap) * 100)}%` } }),
-      ]),
-      s.reasons[part] ? el('p', { class: 'reason small muted', text: score4ReasonText(s.reasons[part]) }) : null,   // Stage 4: the Monuments part's next step too
-    ]);
+    return scorePartRow(part, s.parts[part], { cap, reason: s.reasons[part] ? score4ReasonText(s.reasons[part]) : null });   // Stage 4: the Monuments part's next step too
   }
 
   // The milestone splits as game dates, in order, each against the personal best on this seed and level (the earliest
@@ -185,10 +195,7 @@ export function createScoreUi(ctx) {
     return el('section', { class: 'score-section' }, [
       el('h3', { text: SCORE_TEXT.cityScore, dataset: { section: 'score' } }),   // Version 8.1: the score's explainer opens the City page here
       ...dynasty.summary(),
-      el('p', { class: 'score-total' }, [
-        el('strong', { class: 'score-number', text: String(s.total) }), ' ',
-        el('span', { class: `medal ${s.medal || 'none'}`, text: medalText(s.medal) }),
-      ]),
+      scoreTotalLine(s.total, s.medal),
       el('p', { class: 'next-medal small muted', text: nextMedalText(s.next) }),
       s.factor !== 1 ? el('p', { class: 'factor small muted', text: factorText(s.raw, s.factor, world.difficulty) }) : null,
       el('ul', { class: 'score-parts' }, SCORE_PARTS.map((p) => partRow(p, s))),
@@ -359,7 +366,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     // seed, which picks the link's level in the difficulty choice first. A bad or newer link says so; the card works as
     // usual. Any other hash (or none) adds nothing.
     const link = parseShareLink(shared);
-    if (!link) return;
+    if (!link || link.kind === 'decree') return;   // Version 9.3 (Track U): a d1 link opens the decree card (boot), not a friend's score
     if (!link.ok) {
       element.insertBefore(el('p', { class: 'shared-bad small coral', text: link.reason === 'newer_format' ? TITLE_SCORE_TEXT.newerLink : TITLE_SCORE_TEXT.badLink }), buttonBox);
       return;

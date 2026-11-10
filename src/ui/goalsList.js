@@ -13,7 +13,7 @@ import { MEDALS } from '../data/scoring.js';
 import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
 import { desirabilityFix, herdNear } from '../sim/advice.js';
 import { milestoneIndex } from '../sim/progression.js';
-import { scoreOf } from '../sim/score.js';
+import { scoreOf, decreeScore, decreeMedals } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { stalledGuild } from '../sim/monuments.js';
@@ -168,6 +168,14 @@ export function thresholdFor(world) {
     const next = MILESTONES[i + 1], from = MILESTONES[i].population;
     const n = Math.min(next.population, Math.max(world.tally.peakPeople, population(world)));
     return { kind: 'milestone', text: thresholdMilestoneText(next.name, n, next.population), share: clamp((n - from) / (next.population - from)) };
+  }
+  // Version 9.3 (Track U, ruling 1981): a decree run's next medal is the decree's own, on its score out of 600 (Track R's decreeScore and decreeMedals).
+  if (world.decree) {
+    const total = decreeScore(world).total, scale = decreeMedals(world) || [];
+    const k = scale.findIndex((at) => total < at);
+    if (k < 0) return null;
+    const from = k > 0 ? scale[k - 1] : 0;
+    return { kind: 'medal', text: thresholdMedalText({ medal: ['bronze', 'silver', 'gold'][k], points: scale[k] - total }), share: clamp((total - from) / (scale[k] - from)) };
   }
   const s = scoreOf(world);
   if (!s.next) return null;

@@ -6,6 +6,7 @@ import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { housesOf, allBuildings, isSite, buildingsVersion } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
+import { ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): a decree's reach
 import { loneRoads } from '../sim/loneRoad.js';   // Version 9.2 (Track L): a piece of road that joins nothing is marked
 import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
@@ -110,7 +111,7 @@ export function overlayMarks(world, kind, range = null) {
 const reachOf = (def) => def.reach || def.supplyReach || def.producerReach || 0;
 
 export function reachTiles(world, b) {
-  const dist = reachOf(BUILDINGS[b.type]);
+  const dist = ruleReach(world, b.type, reachOf(BUILDINGS[b.type]));   // Version 9.3 (Track U): the reach the sim uses (Fire season's firehouse reaches 12)
   return dist ? [...roadReach(world, b, dist).keys()] : [];
 }
 
