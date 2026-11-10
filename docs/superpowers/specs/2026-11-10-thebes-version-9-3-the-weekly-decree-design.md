@@ -161,7 +161,7 @@ Each decree adds a sixth score part, the **bonus part**, from 0 to 100, beside p
 2. **Per-type maps:**
    - `ruleCost(world, type)` covers walls, gates and physicians, read in `costs.js costOf`;
    - `ruleRate(world, type)` covers the quarry and the brickworks, read where `production.js` reads `heirRate`;
-   - `ruleUnitCost(world, kind)` covers archers.
+   - `ruleUnitPay(world, kind)` covers archers' pay. Together with the archery range's half price in `ruleCost`, this is The Southern Host's "archers cost half".
 3. **Values:**
    - `ruleReach(world, type)` gives the firehouse's reach of 12;
    - `ruleElephantsFrom(world)` gives the raid index elephants come from (2);

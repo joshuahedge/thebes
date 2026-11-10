@@ -102,7 +102,12 @@ Where two tracks share a file (`defence.js`: B buildings, N rubble and wrecks; `
 
 ### The decree's slot
 
-- **Not planned here.** The decree needs its own design (the twists, the weekly seed, the second save slot, the fixed length, the scoring and the ruler-list mark, the rivals by link). Its plan then adds its tracks to wave 1 with its own file ownership, and those tracks own `src/sim`, `src/save` and the decree's UI.
+- **Now planned (10 Nov).**
+  - The spec is `specs/2026-11-10-thebes-version-9-3-the-weekly-decree-design.md`, and the plan is `plans/2026-11-10-thebes-version-9-3-the-weekly-decree.md`.
+  - D0 runs beside wave 0 and does not wait for the look sheet. R, S and U run in wave 1. K runs in wave 2 after the merge.
+  - "Pharaoh's levy" is renamed The Vizier's Levy.
+  - The text below is kept as it was written.
+- **Was: not planned here.** The decree needs its own design (the twists, the weekly seed, the second save slot, the fixed length, the scoring and the ruler-list mark, the rivals by link). Its plan then adds its tracks to wave 1 with its own file ownership, and those tracks own `src/sim`, `src/save` and the decree's UI.
 - **No overlap:** this plan's tracks touch none of those files, except wave 0's optional `day` on `makeBuilding`.
 - **Words:** the roadmap's "Pharaoh's levy" needs a new name (ruling 379).
 
