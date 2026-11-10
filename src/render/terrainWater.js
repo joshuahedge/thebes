@@ -3,7 +3,7 @@
 // ripples and reeds. Mapgen gives one contiguous span of WATER per row, so the banks are curves through the
 // row spans with the mock-up's gentle sine wobble.
 import { p } from './iso.js';
-import { hash2 } from '../sim/rng.js';
+import { hash2, valueNoise } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { TERRAIN } from './art/palette.js';
@@ -115,11 +115,30 @@ function bandPath(left, right, grow) {
   return [...segs, ...back, ['Z']];
 }
 
+// Version 9.3 (Track G, ruling 1911): the bank's outer edge (the mud and the wet sand beyond the shallows) is uneven. Each bank is cut into quarter-tile steps and pushed in or
+// out by seeded noise of its own row (so the two chunks either side of a border agree), then smoothed as before.
+function bankNoise(world, bank, side) {
+  const out = [];
+  for (let k = 0; k < bank.length; k++) {
+    const [x, y] = bank[k], next = bank[k + 1];
+    for (let j = 0; j < (next ? 4 : 1); j++) {
+      const t = j / 4, yy = y + (next ? (next[1] - y) * t : 0), xx = x + (next ? (next[0] - x) * t : 0);
+      const n = valueNoise(yy * 2.7, side * 31, world.seed + 1911, 1) - 0.5, f = valueNoise(yy * 7.9, side * 17, world.seed + 1912, 1) - 0.5;
+      out.push([xx, yy, (n * 0.7 + f * 0.35) * side]);
+    }
+  }
+  return out;
+}
+const bankAt = (pts, amp) => pts.map(([x, y, o]) => [x + o * amp, y]);
+
 export function drawRiver(g, world, range) {
   const { left, right, centre } = riverBanks(world, range.y0 - 2, range.y1 + 2);
   if (left.length < 2) return;
-  g.path(bandPath(left, right, 0.35), TERRAIN.bank, { alpha: 0.85 });
-  g.path(bandPath(left, right, 0.15), '#CDBE8E', { alpha: 0.7 });
+  const lq = bankNoise(world, left, -1), rq = bankNoise(world, right, 1);
+  const noisy = (grow, amp) => bandPath(bankAt(lq, amp), bankAt(rq, amp), grow);
+  g.path(noisy(0.35, 0.5), TERRAIN.bank, { alpha: 0.85 });
+  g.path(noisy(0.24, 0.4), TERRAIN.mud, { alpha: 0.16 });   // wet sand, a darker damp line
+  g.path(noisy(0.15, 0.3), '#CDBE8E', { alpha: 0.7 });
   g.path(bandPath(left, right, 0), TERRAIN.shallows);                 // the whole river, then the channel over it,
   g.path(bandPath(left, right, -SHALLOWS_TILES), TERRAIN.water);      // leaves the shallows strip along each bank
   const { minWidth } = riverData(world); // over the whole river, so the deep band never steps at a chunk border

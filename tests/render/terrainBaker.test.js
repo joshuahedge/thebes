@@ -33,7 +33,8 @@ describe('terrain baker', () => {
     expect(cornerWeight(w, 15, 21, T.MEADOW)).toBe(1);
     expect(cornerWeight(w, 12, 18, T.MEADOW)).toBe(0.25);
     expect(cornerWeight(w, 15, 21, T.DESERT)).toBe(0);
-    expect(blobFor(w, 15, 21, T.MEADOW, 0, 0).length).toBe(8);
+    expect(blobFor(w, 15, 21, T.MEADOW, 0, 0).length).toBe(8);    // 9.3 Track G (ruling 1910): a tile with the ground all round it keeps its eight points
+    expect(blobFor(w, 12, 18, T.MEADOW, 0, 0).length).toBe(16);   // and a tile at an edge has sixteen, was eight
   });
   it('bakes the same pixels twice and paints each terrain its colour', () => {
     const w = riverWorld();
