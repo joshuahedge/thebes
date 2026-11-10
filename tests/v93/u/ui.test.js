@@ -1,6 +1,6 @@
 // Version 9.3 Track U (rulings 1975-1984): the decree's interface. The card's gate, the three buttons, the chip, the first screen, the menu, the end card's six parts, the locked wall,
-// the ruler list's decree rows, and the layout at the three phone and desktop sizes. The sim's end (Track R) is stood in for by setting world.decree.ended; records and links (Track S)
-// by small fakes where the real function is not on this branch.
+// the ruler list's decree rows, and the layout at the three phone and desktop sizes. The sim's end (Track R) is stood in for by setting world.decree.ended, so a test need not
+// play 2,160 days; the score, the records and the links are Track R's and Track S's own.
 import { describe, it, expect } from '../../harness.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { packSave } from '../../../src/save/serialize.js';
@@ -273,6 +273,32 @@ describe('v93 u end: the end card', () => {
       expect(t.kind()).toBe('decreeEnd');
       t.g().ui.refresh();
       expect(t.noted).toBe(1);
+    } finally { t.cleanup(); }
+  });
+
+  it('writes the week\'s row through the records (Track S): the score shown, the mark and one try; the share carries a d1 link', async () => {
+    const t = await runAt(W47, { records: WITH_TOWN });
+    try {
+      t.root.querySelector('#sheet .decree-begin').click();
+      await frame();
+      const g = t.g();
+      g.world.day = 2160; g.world.decree.ended = true; g.world.speed = 0;
+      g.ui.refresh();
+      await frame();
+      expect(t.kind()).toBe('decreeEnd');
+      const shown = Number(t.root.querySelector('#sheet .decree-total .total').textContent.split(' ')[0]);
+      const rows = t.api.records.decrees();
+      expect(rows.map((r) => [r.week, r.mark, r.score, r.tries])).toEqual([[W47, 'Sea Peoples, week 47', shown, 1]]);
+      expect(t.root.querySelector('#sheet .decree-best').textContent).toBe(U.yourBest(shown, rows[0].medal));
+      const shared = [];
+      const was = Object.getOwnPropertyDescriptor(navigator, 'share');
+      Object.defineProperty(navigator, 'share', { value: (d) => { shared.push(d.text); return Promise.resolve(); }, configurable: true });
+      try {
+        t.root.querySelector('#sheet .decree-share').click();
+        await wait(60);
+      } finally { if (was) Object.defineProperty(navigator, 'share', was); else delete navigator.share; }
+      expect(shared[0]).toContain(`Sea Peoples, week 47: ${shown} of 600`);
+      expect(shared[0]).toContain('#d1.2026-47.');
     } finally { t.cleanup(); }
   });
 

@@ -4,9 +4,8 @@
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { DECREES } from '../../data/decrees.js';
 import { decreeEnded } from '../../sim/rules.js';
-import { scoreOf } from '../../sim/score.js';
-import * as scoreMod from '../../sim/score.js';   // U93-SEAM: decreeScore (Track R); read off the namespace so a branch without it still loads
-import * as shareMod from '../share.js';          // U93-SEAM: decreeLink and decreeShareText (Track S)
+import { decreeScore, splitMonths } from '../../sim/score.js';   // decreeScore: Track R
+import { decreeLink, decreeShareText } from '../share.js';   // Track S
 import { dateParts } from '../../sim/clock.js';
 import { setSpeed } from '../../sim/commands.js';
 import { el, button } from '../components.js';
@@ -28,10 +27,9 @@ export function partsObject(parts) {
   return o;
 }
 
-// The run's score on the last day: { total (out of 600), parts, medal }. Track R's decreeScore; before it exists, the five parts alone.
+// The run's score on the last day: { total (out of 600), parts, medal }, from Track R's decreeScore.
 export function decreeResult(world) {
-  const fn = scoreMod.decreeScore;   // U93-SEAM
-  const s = typeof fn === 'function' ? fn(world) : (() => { const o = scoreOf(world); return { total: o.raw, parts: { ...o.parts, bonus: 0 }, medal: null }; })();
+  const s = decreeScore(world);
   const parts = partsObject(s.parts);
   const total = Number.isFinite(s.total) ? s.total : PART_IDS.reduce((n, p) => n + parts[p], 0);
   return { total, parts, medal: s.medal || null };
@@ -98,12 +96,10 @@ export function decreeTitleCard({ week, ids, records = null, slot = null, onStar
 
 function shareText(world, result, hooks) {
   const decree = world.decree, mark = markOf(decree);
-  const textFn = shareMod.decreeShareText;   // U93-SEAM
-  const text = typeof textFn === 'function' ? textFn({ mark, total: result.total, medal: result.medal, parts: result.parts }) : U.shareText(mark, result.total, result.medal);
-  const linkFn = shareMod.decreeLink;        // U93-SEAM
   const who = safe(() => (hooks.records ? hooks.records.dynasty() : null), null);
-  const link = typeof linkFn === 'function' ? safe(() => linkFn({ week: decree.week, parts: result.parts, splits: {}, name: who ? who.name : '', heir: 'steady' }), '') : '';
-  return link ? `${text}\n${link}` : text;
+  const splits = safe(() => splitMonths(world), {});
+  const link = safe(() => decreeLink({ week: decree.week, parts: result.parts, splits, name: who ? who.name : '', heir: 'steady' }), '');
+  return decreeShareText({ mark, total: result.total, medal: result.medal, parts: result.parts, link });
 }
 
 // ---- the seam --------------------------------------------------------------------------------------------------------------------------------------------------

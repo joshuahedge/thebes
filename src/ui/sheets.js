@@ -3,7 +3,7 @@
 // (early-game pass 2.10). Show me itself lives in createUI (showMeAt); this file only hands it a target.
 import { alertShowMe, bazaarFix } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { ruleReach } from '../sim/rules.js';   // Version 9.3 (Track U): a decree's reach is the one the sim uses
+import { ruleReach, capacityOf } from '../sim/rules.js';   // Version 9.3 (Track U): a decree's reach and a store's room are the ones the sim uses
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf, stepFixFor, isLuxuryCause } from '../sim/advice.js';
@@ -160,7 +160,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const switches = b.type === 'storehouse';
     // Stage 4.7 (Task 6): the Fetch control (src/ui/s47/carts.js, the seam's `store` part) sits right under how full the store is, so it is not buried under the stock rows.
     // Version 8.3 (Track K, ruling 1420): a storehouse's switches are its Takes in part, apart from Keeps stocked above (what carts bring), so the two ideas never share a list.
-    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), ...extra('store', b), el('h3', { class: switches ? 'takes-in-head' : null, text: switches ? KEEP_TEXT.takesIn : T.stock })];
+    const out = [row(T.stored, progressText(storeTotal(b), capacityOf(world, b.type))), ...extra('store', b), el('h3', { class: switches ? 'takes-in-head' : null, text: switches ? KEEP_TEXT.takesIn : T.stock })];
     if (switches) out.push(el('p', { class: 'small muted', text: KEEP_TEXT.takesInHelp }));
     // Stage 4.7 (Task 6): goods a cart has taken out of this store, or is bringing to it, are said under their row so they never seem to vanish.
     const road = roadGoods(world, b.id);

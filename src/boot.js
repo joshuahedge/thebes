@@ -586,7 +586,7 @@ export async function boot(doc, win, {
       // and keeps its sender as a rival on that week (records.addRival, never your own name).
       decree: decreeUnlocked(records) || linkedDecree() ? () => {
         const link = linkedDecree();
-        if (link && link.name && typeof records.addRival === 'function') {   // U93-SEAM
+        if (link && link.name) {
           try { if (records.dynasty().name !== link.name) records.addRival(link, clock()); } catch (e) { /* records never stop the card */ }
         }
         const week = link ? link.week : thisWeek();

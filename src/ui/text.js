@@ -4876,7 +4876,6 @@ export const U93_TEXT = {
   noRivals: 'No rivals on this week yet. Share your score to start one.',
   rivalRow: (name, score) => `${name}: ${score}`,
   share: 'Share', shared: 'Link copied',
-  shareText: (mark, total, medal) => `Thebes decree, ${mark}: ${total} of 600${medal && SCORE_TEXT.medals[medal] ? `, ${SCORE_TEXT.medals[medal].toLowerCase()}` : ''}`,
   // The ruler list's decree rows
   rowName: (r) => `${r.mark}, decree, score ${r.score} of 600, ${U93_TEXT.medalWords(r.medal)}`,
   rowKind: 'Decree',

@@ -113,7 +113,7 @@ export function renderRulers(body, { records, onPlay = () => {}, installAsk = fa
   let rulers = [];
   try { rulers = records ? records.rulers() : []; } catch (e) { rulers = []; }
   let decrees = [];
-  try { decrees = records && typeof records.decrees === 'function' ? records.decrees() : []; } catch (e) { decrees = []; }   // U93-SEAM: Track S's records.decrees
+  try { decrees = records && typeof records.decrees === 'function' ? records.decrees() : []; } catch (e) { decrees = []; }   // Track S's records.decrees (a list's own records, as the tests give, may have none)
   // Version 9.3 (Track U, ruling 1982): decree rows and rulers together, newest date first.
   const rows = [...rulers.map((r) => ({ at: r.date || 0, node: () => rulerRow(r, { onPlay }) })), ...(Array.isArray(decrees) ? decrees : []).filter((d) => d && d.week).map((d) => ({ at: d.date || 0, node: () => decreeRow(d, { onPlay }) }))].sort((a, b) => b.at - a.at);
   const listed = rulers.length || rows.length;
