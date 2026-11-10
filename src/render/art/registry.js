@@ -138,7 +138,7 @@ export function serviceState(b) {
 for (const table of [SERVICE_LOOKS, INDUSTRY_LOOKS, DEFENCE_LOOKS, SUPPLY_LOOKS, TRADE_LOOKS, FERRY_LOOKS]) Object.assign(ART, withLooks(table, { states: true }));
 for (const type of SUPPLY_TYPES) ART[`${type}.idle`] = ART[type === 'brickworks' ? 'brickworks.s1.l1.shut' : `${type}.l1.shut`];
 // 9.3 fix wave (known item 2, ruling 2005): the plain keys the cards and older callers use (ui/thumbs.js) are the Town look working, so they reach the bar
-// as every slot the map shows does. A plain key keeps its name, and now takes its entry (bounds, shadows, draw) from '<base>.l1.work'.
+// as every slot the map shows does. A plain key keeps its name, and now takes its entry (bounds, shadows, draw) as the <base>.l1.work slot does (no quotes here: tests/ui/pwa reads a quoted string after from as an import).
 const PLAIN_LOOK = {
   granary: 'granary.s3', bazaar: 'bazaar.s2', storehouse: 'storehouse.s3', brickworks: 'brickworks.s3',
   // (the Quay's plain keys stay Track T's own entries, which the v70 contract test pins by identity; its drawing, quay() in trade.js, has the bar in every state)
