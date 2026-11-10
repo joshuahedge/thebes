@@ -10,7 +10,8 @@ import { TERRAIN, UI } from '../render/art/palette.js';
 import { hasNewLand } from '../data/s47.js';
 import { HEIRS } from '../data/v90.js';
 import { cleanName, decodeMapSquare, MAP_SQUARE, MAP_CELL } from '../save/records.js';
-import { SCORE_TEXT, SHARE_TEXT, medalText, DIFFICULTY_NAMES } from './text.js';
+import { SCORE_TEXT, SHARE_TEXT, DECREE_SHARE_TEXT, medalText, DIFFICULTY_NAMES } from './text.js';
+import { isWeekKey } from './week.js';
 
 // (Version 6.0, Track D1, ruling 742: the weekly seed, This week's Nile, and its ISO-week helper are gone with the title's button.)
 
@@ -48,6 +49,7 @@ export function shareLink({ seed, difficulty, parts, splits, variant = 'classic'
 // ('bad_check', 'newer_format', 'malformed') otherwise, and null for a hash that is not a share link at all.
 export function parseShareLink(hash) {
   const [text, ...extra] = String(hash || '').replace(/^#/, '').split('&');
+  if (/^d\d+\./.test(text)) return parseDecreeLink(text, extra);   // Version 9.3: a decree link
   const head = /^t(\d+)\./.exec(text);
   if (!head) return null;
   const f = SHARE.formats[`t${head[1]}`];
@@ -81,6 +83,52 @@ export function parseShareLink(hash) {
     splits: Object.fromEntries(f.splits.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
     version: f.version, older: f.version < SHARE.formats[SHARE.format].version, variant, ...(sizeNamed ? { size } : {}),   // size only when the link names one: a Normal link reads as it always did
   };
+}
+
+// Version 9.3 (Track S, ruling 1969): the decree link, SHARE.base + '#d1.<year>-<week>.<six parts joined by ->.<months to each split joined by -, x where not reached>.<4 check characters>',
+// then 9.0's '&name=…&heir=…' (outside the check) when the sender has a name. The seed, level, size and layout all follow from the week, so the link carries none of them.
+// parts: the five (SCORE_PARTS) and `bonus`, each 0-100; splits as t2's. '' for anything that is not a good decree link.
+export const DECREE_LINK_FORMAT = 'd1';
+const DECREE_PART_IDS = [...SCORE_PARTS, 'bonus'];
+export function decreeLink({ week, parts, splits, name = '', heir = 'steady' } = {}) {
+  if (!isWeekKey(week) || !parts || !DECREE_PART_IDS.every((p) => isPart(parts[p]))) return '';
+  const months = SHARE.formats[SHARE.format].splits.map((id) => (splits && Number.isInteger(splits[id]) && splits[id] >= 0 ? splits[id] : 'x')).join('-');
+  const body = `${DECREE_LINK_FORMAT}.${week}.${DECREE_PART_IDS.map((p) => parts[p]).join('-')}.${months}`;
+  const called = cleanName(name);
+  const who = called ? `&name=${encodeURIComponent(called)}&heir=${HEIR_LETTER[HEIRS.includes(heir) ? heir : 'steady']}` : '';
+  return `${SHARE.base}#${body}.${shareCheck(body)}${who}`;
+}
+function parseDecreeLink(text, extra) {
+  const bits = text.split('.');
+  const n = Number(/^d(\d+)\./.exec(text)[1]);
+  if (n !== 1) return { ok: false, reason: n > 1 ? 'newer_format' : 'malformed' };
+  const bad = { ok: false, reason: 'malformed' };
+  if (bits.length !== 5) return bad;
+  const [, week, partsText, splitsText, check] = bits;
+  const parts = partsText.split('-'), months = splitsText.split('-'), ids = SHARE.formats[SHARE.format].splits;
+  if (!isWeekKey(week) || parts.length !== DECREE_PART_IDS.length || months.length !== ids.length) return bad;
+  if (!parts.every((p) => /^\d{1,3}$/.test(p) && isPart(Number(p))) || !months.every((m) => m === 'x' || /^\d{1,5}$/.test(m))) return bad;
+  if (!new RegExp(`^[0-9a-z]{${SHARE.checkLength}}$`).test(check)) return bad;
+  if (check !== shareCheck(bits.slice(0, 4).join('.'))) return { ok: false, reason: 'bad_check' };
+  const nameText = extra.find((e) => e.startsWith('name='));
+  let name = '';
+  try { name = nameText ? cleanName(decodeURIComponent(nameText.slice('name='.length))) : ''; } catch (e) { name = ''; }
+  const heirText = extra.find((e) => e.startsWith('heir='));
+  const heir = name && heirText ? HEIR_OF[heirText.slice('heir='.length)] : undefined;
+  return {
+    ...(name ? { name, ...(heir ? { heir } : {}) } : {}),
+    ok: true, kind: 'decree', week,
+    parts: Object.fromEntries(DECREE_PART_IDS.map((p, i) => [p, Number(parts[i])])),
+    splits: Object.fromEntries(ids.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
+  };
+}
+
+// The text a decree share carries: "Sea Peoples, week 47: 412 of 600, silver", then the emoji row of the six parts, then the link.
+// mark: the week's name; total: out of 600; medal: bronze, silver, gold or null; parts: the six. The words come from DECREE_SHARE_TEXT (Track U fills them at the merge).
+export function decreeShareText({ mark = '', total = 0, medal = null, parts = null, link = '' } = {}) {
+  const rows = parts && DECREE_PART_IDS.every((p) => isPart(parts[p]))
+    ? DECREE_PART_IDS.map((p) => { const k = Math.floor(parts[p] / 20); return `${DECREE_SHARE_TEXT.parts[p]} ${'🟩'.repeat(k)}${'⬜'.repeat(5 - k)}`; }).join('\n') : '';
+  return [DECREE_SHARE_TEXT.line(mark, total, medal), rows, link].filter(Boolean).join('\n');
 }
 
 // A shared score's city score: its parts' total times its level's factor, rounded, as scoreOf counts it.
