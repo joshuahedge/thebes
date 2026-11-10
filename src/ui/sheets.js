@@ -14,7 +14,8 @@ import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
 import { roadGoods } from '../sim/carts.js';
-import { openGoals, guideActive } from '../sim/goals.js';
+import { openGoals as openChapterGoals, guideActive } from '../sim/goals.js';
+const openGoals = (world, n) => (world.decree ? [] : openChapterGoals(world, n));   // 9.3 fix wave (known 6): a decree run has no chapter goals
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { CRITICAL_RANK, stepRow } from './alerts.js';

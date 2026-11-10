@@ -4,7 +4,8 @@ import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS, SHOW_ME_MIN_ZOOM } from '../data/ui.js';
-import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
+import { goalById, nextItemFor, guideActive, openGoals as openChapterGoals, goalProgress } from '../sim/goals.js';
+const openGoals = (world, n) => (world.decree ? [] : openChapterGoals(world, n));   // 9.3 fix wave (known 6): a decree run has no chapter goals
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';

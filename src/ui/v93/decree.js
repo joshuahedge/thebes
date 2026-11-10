@@ -4,7 +4,7 @@
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { DECREES } from '../../data/decrees.js';
 import { decreeEnded } from '../../sim/rules.js';
-import { decreeScore, decreeMedals, splitMonths } from '../../sim/score.js';   // decreeScore and decreeMedals: Track R
+import { decreeScore, decreeMedals, decreeMeasure, splitMonths } from '../../sim/score.js';   // decreeScore and decreeMedals: Track R
 import { scoreTotalLine, scorePartRow } from '../scoreUi.js';   // the score sheet's own total line and part rows
 import { decreeLink, decreeShareText } from '../share.js';   // Track S
 import { dateParts } from '../../sim/clock.js';
@@ -12,7 +12,7 @@ import { setSpeed } from '../../sim/commands.js';
 import { el, button } from '../components.js';
 import { seamBase } from '../s46/seam.js';
 import { openSheet } from '../modes.js';
-import { U93_TEXT as U, T, progressText } from '../text.js';
+import { U93_TEXT as U, T, SCORE_TEXT, progressText } from '../text.js';
 import { sideBySide } from '../v90/sideBySide.js';
 
 const PART_IDS = [...SCORE_PARTS, 'bonus'];
@@ -60,11 +60,12 @@ export function decreeUnlocked(records) {
 // ---- the card --------------------------------------------------------------------------------------------------------------------------------------------------
 
 // What the decree does and what its bonus counts: the mark, each decree's twist, the bonus line. mark: the mark's own node (the sheet's h3, the title panel's strong line).
-export function decreeFacts({ ids, week, mark = (text) => el('h3', { class: 'decree-mark', text }) }) {
+// plain: the title panel's lines (the friend's-score panel's): small, with the mark the panel's only bold line, so the name leads the twist in the same weight.
+export function decreeFacts({ ids, week, mark = (text) => el('h3', { class: 'decree-mark', text }), plain = false }) {
   return [
-    mark(U.markOf(ids, week)),
-    el('ul', { class: 'decree-twists' }, ids.filter((id) => DECREES[id]).map((id) => el('li', { class: 'decree-twist', dataset: { decree: id } }, [
-      el('strong', { text: `${U.names[id]}. ` }), el('span', { text: U.twists[id] }),
+    mark(U.markOf(ids, week).replace(/ week (\d+)$/, ' week $1')),   // fix wave (U10): "week 46" stays together on a phone
+    el('ul', { class: 'decree-twists' }, ids.filter((id) => DECREES[id]).map((id) => el('li', { class: plain ? 'decree-twist small' : 'decree-twist', dataset: { decree: id } }, [
+      plain ? el('span', { class: 'twist-name', text: `${U.names[id]}. ` }) : el('strong', { text: `${U.names[id]}. ` }), el('span', { text: U.twists[id] }),
     ]))),
     el('p', { class: 'decree-counts small muted', text: U.counts(ids) }),
   ];
@@ -78,13 +79,13 @@ export function decreeTitleCard({ week, ids, records = null, slot = null, onStar
   const live = Boolean(slot) && !slot.ended;
   const otherLive = live && !sameWeek;
   const label = sameWeek && live ? U.continue : (sameWeek && slot.ended) || best ? U.again : U.start;
-  // The go button is the panel's primary, as the friend's-score panel's Start on this map is (src/ui/scoreUi.js titleDecor).
-  const go = button(label, { class: `decree-go primary ${sameWeek && live ? 'continue-decree' : best || (sameWeek && slot.ended) ? 'again-decree' : 'start-decree'}`, onClick: () => (sameWeek && live ? onContinue(slot) : onStart()) });
+  // The go button is a plain button, as the Lesson and Options row are (fix wave U7): Play stays the title's one primary.
+  const go = button(label, { class: `decree-go ${sameWeek && live ? 'continue-decree' : best || (sameWeek && slot.ended) ? 'again-decree' : 'start-decree'}`, onClick: () => (sameWeek && live ? onContinue(slot) : onStart()) });
   const id = 'decree-card-head';
   // The title's panel look is the friend's-score panel's (.shared-score in css/ui.css, which lists .decree-card beside it): a small heading, plain lines, small muted notes.
   return el('section', { class: 'decree-card', role: 'group', 'aria-labelledby': id }, [
     el('h2', { id, class: 'small', text: U.cardTitle }),
-    ...decreeFacts({ ids, week, mark: (text) => el('p', { class: 'decree-mark' }, [el('strong', { text })]) }),
+    ...decreeFacts({ ids, week, plain: true, mark: (text) => el('p', { class: 'decree-mark' }, [el('strong', { text })]) }),
     el('p', { class: 'decree-best your-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
     rival ? el('p', { class: 'decree-rival rival-line', text: U.rivalLine(rival.name, rival.score) }) : null,
     otherLive ? el('p', { class: 'decree-unfinished small', text: U.unfinished(slot.week) }) : null,
@@ -116,7 +117,7 @@ export function createDecreeUi(ctx) {
   const given = (name, fallback) => (ctx.hooks && name in ctx.hooks ? ctx.hooks[name] : fallback());
 
   // The chip, beside the date: the first row under the top bar. Its tap opens the card again (the end card once the run is over).
-  const chip = el('button', { type: 'button', class: 'decree-chip small', dataset: { lock: 'decree-chip' } }, [el('span', { class: 'chip-year' }), el('span', { class: 'chip-mark' })]);
+  const chip = el('button', { type: 'button', class: 'decree-chip small', dataset: { lock: 'decree-chip' } }, [el('span', { class: 'chip-year' }), el('span', { class: 'chip-sep', 'aria-hidden': 'true', text: '·' }), el('span', { class: 'chip-mark' })]);   // the dot keeps the year and the mark apart on a phone (known 8)
   const underBar = root.querySelector('#under-bar');
   if (underBar) underBar.insertBefore(chip, underBar.firstChild);
   chip.querySelector('.chip-mark').textContent = mark;
@@ -125,12 +126,21 @@ export function createDecreeUi(ctx) {
     const y = yearOf(world), key = `${y}|${decreeEnded(world)}`;
     if (key === chipKey) return;
     chipKey = key;
+    root.classList.toggle('decree-over', decreeEnded(world));   // fix wave (U8): the debt alert, the tips and the scribe stop nudging a city that can no longer act (css/v93.css)
     chip.querySelector('.chip-year').textContent = U.chip(y);
     chip.setAttribute('aria-label', U.chipLabel(mark, y));
   };
   chip.addEventListener('click', () => store.set(openSheet(store.get(), decreeEnded(world) ? 'decreeEnd' : 'decree')));
   root.classList.add('decree-on');
   paintChip();
+
+  // After the end the clock is refused every speed (fix wave U2): Play, the speed buttons and the keys open the end card instead of doing nothing.
+  const sc = ctx.speedControl, setSpeedControl = sc && sc.set;
+  if (sc) sc.set = (speed) => {
+    const r = setSpeedControl.call(sc, speed);
+    if (!r.ok && r.reason === 'decree_ended' && !somethingUp()) store.set(openSheet(store.get(), 'decreeEnd'));
+    return r;
+  };
 
   // The decree card: the first screen (Begin starts the clock) and, from the chip, a reminder (Close).
   let begun = false;
@@ -147,10 +157,14 @@ export function createDecreeUi(ctx) {
 
   // The end card, in the shape of 9.2's lesson end card: the numbers, the choices, then the lines under them.
   let result = null, noted = null;
-  function endSheet(body, { close, setTitle }) {
-    setTitle(U.endTitle);
+  // The end is written to the records the moment it arrives (fix wave U1), not when the card first draws: a player who leaves under a waiting sheet still has the run noted.
+  function noteEnd() {
     if (!result) result = decreeResult(world);
     if (!noted) noted = typeof run.noteEnd === 'function' ? run.noteEnd(result) : { best: null, isBest: false };
+  }
+  function endSheet(body, { close, setTitle }) {
+    setTitle(U.endTitle);
+    noteEnd();
     const best = (noted && noted.best) || weekBest(run.records, decree.week) || { score: result.total, medal: result.medal };
     const rivals = typeof run.rivals === 'function' ? run.rivals() : [];
     const share = button(U.share, { class: 'decree-share', onClick: () => {
@@ -178,8 +192,10 @@ export function createDecreeUi(ctx) {
         ? scorePartRow(p, result.parts[p], { name: U.bonusPart, label: `${U.bonusPart}: ${progressText(result.parts[p], 100)}` })
         : scorePartRow(p, result.parts[p])))),
       el('p', { class: 'decree-counts small muted', text: U.counts(decree.ids) }),
+      // A pair week's bonus is the mean of two parts; each decree's own part shows under it (fix wave U9).
+      decree.ids.length > 1 ? el('ul', { class: 'decree-own-parts small muted' }, decree.ids.filter((id) => DECREES[id]).map((id) => el('li', { dataset: { decree: id }, text: U.partLine(id, Math.min(100, Math.round((100 * decreeMeasure(world, id)) / DECREES[id].bar))) }))) : null,
       el('h4', { text: U.rivalsHead }),
-      top ? sideBySide({ score: result.total, parts: result.parts, heir: 'steady' }, { name: top.name, score: top.score, parts: top.parts || {}, heir: top.heir || 'steady' }, { id: 'decree-side' }) : null,
+      top ? sideBySide({ score: result.total, parts: result.parts, heir: 'steady' }, { name: top.name, score: top.score, parts: top.parts || {}, heir: top.heir || 'steady' }, { id: 'decree-side', ids: PART_IDS, names: { ...SCORE_TEXT.parts, bonus: U.bonusPart } }) : null,
       rivals.length ? el('ul', { class: 'decree-rivals small' }, rivals.slice(0, 5).map((r) => el('li', { class: 'decree-rival', text: U.rivalRow(r.name, r.score) }))) : el('p', { class: 'decree-no-rivals small muted', text: U.noRivals }),
     ]));
   }
@@ -188,7 +204,9 @@ export function createDecreeUi(ctx) {
   let opened = false;
   const somethingUp = () => { const s = store.get(); return Boolean(s.confirmDialog) || Boolean(s.sheet); };
   function tryEnd() {
-    if (opened || !decreeEnded(world)) return;
+    if (!decreeEnded(world)) return;
+    noteEnd();
+    if (opened) return;
     paintChip();
     if (somethingUp()) return;
     opened = true;
@@ -211,6 +229,6 @@ export function createDecreeUi(ctx) {
     onEvents() { paintChip(); tryEnd(); },
     onCommand() { paintChip(); },
     refresh() { paintChip(); tryEnd(); },
-    destroy() { gone = true; stop(); chip.remove(); root.classList.remove('decree-on'); },
+    destroy() { gone = true; stop(); chip.remove(); root.classList.remove('decree-on', 'decree-over'); if (sc) sc.set = setSpeedControl; },
   };
 }

@@ -9,7 +9,7 @@ import { el, button, clear } from '../components.js';
 import { drawMapString } from '../share.js';
 import { SCORE_TEXT, FEAT_TEXT, V90_L_TEXT, V90_D_TEXT, T, U93_TEXT } from '../text.js';
 import { partsObject } from '../v93/decree.js';   // Version 9.3 (Track U): the decree rows
-import { decreeMapOf } from '../week.js';
+import { decreeMapOf } from '../../data/week.js';
 import { DEFAULT_MAP_SIZE } from '../../data/map.js';
 import { sideBySide } from './sideBySide.js';
 import { rulerCartouche } from '../v92/cartouche.js';

@@ -2,6 +2,7 @@
 // are, farms by how far the crop has grown. Pure functions of the building (and, for farms, the game day);
 // the renderer turns them into art slots through slotFor in registry.js.
 import { BUILDINGS } from '../../data/buildings.js';
+import { capacityOf } from '../../sim/rules.js';
 
 export const FARM_CYCLE_DAYS = 60;     // sprouting, green, golden: 20 game days each
 export const FARM_ID_OFFSET = 17;      // days the cycle shifts per building id, so a district never grows in step
@@ -9,8 +10,9 @@ export const FARM_ID_OFFSET = 17;      // days the cycle shifts per building id,
 const stored = (b) => { let n = 0; for (const v of Object.values(b.store || {})) n += v; return n; };
 
 // 0 empty, 1 under a third full, 2 under two thirds, 3 the rest.
-export function granaryStage(b) {
-  const n = stored(b), cap = BUILDINGS.granary.capacity;
+// 9.3 fix wave (known 9): with a world, the capacity is capacityOf's (Low Nile's granaries hold double, so half full reads as half, not as full).
+export function granaryStage(b, world = null) {
+  const n = stored(b), cap = world ? capacityOf(world, 'granary') : BUILDINGS.granary.capacity;
   if (n <= 0) return 0;
   if (n * 3 < cap) return 1;
   if (n * 3 < cap * 2) return 2;

@@ -8,7 +8,8 @@ import { SCORE_TEXT, V90_L_TEXT, V90_D_TEXT } from '../text.js';
 const clampPart = (n) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
 
 // mine: { score, parts, heir }; rival: { name, score, parts, heir }. Returns the section's element.
-export function sideBySide(mine, rival, { id = 'side-by-side' } = {}) {
+// ids and names: the parts listed and their words (9.3 fix wave U4: a decree's end card adds the bonus part); the five score parts by default.
+export function sideBySide(mine, rival, { id = 'side-by-side', ids = SCORE_PARTS, names = SCORE_TEXT.parts } = {}) {
   const L = V90_L_TEXT;
   const head = el('h3', { id: `${id}-head`, text: L.sideHead(rival.name) });
   const side = (who, row, cls) => el('p', { class: `sbs-side ${cls}` }, [
@@ -25,8 +26,8 @@ export function sideBySide(mine, rival, { id = 'side-by-side' } = {}) {
   return el('section', { class: 'side-by-side', 'aria-labelledby': `${id}-head` }, [
     head,
     el('div', { class: 'sbs-heads' }, [side(L.you, mine, 'you'), side(rival.name, rival, 'rival')]),
-    el('ul', { class: 'sbs-parts' }, SCORE_PARTS.map((p) => el('li', { class: 'sbs-part', dataset: { part: p } }, [
-      el('span', { class: 'sbs-part-name', text: SCORE_TEXT.parts[p] }),
+    el('ul', { class: 'sbs-parts' }, ids.map((p) => el('li', { class: 'sbs-part', dataset: { part: p } }, [
+      el('span', { class: 'sbs-part-name', text: names[p] || p }),
       line(L.you, mine, p, 'you'),
       line(rival.name, rival, p, 'rival'),
     ]))),

@@ -9,7 +9,7 @@
 // refresh after both (onCommand and onEvents also see each command), so the section and the chip read the same score.
 import { SCORE_PARTS, SPLITS, STAMP_GLYPHS_MAX } from '../data/scoring.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { scoreOf, scorePreview, monumentPreview, sealReign, splitMonths } from '../sim/score.js';
+import { scoreOf, scorePreview, monumentPreview, sealReign, splitMonths, decreeScore, decreeMedals } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
 import { remarkFor, monumentCaptions } from './celebrate.js';
 import { isMonument, isSite } from '../sim/world.js';
@@ -21,7 +21,7 @@ import { el, button } from './components.js';
 import { createDynastyUi } from './v90/dynastyUi.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT, D92_D_TEXT,
+  U93_TEXT, sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT, V90_L_TEXT, D92_D_TEXT,
 } from './text.js';
 
 // Version 9.3 (Track U): the score sheet's total line and part row, shared with the decree's end card (src/ui/v93/decree.js) so the two are one look.
@@ -193,13 +193,18 @@ export function createScoreUi(ctx) {
   // Version 9.0 (Track D): the heir's line and, from City, what the reign would be remembered as, under the heading (src/ui/v90/dynastyUi.js).
   function summarySection() {
     const s = current();
+    // Version 9.3 fix wave (known 7): a decree run counts to the decree's medals, out of 600, with the bonus part (decreeScore, decreeMedals), not to the city's.
+    const dec = world.decree ? decreeScore(world) : null;
+    const scale = dec ? decreeMedals(world) || [] : [];
+    const k = dec ? scale.findIndex((at) => dec.total < at) : -1;
+    const next = dec ? (k >= 0 ? { medal: ['bronze', 'silver', 'gold'][k], points: scale[k] - dec.total } : null) : s.next;
     return el('section', { class: 'score-section' }, [
       el('h3', { text: SCORE_TEXT.cityScore, dataset: { section: 'score' } }),   // Version 8.1: the score's explainer opens the City page here
       ...dynasty.summary(),
-      scoreTotalLine(s.total, s.medal),
-      el('p', { class: 'next-medal small muted', text: nextMedalText(s.next) }),
-      s.factor !== 1 ? el('p', { class: 'factor small muted', text: factorText(s.raw, s.factor, world.difficulty) }) : null,
-      el('ul', { class: 'score-parts' }, SCORE_PARTS.map((p) => partRow(p, s))),
+      dec ? scoreTotalLine(dec.total, dec.medal) : scoreTotalLine(s.total, s.medal),
+      el('p', { class: 'next-medal small muted', text: nextMedalText(next) }),
+      s.factor !== 1 && !dec ? el('p', { class: 'factor small muted', text: factorText(s.raw, s.factor, world.difficulty) }) : null,
+      el('ul', { class: 'score-parts' }, [...SCORE_PARTS.map((p) => partRow(p, s)), dec ? scorePartRow('bonus', dec.parts.bonus, { name: U93_TEXT.bonusPart }) : null].filter(Boolean)),
       ...splitsBlock(),
       scoreActions(),
     ]);
@@ -347,7 +352,8 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     const bests = records ? safe(() => records.bests(3), []) : [];
     const stamps = records ? safe(() => records.stamps(), []) : [];
     // Version 9.0 (Track L, ruling 1585): the ruler list's button, when a ruler is kept and the title can open the list (onRulers).
-    const rulerCount = records && typeof onRulers === 'function' ? safe(() => records.rulers().length, 0) : 0;
+    // 9.3 fix wave (U3): the list also holds the decree rows, so a player with finished decrees and no ruler can open it.
+    const rulerCount = records && typeof onRulers === 'function' ? safe(() => records.rulers().length, 0) + safe(() => (typeof records.decrees === 'function' ? records.decrees().length : 0), 0) : 0;
     if (bests.length || stamps.length || rulerCount) {
       const box = el('div', { class: 'title-records', role: 'group', 'aria-label': TITLE_SCORE_TEXT.records }, [
         ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b), title: D92_D_TEXT.bestLabel(b) })),   // Version 9.2 (Track D, ruling 1819): "Best reign: 200, Bronze"; the seed, level and size are in the Rulers list (a pointer's tooltip has them too)

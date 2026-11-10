@@ -14,7 +14,7 @@ import { isUnlocked } from '../../sim/progression.js';
 import { seasonAt } from '../../sim/seasons.js';
 import { costOf } from '../../sim/costs.js';
 import { housesOf, buildingsVersion } from '../../sim/world.js';
-import { scoreOf } from '../../sim/score.js';
+import { scoreOf, decreeScore } from '../../sim/score.js';
 import { SCORE_PARTS } from '../../data/scoring.js';
 import { summaryData } from '../hud.js';
 import { adviceWords } from '../adviceText.js';
@@ -36,7 +36,11 @@ export function createScoreReader(world) {
   let key = null, score = null;
   return () => {
     const k = `${world.day}|${buildingsVersion(world)}|${world.gold}`;
-    if (k !== key) { key = k; score = scoreOf(world); }
+    if (k !== key) {
+      key = k; score = scoreOf(world);
+      // Version 9.3 fix wave (known 7): a decree run's score is out of 600 with the bonus part (decreeScore), and its medal the decree's; the five parts and their reasons stay scoreOf's.
+      if (world.decree) { const d = decreeScore(world); score = { ...score, total: d.total, medal: d.medal }; }
+    }
     return score;
   };
 }

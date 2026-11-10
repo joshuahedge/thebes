@@ -10,7 +10,9 @@ import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { MEDALS } from '../data/scoring.js';
-import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
+import { openGoals as openChapterGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
+// Version 9.3 fix wave (known 6): a decree run has no chapter goals (the guide and the daily goals are off too); its bar is the decree's medal.
+const openGoals = (world, n) => (world.decree ? [] : openChapterGoals(world, n));
 import { desirabilityFix, herdNear } from '../sim/advice.js';
 import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf, decreeScore, decreeMedals } from '../sim/score.js';
@@ -313,7 +315,7 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
   function draw(body) {
     const chain = chainGoals(world);                   // Stage 3: a Peaceful city's chain has no raid goals
     const done = chain.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
-    body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
+    if (!world.decree) body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // (a decree run has no chain to count) Founded Thebes is done from the start
     if (skipHere() && guideActive(world)) body.append(el('p', { class: 'skip-row' }, [button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() })]));   // one tap, no confirm (spec 3.2)
     const open = openGoals(world, 3);
     if (!open.length) body.append(el('p', { text: done === chain.length ? T.goalsDone : T.goalsNone }));   // a goal waiting on its `when` is hidden, not done

@@ -35,7 +35,7 @@ import { HEIR_DEFAULT, isHeir } from '../data/v90.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
 import { hasNewLand } from '../data/s47.js';
-import { isWeekKey, decreeMapOf } from '../ui/week.js';
+import { isWeekKey, decreeMapOf } from '../data/week.js';
 
 // Version 9.3 (Track S, rulings 1965-1974; records version 3): `decrees` beside the rulers:
 //   decrees: [ { id, week, ids, mark, score, parts, medal, day, map, feats, title, name, tries, date } ]

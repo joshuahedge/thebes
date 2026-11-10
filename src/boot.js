@@ -40,10 +40,10 @@ import { TIPS } from './data/tips.js';
 import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver, lessonTaughtTips } from './ui/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH, handOverWorld } from './sim/lesson.js';
 import { seenKey, dueCards } from './ui/cardMoments.js';
-import { canPassThrone } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
+import { canPassThrone, titleOf } from './sim/dynasty.js';   // Version 9.0 (Track D): Pass the throne, from City
 import { installRescue } from './ui/v91/rescue.js';   // Version 9.1 (Track R): the error handler and its card
-import { decreesOfWeek, weekKey, isWeekKey, decreeMapOf } from './ui/week.js';   // Version 9.3 (Track U): the week's decree
-import { decreeTitleCard, decreeUnlocked, weekBest, weekRivals } from './ui/v93/decree.js';
+import { decreesOfWeek, weekKey, isWeekKey, decreeMapOf } from './data/week.js';   // Version 9.3 (Track U): the week's decree
+import { decreeTitleCard, decreeUnlocked, weekBest, weekRivals, decreeResult } from './ui/v93/decree.js';
 import { parseShareLink } from './ui/share.js';
 
 const HOUR = 3600 * 1000;
@@ -428,6 +428,8 @@ export async function boot(doc, win, {
   // Back to your city: the run is saved in its slot, then the main slot loads (or the title shows when there is none).
   async function leaveDecree() {
     if (!current || !current.decree) return;
+    // U1 belt: an ended run is noted when it ended (the end card's seam); this covers one that somehow was not.
+    if (current.world.decree.ended && !current.world.decree.noted) noteDecreeEnd(current.world, decreeResult(current.world));
     await saveDecree();
     const loaded = await loadSave(store);
     blockIfNewer(loaded);
@@ -443,7 +445,7 @@ export async function boot(doc, win, {
     const fresh = !world.decree.noted;
     if (fresh) {
       // Track S's noteDecree takes the score from its caller (the end card has read Track R's decreeScore) and the mark's words.
-      try { records.noteDecree(world, { now: clock(), score: result, mark: U93_TEXT.markOf(world.decree.ids, week) }); } catch (e) { /* records never stop the end card */ }
+      try { records.noteDecree(world, { now: clock(), score: result, mark: U93_TEXT.markOf(world.decree.ids, week), title: titleOf(world).id }); } catch (e) { /* records never stop the end card */ }   // S2: the row's title is the heir's, as a ruler's row has
       world.decree.noted = true;
       saveDecree();
     }
@@ -451,7 +453,7 @@ export async function boot(doc, win, {
   }
   function decreeRunFor(world) {
     const week = world.decree.week;
-    return { week, ids: world.decree.ids, records, again: () => startDecree(week), back: () => leaveDecree(), rivals: () => weekRivals(records, week), noteEnd: (result) => noteDecreeEnd(world, result) };
+    return { week, ids: world.decree.ids, records, again: () => { if (world.decree.ended && !world.decree.noted) noteDecreeEnd(world, decreeResult(world)); startDecree(week); }, back: () => leaveDecree(), rivals: () => weekRivals(records, week), noteEnd: (result) => noteDecreeEnd(world, result) };
   }
   // The title's button: a fresh run of `week`. A slot holding another week's unfinished run asks first (it holds one run).
   function askStartDecree(week) {
