@@ -61,7 +61,8 @@ describe('v81 d no zoom: the page', () => {
   it('has a viewport meta that allows page zoom (9.2, Q7), and the interface cancels the pinch gesture on the map while it runs and stops when it is gone', async () => {
     const html = await (await fetch('/index.html')).text();
     const content = new DOMParser().parseFromString(html, 'text/html').querySelector('meta[name="viewport"]').getAttribute('content');
-    expect(['maximum-scale', 'user-scalable', 'initial-scale=1', 'viewport-fit=cover'].map((k) => content.includes(k))).toEqual([false, false, true, true]);
+    expect(['user-scalable', 'initial-scale=1', 'viewport-fit=cover'].map((k) => content.includes(k))).toEqual([false, true, true]);
+    expect(content.includes('maximum-scale') ? Number(/maximum-scale=([\d.]+)/.exec(content)[1]) : 2).toBeGreaterThanOrEqual(2);   // 9.3.1 (Track L, S14): zoom is capped at 200%, never below it
     const pinch = () => { const c = document.createElement('canvas'); document.body.append(c); const e = new Event('gesturestart', { bubbles: true, cancelable: true }); c.dispatchEvent(e); c.remove(); return e.defaultPrevented; };
     const r = await rigUI();
     try { expect(pinch()).toBe(true); } finally { r.cleanup(); }
