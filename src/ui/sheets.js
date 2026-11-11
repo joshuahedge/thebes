@@ -584,8 +584,13 @@ export function createSheets({ container, store, world, placement, cameraControl
       const target = s.sheet.kind === 'summary' && typeof s.sheet.id === 'string' && /^[a-z]+$/.test(s.sheet.id) ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
       // Version 9.3.1 (Track N, ruling 2022): a sheet opened from a scrolled one starts at its top (the box keeps its scroll between sheets), unless a section is named.
       if (target) { const closed = target.closest('details'); if (closed) closed.open = true; }
-      if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
-      else container.scrollTop = 0;
+      // Version 9.3.1 (phone check): on a phone the City page is short rows, so it opens at its top with the tabs in view, and moves only as far as
+      // shows a named row that starts below the first screen; the wide layout scrolls the named section to the top, as before.
+      if (target && target.scrollIntoView && s.layout === 'wide') target.scrollIntoView({ block: 'start' });
+      else {
+        container.scrollTop = 0;
+        if (target && target.scrollIntoView && target.getBoundingClientRect().top > container.getBoundingClientRect().bottom - 48) target.scrollIntoView({ block: 'nearest' });
+      }
     }
     if (focusIndex >= 0) {
       const again = container.querySelectorAll('button')[focusIndex];

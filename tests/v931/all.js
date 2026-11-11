@@ -4,3 +4,4 @@ import './g/all.js';         // G: the placing ghost's depth (its footprint unde
 import './l/all.js';
 import './n/all.js';
 import './c/all.js';
+import './x/all.js';         // X: the phone check's last two fixes

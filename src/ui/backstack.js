@@ -65,6 +65,9 @@ export function createBackStack({
       lastSteps = stepsOf(last);
       // Version 9.3.1 (Track N, ruling 2020): a title panel (src/ui/titleCard.js) that was open when the game began left its entry under ours: one Back expires it unseen.
       if (history.state && history.state.thebesTitle) stale = 1;
+      // Version 9.3.1 (phone check): a step already open when the game begins (the lesson's first chapter card, straight after Play) takes its entry now,
+      // or Back with it up would leave the game.
+      for (let i = 0; i < lastSteps; i++) history.pushState({ thebes: ++depth }, '');
       unsubscribe = store.subscribe(onState);
       addListener('popstate', onPop);
     },
