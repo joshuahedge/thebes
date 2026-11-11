@@ -27,6 +27,9 @@
 [data-text-size="200"] { --ui-scale: 2; }
 /* Derived sizes live on body, where --ui-scale is set, so they scale with the text-size setting. */
 body { --topbar-h: calc(48px * var(--ui-scale) + var(--band-foot)); --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); }
+/* Version 10.0 (Track D, ruling 2122): on the wide layout the side panel, the drawer and the panel's minimap grow with --ui-scale (the map's zoom is untouched); a phone's layouts keep their widths at
+   every text size. The panel never takes more than 40% of the window (and never less than its 320 px), so a narrow window at 150% text keeps a map. */
+body[data-layout="wide"] { --panel-w: max(320px, min(calc(320px * var(--ui-scale)), 40vw)); --drawer-w: calc(268px * var(--ui-scale)); --minimap-s: calc(160px * var(--ui-scale)); }
 /* Version 8.0 (ruling 1143): the gap under the top bar is the old 6 px less the band's 3 px foot at 100% text, so the rows under the bar sit where they did and every height budget holds; at larger text the bar is taller than its token (its content sets it), so the full 6 px stays. */
 body { --under-gap: calc(6px - var(--band-foot)); }
 body[data-text-size="125"], body:is([data-text-size="150"], [data-text-size="200"]) { --under-gap: 6px; }

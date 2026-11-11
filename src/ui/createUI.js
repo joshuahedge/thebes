@@ -238,7 +238,7 @@ export function createUI({
   // rebuild between a press and its click would lose the click. A click from the keyboard has no pointer type and changes nothing.
   const onPress = (ev) => { if (ev.pointerType) store.set({ inputType: ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse' }); };
   root.addEventListener('click', onPress);
-  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, cssSize: 'var(--minimap-s, 160px)', dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
 
   const speedBar = el('div', { class: 'speed-bar' });
@@ -1022,7 +1022,8 @@ export function createUI({
     const v = view();
     if (s.layout === 'portrait') return phoneInsets(s, { right: 0, bottom: v.height * 0.6, left: 0 });
     if (s.layout === 'compact') return phoneInsets(s, { right: RAIL_PX + DRAWER_PX, bottom: cornersHeight(root, canvas, v.height), left: 0 });
-    return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
+    const panel = root.querySelector('#panel');   // Version 10.0 (Track D, ruling 2124): the wide panel's width follows --ui-scale, so the inset is its measured width
+    return { top: TOPBAR_PX, right: panel && panel.offsetWidth ? panel.offsetWidth : PANEL_PX, bottom: 0, left: 0 };
   }
   // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom (allowed for,
   // not measured: a card is picked while the tray is open and the corners still ride above it).

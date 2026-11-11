@@ -67,13 +67,15 @@ export function minimapPins(world, alerts = []) {
 const shownBy = new WeakMap();   // world -> { cam, view }
 export const cameraOf = (world) => (world && shownBy.get(world)) || null;
 
-export function createMinimap({ world, cam, view, size = 160, dpr = 1, onMove = null }) {
+// cssSize (Version 10.0, Track D, ruling 2123): the canvas's CSS width and height when it is not `size` px, e.g. 'var(--minimap-s, 160px)' (the wide panel's, which follows --ui-scale);
+// the picture stays `size` canvas px a side, so it is drawn by the browser at the scaled size.
+export function createMinimap({ world, cam, view, size = 160, dpr = 1, onMove = null, cssSize = null }) {
   if (cam && view) shownBy.set(world, { cam, view });
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);
-  canvas.style.width = `${size}px`;
-  canvas.style.height = `${size}px`;
+  canvas.style.width = cssSize || `${size}px`;
+  canvas.style.height = cssSize || `${size}px`;
   canvas.className = 'minimap-canvas';
   // Version 9.2 (Track A, ruling 1831): the minimap is a control, not a picture: a role, a name, a way in with Tab and the arrow keys (each step is a sixteenth of the city; onMove(x, y) pans the view there).
   canvas.setAttribute('role', 'application');
