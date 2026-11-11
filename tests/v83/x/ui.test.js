@@ -58,8 +58,12 @@ describe('v83 x ui: the road bar names the crossing, and the water is tinted to 
     const p = toolPreview(w, road({ x0: RIVER_X - 2, y0: ROW, x1: RIVER_X + 15, y1: ROW }).get());
     expect([p.state, p.reason, p.text, p.showFit]).toEqual(['bad', 'too_wide', 'Too wide: 14 tiles (a bridge crosses up to 4, a ferry up to 12)', true]);
     expect(ghostsFor(w, road({ x0: RIVER_X - 2, y0: ROW, x1: RIVER_X + 15, y1: ROW }).get()).every((q) => q.state === 'bad')).toBe(true);
+    // Version 9.3.1 (Group C, ruling 2035): a bent line that meets water runs straight from its start (here it stops in the water, on its way across);
+    // the bent words stay for a line that starts in the water
     const bent = toolPreview(ferryWorld(7), road({ x0: RIVER_X - 2, y0: ROW, x1: RIVER_X + 3, y1: ROW + 3 }).get());
-    expect([bent.state, bent.reason, bent.text, bent.showFit]).toEqual(['bad', 'bridge_shape', CROSSING_TEXT.bent, true]);
+    expect([bent.state, bent.text]).toEqual(['idle', CROSSING_TEXT.ahead('ferry', 7)]);
+    const wet = toolPreview(ferryWorld(7), road({ x0: RIVER_X + 3, y0: ROW, x1: RIVER_X + 9, y1: ROW + 2 }).get());
+    expect([wet.state, wet.reason, wet.text, wet.showFit]).toEqual(['bad', 'bridge_shape', CROSSING_TEXT.bent, true]);
     expect(CROSSING_TEXT.bent).toBe('A crossing must go straight across');
     // the Oasis names only the bridge's limit
     const oasis = ferryWorld(7);

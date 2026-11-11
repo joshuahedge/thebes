@@ -4,7 +4,7 @@
 // Importing this file registers How to play's Ferries entry and the ferries tip, so menu.js and the placing code import it.
 // Version 8.3 "Lines", Track X (rulings 1390-1409): the road tool lays a bridge or a ferry, and the Ferry card is the Crossing card. CROSSING_TEXT below is
 // the road bar's crossing words (src/sim/bridges.js crossingRuns is the rule they say); FERRY_TEXT's card, help and tip say both limits.
-import { plural, S45_TEXT, TIP_TEXT, TIP_HELP_TEXT } from '../text.js';
+import { plural, S45_TEXT, TIP_TEXT, TIP_HELP_TEXT, V931C_TEXT } from '../text.js';
 import { FERRY, FERRY_LANDING, FERRY_FIND } from '../../data/ferries.js';
 import { BRIDGE_MAX } from '../../sim/bridges.js';
 import { monthlyBill } from '../../sim/economy.js';
@@ -72,7 +72,7 @@ export const FERRY_TEXT = {
     otherLabel: 'Show the other landing of this ferry on the map',
   },
   // How to play's entry and the tip (Version 8.3, ruling 1401: the crossings tip, both limits in one line).
-  help: { head: 'Crossings', text: `A road crosses water. Drag it straight across, from bank to bank: over up to ${BRIDGE_MAX} tiles of water it lays a bridge; over ${FERRY.min} to ${FERRY.max} tiles, a ferry, with a landing on each bank and the road going on from the far one. Wider water, or a bent line, is refused, and the bar says why. While you drag, the water is tinted: teal for a bridge, blue for a ferry, coral when it cannot be crossed there. The Crossing card in the Roads tray shows the best crossings near your roads: tap one, then ✓. A ferry costs gold for its two landings and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
+  help: { head: 'Crossings', text: V931C_TEXT.help(BRIDGE_MAX, FERRY.min, FERRY.max) },   // Version 9.3.1 (Group C, ruling 2035): a line that meets water runs straight
   tip: `Roads cross water: a bridge up to ${BRIDGE_MAX} tiles, a ferry ${FERRY.min} to ${FERRY.max}. Drag straight across, bank to bank.`,
 };
 
