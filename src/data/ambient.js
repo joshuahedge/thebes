@@ -57,3 +57,18 @@ export const PROCESSION = {
   maxOnScreen: 3,
   flutterMs: 1000,                 // the temple's streamers change shape once a second, under Full only
 };
+
+// Version 10.0 (Track 0, rulings 2057-2059): the life layer's budget (ms a frame, a running average as the v90 dropper measures it), what goes
+// first when over it, and its caps. Life is render-side only: a pure function of the world, the time and a hash; it never writes the world.
+export const LIFE = {
+  budgetMs: { desktop: 1.5, phone: 1.0 },
+  dropOrder: ['crowd', 'river', 'idle', 'weather', 'flicker'],
+  idleCap: { desktop: 24, phone: 16 },
+  crowdCap: 8,
+  riverCap: 6,
+  buildersPerSite: [2, 4],
+  lineCap: 16,
+  storm: { perYear: [1, 2], seconds: [20, 40], fromYear: 2, dustCap: 60, hazeAlpha: 0.35 },
+  windDriftMs: 240000,
+  fadeMs: 1000,
+};

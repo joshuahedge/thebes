@@ -94,6 +94,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
+import { createLife } from '../render/v100/life.js';   // Version 10.0 (Track 0): the life layer's seam
 import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT, M93_TEXT } from './text.js';
 import { bringsNewLook } from '../render/v93/sweep.js';   // Version 9.3 (Track M)
 import { farGoodTip } from '../sim/carts.js';
@@ -343,6 +344,8 @@ export function createUI({
   monumentUi = createMonumentUi(seamCtx);
   s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx), createDecreeUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
+  // Version 10.0 (Track 0): the life layer's seam (render/v100/life.js), its frame the render's frame time; Track L adds its sources.
+  const life = createLife({ level: motionLevel, now: () => frameNow });
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -1278,12 +1281,12 @@ export function createUI({
         if (onGround) for (const ghost of shapes) drawGhostGround(g, ghost);
       },
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion), ...life.walkers(world, timeDays, t, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),   // Version 10.0 (Track 0): life's walkers after v70's
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
-      ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
+      ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); life.ground(g, world, r, t, motion); },   // Version 10.0 (Track 0): life's ground after the ambient's. Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       light: (g, r, frame) => v70Light(g, world, r, frame, t, motion, settings.get()),   // Version 7.0: night's tint and the lamps (render/v70.js, Track S)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
-      fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
+      fire: (g, r) => { drawFires(g, world, r, t, still); life.late(g, world, r, t, motion); drawIllness(g, world, r); },   // Version 10.0 (Track 0): life's late layer after the late ambient (drawFires ends with it). Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood), { now: t, still: motion === 'still' });   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good; Supply lines move with the clock
@@ -1338,6 +1341,7 @@ export function createUI({
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed, setAutosaveBlocked,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
+    life,   // Version 10.0 (Track 0): the life layer's seam (Track L adds its sources; a test reads stats())
     monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
