@@ -9,7 +9,24 @@
 
 export const RELEASES = [
   {
-    version: '9.3', date: '2026-11-10', title: 'A city that grows, and the decree', build: 'live',
+    version: '9.3.1', date: '2026-11-11', title: 'Easier on a phone', build: 'live',
+    new: [
+      'A bridge or ferry is one straight line, laid where you drew it. Drag the road or the Crossing card over water and it lays a bridge over up to 4 tiles of water or a ferry over 5 to 12; where it can\'t, the bar says why, with Show me.',
+      'Back on a phone closes one thing at a time: a stat\'s explainer, the Speed popup, the build tray, the lesson\'s chapter card and the title\'s panels no longer throw you out of the game.',
+      'The outline of a building you are placing now lies on the ground, under the houses in front of it. The ✓ and ✕ stay on top.',
+      'On a phone the Map sheet shows the map first, Fit the city closes it before framing, and the City page folds into rows. A sheet opens at its top, and the title\'s logo stays put while its card scrolls.',
+      'An iPhone opens on the title with its buttons; the install guide opens from Install, with a Not now button.',
+    ],
+    fixed: [
+      'The lesson\'s road step is framed at least 56 px from the screen\'s side and says "Drag along the dashed line"; once you have drawn the road it says "Tap ✓ to build the road you drew" and counts "9 of 9 planned".',
+      'At 150% text the lesson\'s row and the goals strip wrap instead of cutting their words, a long building name no longer breaks inside a word, and in a raid Defence leads the dock\'s row.',
+      'Held sideways on a notched phone, the rail no longer covers the corner buttons and sheets, and its words clear their colour bars.',
+      'The housing-plots bar says Stop, the decree chip is 44 px tall, and the decree\'s end card leads with Try again.',
+      'A two-finger pinch on a bar zooms the page to 200% at most. The title\'s decree card is shorter at large text on a short screen.',
+    ],
+  },
+  {
+    version: '9.3', date: '2026-11-10', title: 'A city that grows, and the decree', build: '22bb649',
     new: [
       'A city that grows: your buildings, ground and streets change look as the city ranks up. Town, City and Capital each bring a new look, so a Village of mud and thatch becomes whitewash, then warm stone, then pale limestone and gold.',
       'The new look spreads from the palace outward and takes 4 months to reach the farthest building. Full motion shows a gold ring sweeping out over 3 seconds, and the rank-up line says the city rebuilds.',

@@ -58,3 +58,42 @@ Nothing since 7.0 has been tried on a real device. The first group is carried fr
 ## For 9.4
 - The decree's numbers are data (`src/data/decrees.js`) and measurable (`tests/run-tests.ps1 -Grep "v93 k balance"`); retune only with a run in hand.
 - The look tables are per type; a new building type needs a `*_LOOKS` entry and a place in the bar test's exempt list or a draw that calls the bar.
+
+## 9.3.1 (11 Nov 2026)
+
+A patch of mobile fixes on 9.3 (rulings 2015 to 2040, Part 30 of the rulings file; the group notes are `2026-11-11-version-9-3-1-rulings-{l,t,n,g,c}.md`). The source is `2026-11-11-mobile-ux-review.md` (3 must, 15 should, 14 could, all from emulation). Every must and should item is fixed or ruled; Josh's three asks (the title logo stays put, the placing outline under the houses in front, a straight bridge or ferry) are in.
+
+### What the review's could items still hold
+None of the 14 was touched. Each is small; do them together as a polish pass.
+- **C1** "Show me" comes in three looks on one sheet: one outlined style for row actions, filled only for the sheet's single next step.
+- **C2** On a phone, How to play leads with Keyboard shortcuts; put Touch second and the keys near the end.
+- **C3** A building's "Pause" reads like the game's Play and Paused; Demolish is the strongest button in the row and has no question.
+- **C4** Layers: "Off" is drawn as the filled, chosen button.
+- **C5** The Menu's first item is a filled "Continue", the third meaning of that word.
+- **C6** The Undo toast sits on the Paused tag at 150% (add the tag's height to `--toast-lift` while paused).
+- **C7** The lesson's first tool bar talks about bridges and ferries before the one instruction; with 9.3.1's straight crossings, hide the water line in the lesson.
+- **C8** A new map opens with a wedge of plain tan past its corner.
+- **C9** The decree card says the decree's name three times.
+- **C10** After a decree, the title says "Rulers (1)" for a decree row.
+- **C11** The date explainer's action is a two-line sentence-button.
+- **C12** In a built-up city a double tap selects a building before it zooms.
+- **C13** The New city card at 150% on an SE hides Hard and the map choices (drop the Thebes cartouche on short screens).
+- **C14** Placing at 150% on a 360 phone leaves about 40% of the screen for the map.
+
+### What the groups left
+- **S8, sticky tabs (ruling 2024).** The City page folds into rows on a phone, but its Messages and City tabs are not sticky and the two sheet titles ("Messages and advice", "City summary") are unchanged. Only the folding was done.
+- **S14, the iOS zoom cap (ruling 2019).** `maximum-scale=2` closes the case on Chrome; iOS Safari ignores it by design, so an iPhone can still pinch the page past 200% from a bar. The review's other fix (reset the page zoom when the map takes a pinch while `visualViewport.scale > 1`) is not done.
+- **The landscape lesson row clamp.** Sideways (844x390) the lesson row is still line-clamped; ruling 2015 un-clamped the words on a portrait phone only. Check it at 150% sideways.
+- **The 375 lesson ring.** At 375 px wide the road step's long ring is still about 20 px off the screen's far side, the cost of ruling 2026 (the marked end 56 px from the edge; it amends 1674's and 821's whole-ring rule). The drag is still along the line.
+
+### For Josh to check on a real phone
+Emulation could not show any of these (the review's closing list, plus the straight crossing).
+- [ ] **Edge-swipe zones.** The lesson's road step (the marked end now 56 px from the side) on an Android with gesture navigation: does the first drag start without being taken as Back? Does iOS's edge swipe in Safari interfere?
+- [ ] **The keyboard over the name fields.** Pass the throne's name field (y 722 to 766 on an 844 px screen) and Options' ruler-name field: do iOS and Android keep them visible above the keyboard?
+- [ ] **Safari's address bar.** On an iPhone, with the bottom bar showing and hiding, does the dock stay in place and the sheets keep their height (`100dvh`)?
+- [ ] **A straight crossing drag by finger.** Drag the road tool and the Crossing card across water (a bridge up to 4 tiles, a ferry 5 to 12) with a finger: does the line follow the finger's furthest axis, does a drag that starts or ends in the water land on the banks, and does a short finger lift on the road tool read "drag on to the far bank" (rulings 2035 to 2038)?
+- [ ] **Back from each of the five surfaces** (explainer, Speed popup, tray, title panels, lesson card) on a real Android, in the installed app.
+- [ ] **Pinch on a bar** on an iPhone: how far the page zooms (ruling 2019).
+
+### Process
+This docs pass shifted the old release tests' `RELEASES[n]` indexes by one with a short `perl` command (as 9.3's docs did), checked against the diff.

@@ -2207,3 +2207,45 @@ Two halves. *A city that grows* (specs/2026-11-10-thebes-version-9-3-a-city-that
 2014. Home heights are unchanged by the new plans. — Cost if wrong: none.
 
 Open at the end of 9.3: see notes/2026-11-10-version-9-3-followups.md (the real-phone list, the Capital mid-rebuild on a phone and an iPad, and the script's last-year decline, ruling 1988).
+
+### 9.3.1 "Easier on a phone" (11 Nov 2026): rulings 2015 to 2040
+
+A patch on 9.3. The mobile review (notes/2026-11-11-mobile-ux-review.md: 3 must, 15 should, 14 could) had every must and should item fixed or ruled, and Josh asked for three more: the title logo stays put, a placing building's outline lies under the houses in front, and a bridge or ferry is one straight line. Group notes: notes/2026-11-11-version-9-3-1-rulings-{l,t,n,g,c}.md. Group N first wrote its logo ruling as 2025, which Track T also used; it is 2040 (renumbered in the -n note and the titleCard.js comment).
+
+*Group L (layout, landscape, 150% text)*
+2015. The lesson row at larger text on a phone wraps (face and words first, More and Show me under); the words are never line-clamped; the chapter label is read by screen readers only until the row is open. Review S1. — Cost if wrong: the row is up to about 20 px taller at 150% and scrolls inside --guidance-max.
+2016. The goals strip's words take four lines at larger text, and More gets a line of its own. Review S10. — Cost if wrong: a goal over four lines still shows More.
+2017. The bar's building name uses `overflow-wrap: break-word` and the title row wraps; during a raid warning or raid, at 125% text and above, Defence leads the dock's row (`order: -1`, scroll snap off). Review S4 and S9. — Cost if wrong: the category order changes for the raid's length.
+2018. `#rail` is `--rail-w` wide with the notch as its padding, counted once; each rail category keeps 8 px under its word for the colour band. Review M2 and S15. — Cost if wrong: the rail scrolls a little more at 150% sideways.
+2019. The viewport meta gets `maximum-scale=2`. Keeps ruling 1829 (a deliberate pinch zooms) but caps it at 200%; the two tests that banned `maximum-scale` (v81 d noZoom, v92 a audit) accept a cap of 2 or more. Review S14. — Cost if wrong: iOS Safari ignores the cap, so an iPhone can still zoom past 200%.
+
+*Group N (Back, sheets, the title)*
+2020. The stat explainer, the Speed popup, a phone's open tray, the lesson's chapter card and the title's panels are Back steps (store fields `explainerOpen`, `speedOpen`); Back on the chapter card docks the step as Esc did. Review M1. — Cost if wrong: a stale entry makes one Back press do nothing.
+2021. `shouldShowGuide` is always false: an iPhone opens on the title, and the guide opens from Install and the later ask. Its foot button says "Not now" (changes 1106's Continue for this guide only); its Export line shows only with a saved city. Review S5. — Cost if wrong: a player who wanted the guide first taps Install.
+2022. A sheet opened without a named section scrolls to its top. Review S6. — Cost if wrong: none seen.
+2023. The minimap sheet has the map first on a phone, and Fit the city closes the sheet before framing there. Review S7. — Cost if wrong: the alerts sit under the map; the Map badge counts them.
+2024. On a phone the City page folds its sections into rows (the score's, or the named one, open); the tabs are not made sticky (review S8's sticky tabs left, see the 9.3.1 follow-ups) and the two sheet titles are unchanged. The title's decree card hides its twists, best and rival on a screen up to 720 px tall at 125% text or more. Review S8 and S13. — Cost if wrong: the twist is one tap further.
+2040. (First numbered 2025.) The title's logo sits in a sticky band (`.title-head`) at the card's top; the wide card keeps it in the flow. Josh's ask. — Cost if wrong: the band takes a little height on a short screen.
+
+*Track T (the lesson, the plots bar, the decree's buttons)*
+2025. The road step's words drop the compass word: "Drag along the dashed line, from the marked end of the road." Review M3. — Cost if wrong: a player who wants a compass point loses it.
+2026. The road step is framed so the marked end's middle is at least 56 px from the free map's side; while a plan is drawn the row says "Tap ✓ to build the road you drew." and the chip counts planned tiles ("9 of 9 planned"). Amends 1674 and the rule of 821 (a step's view keeps its long ring whole): at some sizes the long ring is now cut at its far end. Review M3 and S2. — Cost if wrong: the cut ring; the drag is still along the line.
+2027. The housing-plots bar's "Done" becomes "Stop" (label "Stop placing homes"). Review S3. — Cost if wrong: players expecting ✕ see a word.
+2028. The decree end card lists Try again (filled), Back to your city, then Share, full-width and stacked. Review S12. — Cost if wrong: Share moves from first to last.
+2029. The decree chip is 44 px (`--tap`) with a chevron at its end. Review S11. — Cost if wrong: its row is 8 px taller under the top bar.
+
+*Group G (the placing ghost's depth)*
+2030. A ground layer under the sprites: `opts.drawGround(g, range)` runs after the terrain, ambient layer and ground shadows and before the sorted sprites; a ghost's footprint, washes, hatching, outlines, road joins, plots and the desirability tint draw there. — Cost if wrong: a footprint behind a tall home is hidden as the ground is; only its badge shows.
+2031. Only a monument has a ghost to stand up: `opts.placing` gives the renderer its silhouette, sorted with the buildings at id -1 and drawn at 35%. — Cost if wrong: a see-through building on every ghost is new drawing work.
+2032. The badges, per-square marks, glyphs, the ferry's boat and price, the bank hint, the open layer and the lesson's ring stay over everything; no faint pass of the hidden part. `drawGhost` runs in two passes (`drawGhostGround`, `drawGhostMarks`) and still draws both for demolish and the dev scenes. — Cost if wrong: a 1x1 ghost behind a tall home reads by its badge alone.
+2033. Road, wall, gate and ferry previews lie on the ground too, glyphs on top; demolish keeps its whole draw over the sprites. — Cost if wrong: a road's squares behind a tall home are hidden as the built road is.
+2034. At night the footprint dims with the ground (night's tint is after the sprites); badges and glyphs stay above the tint. — Cost if wrong: the outline is darker at deepest night.
+
+*Group C (straight crossings; Josh: "It just needs to default to straight lines")*
+2035. A road drag in Straight (not Route, not the Gate card) that would cross open water is laid as one straight run from where it began, along the axis it moved furthest (a tie runs along the row); a drag meeting no water keeps its L and its path. Builds on 1395. — Cost if wrong: a road that should bend after a bridge takes two strokes.
+2036. The Crossing card's drag is always one straight run and lays the crossing on that line or nothing: no snap to a nearby crossing, so ruling 1347 no longer applies to the card's drag (the sim's `previewFerry` still snaps by default; `snap: false` is an option). Where it can't be laid, the bar says why and Show me goes to the nearest crossing that works. — Cost if wrong: a drag one row off a good crossing is refused, not mended.
+2037. A tap with no drag still picks the nearest crossing shown (1348 kept); a new Crossing drag replaces the last line. — Cost if wrong: small.
+2038. The Crossing card's crossing lands where its straight line meets dry land on each side, whatever tile the finger began or lifted on; the road tool keeps 1395's look-ahead for a stroke that stops in the water. — Cost if wrong: on the road tool, a finger a tile short of the far bank must drag on.
+2039. How to play's Crossings entry says a line that meets water runs straight (`V931C_TEXT.help`) and no longer says a bent line is refused; the bar keeps its words. — Cost if wrong: none.
+
+Rulings 2015 to 2040 are used; 2041 is the next free number.
