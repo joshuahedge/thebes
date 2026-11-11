@@ -10,9 +10,10 @@
 // silhouette with a crested helmet and a round shield; a soldier wears a white kilt and carries a tall spear and a tall,
 // round-topped teal shield.
 import { p, U } from './primitives.js';
-import { SHADOW, INK, TEAL, TEAL_DARK, BLUE, GOLD, ORANGE, WOOD, MUD, RED, STONE } from './palette.js';
+import { SHADOW, INK, TEAL, TEAL_DARK, BLUE, GOLD, ORANGE, WOOD, MUD, RED, STONE, WASH } from './palette.js';
 
-export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine', 'standard', 'newcomer'];
+export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine', 'standard', 'newcomer',
+  'child', 'goat', 'dog', 'builder', 'crocodile'];   // Version 10.0 (Track 0, ruling 2101): life's kinds, placeholders until Track L draws them (lifePlaceholder)
 export const UNIT_KINDS = ['raider', 'soldier'];
 export const UNIT_SCALE = 1.5;
 
@@ -32,7 +33,26 @@ export function footShadow(g, X, Y, s = 1, rx = 3, alpha = 0.18) {
   g.ell([X, Y + 0.1 * s], rx * 0.66 * s, 0.7 * s, INK, { alpha: 0.28 });
 }
 
+// Version 10.0 (Track 0, ruling 2101): the life kinds' placeholder drawings, so every test that walks FIGURE_KINDS passes until Track L draws them.
+// A child is a citizen three quarters the size; a builder a citizen with a mud-brown band at the waist; a goat, a dog and a crocodile a flat oval
+// in the palette's lavender shade (WASH[2]) on a foot shadow, each its own size, so the distinguishable-kinds test tells them apart.
+const PLACEHOLDER_OVAL = { goat: [4.5, 2.6, 3.6], dog: [4, 2.2, 3], crocodile: [8, 1.8, 1.6] };   // half-width, half-height, lift (art px)
+const LIFE_PLACEHOLDERS = new Set(['child', 'builder', ...Object.keys(PLACEHOLDER_OVAL)]);
+function lifePlaceholder(g, gx, gy, kind, z, sc) {
+  if (kind === 'child') { fig(g, gx, gy, 'citizen', z, sc * 0.75); return; }
+  if (kind === 'builder') {
+    fig(g, gx, gy, 'citizen', z, sc);
+    const c = U(p(gx, gy), z);
+    g.line([c[0] - 1.6 * sc, c[1] - 5.6 * sc], [c[0] + 1.6 * sc, c[1] - 5.6 * sc], MUD[2], 1.2 * sc);
+    return;
+  }
+  const c = U(p(gx, gy), z), [rx, ry, lift] = PLACEHOLDER_OVAL[kind];
+  footShadow(g, c[0], c[1], sc, rx);
+  g.ell([c[0], c[1] - lift * sc], rx * sc, ry * sc, WASH[2], { outline: true });
+}
+
 export function fig(g, gx, gy, kind, z = 0, sc = 1) {
+  if (LIFE_PLACEHOLDERS.has(kind)) { lifePlaceholder(g, gx, gy, kind, z, sc); return; }
   if (kind === 'shrine') { shrine(g, gx, gy, z, sc); return; }
   if (kind === 'standard') { standard(g, gx, gy, z, sc); return; }
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, sk = '#A0663F', hair = '#1E150E';

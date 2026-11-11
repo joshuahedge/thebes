@@ -7,6 +7,8 @@
 // city shows the same life every time. Figure ids: WILDLIFE_ID_BASE + a number below 600000 (units 100000+, processions 200000+,
 // dedications 600000+, streamers 900000+, newcomers 1200000+), in three ranges that never meet (wildlifeIds; the final
 // review found a lodge with id 5000 took the boat id of building 0): herd animals, then tile animals, then lodge and wharf figures.
+// Version 10.0 (Track 0, ruling 2101): 2000000+ life (townsfolk 20, river 22, builders 24, crowd 26: src/render/v100/life.js LIFE_IDS), above
+// wildlife's whole span and below the carts (3000000+), trade (4000000+), ferries (4100000+) and rides (4600000+).
 import { BUILDINGS } from '../data/buildings.js';
 import { WILDLIFE, HUNTING, RIVER_SALT } from '../data/river.js';
 import { hash2 } from '../sim/rng.js';
