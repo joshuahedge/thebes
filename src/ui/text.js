@@ -2499,7 +2499,7 @@ export const S47_SPOTS_TEXT = {
   water: 'Water', market: 'Bazaar',
   tip: 'While you place homes, bright plots have water and a bazaar in reach; hatched plots have one of them.',
   tipHelp: 'Placing homes: bright plots have water and a bazaar in reach, hatched plots have one of them. Done ends it.',
-  done: 'Done', doneLabel: 'Done placing homes',
+  done: 'Stop', doneLabel: 'Stop placing homes',   // Version 9.3.1 (Track T, ruling 2027): "Done" sat beside the tick and read as the same act
   // No tile is marked (no road a working well or bazaar reaches has a free tile beside it): one true line, no keys to promise marks that are not there. Names from the data.
   none: () => { const b = buildingName('bazaar').toLowerCase(), w = buildingName('well').toLowerCase(); return `No plot has water and a ${b} in reach yet: a ${w} and a ${b} beside a road make Good plots`; },
   first: { head: 'A good spot', why: `You laid a plot where a ${buildingName('well').toLowerCase()} and a ${buildingName('bazaar').toLowerCase()} both reach it along the roads: the best place for the next home.` },
@@ -4580,7 +4580,7 @@ export const V90_L_TEXT = {
 // the months say why mood moves (ruling 1665); the raid step says its speeds, triple until the raiders arrive, then double (rulings 1657, 1671).
 const v91fAim = (kind) => (kind && kind !== 'building' ? buildingName(kind).toLowerCase() : 'city');
 export const V91F_TEXT = {
-  roadDo: 'Drag west from the marked end of the road.',
+  roadDo: 'Drag along the dashed line, from the marked end of the road.',   // Version 9.3.1 (Track T, ruling 2025): no compass word
   firehouseDo: "Build a firehouse at the road's corner.",
   monthWhy: 'Mood falls when homes lack food or work: the mood chip says why.',
   monthDo: (paused, n) => `${paused ? 'Press Play and let' : 'Let'} ${n} months pass, and watch your gold and mood.`,
@@ -4890,3 +4890,10 @@ export const U93_TEXT = {
   playMapNote: "Opens New city on this week's map as a plain city, without the decree.",
 };
 Object.assign(REASONS, { decree: U93_TEXT.locked, decree_ended: 'The decree has ended' });   // fix wave (U2): what every refused command says after the end
+
+// Version 9.3.1, Track T (the lesson's road step, the bars and the decree's buttons; rulings 2025-2029). Track T writes only between this header and the end of the file.
+export const V931T_TEXT = {
+  roadTap: 'Tap ✓ to build the road you drew.',   // the road step while a plan is drawn (the plan is only a plan until ✓ is tapped)
+  roadPlanned: (n, of) => `${n} of ${of} planned`,
+  roadPlannedLabel: (n, of) => `${n} of ${of} road tiles planned, not built yet`,
+};

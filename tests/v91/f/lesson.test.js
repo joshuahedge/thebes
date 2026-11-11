@@ -129,7 +129,7 @@ describe('v91 f lesson: the words', () => {
   it('the road step points at the diamond, the months at mood, and the raid says its speed before its raiders come (and its target)', () => {
     const w = lessonWorld();
     const road = stepWords(LESSON_STEPS[0], lessonFacts(w, LESSON_STEPS[0]));
-    expect(road.do).toBe('Drag west from the marked end of the road.');
+    expect(road.do).toBe('Drag along the dashed line, from the marked end of the road.');
     const month = LESSON_STEPS.find((s) => s.id === 'month');
     expect(stepWords(month, lessonFacts(w, month)).why.includes('mood chip')).toBe(true);
     const raid = LESSON_STEPS.find((s) => s.id === 'raid');
