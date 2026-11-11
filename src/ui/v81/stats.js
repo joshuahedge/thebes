@@ -21,7 +21,7 @@ import { adviceWords } from '../adviceText.js';
 import { T as TILE } from '../../sim/terrain.js';
 import { closeSheet } from '../modes.js';
 import { el, button, clear } from '../components.js';
-import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText, T } from '../text.js';
+import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, compactDateText, score4ReasonText, T } from '../text.js';
 import { V84R_TEXT, U93_TEXT } from '../text.js';
 import { spoilsSaving } from '../../sim/spoils.js';
 import { V81_B_TEXT as B, moodFace } from './bText.js';
@@ -63,7 +63,7 @@ export function compact(n) {
 
 // Each stat as the bar shows it: { value (the words on the bar), full (the whole number), state (the picture's), words (the state said) }.
 // score is null while scoreUi has not given one (it measures the score at most once per command and game day).
-// date: 'long' ("Year 2, month 1, day 1"), 'short' ("Yr 2 Mo 1") or 'month' ("M1": a phone's bar, ruling 1227: the year is in its name and explainer).
+// date: 'long' ("Y2 · M1 · D1", Version 10.0 Track D; its name and explainer say "Year 2, month 1, day 1"), 'short' ("Yr 2 Mo 1") or 'month' ("M1": a phone's bar, ruling 1227: the year is in its name and explainer).
 export function statState(world, { date: form = 'short', score = null } = {}) {
   const d = summaryData(world), f = monthForecast(world), n = nextFlood(world), season = seasonAt(world).season;
   const falling = f.active && f.net < 0;
@@ -73,7 +73,7 @@ export function statState(world, { date: form = 'short', score = null } = {}) {
     gold: { value: compact(d.gold), full: d.gold, coins: goldPile(d.gold), falling, words: falling ? (f.runsOut ? B.goldRunsOut(f) : B.goldFalling) : '' },
     people: { value: compact(d.people), full: d.people, figures: peopleCrowd(d.people), words: '' },
     mood: { value: String(d.mood), full: d.mood, face, words: B.faceWords[face] },
-    date: { value: form === 'long' ? dateText(d.date) : form === 'month' ? B.monthShort(d.date) : shortDateText(d.date), full: dateText(d.date), season, level, words: [SEASON_TEXT.names[season], B.floodNext(n)].filter(Boolean).join(', ') },
+    date: { value: form === 'long' ? compactDateText(d.date) : form === 'month' ? B.monthShort(d.date) : shortDateText(d.date), full: dateText(d.date), season, level, words: [SEASON_TEXT.names[season], B.floodNext(n)].filter(Boolean).join(', ') },
     score: { value: score === null ? '' : compact(score), full: score, words: '' },
   };
 }

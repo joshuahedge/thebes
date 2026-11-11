@@ -127,7 +127,7 @@ describe('ui hud', () => {
         r.ui.settings.set({ textSize: size });
         r.world.day = 360;
         r.ui.refresh();
-        expect([w, size, r.root.querySelector('#topbar .stat.date .value').textContent]).toEqual([w, size, long ? 'Year 2, month 1, day 1' : 'Yr 2 Mo 1']);
+        expect([w, size, r.root.querySelector('#topbar .stat.date .value').textContent]).toEqual([w, size, long ? 'Y2 · M1 · D1' : 'Yr 2 Mo 1']);   // Version 10.0 (Track D, ruling 2125): the wide bar's date is "Y2 · M1 · D1"
       } finally { r.cleanup(); }
     }
     for (const [w, h] of [[900, 560], [920, 560], [1000, 600]]) {
@@ -142,7 +142,7 @@ describe('ui hud', () => {
       w.day = 360;
       let short = false;
       const hud = createHud({ world: w, store: createStore({ ...INITIAL_UI_STATE, layout: 'wide' }), container: root, shortDate: () => short });
-      expect(root.querySelector('.stat.date .value').textContent).toBe('Year 2, month 1, day 1');
+      expect(root.querySelector('.stat.date .value').textContent).toBe('Y2 · M1 · D1');
       short = true;
       hud.render();
       expect(root.querySelector('.stat.date .value').textContent).toBe(shortDateText({ year: 2, month: 1 }));
