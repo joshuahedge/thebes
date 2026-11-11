@@ -174,7 +174,7 @@ export function createDecreeUi(ctx) {
       const clip = given('clipboard', () => nav().clipboard || null);
       if (clip && clip.writeText) clip.writeText(text).then(() => toasts.show(U.shared), () => {});
     } });
-    const again = button(U.again, { class: 'decree-again', onClick: () => { close(); run.again(); } });
+    const again = button(U.again, { class: 'decree-again primary', onClick: () => { close(); run.again(); } });
     const back = button(U.backToCity, { class: 'decree-back', onClick: () => run.back() });
     const top = rivals[0] || null;
     // The score sheet's own parts (src/ui/scoreUi.js scoreTotalLine and scorePartRow, in a .score-section): the total and its medal, the medal bars, your best,
@@ -186,7 +186,7 @@ export function createDecreeUi(ctx) {
       el('p', { class: 'decree-best your-best small', text: best ? U.yourBest(best.score, best.medal) : U.noBest }),
       // A new best is marked as an earned feat is on the score sheet: the done tick (teal in a sheet) before the words (scoreUi.js featsSection, sheets.js's done status).
       noted && noted.isBest ? el('p', { class: 'decree-new-best small' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), U.newBest]) : null,
-      el('div', { class: 'actions decree-end-actions' }, [share, again, back]),
+      el('div', { class: 'actions decree-end-actions' }, [again, back, share]),   // Version 9.3.1 (Track T, ruling 2028): the court letter's pattern: the first choice filled and first, full-width buttons stacked (css/v93.css)
       el('h4', { text: U.partsHead }),
       el('ul', { class: 'score-parts' }, PART_IDS.map((p) => (p === 'bonus'
         ? scorePartRow(p, result.parts[p], { name: U.bonusPart, label: `${U.bonusPart}: ${progressText(result.parts[p], 100)}` })

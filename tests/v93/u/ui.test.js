@@ -258,7 +258,7 @@ describe('v93 u end: the end card', () => {
       expect([end.querySelector('.score-total .score-number').textContent, end.querySelector('.score-total .medal').className, end.querySelector('.score-total .medal').textContent])
         .toEqual([String(r.total), `medal ${r.medal || 'none'}`, U.medalWords(r.medal)]);
       expect(end.querySelector('.next-medal').textContent).toBe(U.scale(decreeMedals(t.g().world)));
-      expect([...end.querySelectorAll('.actions button')].map((b) => [b.textContent, b.classList.contains('primary')])).toEqual([[U.share, false], [U.again, false], [U.backToCity, false]]);
+      expect([...end.querySelectorAll('.actions button')].map((b) => [b.textContent, b.classList.contains('primary')])).toEqual([[U.again, true], [U.backToCity, false], [U.share, false]]);   // Version 9.3.1 (Track T, ruling 2028): Try again first and filled
       expect(end.querySelectorAll('.score-parts .score-part').length).toBe(6);
       const bonus = end.querySelector('.score-part[data-part="bonus"]');
       expect([bonus.querySelector('.row span').textContent, bonus.querySelector('.part-bar').getAttribute('role'), bonus.querySelector('.part-bar').getAttribute('aria-label')])

@@ -94,7 +94,8 @@ describe('v91 f ui: where the road begins (ruling 1664)', () => {
       const box = rel(diamond), r = rel(ring), bar = rel(s.root.querySelector('#topbar'));
       const inView = (b) => (b.width > 0 && b.left >= 0 && b.right <= 375 && b.top >= bar.bottom && b.bottom <= 667) || `${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}`;
       const midIn = (b) => { const x = (b.left + b.right) / 2, y = (b.top + b.bottom) / 2; return (x > 0 && x < 375 && y > bar.bottom && y < 667) || `${Math.round(x)},${Math.round(y)}`; };
-      expect([r.left >= -0.5 && r.right <= 375.5 || `${Math.round(r.left)}..${Math.round(r.right)}`]).toEqual([true]);   // the long ring whole too (ruling 821)
+      // Version 9.3.1 (Track T, ruling 2026): the marked end stays 56 px from the right edge (Android's Back swipe), so the long ring's far (west) end may run up to 20 px off the screen; its east end stays whole.
+      expect([r.left >= -20 && r.right <= 375.5 || `${Math.round(r.left)}..${Math.round(r.right)}`]).toEqual([true]);
       expect([inView(box), midIn(r), line.getAttribute('stroke-dasharray'), halo.getAttribute('points') === line.getAttribute('points'), dHalo.getAttribute('points') === diamond.getAttribute('points')]).toEqual([true, true, '7 5', true, true]);
       expect(s.root.querySelector('#lesson .text').textContent).toBe(V91F_TEXT.roadDo);
       LESSON_SCRIPT.road(s.g().world, s.io);
