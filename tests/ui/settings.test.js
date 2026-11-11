@@ -12,7 +12,7 @@ describe('ui settings', () => {
     const { root, cleanup } = mount();
     const storage = fakeStorage();
     const s = createSettings({ storage, root, systemReducedMotion: () => false });
-    expect(s.get()).toEqual(DEFAULT_SETTINGS);
+    expect(s.get()).toEqual({ ...DEFAULT_SETTINGS, textSize: 100 });   // Version 10.0 (Track D): Auto (null) with no window to read is 100% in use
     s.set({ textSize: 150, leftHanded: true });
     expect(root.dataset.textSize).toBe('150');
     expect(root.dataset.hand).toBe('left');
@@ -26,11 +26,11 @@ describe('ui settings', () => {
     const { root, cleanup } = mount();
     const broken = { getItem: () => '{not json', setItem: () => { throw new Error('quota'); } };
     const s = createSettings({ storage: broken, root, systemReducedMotion: () => false });
-    expect(s.get()).toEqual(DEFAULT_SETTINGS);
+    expect(s.get()).toEqual({ ...DEFAULT_SETTINGS, textSize: 100 });
     s.set({ sound: true });
     expect(s.get().sound).toBe(true);
     const odd = fakeStorage({ 'thebes.settings': JSON.stringify({ textSize: 999, reducedMotion: 'maybe', sound: 'yes' }) });
-    expect(createSettings({ storage: odd, root, systemReducedMotion: () => false }).get()).toEqual(DEFAULT_SETTINGS);
+    expect(createSettings({ storage: odd, root, systemReducedMotion: () => false }).get()).toEqual({ ...DEFAULT_SETTINGS, textSize: 100 });
     cleanup();
   });
   it('resolves reduced motion from the system unless overridden', () => {

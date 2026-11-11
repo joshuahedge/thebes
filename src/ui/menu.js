@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT, Q92_TEXT, U93_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT, V90_D_TEXT, V90_L_TEXT, V91_A_TEXT, Q92_TEXT, U93_TEXT, V100D_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { rulerNameRow, bringRulersRow } from './v90/rulerOptions.js';   // Version 9.0 (Track L): Options > Saves' ruler name and Bring rulers
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
@@ -112,9 +112,12 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('span', { class: 'stepper', role: 'group', 'aria-label': names.group, dataset: { label: names.group } }, [quieter, value, louder]);
   }
 
-  function choiceRow(label, key, options) {
-    const buttons = options.map(([value, text]) => button(text, { class: `choice ${key}`, dataset: { value: String(value) } }));
-    const sync = () => buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(settings.get()[key] === options[i][0])));
+  // read (Version 10.0, Track D): the value a button is pressed against, when it is not settings.get()[key] (Text size's Auto is a choice of null while get().textSize is the size in use);
+  // a button's text may be a function, said again at each sync (Auto's "Auto (125%)" follows the window).
+  function choiceRow(label, key, options, read = (s) => s[key]) {
+    const words = (t) => (typeof t === 'function' ? t() : t);
+    const buttons = options.map(([value, text]) => button(words(text), { class: `choice ${key}`, dataset: { value: String(value) } }));
+    const sync = () => buttons.forEach((b, i) => { if (typeof options[i][1] === 'function') b.textContent = words(options[i][1]); b.setAttribute('aria-pressed', String(read(settings.get()) === options[i][0])); });
     buttons.forEach((b, i) => b.addEventListener('click', () => { settings.set({ [key]: options[i][0] }); sync(); }));
     sync();
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
@@ -179,7 +182,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(
       group('sound', G.sound, switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote })),
       // Version 7.0 (Track S): Day and night on or off.
-      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%'], [200, '200%']]),
+      group('display', G.display, choiceRow(T.textSize, 'textSize', [[null, () => V100D_TEXT.auto(typeof settings.autoTextSize === 'function' ? settings.autoTextSize() : 100)], [100, '100%'], [125, '125%'], [150, '150%'], [200, '200%']], (s) => (s.textSizeChoice === undefined ? s.textSize : s.textSizeChoice)),   // Version 10.0 (Track D): Auto first
         switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
         // Version 9.2 (Track Q, ruling 1791): Screenshot mode lives here (it left the menu and the City summary); it hides the interface until a tap, Esc or Back.
         // Version 9.2 (after the release): the row stacks like Export (css/v92.css), the button the row's width on one line and the note under it.

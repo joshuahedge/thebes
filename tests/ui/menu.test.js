@@ -84,7 +84,7 @@ describe('ui menu', () => {
   it('settings: switches and choices write through the settings store', () => {
     const r = rig();
     r.menus.settings(r.body, { close: r.close });
-    expect(r.settings.get()).toEqual(DEFAULT_SETTINGS);
+    expect(r.settings.get()).toEqual({ ...DEFAULT_SETTINGS, textSize: 100 });   // Version 10.0 (Track D): the default text size is Auto (null); with no window to read it is 100% in use
     const sound = r.body.querySelector('.switch.sound');
     expect(sound.getAttribute('role')).toBe('switch');
     expect(sound.getAttribute('aria-checked')).toBe('true');                                   // Version 6.0 (ruling 746): sound starts on

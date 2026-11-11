@@ -11,7 +11,7 @@ import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
 import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
 import { createUI } from './ui/createUI.js';
-import { createSettings } from './ui/settings.js';
+import { createSettings, windowEnv, watchWindowSize } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
 import { createCameraControl } from './ui/cameraControl.js';
 import { createMenuSheets } from './ui/menu.js';
@@ -65,7 +65,7 @@ export async function boot(doc, win, {
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
-  const settings = createSettings({ storage, root });
+  const settings = createSettings({ storage, root, env: () => windowEnv(win), watchEnv: (cb) => watchWindowSize(cb, win) });   // Version 10.0 (Track D, ruling 2120): Auto's size follows the window
   // Stage 3: the device's records (spec 4.19), and the development scenes hook, there before the title card shows
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });

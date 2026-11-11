@@ -4908,3 +4908,9 @@ export const V931C_TEXT = {
   // How to play's Crossings entry (src/ui/v71/ferryText.js FERRY_TEXT.help reads it), with the sim's limits: a line that meets water now runs straight.
   help: (bridgeMax, ferryMin, ferryMax) => `A road crosses water in one straight line. Drag across, from bank to bank: a line that meets water runs straight along the way you dragged most, from where you began. Over up to ${bridgeMax} tiles of water it lays a bridge; over ${ferryMin} to ${ferryMax} tiles, a ferry, with a landing on each bank and the road going on from the far one. Wider water is refused, and the bar says why. While you drag, the water is tinted: teal for a bridge, blue for a ferry, coral when it cannot be crossed there. The Crossing card in the Roads tray lays the crossing on the line you drag, or shows the best crossings near your roads: tap one, then ✓. A ferry costs gold for its two landings and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.`,
 };
+// Version 10.0, Track D (the desktop scale; rulings 2120-2129). Track D writes only between this header and the next Version 10.0 header.
+export const V100D_TEXT = {
+  auto: (percent) => `Auto (${percent}%)`,   // Options, Text size: no choice made, the size the window gives
+};
+// The wide top bar's date: "Y2 · M9 · D1". The stat's name and explainer keep the words (dateText: "Year 2, month 9, day 1").
+export const compactDateText = ({ year, month, day }) => `Y${year} · M${month} · D${day}`;
