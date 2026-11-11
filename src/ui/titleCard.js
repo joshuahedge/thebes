@@ -175,7 +175,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     install,
   ]);
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
-    el('div', { class: 'title-head' }, [el('h1', { id: 'title-name', text: 'Thebes' })]),   // Version 9.3.1 (Track N, ruling 2025): the logo stays at the top while the card's content scrolls
+    el('div', { class: 'title-head' }, [el('h1', { id: 'title-name', text: 'Thebes' })]),   // Version 9.3.1 (Track N, ruling 2040): the logo stays at the top while the card's content scrolls
     el('p', { class: 'tagline muted', text: T.tagline }),
     el('p', { class: 'goal-line', text: V711_TEXT.goal() }),   // Version 7.1.1 (ruling 1110): what the game is for, up front
     message ? el('p', { class: 'message coral', text: message }) : null,
