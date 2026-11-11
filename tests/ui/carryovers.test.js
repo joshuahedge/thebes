@@ -27,20 +27,26 @@ describe('ui carry-overs', () => {
   });
   it('Esc closes an open tray or drawer, and that is not a history step', async () => {
     const r = await rigUI();
-    const len = r.history.length;
-    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
-    expect(r.store.get().dock).toBe('tray');
-    expect(r.history.length).toBe(len);
-    key(r.root, 'Escape');
-    expect(r.store.get().dock).toBe('slim');
-    key(r.root, 'Escape');
-    expect(r.store.get().dock).toBe('slim');
-    expect(r.history.length).toBe(len);
-    expect(back({ ...INITIAL_UI_STATE, layout: 'portrait', dock: 'tray' })).toEqual({ dock: 'slim' });
-    expect(back({ ...INITIAL_UI_STATE, layout: 'compact', dock: 'tray' })).toEqual({ dock: 'slim' });
-    expect(back({ ...INITIAL_UI_STATE, layout: 'wide', dock: 'tray' })).toBe(null);
-    expect(back({ ...INITIAL_UI_STATE, layout: 'portrait', dock: 'tray', sheet: { kind: 'menu', id: null } }).sheet).toBe(null);   // a sheet closes first
-    r.cleanup();
+    // Version 9.3.1 (ruling 2041): the rig is cleaned up even when an expectation fails, so a failure here never leaves its interface on the page for every later test.
+    try {
+      const len = r.history.length;
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      expect(r.store.get().dock).toBe('tray');
+      // Version 9.3.1 (Track N, ruling 2020): a phone's open tray is a step of the Back button now, so it pushes one entry; Esc closes the tray and takes that
+      // entry back at once (the fake history keeps the entry but steps back past it), so Esc adds no step and leaves no Back press doing nothing.
+      expect(r.history.length).toBe(len + 1);
+      key(r.root, 'Escape');
+      expect(r.store.get().dock).toBe('slim');
+      expect(r.history.state).toBe(null);
+      key(r.root, 'Escape');
+      expect(r.store.get().dock).toBe('slim');
+      expect(r.history.length).toBe(len + 1);
+      expect(r.history.state).toBe(null);
+      expect(back({ ...INITIAL_UI_STATE, layout: 'portrait', dock: 'tray' })).toEqual({ dock: 'slim' });
+      expect(back({ ...INITIAL_UI_STATE, layout: 'compact', dock: 'tray' })).toEqual({ dock: 'slim' });
+      expect(back({ ...INITIAL_UI_STATE, layout: 'wide', dock: 'tray' })).toBe(null);
+      expect(back({ ...INITIAL_UI_STATE, layout: 'portrait', dock: 'tray', sheet: { kind: 'menu', id: null } }).sheet).toBe(null);   // a sheet closes first
+    } finally { r.cleanup(); }
   });
   it('puts focus back on the same button after a sheet rebuilds', async () => {
     const r = await rigUI();
