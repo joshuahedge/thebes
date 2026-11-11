@@ -162,10 +162,11 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
     const s = seam(w);
     try {
       s.pl.start({ kind: 'road' });
-      s.pl.pointAt(9, 20); s.pl.pointAt(11, 22);                                             // bends in the water (8.3: a line ending in it is on its way across)
+      // 8.3: a line ending in the water is on its way across; Version 9.3.1 (Group C, ruling 2035): a bent one runs straight, so this one starts in the water
+      s.pl.pointAt(11, 20); s.pl.pointAt(14, 22);
       expect(s.pl.preview().showFit).toBe(true);
       s.root.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true }));
-      const spot = bridgeSpot(w, { x: 9, y: 20 });
+      const spot = bridgeSpot(w, { x: 11, y: 20 });
       expect(s.shown).toEqual([{ category: 'roads', item: 'road', x: spot.x + 0.5, y: spot.y + 0.5 }]);
       expect(Math.abs(spot.y - 20)).toBeLessThanOrEqual(1);
     } finally { s.cleanup(); }
@@ -208,13 +209,15 @@ describe('s46 map bridges in the game: the confirm bar offers Show me to a refus
       const bar = r.root.querySelector('#confirm');
       expect(bar.querySelector('.cost').textContent).toBe('Water: bridge up to 4 tiles (25 a tile), ferry 5 to 12');   // Version 8.3 (Track X, ruling 1395): both limits
       expect(bar.querySelector('.show-fit')).toBe(null);
-      r.ui.placement.pointAt(18, 5); r.ui.placement.pointAt(21, 7);                         // 8.3: a line that stops in the water is on its way across; this one bends in it
+      // 8.3: a line that stops in the water is on its way across. Version 9.3.1 (Group C, ruling 2035): a line that meets water runs straight from its start,
+      // so a bend is no longer refused; this one starts in the water
+      r.ui.placement.pointAt(21, 5); r.ui.placement.pointAt(24, 7);
       r.frame(2);
       expect(bar.querySelector('.reason').textContent).toBe('A crossing must go straight across');
       const show = bar.querySelector('.show-fit');
       expect([Boolean(show), show && show.getAttribute('aria-label')]).toEqual([true, 'Show me where a bridge fits']);
       fire(show, 'click');
-      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 18, y0: 5, x1: 21, y1: 7, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
+      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 21, y0: 5, x1: 24, y1: 7, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
       r.ui.placement.pointAt(19, 5); r.ui.placement.pointAt(23, 5);
       r.frame(3);
       expect(bar.querySelector('.reason').textContent).toBe('Bridge: 3 tiles of water · 2 road tiles');

@@ -368,7 +368,9 @@ export function crossingWater(plan) {
 // Version 8.3 (Track X, ruling 1399): with bridges (the Crossing card's drag, previewCrossing) water of BRIDGE_MAX tiles or fewer is a bridge instead of
 // 'ferry_bridge': its plan when both banks are open land and a road can reach it, else the nearest bridge within FERRY_FIND.snap, else 'ferry_no_land' or
 // 'ferry_no_road' as for a ferry. ends is the crossing's two end tiles in the drag's direction, either kind.
-export function previewFerry(world, tiles, { bridges = false } = {}) {
+// Version 9.3.1 (Group C, ruling 2036): snap false judges the dragged line's own crossing only (the Crossing card's drag): where it cannot be laid it is refused,
+// never moved. The default snaps as before, so drawFerry and every older caller judge a given line as they did.
+export function previewFerry(world, tiles, { bridges = false, snap = true } = {}) {
   const refuse = (reason, extra = {}) => ({ ok: false, reason, water: 0, landings: [], vertical: false, stubs: [[], []], roads: [], at: null, cost: 0, snapped: false, ...extra });
   const list = [];
   for (const t of tiles) if (!list.length || list[list.length - 1][0] !== t[0] || list[list.length - 1][1] !== t[1]) list.push([t[0], t[1]]);
@@ -411,7 +413,7 @@ export function previewFerry(world, tiles, { bridges = false } = {}) {
   // Snap (ruling 1347): the nearest crossing the map has room for whose water lies within FERRY_FIND.snap tiles of the anchor; the drag's own axis wins
   // a tie, then the narrower water, then the map's order.
   let best = null;
-  for (const c of candidates) {
+  for (const c of snap ? candidates : []) {
     const w = crossingWater(c);
     const xs = w.map((t) => t[0]), ys = w.map((t) => t[1]);
     const dx = Math.max(0, Math.min(...xs) - anchor[0], anchor[0] - Math.max(...xs)), dy = Math.max(0, Math.min(...ys) - anchor[1], anchor[1] - Math.max(...ys));
@@ -428,4 +430,5 @@ export function previewFerry(world, tiles, { bridges = false } = {}) {
 }
 
 // Version 8.3 (Track X, ruling 1399): the Crossing card's drag: a bridge over narrow water, a ferry over wide (previewFerry with bridges).
-export const previewCrossing = (world, tiles) => previewFerry(world, tiles, { bridges: true });
+// Version 9.3.1 (Group C, ruling 2036): opts.snap false for the card's drag, which lays the line drawn or nothing.
+export const previewCrossing = (world, tiles, opts = {}) => previewFerry(world, tiles, { ...opts, bridges: true });

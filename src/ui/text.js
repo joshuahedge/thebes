@@ -4902,3 +4902,9 @@ export const V931T_TEXT = {
 export const V931_N_TEXT = {
   notNow: 'Not now',                       // the install guide's foot button on the title: "Continue" there means continue a saved city (S5)
 };
+
+// Version 9.3.1, Group C (straight crossings; rulings 2035-2039). Group C writes only between this header and the end of the file.
+export const V931C_TEXT = {
+  // How to play's Crossings entry (src/ui/v71/ferryText.js FERRY_TEXT.help reads it), with the sim's limits: a line that meets water now runs straight.
+  help: (bridgeMax, ferryMin, ferryMax) => `A road crosses water in one straight line. Drag across, from bank to bank: a line that meets water runs straight along the way you dragged most, from where you began. Over up to ${bridgeMax} tiles of water it lays a bridge; over ${ferryMin} to ${ferryMax} tiles, a ferry, with a landing on each bank and the road going on from the far one. Wider water is refused, and the bar says why. While you drag, the water is tinted: teal for a bridge, blue for a ferry, coral when it cannot be crossed there. The Crossing card in the Roads tray lays the crossing on the line you drag, or shows the best crossings near your roads: tap one, then ✓. A ferry costs gold for its two landings and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.`,
+};

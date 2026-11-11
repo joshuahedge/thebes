@@ -201,8 +201,12 @@ describe('s45 bridges (the words)', () => {
     }
     const w = rivered(4);
     expect(toolPreview(w, store({ kind: 'road' }, { line: line(7, 8, 16, 8) }).get()).state).toBe('ok');   // 4 is the most
+    // Version 9.3.1 (Group C, ruling 2035): a bent line that meets water runs straight from its start, so this one stops in the water on its way across;
+    // a line that starts in the water still says it must go straight across
     const bend = toolPreview(w, store({ kind: 'road' }, { line: line(8, 8, 11, 9) }).get());
-    expect([bend.state, bend.text]).toEqual(['bad', CROSSING_TEXT.bent]);
+    expect([bend.state, bend.text]).toEqual(['idle', CROSSING_TEXT.ahead('bridge', 4)]);
+    const wet = toolPreview(w, store({ kind: 'road' }, { line: line(11, 8, 15, 8) }).get());
+    expect([wet.state, wet.text]).toEqual(['bad', CROSSING_TEXT.bent]);
   });
   it('words a touch plan\'s skipped bridge, and marks the toast for a road that made a bridge', () => {
     const w = rivered(13);                                                    // Version 8.3: past a ferry's width; the crossing's own words, with Show me
