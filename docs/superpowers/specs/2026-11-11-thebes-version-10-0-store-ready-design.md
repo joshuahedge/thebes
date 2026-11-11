@@ -1,4 +1,7 @@
-# Thebes 10.0 "Store-ready" (design, for Josh's review)
+# Thebes "Store-ready": the Steam shell (design, PARKED 11 Nov 2026)
+
+**Status (Josh, 11 Nov 2026, after reading this): "I feel like this isn't what I want. I think desktop scale is good. First view is good, but I still would rather refine the visuals and gameplay first."** So v10 became a series (`2026-11-11-thebes-v10-roadmap-design.md`): 10.0 "A living Nile" takes sections 4 (the first view and the look) and 5 (the desktop scale) of this document, and the gameplay releases follow. Section 3 (the Electron shell, the packaging, the smoke run, the Steam files and the store page set) is parked as written, to be revived as its own release after the series, with its rulings renumbered then. Nothing below has been built.
+
 
 **Josh's ask (11 Nov 2026):** review the game for v10 with two lenses: minimise the chance of a refund in a store's first window (Steam: any reason within 14 days and under 2 hours of play), and improve the visual design. The review is `notes/2026-11-11-v10-review.md` (risks R1-R10, look items L1-L8). **Josh's call (11 Nov): plan 10.0 "Store-ready" as laid out there, Steam Windows first.** This design turns that into one release. 10.1 "Worth the price" (the lesson's decision step, the middle monuments, the heirs, the Capital alert count, the decree bars) and Google Play come after it and are not designed here.
 
