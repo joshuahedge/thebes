@@ -58,8 +58,9 @@ describe('s3 contract render seams', () => {
     renderer.renderFrame(w, cam, {
       view: { width: 400, height: 300 }, ambient: hook('ambient'), fire: hook('fire'), units: hook('units'),
       effects: { draw: () => order.push('effects') }, drawOverlay: () => order.push('overlay'),
+      drawGround: hook('ground'),   // Version 9.3.1 (group G, ruling 2030): the placing ghost's ground layer, after the ambient layer and before the sprites
     });
-    expect(order).toEqual(['ambient', 'fire', 'units', 'effects', 'overlay']);
+    expect(order).toEqual(['ambient', 'ground', 'fire', 'units', 'effects', 'overlay']);
     renderer.renderFrame(w, cam, { view: { width: 400, height: 300 } });               // every hook is optional
   });
   it('asks the frame gate before drawing each frame, after running the day', () => {

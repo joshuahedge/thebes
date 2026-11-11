@@ -1,4 +1,5 @@
-// The next-house spots on the map (Stage 4.7, Task 4, ruling 465), drawn in the overlay layer while the house tool is active (src/ui/createUI.js drawOverlay).
+// The next-house spots on the map (Stage 4.7, Task 4, ruling 465), drawn while the house tool is active (src/ui/createUI.js; Version 9.3.1, ruling 2030: in the
+// renderer's ground layer, drawGround, under the sprites, so a home in front covers a spot behind it as it covers the ground).
 // The sim decides which tiles and how good (src/sim/spots.js); this only paints. Good: a bright teal wash, a solid inset outline and both icons, a drop (water)
 // and a basket (a market). Fair: teal diagonal hatching, a thinner outline and the one icon it has. So a plot reads without colour: wash against hatching, two icons
 // against one. The icons (and the legend's, src/ui/s47/spots.js, which draws the same paths) are ICONS below.
