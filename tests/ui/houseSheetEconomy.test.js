@@ -261,7 +261,10 @@ describe('ui house sheet for the economy', () => {
       const section = (text) => {
         const out = [];
         const h = [...r.root.querySelectorAll('#sheet h3')].find((x) => x.textContent === text);
-        for (let n = h.nextElementSibling; n && n.tagName !== 'H3'; n = n.nextElementSibling) out.push([n.firstChild.textContent, n.lastChild.textContent]);
+        // Version 9.3.1 (Track N, ruling 2024): on a phone the City page folds each section into a details row with its h3 in the summary, so the section's
+        // rows follow the summary inside that row; a wide page keeps them after the h3.
+        const row = h.closest('details.sum-section');
+        for (let n = row ? h.closest('summary').nextElementSibling : h.nextElementSibling; n && n.tagName !== 'H3'; n = n.nextElementSibling) out.push([n.firstChild.textContent, n.lastChild.textContent]);
         return out;
       };
       expect(section(T.incomeVsSpending).map(([k]) => k)).toEqual([T.taxes, T.wages, T.upkeep, T.net]);
