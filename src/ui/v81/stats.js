@@ -217,6 +217,7 @@ export function createExplainer({ host, store, explain, doc = document }) {
     render();
     place();
     for (const b of host.querySelectorAll('[aria-controls="stat-explainer"]')) b.setAttribute('aria-expanded', String(b === a));
+    if (!store.get().explainerOpen) store.set({ explainerOpen: true });
     if (byKeyboard) { const first = box.querySelector('.explainer-action') || box.querySelector('.explainer-close'); if (first) first.focus(); }
   }
   function close(refocus = false) {
@@ -226,6 +227,7 @@ export function createExplainer({ host, store, explain, doc = document }) {
     box.hidden = true;
     clear(box);
     for (const b of host.querySelectorAll('[aria-controls="stat-explainer"]')) b.setAttribute('aria-expanded', 'false');
+    if (store.get().explainerOpen) store.set({ explainerOpen: false });
     if (refocus && was && was.focus) was.focus();
   }
   box.id = 'stat-explainer';
@@ -234,7 +236,8 @@ export function createExplainer({ host, store, explain, doc = document }) {
   const onKey = (e) => { if (kind !== null && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); } };
   doc.addEventListener('pointerdown', onDown, true);
   doc.addEventListener('keydown', onKey, true);
-  const unsubscribe = store.subscribe(() => { if (kind !== null && store.get().sheet) close(false); });
+  // Version 9.3.1 (Track N, ruling 2020): store.explainerOpen is the explainer's step of the Back button (src/ui/backstack.js); a Back that clears it closes the popover here.
+  const unsubscribe = store.subscribe((s) => { if (kind !== null && (s.sheet || !s.explainerOpen)) close(false); });
   return {
     toggle(k, a, byKeyboard = false) { if (kind === k) close(byKeyboard); else open(k, a, byKeyboard); },
     close,

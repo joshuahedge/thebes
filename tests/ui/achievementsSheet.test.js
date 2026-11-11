@@ -10,7 +10,8 @@ import { ACHIEVEMENTS } from '../../src/data/achievements.js';
 import { T, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, achievementsHeading, progressText } from '../../src/ui/text.js';
 
 const rowOf = (r, id) => r.root.querySelector(`#sheet .achievement[data-id="${id}"]`);
-const lastHeading = (r) => r.root.querySelector('#sheet .body').lastElementChild.previousElementSibling.textContent;
+// Version 9.3.1 (Track N, ruling 2024): on a phone the sections are details rows, the heading in the row's summary and the list its last child (was the body's last two children).
+const lastHeading = (r) => r.root.querySelector('#sheet .body').lastElementChild.querySelector('h3').textContent;
 
 describe('ui achievements sheet', () => {
   it('marks a migrated city\'s firsts and achievements silently when the interface is built, before Welcome back reads them', async () => {
@@ -64,7 +65,7 @@ describe('ui achievements sheet', () => {
       r.world.achievements = [];
       r.store.set(openSheet(r.store.get(), 'summary'));
       const body = r.root.querySelector('#sheet .body');
-      expect(body.lastElementChild.classList.contains('achievements')).toBe(true);   // the last section
+      expect(body.lastElementChild.lastElementChild.classList.contains('achievements')).toBe(true);   // the last section
       expect(lastHeading(r)).toBe(achievementsHeading(0, ACHIEVEMENTS.length));
       expect(achievementsHeading(5, 24)).toBe('Achievements, 5 of 24');
       expect(body.querySelectorAll('.achievement').length).toBe(ACHIEVEMENTS.length);

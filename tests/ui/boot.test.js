@@ -178,14 +178,16 @@ describe('ui boot', () => {
     const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
     let r = await bootRig({ envInput: { ua: IOS } });
     let title = r.root.querySelector('#title');
-    expect(title.querySelector('.guide')).toBeTruthy();                                 // first launch, no city: the guide
-    expect(title.querySelector('.guide').textContent).toContain(T.installIosSteps[0]);
+    expect(title.querySelector('.guide')).toBe(null);                                   // Version 9.3.1 (Track N, ruling 2021): was the guide first; the first screen is the title
+    expect(title.querySelector('.title-buttons').hidden).toBe(false);
     expect(r.root.querySelector('#notice').hidden).toBe(true);
-    fire(title.querySelector('.guide-back'), 'click');
     expect(title.querySelector('.install').hidden).toBe(false);
     fire(title.querySelector('.install'), 'click');
     await flush();
-    expect(title.querySelector('.guide')).toBeTruthy();                                 // iOS: Install opens the guide again
+    expect(title.querySelector('.guide')).toBeTruthy();                                 // iOS: Install opens the guide
+    expect(title.querySelector('.guide').textContent).toContain(T.installIosSteps[0]);
+    fire(title.querySelector('.guide-back'), 'click');
+    expect(title.querySelector('.title-buttons').hidden).toBe(false);
     r.cleanup();
     r = await bootRig({ envInput: { ua: `${IOS} [FBAN/FBIOS;FBAV/400.0]` } });
     title = r.root.querySelector('#title');

@@ -199,7 +199,7 @@ describe('s3 score feats in the interface', () => {
       expect(row('grain_alone').querySelector('.status').textContent).toBe(SCORE_TEXT.featMissed);
       expect(row('well_fed').querySelector('.status').textContent).toBe(SCORE_TEXT.featOpen);
       expect(row('well_fed').textContent).toContain(FEAT_TEXT.well_fed.condition);
-      expect(sheet.querySelector('.feats-section').nextElementSibling.textContent.startsWith(T.achievements)).toBe(true);   // just above the achievements
+      expect(sheet.querySelector('.feats-section').closest('details').nextElementSibling.textContent.startsWith(T.achievements)).toBe(true);   // just above the achievements
       r.world.difficulty = 'peaceful';
       r.ui.refresh();
       expect(r.root.querySelectorAll('#sheet .feat').length).toBe(10);

@@ -566,7 +566,7 @@ export async function boot(doc, win, {
     root.classList.add('on-title');
     const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall() });
     const card = createTitleCard({
-      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), message, screen: view,
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), message, screen: view, history: win.history,
       difficulty: () => settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(startPicked()))),
@@ -609,7 +609,6 @@ export async function boot(doc, win, {
     });
     title = { card, loop, backdrop, world, cam };
     backdrop.frame();
-    if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
     rescue.loadingDone();                               // Version 9.1 (Track R, ruling 1676): the title shows, so the loading screen goes and the page's ready mark is set
   }

@@ -57,7 +57,10 @@ export function endPick(state) {
 export function back(state) {
   if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
-  if (state.layersOpen) return { layersOpen: false };         // the Layers popover is the newest thing open: it closes first
+  if (state.lessonCardUp) return { lessonCardUp: false };   // Version 9.3.1: the lesson's chapter card is modal: Back docks the step as Esc did before the Leave question (src/ui/lessonCard.js)
+  if (state.speedOpen) return { speedOpen: false };         // Version 9.3.1: the Speed popup and a stat's explainer are small popovers over the map: the newest, so first
+  if (state.explainerOpen) return { explainerOpen: false };
+  if (state.layersOpen) return { layersOpen: false };       // the Layers popover is the newest thing open: it closes first
   if (state.guidanceOpen) return { guidanceOpen: false };   // the guidance row opened in place is the newest thing open: it closes first
   if (isPicking(state)) return endPick(state);              // Version 8.3: Back or Esc leaves the pick for the store's sheet
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);

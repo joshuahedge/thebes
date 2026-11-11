@@ -8,7 +8,7 @@ import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT, V80_U_TEXT } from './text.js';
+import { T, DIFFICULTY_NAMES, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT, V80_U_TEXT, V931_N_TEXT } from './text.js';
 import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE, MAP_VARIANTS_OFFERED } from '../data/map.js';
 import { createMapPreview, rollSeed } from './v82/mapPreview.js';   // Version 8.2 (Track G): the new-city card's map preview
 import { PREVIEW_TEXT } from './v82/oasisText.js';
@@ -139,7 +139,7 @@ export const isWideTitle = (v) => Boolean(v) && v.width >= WIDE_TITLE && v.heigh
 // saved city, Play starts the lesson (the lesson alone, as ruling 617 had it, with I've played before under it); with the lesson done and no city, Play opens
 // the new-city card; with a saved city, New city does. difficulty is a level or a function that gives the device's level now; mapSize a size id and layout
 // a layout id ('auto' is Surprise me), both kept here once chosen so the card shows them when it opens again.
-export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {}, onNewCityBack = () => {}, decree = null }) {
+export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {}, onNewCityBack = () => {}, decree = null, history = null }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
   const primaryNew = !hasSave && !lessonOnly;
@@ -175,7 +175,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     install,
   ]);
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
-    el('h1', { id: 'title-name', text: 'Thebes' }),
+    el('div', { class: 'title-head' }, [el('h1', { id: 'title-name', text: 'Thebes' })]),   // Version 9.3.1 (Track N, ruling 2025): the logo stays at the top while the card's content scrolls
     el('p', { class: 'tagline muted', text: T.tagline }),
     el('p', { class: 'goal-line', text: V711_TEXT.goal() }),   // Version 7.1.1 (ruling 1110): what the game is for, up front
     message ? el('p', { class: 'message coral', text: message }) : null,
@@ -185,7 +185,16 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
   let guide = null;
   // Version 8.2 (Track G, ruling 1312): on a wide screen (isWideTitle) a panel opens beside the buttons, which stay (the card grows into two parts); on a phone
   // it takes the buttons' place, as before. Esc closes a panel either way.
+  // Version 9.3.1 (Track N, ruling 2020): a panel is one step of the phone's Back button: opening it adds a history entry (when boot gives the page's history), Back closes
+  // the panel and stays on the title, and a panel closed by its own button takes its entry back. A panel swapped for another keeps its one entry.
+  let pushed = false, popping = 0;
+  const onPop = () => {
+    if (popping > 0) { popping--; return; }
+    if (pushed) { pushed = false; resetCard(); }
+  };
+  if (history) window.addEventListener('popstate', onPop);
   const showPanelNode = (children) => {
+    if (history && !pushed) { history.pushState({ thebesTitle: 1 }, ''); pushed = true; }
     guide = el('div', { class: 'guide' }, children);
     const wide = isWideTitle(screenNow());
     element.classList.toggle('wide', wide);
@@ -193,12 +202,13 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     buttonBox.hidden = !wide;
     element.append(guide);
   };
-  const showCard = () => { sizes = null; if (guide) { guide.remove(); guide = null; } element.classList.remove('panel-open'); buttonBox.hidden = false; buttons[0].focus(); };
+  const resetCard = () => { sizes = null; if (guide) { guide.remove(); guide = null; } element.classList.remove('panel-open'); buttonBox.hidden = false; buttons[0].focus(); };
+  const showCard = () => { resetCard(); if (pushed) { pushed = false; popping++; history.back(); } };   // the panel's own exit (Back, Esc): its history entry goes with it
   element.addEventListener('keydown', (e) => { if (e.key === 'Escape' && guide) { e.preventDefault(); e.stopPropagation(); showCard(); } });
-  const showWhatsNew = () => { showCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
+  const showWhatsNew = () => { resetCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
   // Options on the card (Version 6.0): the game's own rows, written to the device's settings at once, then Back.
   const showSettings = () => {
-    showCard();
+    resetCard();
     const body = el('div', { class: 'guide-body settings-body' });
     renderSettings(body);
     const back = button(T.back, { class: 'guide-back', onClick: showCard });
@@ -210,7 +220,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
   // Version 8.2 (Track G): the card itself is renderNewCityCard (the game's menu shows the same one), with the map preview; Start passes the pick (seed, size,
   // layout) to onNewCity, so the city that starts is the map shown.
   const showNewCity = () => {
-    showCard();
+    resetCard();
     const v = screenNow(), wide = isWideTitle(v);
     const card = renderNewCityCard({
       difficulty: levelNow(), onDifficulty, mapSize: sizeNow, onMapSize: (id) => { sizeNow = id; onMapSize(id); },
@@ -242,16 +252,16 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     setCanInstall(flag) { install.hidden = !flag; },
     // The install guide takes the buttons' place until Back (iOS, or a browser without the install prompt).
     showGuide(render) {
-      showCard();
+      resetCard();
       const body = el('div', { class: 'guide-body' });
       render(body);
-      const back = button(V711_TEXT.continueLabel, { class: 'guide-back', onClick: showCard });   // Version 7.1.1 (ruling 1106): the install guide is read through, then Continue
+      const back = button(V931_N_TEXT.notNow,{ class: 'guide-back', onClick: showCard });   // Version 7.1.1 (ruling 1106): the install guide is read through, then Continue
       showPanelNode([body, el('div', { class: 'actions' }, [back])]);
       back.focus();
     },
     // A panel with its own buttons (the new-city confirmation): render(body, back) fills it and wires Back itself.
     showPanel(render) {
-      showCard();
+      resetCard();
       const body = el('div', { class: 'guide-body' });
       render(body, showCard);
       showPanelNode([body]);
@@ -269,7 +279,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     showNewCity,
     // Version 9.0 (Track L, ruling 1585): Play this map sets the card's choices (a map size id, a layout id, the seed) before showNewCity opens it on that map.
     setChoices({ mapSize: size = sizeNow, layout: lay = layoutNow, seed: s = seedNow } = {}) { sizeNow = size; layoutNow = lay; seedNow = Number.isInteger(s) || s === null ? s : seedNow; },
-    destroy() { window.removeEventListener('resize', checkPhone); clear(container); container.hidden = true; },
+    destroy() { window.removeEventListener('resize', checkPhone); window.removeEventListener('popstate', onPop); clear(container); container.hidden = true; },
   };
 }
 

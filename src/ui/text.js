@@ -4890,3 +4890,8 @@ export const U93_TEXT = {
   playMapNote: "Opens New city on this week's map as a plain city, without the decree.",
 };
 Object.assign(REASONS, { decree: U93_TEXT.locked, decree_ended: 'The decree has ended' });   // fix wave (U2): what every refused command says after the end
+
+// Version 9.3.1, Track N (Back, sheets and the first screen; rulings 2020-2024)
+export const V931_N_TEXT = {
+  notNow: 'Not now',                       // the install guide's foot button on the title: "Continue" there means continue a saved city (S5)
+};
