@@ -21,6 +21,20 @@ export function minZoomFor(size, view) {
 // The least zoom this camera may have in this view: MIN_ZOOM, or the Huge floor when the camera knows its map's size (createCamera's size).
 export const zoomFloor = (cam, view) => (cam && cam.mapSize ? minZoomFor(cam.mapSize, view) : MIN_ZOOM);
 
+// Version 10.0 (Track 0, ruling 2050): the view's centre is held a margin inside the map, so at most about 30% of the screen is off-map
+// (it replaces the 6.0 rule that let the centre reach the edge). The margin is OFF_MAP_SHARE of half the view's diagonal in tiles at the zoom,
+// capped at half the map, so a map that fits in the view is centred. A camera with no mapSize (the title's backdrop, a test's) pans freely.
+export const OFF_MAP_SHARE = 0.7;
+export const halfExtentTiles = (view, zoom) => Math.hypot(view.width, view.height) / (2 * 64 * clampZoom(zoom));
+export function holdInMap(cam, view) {
+  if (!cam || !cam.mapSize) return cam;
+  const size = cam.mapSize;
+  const m = Math.min(OFF_MAP_SHARE * halfExtentTiles(view || { width: 0, height: 0 }, cam.zoom), size / 2);
+  cam.x = Math.min(size - m, Math.max(m, cam.x));
+  cam.y = Math.min(size - m, Math.max(m, cam.y));
+  return cam;
+}
+
 // x, y: the tile coordinates (fractional) shown at the centre of the view. size: the map's tiles a side (Version 6.0: only the Huge map's zoom floor reads it).
 export function createCamera({ x = 0, y = 0, zoom = 1, size = 0 } = {}) {
   return size ? { x, y, zoom: clampZoom(zoom), mapSize: size } : { x, y, zoom: clampZoom(zoom) };
@@ -57,14 +71,14 @@ export function screenToTileIndex(cam, view, sx, sy) {
 
 // A drag, a fling or a pinch may carry the middle of the view to the map's own edge and no further (Version 6.0, the final review: zoomed out on a Huge map a pan
 // could leave a screen of empty tan past the edge). A camera that knows its map's size (createCamera's size: every game's) is held to the map; one that does not
-// (the title's backdrop, a test's) pans freely as before.
-export function panBy(cam, dxPx, dyPx) {
+// (the title's backdrop, a test's) pans freely as before. Version 10.0 (Track 0): the clamp is holdInMap's; with no view its margin is 0, which is
+// the 6.0 clamp, so every caller keeps its behaviour until it passes the view (Track F).
+export function panBy(cam, dxPx, dyPx, view = null) {
   const k = pxPerArt(cam);
   const t = artToTile(dxPx / k, dyPx / k); // the projection is linear, so a delta converts the same way
   cam.x -= t.x;
   cam.y -= t.y;
-  if (cam.mapSize) { cam.x = Math.min(cam.mapSize, Math.max(0, cam.x)); cam.y = Math.min(cam.mapSize, Math.max(0, cam.y)); }
-  return cam;
+  return holdInMap(cam, view || { width: 0, height: 0 });
 }
 
 export function zoomAt(cam, view, factor, sx, sy) {
@@ -73,7 +87,7 @@ export function zoomAt(cam, view, factor, sx, sy) {
   const after = screenToTile(cam, view, sx, sy);
   cam.x += before.x - after.x;
   cam.y += before.y - after.y;
-  return cam;
+  return holdInMap(cam, view);   // Version 10.0 (Track 0, ruling 2050)
 }
 
 // Inclusive tile bounds that cover the view. Tall buildings rise towards smaller x + y on screen, so

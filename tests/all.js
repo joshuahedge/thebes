@@ -185,3 +185,5 @@ import './v92/all.js';
 import './v93/all.js';
 // Version 9.3.1 (the mobile fixes): one aggregator (tests/v931/all.js); nothing is added here.
 import './v931/all.js';
+// Version 10.0 ("A living Nile"): one aggregator (tests/v100/all.js); nothing is added here.
+import './v100/all.js';
