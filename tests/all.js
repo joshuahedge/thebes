@@ -183,3 +183,5 @@ import './v91/all.js';
 import './v92/all.js';
 // Version 9.3 ("A city that grows" and the weekly decree): one aggregator (tests/v93/all.js); nothing is added here.
 import './v93/all.js';
+// Version 9.3.1 (the mobile fixes): one aggregator (tests/v931/all.js); nothing is added here.
+import './v931/all.js';

@@ -113,9 +113,36 @@ const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
     : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
       : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
 // Version 8.3 (Track X, ruling 1399): the Crossing card's drag lays what previewCrossing judged: a bridge (its road, buildCrossing) or a ferry (drawFerry, as 8.2.1).
+// Version 9.3.1 (Group C, ruling 2036): the line drawn or nothing: the crossing it lays is the one on the dragged line (previewCrossing with snap off), never a
+// nearby one; refused, nothing is laid. Accepted, drawFerry's own judgement of the same tiles is that same crossing (it snaps only what cannot be laid as drawn).
 function drawCrossingLine(world, tiles) {
-  const r = previewCrossing(world, tiles);
-  return r.ok && r.kind === 'bridge' ? buildCrossing(world, r) : drawFerry(world, tiles);
+  const r = previewCrossing(world, tiles, { snap: false });
+  if (!r.ok) return r;
+  return r.kind === 'bridge' ? buildCrossing(world, r) : drawFerry(world, tiles);
+}
+
+// ── Version 9.3.1, Group C (rulings 2035-2039): a crossing is drawn as one straight run ──
+// Josh: "building a bridge or ferry crossing is hard. It just needs to default to straight lines". A line that meets water is laid as one straight run along
+// the way the drag went furthest, from where it began: the Crossing card's always; the road tool's (Straight, not Route, not the Gate card) whenever its L or
+// its finger's path would cross open water (water with no bridge on it). A road that meets no water keeps its L, and its finger's path.
+const openWater = (world, [x, y]) => { const i = y * world.size + x; return world.terrain[i] === TILE.WATER && !world.road[i]; };
+const crossesWater = (world, tiles) => tiles.some((t) => openWater(world, t));
+const straightens = (tool) => Boolean(tool) && (tool.kind === 'ferry' || (tool.kind === 'road' && !tool.gate && !tool.route));
+// The far end of the straight run from (x0, y0) towards (x1, y1): along the axis it moved most (a tie runs along the row, as fourWaySteps does).
+const straightEnd = (x0, y0, x1, y1) => (Math.abs(x1 - x0) >= Math.abs(y1 - y0) ? [x1, y0] : [x0, y1]);
+// A mouse's line (two ends) as it is judged and laid: straight when it must be (above), else as drawn.
+export function lineOf(world, tool, l) {
+  if (!l || l.x1 === null || !straightens(tool)) return l;
+  if (tool.kind === 'road' && !crossesWater(world, roadPath(l.x0, l.y0, l.x1, l.y1, l.flip))) return l;
+  const [x1, y1] = straightEnd(l.x0, l.y0, l.x1, l.y1);
+  return { ...l, x1, y1, flip: false };
+}
+// A finger's stroke (createPlacement's: x0, y0 where it went down, path the tiles it followed, at the tile it is on) as the plan takes it: straight when it must be.
+export function strokeLine(world, tool, stroke) {
+  if (!straightens(tool) || stroke.path.length < 2) return stroke.path;
+  if (tool.kind === 'road' && !crossesWater(world, stroke.path)) return stroke.path;
+  const [x1, y1] = straightEnd(stroke.x0, stroke.y0, stroke.at[0], stroke.at[1]);
+  return roadPath(stroke.x0, stroke.y0, x1, y1);
 }
 const crossingDoneText = (result) => (result && result.kind === 'bridge' ? CROSSING_TEXT.laidBridge : FERRY_TEXT.laid);
 const isLine = (tool) => Boolean(tool) && (LINE_TOOLS.includes(tool.kind) || tool.kind === 'ferry');   // Version 7.1 (Track F): the Ferry tool is drawn as a line too, but must run straight
@@ -370,8 +397,8 @@ function basePreview(world, state) {
   // Before anything is drawn the first line says how: a finger or pen drags or taps tiles; a mouse clicks a start and an end.
   const touch = state.inputType === 'touch' || state.inputType === 'pen';
   if (isLine(tool)) {
-    const l = state.line;
-    if (isRoute(tool)) {                                                                          // Version 5.0 (Task 5): the routed road, two ends and the search between them
+    const l = lineOf(world, tool, state.line);                                                   // Version 9.3.1 (Group C, ruling 2035): straight when it meets water
+    if (isRoute(tool)) {                                                                        // Version 5.0 (Task 5): the routed road, two ends and the search between them
       if (!l) return idle(touch ? ROUTE_TEXT.idleTouch : ROUTE_TEXT.idleMouse);
       if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
       return routePreview(world, l);
@@ -379,7 +406,7 @@ function basePreview(world, state) {
     if (tool.kind === 'ferry') {                                                                  // Version 7.1 (Track F): the Ferry tool, straight across the water
       if (!l) return ferryIdle(world, tool, touch);                                               // Version 8.2.1: the crossings it shows, or the one picked
       if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
-      return ferryPreview(world, roadPath(l.x0, l.y0, l.x1, l.y1, l.flip));
+      return ferryPreview(world, roadPath(l.x0, l.y0, l.x1, l.y1));
     }
     if (!l) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
@@ -420,8 +447,10 @@ function basePreview(world, state) {
 // Version 8.2.1 (ruling 1347): a drag snaps to the nearest crossing that works, so an accepted (or only too dear) line's tiles are that crossing's, landing to
 // landing, not the dragged ones; a refusal keeps the dragged line, coral.
 // Version 8.3 (Track X, ruling 1399): the Crossing card's drag (previewCrossing): over narrow water a bridge, over wide a ferry.
+// Version 9.3.1 (Group C, ruling 2036): no snap: the crossing shown is the dragged line's own, landing where that line meets dry land on each side (wherever the
+// finger began or lifted, in the water or past the bank); where it cannot be laid the bar says why, and Show me goes to the nearest crossing that works.
 function ferryPreview(world, tiles) {
-  const r = previewCrossing(world, tiles);
+  const r = previewCrossing(world, tiles, { snap: false });
   if (r.ok || (r.reason === 'no_gold' && r.ends && r.ends.length === 2)) return crossingPreview(world, r);
   return { ...bad(r.reason, r.cost, 0, tiles, FERRY_TEXT.refusal(r) || reasonText(r.reason)), water: r.water, at: r.at, ferry: r };
 }
@@ -814,6 +843,7 @@ export function fitTarget(world, state) {
     // Version 7.1 (Track F, ruling 1043): water too wide for a bridge has a ferry's place to show, and the Ferry tool starts there.
     // Version 8.3 (Track X, ruling 1402): water too wide, or a ferry's bank that cannot take its landing, opens the Crossing card ranked from where the road met
     // the water; a bent line keeps the road tool and shows the nearest bridge's place, as before (the road crosses there once it runs straight).
+    // Version 9.3.1 (Group C, ruling 2035): a drag that meets water is straightened before it is judged, so a bent line here is only a touch plan's taps.
     if ((l && l.x1 !== null) || tiles.length) {
       const p = toolPreview(world, state);
       const why = p.waterRefused ? p.waterReason : p.state === 'bad' ? p.reason : null;
@@ -1011,9 +1041,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       }
       if (phase === 'start') {
         if (!inMap(x, y)) return;
-        stroke = { base: s.plan ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
+        // Version 9.3.1 (Group C, ruling 2037): a Crossing stroke is the whole line (a new drag replaces the last; cancel puts it back), so it joins nothing.
+        stroke = { base: s.plan ? s.plan.tiles : [], keep: s.plan && s.tool.kind !== 'ferry' ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
         if (s.tool.pick) store.set(unpick(s));                               // Version 8.2.1: a drag lets the picked crossing go
-        setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
+        setPlan(joinTiles(stroke.keep, marked(s.tool, stroke.path)));
         return;
       }
       if (!stroke) return;
@@ -1021,11 +1052,12 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (inMap(x, y) && !sameTile(stroke.at, [x, y])) {
         if (isLine(s.tool)) followFinger(stroke, [x, y]);
         else { stroke.at = [x, y]; stroke.path = rectTiles(stroke.x0, stroke.y0, x, y, world.size); }
-        setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
+        setPlan(joinTiles(stroke.keep, marked(s.tool, isLine(s.tool) ? strokeLine(world, s.tool, stroke) : stroke.path)));   // 9.3.1 (ruling 2035): straight when it meets water
       }
       if (phase === 'end') {
         // Version 8.2.1 (ruling 1348): a Ferry stroke that never left its tile (a card dropped on the map, a tap read as a drag) is a tap: it picks a shown crossing there.
-        const lone = s.tool.kind === 'ferry' && stroke.path.length === 1 && !stroke.base.length ? stroke.path[0] : null;
+        // Version 9.3.1 (ruling 2037): as a tap does, whatever line was drawn before it.
+        const lone = s.tool.kind === 'ferry' && stroke.path.length === 1 ? stroke.path[0] : null;
         stroke = null;
         if (lone) { setPlan([]); api.pickAt(lone[0], lone[1], 1); }
       }
@@ -1137,10 +1169,11 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         if (c) { cx = (c.ends[0][0] + c.ends[1][0]) / 2 + 0.5; cy = (c.ends[0][1] + c.ends[1][1]) / 2 + 0.5; }
         text = crossingDoneText(result);
       } else if (isLine(t)) {
-        result = isRoute(t) ? drawRoute(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1)                    // Version 5.0 (Task 5): the route the bar showed, laid as one command
-          : t.kind === 'road' ? drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip, roadOptions(t))
-            : t.kind === 'ferry' ? drawCrossingLine(world, roadPath(s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip)) : drawWall(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
-        cx = s.line.x1 + 0.5; cy = s.line.y1 + 0.5;
+        const l = lineOf(world, t, s.line);   // Version 9.3.1 (Group C, ruling 2035): the line the bar showed, straight when it meets water
+        result = isRoute(t) ? drawRoute(world, l.x0, l.y0, l.x1, l.y1)                    // Version 5.0 (Task 5): the route the bar showed, laid as one command
+          : t.kind === 'road' ? drawRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip, roadOptions(t))
+            : t.kind === 'ferry' ? drawCrossingLine(world, roadPath(l.x0, l.y0, l.x1, l.y1)) : drawWall(world, l.x0, l.y0, l.x1, l.y1, l.flip);
+        cx = l.x1 + 0.5; cy = l.y1 + 0.5;
         text = isRoute(t) ? ROUTE_TEXT.laid(result) : t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'ferry' ? crossingDoneText(result) : T.wallBuilt;
       } else {
         const a = s.area;

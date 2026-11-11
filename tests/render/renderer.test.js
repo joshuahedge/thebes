@@ -93,6 +93,7 @@ describe('renderer', () => {
     renderer.renderFrame(w, cam, {
       view: { width: 400, height: 300 },
       effects: { draw: (g, now) => calls.push(['effects', typeof g.poly, now]) },
+      drawGround: (g, range) => calls.push(['ground', range]),   // Version 9.3.1 (group G, ruling 2030): the placing ghost's ground, after the shadows and before the sprites
       drawOverlay: (g, range) => calls.push(['overlay', range]),
       now: 1234,
     });
@@ -101,6 +102,9 @@ describe('renderer', () => {
     expect(calls.indexOf('fill') >= 0).toBe(true);
     expect(firstSprite >= 0).toBe(true);
     expect(calls.indexOf('fill') < firstSprite).toBe(true);
+    const gr = calls.findIndex((c) => Array.isArray(c) && c[0] === 'ground');
+    expect(gr > calls.indexOf('fill') && gr < firstSprite).toBe(true);
+    expect(calls[gr][1]).toEqual(visibleTileRange(cam, { width: 400, height: 300 }, 32));
     const fx = calls.findIndex((c) => Array.isArray(c) && c[0] === 'effects');
     const ov = calls.findIndex((c) => Array.isArray(c) && c[0] === 'overlay');
     expect(fx > lastSprite).toBe(true);

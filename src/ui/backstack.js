@@ -3,7 +3,9 @@
 import { back, isToolMode } from './modes.js';
 
 const stepsOf = (s) => (s.confirmDialog ? 1 : 0) + (s.sheet && s.sheet.kind !== 'info' ? 1 : 0) + (isToolMode(s.mode) ? 1 : 0) + (s.mode === 'selected' ? 1 : 0)
-  + (s.screenshot ? 1 : 0) + (s.guidanceOpen ? 1 : 0) + (s.layersOpen ? 1 : 0);
+  + (s.screenshot ? 1 : 0) + (s.guidanceOpen ? 1 : 0) + (s.layersOpen ? 1 : 0)
+  // Version 9.3.1 (Track N, ruling 2020): a stat's explainer, the Speed popup and a phone's open build tray are steps too (the wide layout's tray is a panel, not a step).
+  + (s.explainerOpen ? 1 : 0) + (s.speedOpen ? 1 : 0) + (s.lessonCardUp ? 1 : 0) + (s.dock === 'tray' && s.layout !== 'wide' ? 1 : 0);
 
 export function createBackStack({
   store, history = window.history,
@@ -21,7 +23,9 @@ export function createBackStack({
   // The guidance row (More and Less) and the Layers picker open and close many times a session, mostly by a second tap,
   // a map tap or a pick. One of them closed another way takes its own entry back at once, while that entry is the newest
   // (it is: only this module pushes, and only for open steps), so it never leaves a Back press that does nothing later.
-  const quickClosed = (a, b) => (a.guidanceOpen && !b.guidanceOpen ? 1 : 0) + (a.layersOpen && !b.layersOpen ? 1 : 0);
+  const trayOpen = (s) => s.dock === 'tray' && s.layout !== 'wide';
+  const quickClosed = (a, b) => (a.guidanceOpen && !b.guidanceOpen ? 1 : 0) + (a.layersOpen && !b.layersOpen ? 1 : 0)
+    + (a.explainerOpen && !b.explainerOpen ? 1 : 0) + (a.speedOpen && !b.speedOpen ? 1 : 0) + (a.lessonCardUp && !b.lessonCardUp ? 1 : 0) + (trayOpen(a) && !trayOpen(b) ? 1 : 0);
 
   function onState(state) {
     const n = stepsOf(state);
@@ -59,6 +63,11 @@ export function createBackStack({
     start() {
       last = store.get();
       lastSteps = stepsOf(last);
+      // Version 9.3.1 (Track N, ruling 2020): a title panel (src/ui/titleCard.js) that was open when the game began left its entry under ours: one Back expires it unseen.
+      if (history.state && history.state.thebesTitle) stale = 1;
+      // Version 9.3.1 (phone check): a step already open when the game begins (the lesson's first chapter card, straight after Play) takes its entry now,
+      // or Back with it up would leave the game.
+      for (let i = 0; i < lastSteps; i++) history.pushState({ thebes: ++depth }, '');
       unsubscribe = store.subscribe(onState);
       addListener('popstate', onPop);
     },

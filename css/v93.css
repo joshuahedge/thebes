@@ -13,11 +13,42 @@
 
 /* The chip: the first row under the top bar, a button. It has the top bar's .score-chip look (its radius, teal-soft ground, ink and weight; #topbar .score-chip
    in css/ui.css is scoped to the bar), with a tap target's height because it opens the decree card. */
-.decree-chip { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; max-width: 100%; min-height: 36px; padding: 2px 8px; pointer-events: auto; text-align: left;
-  border: 0; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-weight: 600; }
+.decree-chip { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; max-width: 100%; min-height: var(--tap); padding: 2px 24px 2px 8px; pointer-events: auto; text-align: left;
+  border: 0; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-weight: 600; align-content: center; position: relative; }
+/* Version 9.3.1 (Track T, ruling 2029): 44 px tall (it was 36), and a chevron at its end says it opens the card (the court letter's rows have one). */
+.decree-chip::after { content: '\203A'; position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 1.3em; line-height: 1; color: var(--ink-soft); }
+/* The end card's choices (ruling 2028): the court letter's pattern, full-width buttons stacked with the first choice (Try again) filled. */
+#sheet .decree-end-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+#sheet .decree-end-actions > button { width: 100%; }
 .decree-chip .chip-year { white-space: nowrap; }
 .decree-chip .chip-sep { margin: 0 -2px; }   /* the dot between the year and the mark (known 8) */
 .decree-chip .chip-mark { overflow-wrap: anywhere; }
 
 /* The rivals on the end card: a short list under its h4. */
 .decree-rivals { margin: 0; padding-left: 18px; }
+
+/* Version 9.3.1, Track N (Back, sheets and the first screen). */
+/* S8: the City page's sections are rows that open on a tap; the heading keeps its own look (css/ui.css #sheet h3) and a chevron says it opens. */
+#sheet details.sum-section { border-bottom: 1px solid var(--parchment-3); }
+#sheet details.sum-section > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; }
+#sheet details.sum-section > summary::-webkit-details-marker { display: none; }
+#sheet details.sum-section > summary::after { content: '▾'; flex: none; color: var(--ink-soft); }
+#sheet details.sum-section[open] > summary::after { content: '▴'; }
+#sheet details.sum-section > summary h3 { flex: 1 1 auto; margin: 0; }
+#sheet details.sum-section[open] { padding-bottom: 8px; }
+/* S13: on a short screen at large text the title's decree card keeps its mark and its button; the twists, the best and the rival wait for a taller screen. */
+@media (max-height: 720px) {
+  [data-text-size="125"] .decree-card :is(.decree-twists, .decree-counts, .decree-best, .decree-rival),
+  [data-text-size="150"] .decree-card :is(.decree-twists, .decree-counts, .decree-best, .decree-rival),
+  [data-text-size="200"] .decree-card :is(.decree-twists, .decree-counts, .decree-best, .decree-rival) { display: none; }
+}
+/* N-extra: the title's logo stays put while the card's buttons and panels scroll beneath it (a phone's card scrolls at large text or with the decree card). It sits in a band
+   as wide as the card, in the card's own paper, stuck at the top edge; the wide card does not scroll and keeps it in the flow. */
+.title-card { --title-pad: 24px; }
+@media (max-height: 480px) { .title-card { --title-pad: 12px; } }
+@media (min-height: 481px) and (max-height: 700px) { .title-card { --title-pad: 18px; } }
+@media (max-height: 400px) { .title-card { --title-pad: 8px; } }
+.title-head { position: sticky; top: calc(-1 * var(--title-pad)); z-index: 3; display: flex; justify-content: center; margin: calc(-1 * var(--title-pad)) -24px 0; padding: var(--title-pad) 24px 6px;
+  background-color: var(--parchment); background-image: var(--look-fibre); border-radius: 16px 16px 0 0; }
+.title-card.wide .title-head { position: static; margin: 0; padding: 0; background: none; }
+.title-card.wide.panel-open > .title-head { justify-self: start; }

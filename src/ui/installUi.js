@@ -9,7 +9,8 @@ export function installGuide(flow, { hasCity = false, onPrompt = () => {} } = {}
     if (flow.env.platform === 'ios') {
       if (hasCity) body.append(el('p', { class: 'amber', text: T.installExportFirst }));
       body.append(el('ol', { class: 'steps' }, T.installIosSteps.map((s) => el('li', { text: s }))));
-      body.append(el('p', { class: 'install-bring small', text: V90_L_TEXT.installIosLine }));   // Version 9.0 (Track L, ruling 1587): the installed app starts empty
+      // Version 9.0 (Track L, ruling 1587): the installed app starts empty. Version 9.3.1 (Track N, ruling 2021): said only when there is a city to export.
+      if (hasCity) body.append(el('p', { class: 'install-bring small', text: V90_L_TEXT.installIosLine }));
     } else {
       body.append(el('div', { class: 'actions' }, [button(T.installNow, { class: 'install-now primary', onClick: onPrompt })]));
       body.append(el('p', { class: 'small muted', text: T.installNotOffered }));

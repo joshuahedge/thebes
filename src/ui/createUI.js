@@ -17,7 +17,7 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS, noteView } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawGhostGround, drawGhostMarks, drawGhostSilhouette, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS, noteView } from '../render/overlays.js';
 import { bazaarFix } from './threatFix.js';
 import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
@@ -1228,6 +1228,9 @@ export function createUI({
   guidanceWired = true;
   syncGuidance();
 
+  // Version 9.3.1 (group G, rulings 2030, 2033): the tools whose ghost lies on the ground, under the sprites: every one but demolish, whose coral marks the very
+  // building that would cover it (a building's, an area's, the house tool's plots, the plazas, and the line tools: a road, wall, gate or ferry is ground too).
+  const groundGhosts = (s) => Boolean(s.tool && s.tool.kind !== 'demolish');
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
   function ghosts() {
     const s = store.get();
@@ -1261,8 +1264,19 @@ export function createUI({
     const ghostBox = s.ghost && s.tool && s.tool.kind === 'building' ? { type: s.tool.type, x: s.ghost.x, y: s.ghost.y, ...dimsOf(s.tool.type, s.tool.rot || 0) } : null;
     const list = alerts.list();
     markerLayout = layoutMarkers(world, list, cam, v);
+    const shapes = ghosts();                                                    // refreshes the tint as well
+    const onGround = groundGhosts(s);
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
+      // Version 9.3.1 (group G, ruling 2031): a monument's silhouette stands in its footprint's depth slot, so a building in front hides the part behind it.
+      placing: onGround ? shapes.filter((sh) => sh.silhouette).map((sh) => ({ x: sh.x, y: sh.y, w: sh.w, d: sh.d, draw: (g) => drawGhostSilhouette(g, sh) })) : null,
+      // Version 9.3.1 (group G, rulings 2030, 2032): the ground a placing tool marks lies under the sprites, so a home in front covers it as it covers the ground: the next house's
+      // spots, the desirability the ghost would change, and every ghost's footprint but demolish's (their badges and glyphs stay in drawOverlay, over everything).
+      drawGround: (g, r) => {
+        if (!isPicking(s) && spotsOn(s, world)) drawHouseSpots(g, world, r);    // Stage 4.7 (Task 4): the next house's Good and Fair spots, while the house tool is on
+        drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
+        if (onGround) for (const ghost of shapes) drawGhostGround(g, ghost);
+      },
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
       view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
@@ -1274,13 +1288,11 @@ export function createUI({
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood), { now: t, still: motion === 'still' });   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good; Supply lines move with the clock
         if (isPicking(s)) sourcePick.draw(g);                                   // Version 8.3 (ruling 1413): the stores the pick lights, over any layer
-        else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (s.mode === 'placing' && s.tool && s.tool.kind === 'building' && BUILDINGS[s.tool.type].water) drawBankHint(g, world, s.tool.type, r, s.tool.rot || 0);   // Version 7.0 (Track P): the banks a water-bound building can go on, lightly
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
-        if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
-        const shapes = ghosts();                                                // refreshes the tint as well
-        drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
-        for (const ghost of shapes) drawGhost(g, ghost);
+        if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost's marks, so they stay readable; pulses from the step change
+        // A ghost's badges and glyphs (its ground is in drawGround); demolish's whole, as before (ruling 2033: it marks the very building that would cover it).
+        for (const ghost of shapes) { if (onGround) drawGhostMarks(g, ghost); else drawGhost(g, ghost); }
         drawMarkers(g, world, list, r, markerLayout);                          // early-game pass 2.8, Stage 4 rulings 280-281: pinned to their buildings
       },
     });

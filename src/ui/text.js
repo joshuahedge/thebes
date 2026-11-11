@@ -2499,7 +2499,7 @@ export const S47_SPOTS_TEXT = {
   water: 'Water', market: 'Bazaar',
   tip: 'While you place homes, bright plots have water and a bazaar in reach; hatched plots have one of them.',
   tipHelp: 'Placing homes: bright plots have water and a bazaar in reach, hatched plots have one of them. Done ends it.',
-  done: 'Done', doneLabel: 'Done placing homes',
+  done: 'Stop', doneLabel: 'Stop placing homes',   // Version 9.3.1 (Track T, ruling 2027): "Done" sat beside the tick and read as the same act
   // No tile is marked (no road a working well or bazaar reaches has a free tile beside it): one true line, no keys to promise marks that are not there. Names from the data.
   none: () => { const b = buildingName('bazaar').toLowerCase(), w = buildingName('well').toLowerCase(); return `No plot has water and a ${b} in reach yet: a ${w} and a ${b} beside a road make Good plots`; },
   first: { head: 'A good spot', why: `You laid a plot where a ${buildingName('well').toLowerCase()} and a ${buildingName('bazaar').toLowerCase()} both reach it along the roads: the best place for the next home.` },
@@ -4580,7 +4580,7 @@ export const V90_L_TEXT = {
 // the months say why mood moves (ruling 1665); the raid step says its speeds, triple until the raiders arrive, then double (rulings 1657, 1671).
 const v91fAim = (kind) => (kind && kind !== 'building' ? buildingName(kind).toLowerCase() : 'city');
 export const V91F_TEXT = {
-  roadDo: 'Drag west from the marked end of the road.',
+  roadDo: 'Drag along the dashed line, from the marked end of the road.',   // Version 9.3.1 (Track T, ruling 2025): no compass word
   firehouseDo: "Build a firehouse at the road's corner.",
   monthWhy: 'Mood falls when homes lack food or work: the mood chip says why.',
   monthDo: (paused, n) => `${paused ? 'Press Play and let' : 'Let'} ${n} months pass, and watch your gold and mood.`,
@@ -4890,3 +4890,21 @@ export const U93_TEXT = {
   playMapNote: "Opens New city on this week's map as a plain city, without the decree.",
 };
 Object.assign(REASONS, { decree: U93_TEXT.locked, decree_ended: 'The decree has ended' });   // fix wave (U2): what every refused command says after the end
+
+// Version 9.3.1, Track T (the lesson's road step, the bars and the decree's buttons; rulings 2025-2029). Track T writes only between this header and the end of the file.
+export const V931T_TEXT = {
+  roadTap: 'Tap ✓ to build the road you drew.',   // the road step while a plan is drawn (the plan is only a plan until ✓ is tapped)
+  roadPlanned: (n, of) => `${n} of ${of} planned`,
+  roadPlannedLabel: (n, of) => `${n} of ${of} road tiles planned, not built yet`,
+};
+
+// Version 9.3.1, Track N (Back, sheets and the first screen; rulings 2020-2024)
+export const V931_N_TEXT = {
+  notNow: 'Not now',                       // the install guide's foot button on the title: "Continue" there means continue a saved city (S5)
+};
+
+// Version 9.3.1, Group C (straight crossings; rulings 2035-2039). Group C writes only between this header and the end of the file.
+export const V931C_TEXT = {
+  // How to play's Crossings entry (src/ui/v71/ferryText.js FERRY_TEXT.help reads it), with the sim's limits: a line that meets water now runs straight.
+  help: (bridgeMax, ferryMin, ferryMax) => `A road crosses water in one straight line. Drag across, from bank to bank: a line that meets water runs straight along the way you dragged most, from where you began. Over up to ${bridgeMax} tiles of water it lays a bridge; over ${ferryMin} to ${ferryMax} tiles, a ferry, with a landing on each bank and the road going on from the far one. Wider water is refused, and the bar says why. While you drag, the water is tinted: teal for a bridge, blue for a ferry, coral when it cannot be crossed there. The Crossing card in the Roads tray lays the crossing on the line you drag, or shows the best crossings near your roads: tap one, then ✓. A ferry costs gold for its two landings and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.`,
+};

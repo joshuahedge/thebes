@@ -76,9 +76,13 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       const chevron = iconButton(T.speed, '▴', { class: 'speed-chevron labelled', 'aria-expanded': 'false' });   // ▴ renders in every system font
       chevron.append(el('span', { class: 'label', text: T.speed }));
       const options = el('div', { class: 'speed-options', hidden: true });
-      for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } }));
+      // Version 9.3.1 (Track N, ruling 2020): the popup is a step of the Back button: store.speedOpen says it is open (src/ui/backstack.js), and the popup follows it,
+      // so the phone's Back (or Esc) closes the popup and never leaves the game.
+      const setOpen = (open) => { options.hidden = !open; chevron.setAttribute('aria-expanded', String(open)); if (store.get().speedOpen !== open) store.set({ speedOpen: open }); };
+      for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); setOpen(false); } }));
       main.addEventListener('click', () => api.toggle());
-      chevron.addEventListener('click', () => { options.hidden = !options.hidden; chevron.setAttribute('aria-expanded', String(!options.hidden)); });
+      chevron.addEventListener('click', () => setOpen(options.hidden));
+      if (typeof store.subscribe === 'function') store.subscribe((s) => { if (!s.speedOpen && !options.hidden) { options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } });
       // Version 8.1 (Track B, ruling 1220): the lesson's lock dims and refuses the speed control by data-lock="speed", on each button and on the group.
       for (const b of [main, chevron, ...options.children]) b.dataset.lock = 'speed';
       container.append(el('div', { class: 'speed-corner group', dataset: { lock: 'speed' } }, [main, chevron, options]));

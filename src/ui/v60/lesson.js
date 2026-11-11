@@ -33,7 +33,7 @@ import { setSpeed } from '../../sim/commands.js';
 import { lessonFacts, stepWords, handOverMonth, handOverHold } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
-import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, V92L_TEXT, T } from '../text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT, V91F_TEXT, V92L_TEXT, V931T_TEXT, T } from '../text.js';
 import { V81T_TEXT } from '../v81/lessonText.js';
 import { mountScribe, unmountScribe, say, hush, portrait } from '../v81/scribe.js';
 import { lockTo, unlock } from '../v81/lessonLock.js';
@@ -443,6 +443,12 @@ export function createLessonUi(ctx) {
     if (category && store.get().category !== category) store.set({ category });
   }
 
+  // Version 9.3.1 (Track T, ruling 2026): the road tiles in the drawn plan that are not road yet (the plan's own tiles, [x, y] each).
+  const plannedRoad = () => {
+    const pl = store.get().plan, n = world.size;
+    return pl && Array.isArray(pl.tiles) ? pl.tiles.filter(([x, y]) => !world.road[y * n + x]).length : 0;
+  };
+  let planKey = 0;
   // The words, the count and the buttons for the step the city is at.
   function paint() {
     step = at < LESSON_LENGTH ? LESSON_STEPS[at] : null;
@@ -457,9 +463,12 @@ export function createLessonUi(ctx) {
       const p = stepProgress(world, step);
       setText(label, V81T_TEXT.stepLabel(V81T_TEXT.chapters[ch.id].name, ch.k, ch.of));
       setText(ipiWhy, words.why);
-      setText(text, words.do);
+      // Version 9.3.1 (Track T, ruling 2026): while the road is drawn but not built, the row says to tap the tick and counts the planned tiles, never "0 of 9" under a drawn road.
+      const planned = step.id === 'road' && p ? plannedRoad() : 0;
+      setText(text, planned ? V931T_TEXT.roadTap : words.do);
       chip.hidden = !p;
-      if (p) { setText(chip, D2_TEXT.progress(p.n, p.of)); chip.setAttribute('aria-label', D2_TEXT.progress(p.n, p.of)); }
+      if (planned) { const n = Math.min(planned, p.of); setText(chip, V931T_TEXT.roadPlanned(n, p.of)); chip.setAttribute('aria-label', V931T_TEXT.roadPlannedLabel(n, p.of)); }
+      else if (p) { setText(chip, D2_TEXT.progress(p.n, p.of)); chip.setAttribute('aria-label', D2_TEXT.progress(p.n, p.of)); }
       const t = targetOf();
       showMe.hidden = !t;
       if (t) showMe.setAttribute('aria-label', `${T.showMe}: ${words.do}`);
@@ -618,7 +627,7 @@ export function createLessonUi(ctx) {
   // Version 9.1 (Track F, ruling 1674): where the road step centres the view, in tiles. Centred on its spot (9.0) a narrow phone cut the diamond at the start road's end
   // (5 tiles east of the spot's middle) at the screen's edge, so the view moves east by what the diamond needs to be whole, but never so far that the long ring is cut
   // (ruling 821's rule: it stays inside the screen). A screen-horizontal move of s px is (s, -s) / (64 x zoom) tiles. v: the view, i: the free insets (null: none).
-  const ROAD_DIAMOND_R = 0.6;
+  const ROAD_DIAMOND_R = 0.6, ROAD_EDGE_PX = 56;
   function roadCentre(spot, v, i) {
     const cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2;
     if (!v || !run.cam) return { x: cx, y: cy };
@@ -626,7 +635,9 @@ export function createLessonUi(ctx) {
     const half = (v.width - ins.left - ins.right) / 2, { rx } = ringHalf(spot, k);
     const [fx, fy] = LESSON_PLACES.road.from;
     const reach = ((fx + 0.5 - cx) - (fy + 0.5 - cy)) * 32 * k + ROAD_DIAMOND_R * 64 * k;   // the diamond's east corner, from the spot's middle, in px
-    const s = Math.max(0, Math.min(reach - (half - 6), half - rx - 2));
+    const dc = reach - ROAD_DIAMOND_R * 64 * k;   // Version 9.3.1 (Track T, ruling 2026): the diamond's middle, from the spot's middle
+    // The drag starts at the diamond, so its middle stays ROAD_EDGE_PX clear of the screen's side (Android's Back swipe takes the first 24 px or so): the push is never less than that.
+    const s = Math.max(0, Math.min(reach - (half - 6), half - rx - 2), dc - (half - ROAD_EDGE_PX));
     return { x: cx + s / (64 * k), y: cy - s / (64 * k) };
   }
 
@@ -720,7 +731,7 @@ export function createLessonUi(ctx) {
     ]), el('ul', { class: 'lesson-learned small' }, V92L_TEXT.learned.map((t) => el('li', { text: t }))));
   }
 
-  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) { paintEnd(); tryEnd(); } if (cardWaits && !midAction()) sync(); } });
+  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (step && step.id === 'road' && !finished) { const k = plannedRoad(); if (k !== planKey) { planKey = k; paint(); } } if (finished) { paintEnd(); tryEnd(); } if (cardWaits && !midAction()) sync(); } });
   sync(true);
   return {
     ...base,

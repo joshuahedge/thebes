@@ -25,6 +25,7 @@ import { scaffoldsAt, drawScaffold, watchLooks } from './v90/scaffold.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
+export const PLACING_ID = -1;   // Version 9.3.1 (ruling 2031): the placing ghost's object; building ids start at 1, so at a tie the ghost is drawn first (behind)
 
 // Cosmetic trees on free ground, decided by a hash of the tile and the seed. A building placed on the tile
 // hides the tree, because occupancy wins; so does a road, and (Stage 4.5) a wall tile, a gate or a breach.
@@ -243,6 +244,14 @@ export function createRenderer({
 
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
     const objects = collectObjects(world, range, opts.walkers || [], registry, { cam, view });
+    // Version 9.3.1 (group G, ruling 2031): what a placing tool shows standing (a monument's silhouette) joins the sorted objects at its footprint's depth, as
+    // { x, y, w, d, draw(g) } drawn in art px with the art origin set, so a building in front hides the part behind it.
+    for (const s of opts.placing || []) {                                     // inserted in order: the list is sorted already
+      const o = { key: depthKey(s.x, s.y, s.w, s.d), id: PLACING_ID, placing: s, x: s.x, y: s.y };
+      let lo = 0, hi = objects.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (compareDepth(objects[mid], o) < 0) lo = mid + 1; else hi = mid; }
+      objects.splice(lo, 0, o);
+    }
     const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     if (opts.ambient) opts.ambient(g, range);              // Stage 3: ambient life over the terrain (render/ambient.js)
@@ -253,6 +262,11 @@ export function createRenderer({
       for (const [dx, dy, w, d, h] of o.def.shadows) groundShadow(g, o.x + dx, o.y + dy, w, d, h * up);
     }
 
+    // 2b. Version 9.3.1 (group G, ruling 2030): the ground layer, in art px with the art origin set: what a placing tool marks on the ground (the ghost's
+    // footprint, an area's and the house tool's plots, the next house's spots, the desirability it would change), over the terrain and the shadows and under
+    // every sprite, so a home in front covers it as it covers the ground. Its badges and glyphs stay in drawOverlay (step 4), over everything.
+    if (opts.drawGround) opts.drawGround(g, range);
+
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0, live = 0;
@@ -260,6 +274,12 @@ export function createRenderer({
     const standing = v90Off('scaffold') ? [] : scaffoldsAt(world, range);             // Version 9.0 (V3): the scaffolds up this frame, by building id
     const scaffolds = standing.length ? new Map(standing.map((s) => [s.b.id, s])) : null;
     for (const o of objects) {
+      if (o.placing) {                                                           // Version 9.3.1 (ruling 2031): the placing ghost's standing part, in its depth slot
+        ctx.setTransform(1, 0, 0, 1, ox, oy);
+        o.placing.draw(g);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        continue;
+      }
       // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set
       // (src/render/monuments.js drawMonument through opts.live), never from the sprite cache. Without opts.live (a bare
       // renderFrame) it falls back to its placeholder sprite.

@@ -159,7 +159,8 @@ describe('v71 fg ferry bar: Show me is named for where it goes', () => {
     ];
     for (const [reason, width, tool, what] of cases) {
       const w = ferryWorld(width);
-      const line = reason === 'bridge_shape' ? [RIVER_X - 2, ROW, RIVER_X + 3, ROW + 2] : [RIVER_X - 2, ROW, RIVER_X + width + 1, ROW];
+      // Version 9.3.1 (Group C, ruling 2035): a bent road over water now runs straight, so the bridge_shape case is a line that starts in the water
+      const line = reason === 'bridge_shape' ? [RIVER_X + 3, ROW, RIVER_X + 9, ROW + 2] : [RIVER_X - 2, ROW, RIVER_X + width + 1, ROW];
       const r = await ferryBar(1000, line, { tool, w, height: 700 });
       try {
         const p = toolPreview(r.world, r.store.get());

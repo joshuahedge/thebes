@@ -346,6 +346,25 @@ export function createSheets({ container, store, world, placement, cameraControl
     return [head(s.large ? LARGE_TEXT.title(s) : tierName(s.tier)), body];
   }
 
+  // Folds the City page's sections (each led by an h3, or a section element whose first child is one) into details rows: the h3 moves into the row's summary, so its
+  // data-section stays the place an explainer scrolls to (the sheet opens the row that holds it). What comes before the first heading stays as the page's head.
+  function collapseSections(body, openId) {
+    let group = null;
+    for (const node of [...body.children]) {
+      const lead = node.tagName === 'H3' ? node : node.tagName === 'SECTION' && node.firstElementChild && node.firstElementChild.tagName === 'H3' ? node.firstElementChild : null;
+      if (lead) {
+        group = document.createElement('details');
+        group.className = 'sum-section';
+        const sum = document.createElement('summary');
+        body.insertBefore(group, node);          // the row goes where the heading was, then the heading moves into it
+        group.append(sum);
+        sum.append(lead);
+        if (lead.dataset.section === openId) group.open = true;
+        if (node !== lead) group.append(node);
+      } else if (group) group.append(node);
+    }
+  }
+
   function summarySheet() {
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
@@ -395,6 +414,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     body.append(...extra('summary'));
     body.append(...achievementsSection());
+    // Version 9.3.1 (Track N, ruling 2024): on a phone the City page is a short list of section rows that open on a tap (the score's open at first, or the one an explainer names).
+    if (store.get().layout !== 'wide') collapseSections(body, store.get().sheet && typeof store.get().sheet.id === 'string' ? store.get().sheet.id : 'score');
     // Integration (ruling 1268): the tabs sit above the body, which is the City tab's panel.
     if (adviceOn()) return [head(T.summary), cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }), markTabPanel(body, 'city')];
     return [head(T.summary), body];
@@ -447,7 +468,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     // Version 9.2 (fix wave, Track A, rulings 1876 and 1877): "Fit the city" sits beside + and − in both layouts (Track V's frame, the F key's own), where a phone can
     // find it; on the wide layout the side panel already draws the minimap, so the sheet leaves its own out and keeps the buttons.
-    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? 'F' : null, onClick: () => onFrame() });
+    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? 'F' : null, onClick: () => { if (store.get().layout !== 'wide') close(); onFrame(); } });   // Version 9.3.1 (Track N, ruling 2023): on a phone the sheet is out of the way before the camera frames the city
     const phone = store.get().layout !== 'wide';
     const map = [...(phone ? [el('div', { class: 'minimap-wrap' }, [canvas])] : []), el('div', { class: 'actions' }, [zoomIn, zoomOut, fit])];
     const rows = getRows();   // Version 9.2 (Track Q, ruling 1775): one row per cause
@@ -473,7 +494,7 @@ export function createSheets({ container, store, world, placement, cameraControl
         : threat ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(threat) })] : [];   // Stage 4.5: an illness or crime alert with no physician or police post in reach
       return el('li', { dataset: { code: a.code } }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));
-    body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
+    body.append(...map, ...alerts);   // Version 9.3.1 (Track N, ruling 2023): the map first on a phone too (the Map button's badge counts the alerts under it)
     minimap.render(getAlerts());
     return [head(T.minimap), body];
   }
@@ -561,7 +582,15 @@ export function createSheets({ container, store, world, placement, cameraControl
       scrolledFor = s.sheet;
       // Version 8.1: any section a stat's explainer names (forecast, employment, mood, river, score).
       const target = s.sheet.kind === 'summary' && typeof s.sheet.id === 'string' && /^[a-z]+$/.test(s.sheet.id) ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
-      if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
+      // Version 9.3.1 (Track N, ruling 2022): a sheet opened from a scrolled one starts at its top (the box keeps its scroll between sheets), unless a section is named.
+      if (target) { const closed = target.closest('details'); if (closed) closed.open = true; }
+      // Version 9.3.1 (phone check): on a phone the City page is short rows, so it opens at its top with the tabs in view, and moves only as far as
+      // shows a named row that starts below the first screen; the wide layout scrolls the named section to the top, as before.
+      if (target && target.scrollIntoView && s.layout === 'wide') target.scrollIntoView({ block: 'start' });
+      else {
+        container.scrollTop = 0;
+        if (target && target.scrollIntoView && target.getBoundingClientRect().top > container.getBoundingClientRect().bottom - 48) target.scrollIntoView({ block: 'nearest' });
+      }
     }
     if (focusIndex >= 0) {
       const again = container.querySelectorAll('button')[focusIndex];

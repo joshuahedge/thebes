@@ -20,7 +20,9 @@ export function createInstallFlow({ env, hasSave = () => false, getPrompt = () =
   return {
     env,
     canInstall: () => installable() && (env.platform === 'ios' || env.canPrompt || Boolean(getPrompt())),
-    shouldShowGuide: () => env.platform === 'ios' && installable() && !hasSave(),
+    // Version 9.3.1 (Track N, ruling 2021): never. An iPhone's first screen is the game's title; the guide opens from the title's Install button and from the install ask
+    // after the first Pass, as Android's prompt does (it was this function's "an iOS device with no saved city" before).
+    shouldShowGuide: () => false,
     notice: () => (env.inApp ? (env.platform === 'ios' ? 'safari' : 'chrome') : null),
     async promptInstall() {
       const ev = getPrompt();

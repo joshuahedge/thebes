@@ -27,7 +27,7 @@ describe('v93 u layout: phone and desktop, text at 100%, 150% and 200%', () => {
         await frame();
         expect(t.kind()).toBe('decree');
         const chip = t.root.querySelector('.decree-chip'), sheet = t.root.querySelector('#sheet');
-        expect(['chip', inside(chip), chip.getBoundingClientRect().height >= 35]).toEqual(['chip', true, true]);
+        expect(['chip', inside(chip), chip.getBoundingClientRect().height >= 43.5]).toEqual(['chip', true, true]);
         expect(['first screen', noSideScroll(sheet), inside(t.root.querySelector('#sheet .decree-begin'))]).toEqual(['first screen', true, true]);
         const begin = t.root.querySelector('#sheet .decree-begin');
         begin.focus();

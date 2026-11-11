@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { installGuide, noticeText, showNotice } from '../../src/ui/installUi.js';
 import { createTitleCard } from '../../src/ui/titleCard.js';
 import { detectEnvironment, createInstallFlow } from '../../src/save/installFlow.js';
-import { T, V711_TEXT } from '../../src/ui/text.js';
+import { T, V711_TEXT, V931_N_TEXT } from '../../src/ui/text.js';
 import { mount, fire } from '../helpers/dom.js';
 
 const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
@@ -63,7 +63,7 @@ describe('ui install guide', () => {
     expect(container.querySelector('.title-buttons').hidden).toBe(true);
     expect(container.querySelector('.guide .probe').textContent).toBe('guide here');
     const back = container.querySelector('.guide-back');
-    expect(back.textContent).toBe(V711_TEXT.continueLabel);   // Version 7.1.1 (ruling 1106): the install guide is read through, so its foot button says Continue
+    expect(back.textContent).toBe(V931_N_TEXT.notNow);   // Version 9.3.1 (Track N, ruling 2021): was V711_TEXT.continueLabel; Continue means a saved city on the title
     expect(document.activeElement).toBe(back);
     fire(back, 'click');
     expect(container.querySelector('.guide')).toBe(null);

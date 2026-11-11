@@ -135,7 +135,8 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
   // Version 7.1 (ruling 1060): Leave the lesson's question takes focus away from the card; when it closes without leaving (Cancel, Esc) the card is still the modal, so focus
   // goes back to Leave, the button that asked, instead of dropping to the page behind. (The dialog's own render runs first and has already let go of its button.)
   let questioned = false;
-  const stop = typeof store.subscribe === 'function' ? store.subscribe(() => {
+  const stop = typeof store.subscribe === 'function' ? store.subscribe((s) => {
+    if (up && s && s.lessonCardUp === false) { onGo(); if (up) tellStore(true); return; }   // Version 9.3.1 (Track N, ruling 2020): the phone's Back cleared the card's step (src/ui/modes.js back): the card does what Esc did and docks the step
     const open = Boolean(store.get().confirmDialog);
     if (open === questioned) return;
     questioned = open;

@@ -152,7 +152,7 @@ body.panel-folded #panel { width: 56px; }
 body.panel-folded #panel > :not(.foldbar) { display: none; }
 
 /* Compact landscape: a slim rail on the right, trays as a drawer beside it. */
-#rail { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: 0; bottom: 0; width: calc(var(--rail-w) + var(--safe-right)); padding: 6px var(--safe-right) calc(6px + var(--safe-bottom)) 0; background: var(--parchment); border-left: 1px solid var(--parchment-3); display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; }
+#rail { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: 0; bottom: 0; width: var(--rail-w); padding: 6px var(--safe-right) calc(6px + var(--safe-bottom)) 0; background: var(--parchment); border-left: 1px solid var(--parchment-3); display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; }
 #rail .cat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: var(--tap); padding: 0; font-size: calc(18px * var(--ui-scale)); line-height: 1; }
 /* Version 9.2 (Track A, ruling 1834): the compact rail names each icon in a small word under it (12 px, the floor), still inside the 44 px button; the button takes the rail's whole width (the rail stays 56 px: a wider one narrowed the legend beside it and broke the fire legend's budget) and the word is set slightly tight so Monuments fits. */
 #rail .cat .cat-word { font-size: 12px; line-height: 1.1; letter-spacing: -0.05em; white-space: nowrap; }
@@ -314,7 +314,7 @@ body:is([data-text-size="150"], [data-text-size="200"]) .confirm .conds.tall.nar
 #dock .cat, #rail .cat, #panel .tab, #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--tint, transparent), var(--tint, transparent)); background-repeat: no-repeat; background-position: 50% 100%; background-size: 60% 3px; }
 #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--teal-ink), var(--teal-ink)); }
 /* The rail's pressed button wears a 2 px teal ring inside its edge; lift the band clear of it so it still shows. */
-#rail .cat { background-position: 50% calc(100% - 4px); }
+#rail .cat { background-position: 50% calc(100% - 4px); padding-bottom: 8px; flex: none; }   /* Version 9.3.1 (Track L, ruling 2018): the word sits clear above its 3 px band (4 px up, 3 high), not across it; the button grows with the text (the rail scrolls) instead of shrinking back onto the band */
 
 /* Corner buttons with words (early-game pass 2.9): an icon over a short word; the speed button reads ▶ Play or ❚❚ 2×. */
 #corners .labelled { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 48px; min-height: 52px; padding: 2px 8px; line-height: 1.1; }
@@ -1718,9 +1718,9 @@ button.secondary[disabled], button.tertiary[disabled] { opacity: 0.5; }
 #sheet .tray-item .tray-go.secondary { border: 2px solid var(--lapis); font-weight: 600; }
 /* The placing bar leads with the picture and the name of what is in hand, large (src/ui/confirmBar.js); picking another item flashes the bar with a lit lapis and gold ring that a timer takes off, so it reads with
    css animations off (Gentle and Still) too. */
-.confirm .info .title { display: flex; align-items: center; gap: 8px; font-size: calc(20px * min(var(--ui-scale), 1.15)); font-weight: 700; line-height: 1.15; }
+.confirm .info .title { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; font-size: calc(20px * min(var(--ui-scale), 1.15)); font-weight: 700; line-height: 1.15; }
 .confirm .info .title .thumb { flex: none; width: 60px; height: 30px; }
-.confirm .info .title .name { min-width: 0; overflow-wrap: anywhere; }
+.confirm .info .title .name { min-width: 0; overflow-wrap: break-word; }   /* Version 9.3.1 (Track L, ruling 2017): breaks between words; only a single over-long word is broken */
 .confirm.flash { box-shadow: inset 0 0 0 4px var(--lapis), inset 0 0 0 5px var(--lapis-ink); transition: box-shadow 0.45s ease-out; }
 /* One primary in every bar: the tick is the only filled, coloured button; what is in force among Route / Straight, a monument's styles, an area's spacing and the area toggle is the quiet teal ring
    in the Version 8.0 button rules above (8.0 integration, ruling 1175). */
@@ -1767,3 +1767,19 @@ body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }
 .replace-note, .replace-note.muted { color: var(--amber-text); background: var(--amber-soft); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 6px 12px; }
 /* While a sheet fills the panel (body.panel-sheet) the goals strip steps aside, so the sheet keeps all the room under the minimap that it had before the strip lived here. */
 body.panel-sheet #panel > #goals { display: none; }
+
+/* ── Version 9.3.1, Track L (the mobile fixes: layout, landscape, 150% text) ── */
+/* S1 (ruling 2015): at larger text on a phone the lesson row never cuts the instruction. The row wraps: the face and the words (the count first, then the do) take the line, and More and Show me sit at the
+   right of the line under them; the chapter's name (the card says it) is read by a screen reader only, and comes back when the row is open. The row scrolls inside its budget if the words are ever longer than it. */
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson { flex-wrap: wrap; row-gap: 0; max-height: var(--guidance-max, 40vh); overflow-y: auto; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson .body { display: block; overflow: visible; -webkit-line-clamp: unset; line-clamp: unset; flex: 1 1 calc(100% - 48px); }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson:not(.open) .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson { padding-bottom: 4px; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #lesson .more { margin-left: auto; }
+/* S10 (ruling 2016): at larger text the goals strip's words take up to four lines (ruling 170's two are for 100%), so the instruction is whole; and More has a line of its own under them rather than lying over the end of the last. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .goal-strip.one-row .words { -webkit-line-clamp: 4; line-clamp: 4; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .goal-strip.one-row .main:has(.more:not([hidden])) { padding-bottom: calc(12px * var(--ui-scale) * 1.5 + 2px); }
+/* S9 (ruling 2017): while a raid is warned or on, Defence leads the dock's row at larger text, so the category the alert asks for is never off the end of a row that scrolls sideways. */
+body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]):has(#banner .critical[data-code="raid_warning"], #banner .critical[data-code="raid"]) #dock .cat[data-category="defence"] { order: -1; }
+body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]):has(#banner .critical[data-code="raid_warning"], #banner .critical[data-code="raid"]) #dock .cats { scroll-snap-type: none; overflow-anchor: none; }   /* the reorder must not carry the row's scroll with it (the snap would hold on to Roads) */
+/* ── end Version 9.3.1, Track L ── */

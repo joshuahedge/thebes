@@ -616,9 +616,19 @@ const JOIN_INK = '#7A5200';       // css --amber-text: the road mark on a joinin
 // context has none, and its own scale stands in).
 const cssScaleOf = (g) => g.cssScale || g.scale;
 
+// Version 9.3.1 (group G, rulings 2030, 2032): a ghost is drawn in two passes. Its ground (each square's wash, hatching and outline, the whole footprint's
+// outline, the road joins and the water and road it counts) lies on the ground, under the sprites (drawGhostGround, from the renderer's drawGround), so a home
+// in front covers it as it covers the ground; its marks (the ✓ ! ✕ badges and the small glyphs: ═ ≈ ∩) stay over everything (drawGhostMarks, from drawOverlay),
+// so where and whether still read. drawGhost draws both, and a monument's silhouette, in one go, as before (the line tools and demolish, the dev scenes, the tests).
+let pass = 'all';
+const groundPass = () => pass !== 'marks';
+const marksPass = () => pass !== 'ground';
+function inPass(which, fn) { pass = which; try { fn(); } finally { pass = 'all'; } }
+
 // A round badge with a mark, white halo, at least 20 CSS px across: ✓ white on blue, ! dark on amber, ✕ white on the deep coral
 // of the problem badge (the glyph, not the colour, says which).
 function ghostBadge(g, c, mark) {
+  if (!marksPass()) return;
   const css = cssScaleOf(g);
   const R = Math.max(BADGE_MIN_R, BADGE_CSS_R / css);
   const fill = mark === '✓' || mark === '∩' ? UI.ok : mark === '!' ? UI.warn : UI.problem;
@@ -629,6 +639,7 @@ function ghostBadge(g, c, mark) {
 
 // Coral hatching clipped to a footprint, and its outline.
 function hatchedBad(g, x, y, w, d) {
+  if (!groundPass()) return;
   const pts = quad(x, y, w, d, 0);
   g.save();
   g.clip(pts);
@@ -642,6 +653,7 @@ function hatchedBad(g, x, y, w, d) {
 // Version 6.0 (Track C, ghost state 'left'): ground in a dragged farm area that no farm covers, too little left for one more: amber hatching the other way to the coral's, and a
 // dashed amber outline on a white halo, so it reads from skipped ground (coral, crossed) by its pattern as well as its colour. Static.
 function hatchedLeft(g, x, y, w, d) {
+  if (!groundPass()) return;
   const pts = quad(x, y, w, d, 0);
   g.save();
   g.clip(pts);
@@ -658,6 +670,7 @@ function hatchedLeft(g, x, y, w, d) {
 // A tile's dashed amber outline on a white halo: the sign for a free tile where a road would join (with the road mark in it) and
 // for a plot with no road beside it.
 function dashedAmberTile(g, x, y) {
+  if (!groundPass()) return;
   const pts = quad(x, y, 1, 1, 0);
   g.poly(pts, UI.warn, { alpha: 0.18 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.7 });
@@ -673,7 +686,7 @@ function drawRoadJoins(g, joins) {
   const size = Math.max(6, 12 / css);
   for (const [jx, jy] of joins) {
     dashedAmberTile(g, jx, jy);
-    g.text(p(jx + 0.5, jy + 0.5), '═', { size, weight: '700', color: JOIN_INK });
+    if (marksPass()) g.text(p(jx + 0.5, jy + 0.5), '═', { size, weight: '700', color: JOIN_INK });
   }
 }
 
@@ -713,6 +726,7 @@ function drawSilhouette(g, { world, b }) {
 // Version 6.0 (Track C): a bridge tile of a road's preview (ghost state 'bridge'): the usual blue tile with a deck of planks laid across it (three brown strokes on a pale halo),
 // and the wave mark in the middle; so a bridge reads from a road tile by its planks and its mark as well as by the water under it. Static: nothing moves.
 function bridgePlanks(g, x, y) {
+  if (!groundPass()) return;
   for (const f of [0.22, 0.5, 0.78]) {
     const a = p(x + 0.08, y + f), b = p(x + 0.92, y + f);
     g.line(a, b, UI.halo, 2.4, 0.7);
@@ -729,18 +743,29 @@ function bridgePlanks(g, x, y) {
 // the squares carry the pattern, so no verdict is colour alone. The water that counts for its water rule (≈) and the road that touches a side (═, solid; the free squares where
 // one would go are dashed amber, drawRoadJoins) are marked beside it.
 function plainSquare(g, x, y) {
+  if (!groundPass()) return;
   const pts = quad(x, y, 1, 1, 0);
   g.poly(pts, UI.ok, { alpha: 0.04 });
   g.ctx.setLineDash([2 * g.scale, 2 * g.scale]);
   g.poly(pts, 'none', { stroke: UI.ok, strokeWidth: 1, strokeAlpha: 0.7 });
   g.ctx.setLineDash([]);
 }
+// A square that is right: a light blue wash and a solid blue outline on a white halo.
+function metSquare(g, x, y) {
+  if (!groundPass()) return;
+  const tp = quad(x, y, 1, 1, 0);
+  g.poly(tp, UI.ok, { alpha: 0.15 });
+  g.poly(tp, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
+  g.poly(tp, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
+}
 function markedTile(g, x, y, mark, color) {
   const pts = quad(x, y, 1, 1, 0), css = cssScaleOf(g);
-  g.poly(pts, color, { alpha: 0.16 });
-  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.75 });
-  g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
-  g.text(p(x + 0.5, y + 0.5), mark, { size: Math.max(6, 12 / css), weight: '700', color: JOIN_INK });
+  if (groundPass()) {
+    g.poly(pts, color, { alpha: 0.16 });
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.75 });
+    g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
+  }
+  if (marksPass()) g.text(p(x + 0.5, y + 0.5), mark, { size: Math.max(6, 12 / css), weight: '700', color: JOIN_INK });
 }
 function drawSquares(g, ghost) {
   const { x, y, w, d, state, tiles, badge, wet, roadAt } = ghost;
@@ -749,19 +774,16 @@ function drawSquares(g, ghost) {
     if (t.state === 'cant') { hatchedBad(g, t.x, t.y, 1, 1); if (tiles.length > 1) ghostBadge(g, centre, '✕'); }
     else if (t.state === 'off') { hatchedLeft(g, t.x, t.y, 1, 1); ghostBadge(g, centre, '!'); }
     else if (t.state === 'plain') plainSquare(g, t.x, t.y);
-    else {
-      const tp = quad(t.x, t.y, 1, 1, 0);
-      g.poly(tp, UI.ok, { alpha: 0.15 });
-      g.poly(tp, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
-      g.poly(tp, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
-    }
+    else metSquare(g, t.x, t.y);
   }
   for (const [wx, wy] of wet || []) markedTile(g, wx, wy, '≈', UI.ok);
   for (const [rx, ry] of roadAt || []) markedTile(g, rx, ry, '═', UI.ok);
   const whole = state === 'bad' ? UI.bad : state === 'warn' ? UI.warn : UI.ok;
   const pts = quad(x, y, w, d, 0), css = cssScaleOf(g);
-  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 4.4 / css, strokeAlpha: 0.85 });
-  g.poly(pts, 'none', { stroke: whole, strokeWidth: 2.6 / css });
+  if (groundPass()) {
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 4.4 / css, strokeAlpha: 0.85 });
+    g.poly(pts, 'none', { stroke: whole, strokeWidth: 2.6 / css });
+  }
   // The verdict's badge in the middle, unless the squares already carry it (a 1-square ghost's mark is that badge; a coral square has its own ✕).
   const own = tiles.some((t) => (state === 'bad' ? t.state === 'cant' : false)) && tiles.length > 1;
   if (!own && badge) ghostBadge(g, p(x + w / 2, y + d / 2), state === 'warn' ? '!' : state === 'bad' ? '✕' : '✓');
@@ -801,18 +823,22 @@ function drawCrossingBoat(g, { from, to, label, bridge }) {
 }
 
 export function drawGhost(g, ghost) {
-  if (ghost.state === 'shown' && ghost.landing) shownLanding(g, ghost.x, ghost.y);
+  if (ghost.state === 'shown' && ghost.landing) { if (groundPass()) shownLanding(g, ghost.x, ghost.y); }
   else if (ghost.state === 'shown') plainSquare(g, ghost.x, ghost.y);
-  else if (ghost.state === 'stub') { if (ghost.faint) { plainSquare(g, ghost.x, ghost.y); g.text(p(ghost.x + 0.5, ghost.y + 0.5), '═', { size: Math.max(6, 10 / cssScaleOf(g)), weight: '700', color: UI.ok }); } else markedTile(g, ghost.x, ghost.y, '═', UI.ok); }
+  else if (ghost.state === 'stub') { if (ghost.faint) { plainSquare(g, ghost.x, ghost.y); if (marksPass()) g.text(p(ghost.x + 0.5, ghost.y + 0.5), '═', { size: Math.max(6, 10 / cssScaleOf(g)), weight: '700', color: UI.ok }); } else markedTile(g, ghost.x, ghost.y, '═', UI.ok); }
   else drawGhostSquare(g, ghost);
-  if (ghost.boat) drawCrossingBoat(g, ghost.boat);
+  if (ghost.boat && marksPass()) drawCrossingBoat(g, ghost.boat);
 }
+// Version 9.3.1 (rulings 2030, 2032): the two passes of a ghost (see `pass` above), and a monument's silhouette alone, drawn by the renderer in the ghost's depth slot (ruling 2031).
+export const drawGhostGround = (g, ghost) => inPass('ground', () => drawGhost(g, ghost));
+export const drawGhostMarks = (g, ghost) => inPass('marks', () => drawGhost(g, ghost));
+export function drawGhostSilhouette(g, ghost) { if (ghost.silhouette) drawSilhouette(g, ghost.silhouette); }
 
 function drawGhostSquare(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
-  if (ghost.silhouette) drawSilhouette(g, ghost.silhouette);
+  if (ghost.silhouette && pass === 'all') drawSilhouette(g, ghost.silhouette);
   if (joins && joins.length) drawRoadJoins(g, joins);
   // A building's ghost always has its squares (ghostsFor); a monument's, with its silhouette, keeps its one outline until a square is wrong.
   if (badge && tiles && tiles.length && (!ghost.silhouette || tiles.some((t) => t.state === 'cant' || t.state === 'off'))) { drawSquares(g, ghost); return; }
@@ -822,29 +848,26 @@ function drawGhostSquare(g, ghost) {
       if (t.state === 'cant') {
         hatchedBad(g, t.x, t.y, 1, 1);
         ghostBadge(g, p(t.x + 0.5, t.y + 0.5), '✕');
-      } else {
-        const tp = quad(t.x, t.y, 1, 1, 0);
-        g.poly(tp, UI.ok, { alpha: 0.15 });
-        g.poly(tp, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
-        g.poly(tp, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
-      }
+      } else metSquare(g, t.x, t.y);
     }
-    g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
+    if (groundPass()) g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
     return;
   }
   if (state === 'bad' || state === 'demolish') {
     hatchedBad(g, x, y, w, d);
-    if (state === 'bad') { if (badge) ghostBadge(g, centre, '✕'); else g.text(centre, '✕', { size: 9, color: UI.bad }); }
+    if (state === 'bad') { if (badge) ghostBadge(g, centre, '✕'); else if (marksPass()) g.text(centre, '✕', { size: 9, color: UI.bad }); }
     return;
   }
   if (state === 'left') { hatchedLeft(g, x, y, w, d); return; }   // Version 6.0 (Track C): ground an area has but too little of for one more farm
   const color = state === 'warn' ? UI.warn : state === 'bridge' ? BRIDGE_TEAL : UI.ok;   // Version 8.3 (Track X): a bridge is teal, a ferry blue, a refusal coral (the bar names each)
-  g.poly(pts, color, { alpha: state === 'bridge' ? 0.45 : state === 'ferry' ? 0.32 : 0.15 });
-  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
-  g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
+  if (groundPass()) {
+    g.poly(pts, color, { alpha: state === 'bridge' ? 0.45 : state === 'ferry' ? 0.32 : 0.15 });
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
+    g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
+  }
   if (state === 'bridge') bridgePlanks(g, x, y);
   const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : state === 'bridge' || state === 'ferry' ? '≈' : '✓';   // Version 7.1: a ferry's water squares carry the wave, with no planks
-  if (badge) ghostBadge(g, centre, mark); else g.text(centre, mark, { size: 9, color });
+  if (badge) ghostBadge(g, centre, mark); else if (marksPass()) g.text(centre, mark, { size: 9, color });
 }
 
 // Problem markers (early-game pass 2.8, placement review P13): a coral badge over a building with an alert, an amber "↓" over a
