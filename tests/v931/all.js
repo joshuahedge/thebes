@@ -2,3 +2,4 @@
 import './t/all.js';
 import './g/all.js';         // G: the placing ghost's depth (its footprint under the sprites, its silhouette in depth order)
 import './l/all.js';
+import './n/all.js';

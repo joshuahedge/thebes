@@ -4897,3 +4897,8 @@ export const V931T_TEXT = {
   roadPlanned: (n, of) => `${n} of ${of} planned`,
   roadPlannedLabel: (n, of) => `${n} of ${of} road tiles planned, not built yet`,
 };
+
+// Version 9.3.1, Track N (Back, sheets and the first screen; rulings 2020-2024)
+export const V931_N_TEXT = {
+  notNow: 'Not now',                       // the install guide's foot button on the title: "Continue" there means continue a saved city (S5)
+};

@@ -28,7 +28,7 @@ describe('install flow', () => {
   it('decides the guide, the install button and the notice from the environment (no Bring a city: Version 8.0)', () => {
     const flow = (input, hasSave = false, prompt = null) => createInstallFlow({ env: detectEnvironment(input), hasSave: () => hasSave, getPrompt: () => prompt });
     const ios = flow({ ua: IOS });
-    expect([ios.shouldShowGuide(), ios.canInstall(), typeof ios.canBring, ios.notice()]).toEqual([true, true, 'undefined', null]);
+    expect([ios.shouldShowGuide(), ios.canInstall(), typeof ios.canBring, ios.notice()]).toEqual([false, true, 'undefined', null]);   // Version 9.3.1 (Track N, ruling 2021): was [true, ...]: an iPhone's first screen is the title, not the guide
     expect(flow({ ua: IOS }, true).shouldShowGuide()).toBe(false);
     const home = flow({ ua: IOS, standalone: true });
     expect([home.shouldShowGuide(), home.canInstall()]).toEqual([false, false]);

@@ -43,7 +43,7 @@ describe('ui minimap', () => {
       store.set(openSheet(store.get(), 'minimap'));
       const order = () => [...root.querySelectorAll('#sheet .body > *')].map((n) => n.className || n.tagName.toLowerCase());
       const titles = () => [...root.querySelectorAll('#sheet .alert-list strong')].map((n) => n.textContent);
-      expect(order()).toEqual(['h3', 'alert-list', 'minimap-wrap', 'actions']);
+      expect(order()).toEqual(['minimap-wrap', 'actions', 'h3', 'alert-list']);   // Version 9.3.1 (Track N, ruling 2023): was ['h3', 'alert-list', 'minimap-wrap', 'actions']: the map first on a phone too
       expect(titles()).toEqual(criticalFirst(list).map((a) => alertText(a, world).title));
       store.set({ layout: 'wide' });
       expect(order()).toEqual(['actions', 'h3', 'alert-list']);   // fix wave (ruling 1877): the side panel draws the minimap, so the wide sheet keeps its buttons and leaves its own map out
