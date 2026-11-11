@@ -2,3 +2,4 @@
 import './holdInMap.test.js';
 import './life.test.js';
 import './figures.test.js';
+import './phoneFrame.test.js';

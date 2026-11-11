@@ -75,6 +75,10 @@ export { VERSION70_SCENES };
 import { V71_SCENES, VERSION71_SCENES } from './v71/index.js';   // Version 7.1: the 'v71-...' scenes (src/dev/v71/index.js)
 export { VERSION71_SCENES };
 import { V84_E_SCENES } from './v84/elephants.js';                // Version 8.4, Track E: the 'v84-e-...' scenes (war elephants)
+// Version 10.0 (Track 0, ruling 2103): the life scenes (src/dev/v100/index.js; tools/shots.ps1 -V100): bazaar-crowd, night-town, storm, wharf,
+// festival-crowd, fresh-corner.
+import { V100_SCENE_FNS, VERSION100_SCENES } from './v100/index.js';
+export const V100_SCENES = VERSION100_SCENES;
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -1033,6 +1037,7 @@ const SCENES = {
   ...V70_SCENES,
   ...V71_SCENES,
   ...V84_E_SCENES,
+  ...V100_SCENE_FNS,
 };
 
 export async function devScene(api, name, options = {}) {

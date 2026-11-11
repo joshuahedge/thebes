@@ -30,7 +30,7 @@
 # with tests/screenshot.ps1 -Eval on main and on this branch: a farm picked (Ground on), a well ticked by touch, a road drawn by a finger, the
 # Layers picker, a tip opened in place, a no-road well and plots.
 # Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
-param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Stage4, [switch]$Stage46, [string[]]$Motion = @('full', 'reduced'), [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
+param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Stage4, [switch]$Stage46, [string[]]$Motion = @('full', 'reduced'), [switch]$Mobile, [string[]]$TextSizes = @('100', '150'), [switch]$V100, [string]$Track = 'w0')
 $ErrorActionPreference = 'Stop'
 if ($Stage2 -and $Stage3) { Write-Error '-Stage2 and -Stage3 cannot be combined'; exit 2 }
 if ($Mobile -and ($Stage2 -or $Stage3)) { Write-Error '-Mobile cannot be combined with -Stage2 or -Stage3'; exit 2 }
@@ -202,6 +202,30 @@ function New-S46Scene([string]$Name, [string]$MotionName, [string]$Options) {
       "const b = document.querySelector('.whats-new-button'); if (!b) return 'no whats-new button'; b.click(); await new Promise((r) => setTimeout(r, 300)); return 'whats-new open: ' + Boolean(document.querySelector('.whats-new')); })()"
   }
   "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$Name', $Options); })()"
+}
+# Version 10.0 (Track 0, ruling 2103): the life scenes (-V100): each is one call to a 10.0 dev scene (src/dev/v100/index.js, V100_SCENES in
+# src/dev/scenes.js) under Motion Full (or the one -Motion names), at 390x844 DPR 2 (a phone) and 1280x800 DPR 1. Shots go to raw/v100/ as
+# v100-<Track>-<scene>-<Tag>-<WxH>-t100.png (-Track names the track, w0 by default; -Tag is before or after).
+# Usage: tools/shots.ps1 -V100 -Tag before [-Track l] [-Only storm,wharf] [-OnlySizes 390x844] [-Motion reduced]
+if ($V100) {
+  $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
+  # name = url
+  $v100Scenes = [ordered]@{
+    'bazaar-crowd' = $sample; 'night-town' = $sample; 'storm' = '/?skipTitle=1&nosw=1&stress=1'; 'wharf' = $sample
+    'festival-crowd' = $sample; 'fresh-corner' = '/?skipTitle=1&nosw=1&seed=11'
+  }
+  $v100Dir = Join-Path $OutDir 'v100'
+  if (-not (Test-Path $v100Dir)) { New-Item -ItemType Directory -Force $v100Dir | Out-Null }
+  $mo = if ($Motion.Count -eq 1) { $Motion[0] } else { 'full' }
+  foreach ($name in $v100Scenes.Keys) {
+    if ($Only.Count -and -not ($Only -contains $name)) { continue }
+    foreach ($sz in @(@{ size = '390x844'; w = 390; h = 844; dpr = 2 }, @{ size = '1280x800'; w = 1280; h = 800; dpr = 1 })) {
+      if ($OnlySizes.Count -and -not ($OnlySizes -contains $sz.size)) { continue }
+      $out = Join-Path $v100Dir "v100-$Track-$name-$Tag-$($sz.size)-t100.png"
+      & $shot -Url $v100Scenes[$name] -Out $out -Width $sz.w -Height $sz.h -Dpr $sz.dpr -BudgetMs 1800 -Eval (New-S46Scene $name $mo '{}')
+    }
+  }
+  exit 0
 }
 if ($Stage46) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
