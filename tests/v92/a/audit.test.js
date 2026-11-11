@@ -104,7 +104,8 @@ describe('v92 a audit: the page', () => {
     const doc = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
     expect(doc.querySelector('meta[name="color-scheme"]').getAttribute('content')).toBe('light');
     const vp = doc.querySelector('meta[name="viewport"]').getAttribute('content');
-    expect([vp.includes('user-scalable'), vp.includes('maximum-scale')]).toEqual([false, false]);
+    expect(vp.includes('user-scalable')).toBe(false);
+    expect(vp.includes('maximum-scale') ? Number(/maximum-scale=([\d.]+)/.exec(vp)[1]) : 2).toBeGreaterThanOrEqual(2);   // 9.3.1 (Track L, S14): a cap of 2 (200%) is allowed, a lower one is not
     expect(doc.querySelector('#live-urgent').getAttribute('aria-live')).toBe('assertive');
   });
 

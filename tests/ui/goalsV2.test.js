@@ -43,7 +43,8 @@ function expectWholeButtons(r) {
     expect(Boolean(words)).toBe(true);
     expect([...strip.querySelectorAll('.open-goals')].length).toBe(1);   // no separate Goals button
     const flow = words.querySelector('.words');                    // the label, the words and the progress: two lines at most
-    expect(flow.getBoundingClientRect().height <= 2 * parseFloat(getComputedStyle(flow).lineHeight) + 1).toBe(true);
+    const maxLines = r.ui.settings.get().textSize >= 125 ? 4 : 2;   // 9.3.1 (Track L, S10): at larger text the instruction gets four lines, so it is whole (it was cut mid-word at two)
+    expect(flow.getBoundingClientRect().height <= maxLines * parseFloat(getComputedStyle(flow).lineHeight) + 1).toBe(true);
     const others = [...strip.children].filter((n) => n !== words && !n.hidden).map((n) => n.getBoundingClientRect());
     for (const o of others) expect(o.top < words.getBoundingClientRect().bottom && o.bottom > words.getBoundingClientRect().top).toBe(true);   // one row
   }
@@ -325,7 +326,7 @@ describe('ui goals v2', () => {
           expect(`${where}: text column ${text.getBoundingClientRect().width >= 8 * em}`).toBe(`${where}: text column true`);
           // 9.2 (Track Q, ruling 1777): on the wide layout the strip is in the side panel, above the minimap, not over the map: it keeps its column but the height and the top-third bounds are for a strip over the map.
           if (layout === 'wide') { expect(`${where}: in the panel ${Boolean(strip.closest('#panel'))}`).toBe(`${where}: in the panel true`); expectWholeButtons(r); continue; }
-          expect(`${where}: strip height ${box.height <= 2 * line + 44 + 8}`).toBe(`${where}: strip height true`);   // wrapping happens by rows, never inside the words
+          expect(`${where}: strip height ${box.height <= (size >= 125 ? 4 : 2) * line + 44 + 8 + (size >= 125 ? 28 : 0)}`).toBe(`${where}: strip height true`);   // wrapping happens by rows, never inside the words
           // never over the middle of the map: the top third, or in a landscape phone, where the top bar alone takes
           // a sixth of the screen at large text, above the middle
           const limit = (layout === 'compact' ? 0.5 : 1 / 3) * height;
