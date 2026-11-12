@@ -27,12 +27,13 @@ describe('v100 q buttons: one primary to a surface', () => {
   });
   it('the lesson card has one: Show me, with the skip a plain link beneath', () => {
     const m = mount('<div id="ui"></div>');
+    let card = null;
     try {
-      const card = createLessonCard({ root: m.root, doc: document, store: { get: () => ({}) }, onGo() {}, onLeave() {}, onSkip() {} });
+      card = createLessonCard({ root: m.root, doc: document, store: { get: () => ({}) }, onGo() {}, onLeave() {}, onSkip() {} });
       card.show({ label: 'Step 1 of 14', text: 'Lay a road.', goLabel: 'Show me', picture: null, skipOffered: true });
       expect(primaries(card.card)).toBe(1);
       expect(card.card.querySelector('.lc-skip').classList.contains('primary')).toBe(false);
-    } finally { m.cleanup(); }
+    } finally { if (card) card.destroy(); m.cleanup(); }   // Version 10.0.1 (Track U, ruling 2354): the card's document-level key capture left behind swallowed every later test's keys
   });
   it('the dock has one (the Build pill), tucked or with its tray open', () => {
     const m = mount('<div id="dock"></div>');

@@ -338,9 +338,13 @@ function drawCamp(g, b) {
 }
 
 // ── Rush (Version 8.4, Track G, ruling 1474): a rushed site's label, the word "Rushed" on a pill below its front corner (render only, never animated) ──
-const RUSH_PILL = { fill: '#FFF8EA', text: '#3B2A14', size: 7, below: 7 };   // as a fire's label: 7 art px is 14 CSS px at zoom 1
+// Version 10.0.1 (Track U, ruling 2341): the pill moved off the front edge (where it covered the site and its gangs) to the BACK edge, at the middle of the back-right side,
+// a touch above the ground line: smaller (6 art px, not 7) and quieter (no outline, lighter). A problem marker's badge stands over the footprint's middle on its stem, so a
+// pill half a footprint's width to the side of that column never meets it; the fire labels' pills stand on roofs, not on a site's back edge.
+const RUSH_PILL = { fill: '#FFF8EA', text: '#5A4630', size: 6, above: 2.5, alpha: 0.82 };   // 6 art px is 12 CSS px at zoom 1 (the 12 px floor)
 export function rushLabelAt(b) {
-  return [p(b.x + b.w / 2, b.y + b.d / 2)[0], p(b.x + b.w, b.y + b.d)[1] + RUSH_PILL.below];
+  const q = p(b.x + b.w / 2, b.y);
+  return [q[0], q[1] - RUSH_PILL.above];
 }
 export function drawRushLabel(g, b) {
   const str = ART_TEXT_V84.rushedLabel, [x, y] = rushLabelAt(b);
@@ -348,7 +352,7 @@ export function drawRushLabel(g, b) {
   if (g.ctx && g.ctx.measureText) { g.ctx.font = `700 ${RUSH_PILL.size * (g.scale || 1)}px system-ui, -apple-system, "Segoe UI", sans-serif`; w = g.ctx.measureText(str).width / (g.scale || 1) + 5; }
   const h = RUSH_PILL.size + 2.6, r = h / 2;
   g.path([['M', [x - w / 2 + r, y - r]], ['L', [x + w / 2 - r, y - r]], ['Q', [x + w / 2, y - r], [x + w / 2, y]], ['Q', [x + w / 2, y + r], [x + w / 2 - r, y + r]],
-    ['L', [x - w / 2 + r, y + r]], ['Q', [x - w / 2, y + r], [x - w / 2, y]], ['Q', [x - w / 2, y - r], [x - w / 2 + r, y - r]], ['Z']], RUSH_PILL.fill, { alpha: 0.94, outline: true });
+    ['L', [x - w / 2 + r, y + r]], ['Q', [x - w / 2, y + r], [x - w / 2, y]], ['Q', [x - w / 2, y - r], [x - w / 2 + r, y - r]], ['Z']], RUSH_PILL.fill, { alpha: RUSH_PILL.alpha });
   g.text([x, y + 0.2], str, { size: RUSH_PILL.size, color: RUSH_PILL.text, weight: '700' });
 }
 

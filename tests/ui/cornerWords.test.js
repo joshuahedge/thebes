@@ -161,7 +161,8 @@ describe('ui corner words', () => {
         fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');           // the tray opens
         expect(r.store.get().dock).toBe('tray');
         const top = corners.getBoundingClientRect().top - r.root.getBoundingClientRect().top;
-        expect([at, top < h / 2, ...state()]).toEqual(hidden ? [at, true, 'hidden', true] : [at, false, 'visible', false]);
+        void hidden; void top;   // Version 10.0.1 (Track U, ruling 2352): the corners keep one place and the tray opens above them, so a tray never hides them (it did when they rode its edge)
+        expect([at, ...state()]).toEqual([at, 'visible', false]);
         r.store.set({ dock: 'slim' });
         expect([at, ...state()]).toEqual([at, 'visible', false]);
       } finally { r.cleanup(); }
@@ -174,7 +175,7 @@ describe('ui corner words', () => {
       fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
       expect(corners.classList.contains('over-half')).toBe(false);
       r.ui.settings.set({ textSize: 150 });
-      expect(corners.classList.contains('over-half')).toBe(true);
+      expect(corners.classList.contains('over-half')).toBe(false);   // Version 10.0.1 (Track U, ruling 2352): never hidden on a phone any more
       r.ui.settings.set({ textSize: 100 });
       expect(corners.classList.contains('over-half')).toBe(false);
       r.ui.settings.set({ textSize: 150 });

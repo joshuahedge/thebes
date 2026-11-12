@@ -2448,7 +2448,7 @@ export const S46_UX_TEXT = {
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
   // keys: whether Keyboard shortcuts is on (Space, ] and [ only work then: src/ui/keyboard.js); off, the title names no key (final review). The keys are
   // read from KEYS (Version 6.0, Track D1, ruling 744: + and - zoom now, the speed steps are ] and [), so the words cannot drift from the keys.
-  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? `Pause (${KEYS.pause[0] === ' ' ? 'Space' : KEYS.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${KEYS.speedUp[0]} and ${KEYS.speedDown[0]} change it)` : ''}`),
+  speedStepTitle: (s, keys = true, map = KEYS) => (s === 0 ? (keys ? `Pause (${map.pause[0] === ' ' ? 'Space' : map.pause[0].length === 1 ? map.pause[0].toUpperCase() : map.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${map.speedUp[0]} and ${map.speedDown[0]} change it)` : ''}`),   // Version 10.0.1 (Track U): `map` is the keys in effect
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
@@ -4918,3 +4918,27 @@ export const compactDateText = ({ year, month, day }) => `Y${year} · M${month} 
 export const V100M_TEXT = {
   cityPage: 'Your city',   // S8: the one title of the City page, over its Messages and City tabs (it was "Messages and advice" on one and "City summary" on the other)
 };
+
+// Version 10.0.1, Track U (the screen; rulings 2340-2354). Track U writes only between this header and the next Version 10.0.1 header.
+export const V1001U_TEXT = {
+  keysGroup: 'Keys',
+  keysNote: 'Pick Change, then press the key you want. Esc cancels. Letters work in both cases.',
+  change: 'Change',
+  changeLabel: (action) => `Change the key for ${action}`,
+  listening: 'Press a key…',
+  reset: 'Reset to defaults',
+  clash: (key, action) => `${key} is already ${action}. Press another key, or Esc to cancel.`,
+  refused: (key) => `${key} cannot be used.`,
+  unbound: 'None',
+  actions: {
+    pause: 'Pause or resume', speedUp: 'Faster', speedDown: 'Slower', zoomIn: 'Zoom in', zoomOut: 'Zoom out',
+    category: 'Build tab', card: 'Pick a card',
+    panLeft: 'Move left', panRight: 'Move right', panUp: 'Move up', panDown: 'Move down',
+    rotate: 'Rotate', minimap: 'Open the minimap', frame: 'Fit the city', overlay: 'Cycle the layers',
+    confirm: 'Confirm', back: 'Back', undo: 'Undo (with Ctrl or Cmd)', help: 'Show How to play', remove: 'Take back or demolish',
+  },
+  slot: (action, n) => `${action} ${n}`,
+  tabTitle: (name, key) => `${name} (${key})`,
+  helpCard: 'Pick a card, while its tab is open',
+};
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'category') + 1, 0, ['card', V1001U_TEXT.helpCard, '1 to 9']);   // How to play's key table names the card keys, after the tab keys

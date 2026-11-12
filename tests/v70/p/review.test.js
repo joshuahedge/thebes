@@ -186,7 +186,10 @@ describe('v70 p review: the ghost is framed above the bar and the corner buttons
         const bar = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;
         expect(corners.length).toBeGreaterThan(0);
         const rowsEnd = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
-        expect([highest >= rowsEnd - 2, lowest <= Math.min(...corners), lowest <= bar]).toEqual([true, true, true]);
+        // Version 10.0.1 (Track U, ruling 2352): the bar now stands above the corner row (which no longer rides it), so at 375x667 and 150% text under a tall goal row the band between the rows and the bar
+        // is shorter than a farm and, under the synthetic 110 px row, gone (the old layout left 67 px there): that one case keeps only "below the rows" and "above the corner buttons"; the whole
+        // footprint is asserted above the bar everywhere else (ruling 2352 states the cost: the corner buttons' fixed place takes the dock's strip out of the map).
+        expect([highest >= rowsEnd - 2, lowest <= Math.min(...corners), extra ? true : lowest <= bar]).toEqual([true, true, true]);
       } finally { r.cleanup(); }
     });
   }

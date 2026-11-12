@@ -126,12 +126,12 @@ describe('v71 fb keys: number keys, key names, words', () => {
     try {
       expect(r.store.get().layout).toBe('wide');
       const start = r.store.get().category;
-      const k = ['1', '2', '3', '4', '5', '6', '7'].find((c) => { key(r.root, c); const moved = r.store.get().category !== start; r.store.set({ category: start }); return moved; });
+      const k = ['1', '2', '3', '4', '5', '6', '7'].find((c) => { key(r.root, c); const moved = r.store.get().category !== start; r.store.set({ category: start, cardKeys: false }); return moved; });   // Version 10.0.1 (Track U, ruling 2343): a tab key also opens the wide panel's cards for the card keys, so the probe lets go of them
       expect(Boolean(k)).toBe(true);                                                           // with no sheet open a number key changes it
       r.store.set(openSheet(r.store.get(), 'trade'));
       key(r.root, k);
       expect([r.store.get().category, r.store.get().sheet.kind]).toEqual([start, 'trade']);
-      r.store.set({ sheet: null });
+      r.store.set({ sheet: null, cardKeys: false });
       key(r.root, k);
       expect(r.store.get().category !== start).toBe(true);                                   // and again once it is closed
     } finally { r.cleanup(); }
