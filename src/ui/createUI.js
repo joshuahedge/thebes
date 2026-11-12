@@ -96,6 +96,11 @@ import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { createLife } from '../render/v100/life.js';   // Version 10.0 (Track 0): the life layer's seam
+import { townsfolkSource } from '../render/v100/townsfolk.js';   // Version 10.0, Track L: life's sources
+import { crowdSource } from '../render/v100/crowd.js';
+import { riverSource } from '../render/v100/riverLife.js';
+import { buildersSource } from '../render/v100/builders.js';
+import { nightSource } from '../render/v100/night.js';
 import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT, M93_TEXT } from './text.js';
 import { bringsNewLook } from '../render/v93/sweep.js';   // Version 9.3 (Track M)
 import { farGoodTip } from '../sim/carts.js';
@@ -347,6 +352,13 @@ export function createUI({
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   // Version 10.0 (Track 0): the life layer's seam (render/v100/life.js), its frame the render's frame time; Track L adds its sources.
   const life = createLife({ level: motionLevel, now: () => frameNow });
+  // Version 10.0, Track L: life's sources, in the LIFE budget's drop order's names (render/v100/*): the townsfolk and the rising buildings' builders
+  // (idle), the bazaar's crowd and the festival's onlookers (crowd), river life (river), the night's doors, hearths and palace windows (flicker).
+  life.addSource(townsfolkSource({ settings: () => settings.get() }));
+  life.addSource(buildersSource());
+  life.addSource(crowdSource({ settings: () => settings.get() }));
+  life.addSource(riverSource({ settings: () => settings.get() }));
+  life.addSource(nightSource());
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -1289,6 +1301,7 @@ export function createUI({
       },
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
       view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion), ...life.walkers(world, timeDays, t, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),   // Version 10.0 (Track 0): life's walkers after v70's
+      motion,                                                                    // Version 10.0, Track L: the frame's Motion level (the shimmer)
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); life.ground(g, world, r, t, motion); },   // Version 10.0 (Track 0): life's ground after the ambient's. Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       light: (g, r, frame) => v70Light(g, world, r, frame, t, motion, settings.get()),   // Version 7.0: night's tint and the lamps (render/v70.js, Track S)

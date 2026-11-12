@@ -36,10 +36,13 @@ export function createLife({ deviceKind = DEVICE_KIND, level = () => 'full', now
     spentBy[name] = (spentBy[name] || 0) + ms;
   }
   // Runs one hook of every source that has it and is not dropped, each timed into the budget under its own name.
+  // Version 10.0, Track L (L.9, spec 5h, ruling 2250): in the lesson only the sources that say lessonOk run (townsfolk, hearths, and the crowd behind its
+  // own food-step gate), so the camera's subject stays the step.
   function each(hook, args, out = null) {
     roll();
+    const world = hook === 'walkers' ? args[0] : args[1], lesson = Boolean(world && world.lesson);
     for (const s of sources) {
-      if (typeof s[hook] !== 'function' || dropper.off(s.name)) continue;
+      if (typeof s[hook] !== 'function' || dropper.off(s.name) || (lesson && !s.lessonOk)) continue;
       const t0 = clock();
       const r = s[hook](...args);
       if (out && Array.isArray(r)) for (const e of r) out.push(e);
