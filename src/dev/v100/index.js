@@ -7,7 +7,8 @@
 //   storm           the stress city (open /?skipTitle=1&nosw=1&stress=1) on a day in Shemu of its second year (storms never come in the first),
 //                   at noon, the camera on its middle; Track L forces the storm on (weather.stormAt)
 //   wharf           the Stage 4.6 wharf scene (s46-wharf: a staffed fishing wharf, its boat out) at zoom 1.5 (options.zoom)
-//   festival-crowd  the 7.0 festival scene (v70-festival: the Festival of Opet offered), its card shut (options.open) so the town shows
+//   festival-crowd  the 7.0 festival scene's town with a festival held 18 days ago (ruling 2328): the doubled procession out, the onlookers lining
+//                   the road, the first working temple's road at zoom 1.2, noon, the card shut
 //   fresh-corner    a fresh classic city (open /?skipTitle=1&nosw=1&seed=11) at its start camera, as a new player first sees it
 import { allBuildings } from '../../sim/world.js';
 import { BUILDINGS } from '../../data/buildings.js';
@@ -17,6 +18,9 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../sim/time.js';
 import { setLightClock } from '../../render/light.js';
 import { forceStorm } from '../../render/v100/weather.js';
 import { festivalScene } from '../v70/cityEvents.js';
+import { closeSheet } from '../../ui/modes.js';
+import { processionsAt, festivalLoopOf, PROCESSION_ID_BASE, EXTRA_ID_BASE } from '../../render/walkers.js';
+import { workingTemples, festivalLineAt } from '../../render/v100/crowd.js';
 import { S46_SCENES } from '../s46/index.js';
 import { inGame, wait } from '../s46/base.js';
 import { look } from '../v60/base.js';
@@ -72,9 +76,30 @@ async function wharf(api, options = {}) {
   return `wharf: ${said}, zoom ${g.cam.zoom}`;
 }
 
+// Ruling 2328: a real festival day (the final review's L-2). The 7.0 festival scene sets up the town, its temple and the Opet offer; this scene then
+// takes the offer down, holds a festival FESTIVAL_AGO days ago (so all of a festival's 20 figures are out), centres on the first working temple's road at
+// zoom 1.2 and returns the counts: the procession's figures and the onlookers lining the road (the scene throws when either is missing).
+export const FESTIVAL_AGO = 18;
 async function festivalCrowd(api, options = {}) {
-  const said = await festivalScene(api, { open: false, ...options });
-  return `festival-crowd: ${said}`;
+  const said = await festivalScene(api, { open: false, ...options, quick: true });
+  const g = api.game(), { world } = g;
+  const temple = workingTemples(world)[0];
+  if (!temple) throw new Error('devScene festival-crowd: the city has no working temple');
+  world.cityEvents.waiting = null;
+  world.danger.festivalDay = world.day - FESTIVAL_AGO;
+  hold(world, NOON_MS);
+  g.ui.store.set(closeSheet(g.ui.store.get()));
+  g.ui.refresh();
+  const loop = festivalLoopOf(world, temple), half = loop.slice(0, Math.ceil(loop.length / 2) + 1);
+  if (!half.length) throw new Error('devScene festival-crowd: the temple has no road to walk');
+  const mid = half[Math.floor(half.length / 2)];
+  look(api, mid.x + 0.5, mid.y + 0.5, 1.2);
+  if (!options.quick) await wait(300);
+  const all = { x0: 0, y0: 0, x1: world.size, y1: world.size };
+  const figures = processionsAt(world, world.day, null).filter((w) => (w.id >= PROCESSION_ID_BASE && w.id < PROCESSION_ID_BASE + 400000) || (w.id >= EXTRA_ID_BASE && w.id < EXTRA_ID_BASE + 100000));
+  const onlookers = festivalLineAt(world, world.day, 0, all, 'full');
+  if (figures.length < 16 || !onlookers.length) throw new Error(`devScene festival-crowd: ${figures.length} procession figures, ${onlookers.length} onlookers`);
+  return `festival-crowd: festival day ${world.danger.festivalDay} (${FESTIVAL_AGO} days ago), temple ${temple.id}, ${figures.length} procession figures, ${onlookers.length} onlookers (${said})`;
 }
 
 async function freshCorner(api, options = {}) {

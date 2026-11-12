@@ -1,7 +1,7 @@
 // Version 10.0, Track L (L.7, spec 5f, rulings 2232-2236): the rare sandstorm: seeded, never in the first year or the lesson, 20 to 40 s of real time,
 // haze only under Gentle, nothing under Still; the V layers stay within their budget with a storm up.
 import { describe, it, expect } from '../../harness.js';
-import { stormsOf, stormAt, forceStorm, stormLean, stormSwing, drawStorm, STORM, YEAR_DAYS } from '../../../src/render/v100/weather.js';
+import { stormsOf, stormAt, forceStorm, stormLean, stormSwing, drawStorm, streakWidth, STORM, YEAR_DAYS } from '../../../src/render/v100/weather.js';
 import { drawV90 } from '../../../src/render/v90/effects.js';
 import { seasonAt } from '../../../src/sim/seasons.js';
 import { createWorld } from '../../../src/sim/world.js';
@@ -61,6 +61,29 @@ describe('v100 l storm: the rare sandstorm', () => {
     const full = shot('full'), gentle = shot('gentle'), still = shot('still');
     expect(full.n > 1 && gentle.n === 1 && still.n === 0).toBe(true);
     expect(full.url !== gentle.url && gentle.url !== still.url).toBe(true);
+    forceStorm(w, null);
+  });
+  it('draws its streaks at least 2 device px wide whatever the scale, and the phone\'s banks more opaque (ruling 2327)', () => {
+    const w = createWorld({ seed: 5 }), range = { x0: 10, y0: 10, x1: 40, y1: 40 }, mid = p(25, 25);
+    forceStorm(w, 0, 30);
+    const run = (scale, kind) => {
+      const c = makeCanvas(400, 300), ctx = c.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 200 - mid[0] * scale, 150 - mid[1] * scale);
+      const g = makeDraw(ctx, scale), widths = [], alphas = [], stroke = g.stroke, ell = g.ell;
+      g.stroke = (segs, color, width, alpha) => { widths.push(width); return stroke(segs, color, width, alpha); };
+      g.ell = (c0, rx, ry, color, o) => { alphas.push(o.alpha); return ell(c0, rx, ry, color, o); };
+      drawStorm(g, w, range, 10450, 'full', kind);
+      return { widths, alphas };
+    };
+    for (const scale of [0.5, 1, 2, 4]) {
+      const r = run(scale, 'desktop');
+      expect(r.widths.length > 0).toBe(true);
+      for (const wd of r.widths) expect(wd * scale >= 2 - 1e-9).toBe(true);
+    }
+    expect(streakWidth(1) >= 2 && streakWidth(4) >= 1.4 && streakWidth(0.5) >= 4).toBe(true);
+    const d = run(2, 'desktop').alphas, ph = run(2, 'phone').alphas;
+    expect(d.length > 0 && d.length === ph.length).toBe(true);
+    expect(Math.abs(ph[0] - d[0] - STORM.phoneBankAlpha) < 1e-9).toBe(true);
     forceStorm(w, null);
   });
   it('holds LIFE.storm.dustCap, is the same twice, never writes a deep-frozen world, and keeps stormsOf cached (the same list for the same seed and year)', () => {

@@ -150,3 +150,22 @@ time and a hash, and keeps its notes (a bank spot, a storm's start, the homes li
   full suite finished between the two runs, so most of the 10 ms is the machine's load and not the cap; the cap is lowered as the merge's rule says
   (fails alone twice: lower the phone's cap first), and the desktop's 160 and 24 stand. `tests/v100/l/night.test.js` still holds the phone's doors at or
   under the desktop's.
+
+## The fix wave (final review L-1 to L-4; the controller commits each separately)
+
+- **2326. The night doors stand on the wall line (L-1).** The review asked for each door's foot on the wall, not the tile's front edge. `doorPoints` now
+  puts y at `b.y + b.d - DOOR_INSET` (0.18 tile, the yard before the wall) and the lit opening's base is lifted `DOOR_LIFT` (1 art px, the plinth) with a
+  height of 4 px (was 0.2 to 4.6); the bright core follows. The inset is a fixed 0.18, not read from each home's slot (the review allowed either).
+  `tests/v100/l/night.test.js` checks every door lies inside its home's footprint at or behind `b.y + b.d - DOOR_INSET`.
+- **2327. The storm reads on a phone (L-3, Josh's decision: it stays).** Streaks are drawn `streakWidth(g.scale)` wide, never under `STORM.streakDevicePx`
+  (2) device px (and never under the old 1.4 art px); the dust banks' alpha is `STORM.bankAlpha` (0.12) plus `STORM.phoneBankAlpha` (0.1) when the
+  device kind is phone (`weatherSource({ deviceKind })` defaults to the page's `DEVICE_KIND`, so `createUI` is untouched; `drawStorm` takes a sixth
+  `deviceKind` argument). The 5 s ramp and the no-flash rule are unchanged. `tests/v100/l/storm.test.js` holds both.
+- **2328. The `festival-crowd` scene shows a festival (L-2).** After the 7.0 festival scene sets up the town it takes the offer down, sets
+  `festivalDay = day - 18` (`FESTIVAL_AGO`, all 20 figures out), holds noon, closes any sheet, centres on the first working temple's road (middle of its
+  out half) at zoom 1.2, and throws unless it counts 16 or more procession figures and an onlooker; it returns both counts. New
+  `tests/v100/l/festivalScene.test.js`. Retaken shot: 54 figures (several temples), 15 onlookers.
+- **2329. The wharf's fisher is placed (L-4).** The skiff's sprite already holds its own fisher, so `boatOf` stays as it is and a staffed wharf with a boat
+  now also has a pier fisher (`pierFisherOf`, id slot 0 of the wharf's three) at the pier's water end: `fisher` standing, `fisher_cast` under Full while
+  the boat holds at either far end of its drift (`|sin|` of the drift phase above `BOAT_HOLD` 0.9); Gentle and Still keep him standing. This reads the
+  review's "boat fisher takes fisher_cast" as a second, pier-side figure rather than a change to the boat's sprite; not seen in a shot.

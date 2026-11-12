@@ -1,7 +1,7 @@
 // Version 10.0, Track L (L.6, spec 5e, rulings 2220-2224): doors glowing at dusk, hearth smoke, the lamps' flicker under Full only, the palace's
 // windows lighting in a sweep, a festival's hearths lit early; drawLight's share holds (tests/v70/s/budget.test.js).
 import { describe, it, expect } from '../../harness.js';
-import { drawNightLife, doorsLit, doorPoints, NIGHT_LIFE } from '../../../src/render/v100/night.js';
+import { drawNightLife, doorsLit, doorPoints, NIGHT_LIFE, DOOR_INSET } from '../../../src/render/v100/night.js';
 import { flickerOf, FLICKER, setLightClock } from '../../../src/render/light.js';
 import { LIGHT } from '../../../src/data/seasons.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
@@ -33,6 +33,16 @@ describe('v100 l night: doors, hearths, lamps and the palace', () => {
     expect(doorPoints(w, { x0: 0, y0: 0, x1: w.size, y1: w.size }, null).length <= NIGHT_LIFE.doors).toBe(true);
     deepFreeze(w);
     expect(draw(w, range, NIGHT).url).toBe(night.url);                           // the same from a frozen world: it reads only
+  });
+  it('stands each door on its home\'s wall line, inside the wall footprint, not on the yard before it (ruling 2326)', () => {
+    const { w, range } = bazaarCity(10);
+    const doors = doorPoints(w, range, null);
+    expect(doors.length).toBeGreaterThan(3);
+    for (const d of doors) {
+      expect(d.y <= d.b.y + d.b.d - DOOR_INSET + 1e-9).toBe(true);
+      expect(d.y > d.b.y && d.x > d.b.x && d.x < d.b.x + d.b.w).toBe(true);
+    }
+    expect(DOOR_INSET >= 0.15 && DOOR_INSET <= 0.2).toBe(true);
   });
   it('flickers a lamp by +-8% over 1 to 2 s under Full; Gentle\'s doors are steady', () => {
     let lo = 2, hi = 0;

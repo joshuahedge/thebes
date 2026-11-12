@@ -5,7 +5,12 @@ import { riverLifeAt, RIVER } from '../../../src/render/v100/riverLife.js';
 import { riverRows } from '../../../src/render/ambient.js';
 import { LIFE } from '../../../src/data/ambient.js';
 import { LIFE_IDS } from '../../../src/render/v100/life.js';
+import { animalsAt, BOAT_HOLD } from '../../../src/render/wildlife.js';
+import { ART } from '../../../src/render/art/registry.js';
+import { riverWorld, addRaw } from '../../stage46/river/riverHelpers.js';
 import { lifeContract, sampleCity, copyWorld, DAY } from './helpers.js';
+
+const MOVE_PACE_FULL = 0.22;                                                     // wildlife.js MOVE.full.pace
 
 // The sample city with the river's middle rows in view.
 function river() {
@@ -18,6 +23,29 @@ const make = () => { const { w, range } = river(); return { world: copyWorld(w),
 
 describe('v100 l river: the contract', () => {
   lifeContract(fn(DAY), make, LIFE.riverCap);
+});
+
+describe('v100 l river: the wharf\'s fisher casts (final review L-4, ruling 2329)', () => {
+  it('casts (fisher_cast) at the hold time of a staffed wharf\'s boat under Full, stands (fisher) otherwise, never under Gentle or Still, nothing for an idle wharf', () => {
+    const w = riverWorld(), wh = addRaw(w, 'fishing_wharf', 22, 11);
+    wh.rot = 1; wh.w = 1; wh.d = 2; wh.staff = 3;
+    const ALL = { x0: 0, y0: 0, x1: w.size, y1: w.size };
+    const fishers = (t, motion) => animalsAt(w, t, ALL, motion).filter((a) => /^fisher/.test(a.kind));
+    const kinds = new Set(), held = [], moving = [];
+    for (let t = 0; t < 120; t += 0.25) {
+      const f = fishers(t, 'full');
+      expect(f.length).toBe(1);
+      kinds.add(f[0].kind);
+      (Math.abs(Math.sin(t * MOVE_PACE_FULL * 0.7 + wh.id)) > BOAT_HOLD ? held : moving).push(f[0].kind);
+      expect(typeof (ART[`fig.${f[0].kind}`] && ART[`fig.${f[0].kind}`].draw)).toBe('function');
+    }
+    expect([...kinds].sort()).toEqual(['fisher', 'fisher_cast']);
+    expect(held.length > 0 && held.every((k) => k === 'fisher_cast')).toBe(true);
+    expect(moving.length > 0 && moving.every((k) => k === 'fisher')).toBe(true);
+    for (const motion of ['gentle', 'still']) for (let t = 0; t < 120; t += 3) expect(fishers(t, motion).map((a) => a.kind)).toEqual(['fisher']);
+    wh.staff = 0;
+    expect(fishers(3, 'full')).toEqual([]);
+  });
 });
 
 describe('v100 l river: boats with somewhere to go', () => {

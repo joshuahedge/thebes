@@ -29,6 +29,7 @@ export const wildlifeIds = {
   tile: (slot, tile) => WILDLIFE_ID_BASE + 200000 + tile * 4 + TILE_SLOT[slot],
   hunter: (buildingId, k) => WILDLIFE_ID_BASE + 300000 + buildingId * 3 + k,
   boat: (buildingId) => WILDLIFE_ID_BASE + 300000 + buildingId * 3 + 2,
+  pier: (buildingId) => WILDLIFE_ID_BASE + 300000 + buildingId * 3,        // a wharf's slot 0 (only a lodge's hunters use it)
 };
 
 const SALT = RIVER_SALT.ambient;
@@ -153,6 +154,18 @@ export function boatOf(world, b, timeDays, motion) {
   return { id: wildlifeIds.boat(b.id), kind: left ? 'boat_l' : 'boat', x, y, dir: left ? 3 : 1 };
 }
 
+// Version 10.0 (final review L-4, ruling 2329): the wharf's second fisher, on the pier's water end beside the boat (the skiff's own fisher is in its
+// sprite). He stands ('fisher') while the boat is out on its run and, under Full, casts ('fisher_cast') while the boat holds at either far end of
+// its drift (|sin| of its drift phase above BOAT_HOLD, about three tenths of the time); Gentle and Still keep him standing.
+export const BOAT_HOLD = 0.9;
+export function pierFisherOf(world, b, timeDays, motion) {
+  const m = moveOf(motion), side = wharfSide(world, b), long = side === 's' || side === 'n';
+  const sx = side === 'e' ? 1 : side === 'w' ? -1 : 0, sy = side === 's' ? 1 : side === 'n' ? -1 : 0;
+  const held = motion === 'full' && Math.abs(Math.sin(timeDays * m.pace * 0.7 + b.id)) > BOAT_HOLD;
+  const x = b.x + b.w / 2 + sx * (b.w / 2 - 0.1) + (long ? 0.45 : 0), y = b.y + b.d / 2 + sy * (b.d / 2 - 0.1) + (long ? 0 : 0.45);
+  return { id: wildlifeIds.pier(b.id), kind: held ? 'fisher_cast' : 'fisher', x, y, dir: 1 };
+}
+
 // ── The animals in range ──
 // Walker entries [{ id, kind, x, y, dir }]; kind names the art slot fig.<kind> (render/art/river.js).
 export function animalsAt(world, timeDays, range, motion) {
@@ -212,7 +225,7 @@ export function animalsAt(world, timeDays, range, motion) {
     if (b.type !== 'hunting_lodge' && b.type !== 'fishing_wharf') continue;
     if (!inRange(range, b.x, b.y, 14) || !working(b)) continue;
     if (b.type === 'hunting_lodge') out.push(...huntersOf(world, b, timeDays, motion));
-    else { const boat = boatOf(world, b, timeDays, motion); if (boat) out.push(boat); }
+    else { const boat = boatOf(world, b, timeDays, motion); if (boat) { out.push(boat); out.push(pierFisherOf(world, b, timeDays, motion)); } }
   }
   return out;
 }

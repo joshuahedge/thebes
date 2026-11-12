@@ -15,10 +15,15 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../sim/time.js';
 import { hash2 } from '../../sim/rng.js';
 import { p } from '../iso.js';
 import { windAt } from '../ambient.js';
+import { DEVICE_KIND } from '../spriteCache.js';
 import { clamp01, LIFE_SALT as S } from './lifeCommon.js';
 
+// Ruling 2327: the streaks are never under STORM.streakDevicePx device px wide (a streak's art-px width is that over g.scale, never under 1.4), and
+// on a phone the dust banks are STORM.phoneBankAlpha more opaque, so the storm reads at 390x844 DPR 2.
+export const streakWidth = (scale) => Math.max(1.4, STORM.streakDevicePx / Math.max(0.01, scale || 1));
+
 // The haze is the sand's warm ochre; the dust banks a deeper ochre rolling through it and the streaks a darker blown sand, so both read over a sandy map.
-export const STORM = { rampMs: 5000, swingDeg: 60, leanDeg: 4, lampDim: 0.3, haze: '#D9A864', bank: '#B98A4E', dust: '#A87A44', streakMs: 900, catchDays: 2, banks: 6, bankTilesPerSecond: 1.2 };
+export const STORM = { rampMs: 5000, swingDeg: 60, leanDeg: 4, lampDim: 0.3, haze: '#D9A864', bank: '#B98A4E', dust: '#A87A44', streakMs: 900, catchDays: 2, banks: 6, bankTilesPerSecond: 1.2, streakDevicePx: 2, bankAlpha: 0.12, phoneBankAlpha: 0.1 };
 export const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const SHEMU = SEASONS.map((s, m) => (s === 'shemu' ? m : -1)).filter((m) => m >= 0);
 
@@ -92,7 +97,7 @@ export function stormLean(world, nowMs, motion) {
 }
 
 // The haze over the whole canvas (device px), and under Full the dust streaks across the view's tiles.
-export function drawStorm(g, world, range, nowMs, motion) {
+export function drawStorm(g, world, range, nowMs, motion, deviceKind = 'desktop') {
   const s = stormAt(world, nowMs);
   if (!s.on || motion === 'still' || !range) return 0;
   const ctx = g.ctx;
@@ -109,7 +114,7 @@ export function drawStorm(g, world, range, nowMs, motion) {
   for (let i = 0; i < STORM.banks; i++) {
     const h0 = hash2(i, 1, seed), h1 = hash2(i, 2, seed), s0 = (((nowMs / 1000) * STORM.bankTilesPerSecond + h0 * span) % span) - span / 2, side = (h1 - 0.5) * Math.min(w, h);
     const q = p((range.x0 + range.x1) / 2 + wind.x * s0 - wind.y * side, (range.y0 + range.y1) / 2 + wind.y * s0 + wind.x * side), r = (5 + 4 * h1) * 16;
-    for (let j = 0; j < 3; j++) g.ell([q[0], q[1] - 12], r * (1 - j * 0.28), r * 0.42 * (1 - j * 0.28), STORM.bank, { alpha: 0.12 * s.k });
+    for (let j = 0; j < 3; j++) g.ell([q[0], q[1] - 12], r * (1 - j * 0.28), r * 0.42 * (1 - j * 0.28), STORM.bank, { alpha: (STORM.bankAlpha + (deviceKind === 'phone' ? STORM.phoneBankAlpha : 0)) * s.k });
   }
   // the streaks: two sets half a window apart, each fading in and out over its window, so as many show at every moment and none pops
   const n = Math.round(LIFE.storm.dustCap * s.k), sets = [[], []], fades = [0, 0];
@@ -125,11 +130,11 @@ export function drawStorm(g, world, range, nowMs, motion) {
       }
     }
   }
-  for (let set = 0; set < 2; set++) if (sets[set].length && fades[set] > 0.01) g.stroke(sets[set], STORM.dust, 1.4, 0.55 * fades[set] * s.k);
+  for (let set = 0; set < 2; set++) if (sets[set].length && fades[set] > 0.01) g.stroke(sets[set], STORM.dust, streakWidth(g.scale), 0.55 * fades[set] * s.k);
   return 1 + n;
 }
 
 // The life source (createUI registers it): 'weather', not in the lesson.
-export function weatherSource() {
-  return { name: 'weather', lessonOk: false, late: (g, world, range, nowMs, motion) => { drawStorm(g, world, range, nowMs, motion); } };
+export function weatherSource({ deviceKind = DEVICE_KIND } = {}) {
+  return { name: 'weather', lessonOk: false, late: (g, world, range, nowMs, motion) => { drawStorm(g, world, range, nowMs, motion, deviceKind); } };
 }

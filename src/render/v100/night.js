@@ -21,6 +21,9 @@ import { LIFE_SALT as S, unit, nearestFirst, nearestHomes, clamp01 } from './lif
 // The merge of Track L (ruling 2254): a phone's doors and hearths 60 and 10 (were 90 and 14), the phone's stress frame at night held to its p50 bound.
 export const NIGHT_LIFE = { doors: 160, hearths: 24, phone: { doors: 60, hearths: 10 }, hearthShare: 0.25, smokeAlpha: 0.3, smokeMs: 5000, festivalLeadMs: 60000, sweepMs: 3000, doorGlow: 4, door: '#FFC872', pool: '#C8783A', smoke: '#E6E0DC' };
 
+// The door's foot stands on the wall line, not the tile's front edge (ruling 2326): DOOR_INSET tiles in from it (the yard before the wall), the opening's base DOOR_LIFT art px up (the plinth).
+export const DOOR_INSET = 0.18, DOOR_LIFT = 1;
+
 // How lit the doors are now: the lamps' strength (light.js), or on a festival day the early hearths' rise over the minute before dusk.
 export function doorsLit(world, l = lightShown()) {
   let k = l.lamps;
@@ -45,7 +48,7 @@ export function doorPoints(world, range, g, cap = NIGHT_LIFE.doors, homes = near
   for (const b of homes) {
     if (out.length >= cap) break;
     if (g && g.cull && !g.cull.sees(b.x + b.w / 2, b.y + b.d / 2, [-24, -40, 24, 14])) continue;
-    out.push({ b, x: b.x + b.w * (0.35 + 0.3 * unit(b.id, 1, world.seed, S.hearth)), y: b.y + b.d });
+    out.push({ b, x: b.x + b.w * (0.35 + 0.3 * unit(b.id, 1, world.seed, S.hearth)), y: b.y + b.d - DOOR_INSET });
   }
   return out;
 }
@@ -56,8 +59,8 @@ function drawDoors(g, world, range, k, now, motion, homes, cap = NIGHT_LIFE.door
   const doors = doorPoints(world, range, g, cap, homes), openings = [[], []], cores = [];
   if (!doors.length) return 0;
   for (const d of doors) {
-    openings[d.b.id & 1].push([U(p(d.x - 0.07, d.y), 0.2), U(p(d.x + 0.07, d.y), 0.2), U(p(d.x + 0.07, d.y), 4.6), U(p(d.x - 0.07, d.y), 4.6)]);
-    cores.push([U(p(d.x - 0.04, d.y), 0.4), U(p(d.x + 0.04, d.y), 0.4), U(p(d.x + 0.04, d.y), 2.2), U(p(d.x - 0.04, d.y), 2.2)]);
+    openings[d.b.id & 1].push([U(p(d.x - 0.07, d.y), DOOR_LIFT), U(p(d.x + 0.07, d.y), DOOR_LIFT), U(p(d.x + 0.07, d.y), DOOR_LIFT + 4), U(p(d.x - 0.07, d.y), DOOR_LIFT + 4)]);
+    cores.push([U(p(d.x - 0.04, d.y), DOOR_LIFT + 0.2), U(p(d.x + 0.04, d.y), DOOR_LIFT + 0.2), U(p(d.x + 0.04, d.y), DOOR_LIFT + 2), U(p(d.x - 0.04, d.y), DOOR_LIFT + 2)]);
   }
   for (const grp of [0, 1]) if (openings[grp].length) g.polys(openings[grp], NIGHT_LIFE.door, { alpha: Math.min(1, 0.85 * k * (motion === 'full' ? flickerOf(grp, 7, now) : 1)) });
   g.polys(cores, '#FFF0C8', { alpha: 0.8 * k });
