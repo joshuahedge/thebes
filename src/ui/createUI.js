@@ -13,7 +13,7 @@ import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
-import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
+import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM, holdInMap } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
@@ -73,6 +73,7 @@ import { createGuide, canResumeGuide, guideState } from './guide.js';
 import { createTrayLayers } from './v81/trayLayers.js';
 import { createCardDrag, createDragHost } from './v81/cardDrag.js';
 import { installNoZoom } from './v81/noZoom.js';
+import { docked as scribeDocked, watchScribe } from './v81/scribe.js';   // Version 10.0 (Track F, ruling 2115): the scribe's bubble has the phone's guidance row while it speaks
 import { palaceOf } from '../sim/palace.js';
 import { el, setText, clear } from './components.js';
 import { A92_TEXT } from './text.js';
@@ -94,6 +95,13 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
+import { createLife } from '../render/v100/life.js';   // Version 10.0 (Track 0): the life layer's seam
+import { townsfolkSource } from '../render/v100/townsfolk.js';   // Version 10.0, Track L: life's sources
+import { crowdSource } from '../render/v100/crowd.js';
+import { riverSource } from '../render/v100/riverLife.js';
+import { buildersSource } from '../render/v100/builders.js';
+import { nightSource } from '../render/v100/night.js';
+import { weatherSource, stormLean } from '../render/v100/weather.js';
 import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT, M93_TEXT } from './text.js';
 import { bringsNewLook } from '../render/v93/sweep.js';   // Version 9.3 (Track M)
 import { farGoodTip } from '../sim/carts.js';
@@ -116,6 +124,7 @@ export function createUI({
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
   keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null, extraSheets = {},
   settings: givenSettings = null, clock = () => Date.now(), sfx: givenSfx = null,
+  tapWait = 0,   // Version 10.0 (Track M, ruling 2301): how long a finger's building tap waits for a second tap (the game's boot passes DOUBLE_TAP_MS; a rig leaves it 0)
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -237,7 +246,7 @@ export function createUI({
   // rebuild between a press and its click would lose the click. A click from the keyboard has no pointer type and changes nothing.
   const onPress = (ev) => { if (ev.pointerType) store.set({ inputType: ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse' }); };
   root.addEventListener('click', onPress);
-  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, cssSize: 'var(--minimap-s, 160px)', dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr, onMove: (x, y) => cameraControl.panTo(x, y) });
 
   const speedBar = el('div', { class: 'speed-bar' });
@@ -343,6 +352,17 @@ export function createUI({
   monumentUi = createMonumentUi(seamCtx);
   s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx), createDecreeUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
+  // Version 10.0 (Track 0): the life layer's seam (render/v100/life.js), its frame the render's frame time; Track L adds its sources.
+  const life = createLife({ level: motionLevel, now: () => frameNow });
+  // Version 10.0, Track L: life's sources, in the LIFE budget's drop order's names (render/v100/*): the townsfolk and the rising buildings' builders
+  // (idle), the bazaar's crowd and the festival's onlookers (crowd), river life (river), the night's doors, hearths and palace windows (flicker), the
+  // sandstorm (weather).
+  life.addSource(townsfolkSource({ settings: () => settings.get() }));
+  life.addSource(buildersSource());
+  life.addSource(crowdSource({ settings: () => settings.get() }));
+  life.addSource(riverSource({ settings: () => settings.get() }));
+  life.addSource(nightSource());
+  life.addSource(weatherSource());
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -397,7 +417,8 @@ export function createUI({
   });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
-  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
+  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }),
+    onSize: () => { holdInMap(cam, view()); } });   // Version 10.0 (Track F, ruling 2119): a resize or a turn re-holds the camera in the map for the new view
   const stopVisibility = speedControl.watchVisibility();
 
   // Screen point -> tile, clamped onto the map, so drags past the edge still mean the edge tile.
@@ -556,7 +577,9 @@ export function createUI({
     const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
     const corners = cornersHeight(root, canvas, h) || placingInsets(s).bottom;
     const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
-    const withToast = corners + (toast > 0 ? toast + 8 : 0);
+    // Version 10.0 (Track M, ruling 2309, C6): while the game is paused the toasts ride one Paused tag higher (css/v93.css --toast-lift), so the band they cover is that much taller.
+    const tagLift = $('corners') && $('corners').querySelector('.speed-main[data-state="paused"]') ? Math.ceil(10 * (parseFloat(getComputedStyle(root).getPropertyValue('--ui-scale')) || 1)) : 0;
+    const withToast = corners + (toast > 0 ? toast + 8 + tagLift : 0);
     if (h - top - withToast >= need) return { ...plain, insets: { ...i, top, bottom: withToast } };
     const dock = $('dock') ? $('dock').getBoundingClientRect().top - canvas.getBoundingClientRect().top : 0;
     const under = cornersBottom(root, canvas);
@@ -992,7 +1015,8 @@ export function createUI({
     const offered = placement.canUndo() && topUndoKind() !== 'demolish' && ((Boolean(undoToast) && undoToast.isConnected) || isToolMode(s.mode));
     if (offered) undo();
   }
-  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  // Version 10.0 (Track M, ruling 2301): a finger's tap that would select a building waits the double-tap window, so a double tap zooms and selects nothing; any other tap is instant.
+  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root, tapWait, waitsFor: ({ x, y }) => !isPicking(store.get()) && Boolean(pickBuilding(world, cam, view(), x, y)) });
   // Version 8.1 (Track D, rulings 1241-1245): drag to build. A card pressed and dragged onto the map builds on release (src/ui/v81/cardDrag.js); the pointer side lives there, and the game side
   // here borrows the map's own stroke wiring (actions) and the tick (confirm), so a dragged build is the same build, with the same toast and Undo, as a tapped one.
   const cardDrag = createCardDrag({
@@ -1019,7 +1043,8 @@ export function createUI({
     const v = view();
     if (s.layout === 'portrait') return phoneInsets(s, { right: 0, bottom: v.height * 0.6, left: 0 });
     if (s.layout === 'compact') return phoneInsets(s, { right: RAIL_PX + DRAWER_PX, bottom: cornersHeight(root, canvas, v.height), left: 0 });
-    return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
+    const panel = root.querySelector('#panel');   // Version 10.0 (Track D, ruling 2124): the wide panel's width follows --ui-scale, so the inset is its measured width
+    return { top: TOPBAR_PX, right: panel && panel.offsetWidth ? panel.offsetWidth : PANEL_PX, bottom: 0, left: 0 };
   }
   // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom (allowed for,
   // not measured: a card is picked while the tray is open and the corners still ride above it).
@@ -1137,6 +1162,9 @@ export function createUI({
   function guidanceKind() {
     const s = store.get();
     if (!phone()) return null;
+    // Version 10.0 (Track F, ruling 2115): a docked line of the scribe's has the row while it speaks, over an alert row, a sheet and everything else (it is brief: SAY_MS), and the
+    // goal, tip, caption and legend wait as they do for each other; not in a tool's mode or under a lesson card, where its bubble is hidden (css/v81-t.css).
+    if (scribeDocked() && !isToolMode(s.mode) && !document.body.classList.contains('lesson-card-up')) return 'scribe';
     if (s.sheet || alertHasRow()) return 'none';
     if (s.overlay) return 'legend';
     if (tips.current()) return 'tip';
@@ -1227,6 +1255,7 @@ export function createUI({
   }
   guidanceWired = true;
   syncGuidance();
+  const unwatchScribe = watchScribe(() => guidanceChanged());   // a line starting or ending hands the row over or back at once
 
   // Version 9.3.1 (group G, rulings 2030, 2033): the tools whose ghost lies on the ground, under the sprites: every one but demolish, whose coral marks the very
   // building that would cover it (a building's, an area's, the house tool's plots, the plazas, and the line tools: a road, wall, gate or ferry is ground too).
@@ -1278,12 +1307,13 @@ export function createUI({
         if (onGround) for (const ghost of shapes) drawGhostGround(g, ghost);
       },
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion), ...life.walkers(world, timeDays, t, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),   // Version 10.0 (Track 0): life's walkers after v70's
+      motion, lean: stormLean(world, t, motion),                                 // Version 10.0, Track L: the frame's Motion level (the shimmer), a sandstorm's lean on the figures
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
-      ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
+      ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); life.ground(g, world, r, t, motion); },   // Version 10.0 (Track 0): life's ground after the ambient's. Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       light: (g, r, frame) => v70Light(g, world, r, frame, t, motion, settings.get()),   // Version 7.0: night's tint and the lamps (render/v70.js, Track S)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
-      fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
+      fire: (g, r) => { drawFires(g, world, r, t, still); life.late(g, world, r, t, motion); drawIllness(g, world, r); },   // Version 10.0 (Track 0): life's late layer after the late ambient (drawFires ends with it). Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood), { now: t, still: motion === 'still' });   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good; Supply lines move with the clock
@@ -1338,12 +1368,14 @@ export function createUI({
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed, setAutosaveBlocked,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
+    life,   // Version 10.0 (Track 0): the life layer's seam (Track L adds its sources; a test reads stats())
     monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
       if (destroyed) return;
       destroyed = true;
       unwatchWords();
+      unwatchScribe();
       for (const s of seams()) s.destroy();
       cornerPicker.destroy(); panelPicker.destroy(); hud.destroy(); sourcePick.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch

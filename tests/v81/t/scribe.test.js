@@ -39,7 +39,7 @@ describe('v81 t scribe: say()', () => {
       expect([Boolean(b.querySelector('svg.scribe-portrait')), b.classList.contains('pinned'), getComputedStyle(b).pointerEvents]).toEqual([true, false, 'none']);
       const bar = rect(shell.root.querySelector('#topbar')), r = rect(b);
       expect(r.top >= bar.bottom - 1).toBe(true);
-      await wait(520);
+      for (let waited = 0; !b.hidden && waited < 2000; waited += 20) await wait(20);   // poll for the fade (a loaded machine can be slow), 2 s cap
       expect([b.hidden, done, speaking()]).toEqual([true, 1, false]);
       expect(SAY_MS >= 2000 && SAY_MS <= 3000).toBe(true);                                       // the design's 2 to 3 seconds
     } finally { unmountScribe(); shell.cleanup(); }

@@ -29,8 +29,9 @@ export const MOTION_SETTINGS = ['system', 'full', 'gentle', 'still'];
 export const MOTION_LEVELS = ['full', 'gentle', 'still'];
 export const MUSIC_VOLUMES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // Version 6.0 (Track D1, ruling 746): sound is on by default (the title's Play with sound is gone; Settings mutes it). A device that stored a choice keeps it.
+// Version 10.0 (Track D, ruling 2120): textSize null is "Auto": no choice made, so the desktop default by width and pointer applies (uiScaleDefault).
 export const DEFAULT_SETTINGS = {
-  sound: true, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, help: 'full', seenTips: [], difficulty: 'normal',
+  sound: true, vibration: true, textSize: null, leftHanded: false, keyboardShortcuts: true, help: 'full', seenTips: [], difficulty: 'normal',
   fireReaction: 'inform', motion: 'system', music: true, musicVolume: 30, cardsSeen: false,
   adviceSeen: [],   // Version 5.0: the keys of the City advice items shown when its sheet was last open (the button's dot, src/ui/adviceSheet.js)
   roadMode: 'straight',   // Version 5.0 (Task 5): the road bar's shape, 'straight' (the L and the finger) or 'route' (the cheapest way between two points); per device
@@ -46,12 +47,14 @@ export const DEFAULT_SETTINGS = {
   // Version 8.0 (Track U, ruling 1147): the test rig's mark. A stored Motion level is read back only from a blob that also says motionRig: true (the tests' and shot tools'
   // pre-seeded storage); the game never writes it true, so a Motion choice 7.x left on a device is ignored and everyone moves in full.
   motionRig: false,
+  // Version 10.0 (final review D-2, ruling 2322): true once a stored 9.x textSize of 100 has been turned into Auto (and from the first time the player picks a size), so a later pick of 100 is kept.
+  textSizeAutoOffered: false,
 };
 
 const isBool = (v) => typeof v === 'boolean';
 const VALID = {
   sound: isBool, vibration: isBool, leftHanded: isBool, keyboardShortcuts: isBool,
-  textSize: (v) => [100, 125, 150, 200].includes(v),   // Version 9.2 (Track A, ruling 1828): 200% is the fourth step
+  textSize: (v) => v === null || [100, 125, 150, 200].includes(v),   // Version 9.2 (Track A, ruling 1828): 200% is the fourth step; Version 10.0: null is Auto
   help: (v) => HELP_LEVELS.includes(v),
   seenTips: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   adviceSeen: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
@@ -68,9 +71,31 @@ const VALID = {
   dayNight: isBool,
   effectsVolume: (v) => MUSIC_VOLUMES.includes(v),
   motionRig: isBool,
+  textSizeAutoOffered: isBool,
 };
 // Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
 const copy = (v) => (Array.isArray(v) ? v.slice() : v);
+
+// Version 10.0 (Track D, ruling 2120): the text size a desktop gets when its player has made no choice. Only a pointer-primary device (a fine pointer and no coarse one
+// anywhere) is scaled: 1.25 from 1600 px wide, 1.5 from 2200; a phone or tablet (any coarse pointer) and a narrower window stay at 1, so the phone layouts never change.
+export function uiScaleDefault({ width = 0, finePointer = false, coarsePointer = false } = {}) {
+  if (!finePointer || coarsePointer) return 1;
+  return width >= 2200 ? 1.5 : width >= 1600 ? 1.25 : 1;
+}
+// The text size (100, 125, 150 or 200) in use: the player's choice, else the Auto size for env ({ width, finePointer, coarsePointer }; no env is no Auto: 100).
+export const effectiveTextSize = (value, env = null) => (value === null || value === undefined ? (env ? Math.round(uiScaleDefault(env) * 100) : 100) : value);
+
+// The window's own env: its width and what pointers the device has. boot.js hands it to createSettings; tests inject their own.
+export function windowEnv(win = typeof window !== 'undefined' ? window : null) {
+  const q = (s) => { try { return Boolean(win && typeof win.matchMedia === 'function' && win.matchMedia(s).matches); } catch (e) { return false; } };
+  return { width: (win && win.innerWidth) || 0, finePointer: q('(pointer: fine)'), coarsePointer: q('(any-pointer: coarse)') };
+}
+// Calls cb when the window is resized; returns the unwatch. (Ruling 2121: nothing listened for a resize before, since a text size never depended on the width.)
+export function watchWindowSize(cb, win = typeof window !== 'undefined' ? window : null) {
+  if (!win || typeof win.addEventListener !== 'function') return () => {};
+  win.addEventListener('resize', cb);
+  return () => win.removeEventListener('resize', cb);
+}
 
 // Stage 3's two motion settings as Stage 4's one (ruling 249), or null when neither says anything.
 export function motionFromLegacy({ reducedMotion, ambient } = {}) {
@@ -121,6 +146,7 @@ function watchDevice(cb) {
 export function createSettings({
   storage = defaultStorage(), key = 'thebes.settings',
   root = document.body, systemReducedMotion = deviceAsks, watchSystem = watchDevice,
+  env = null, watchEnv = (cb) => watchWindowSize(cb),   // Version 10.0 (Track D): env() -> { width, finePointer, coarsePointer } gives Auto its size (null: Auto is 100%); watchEnv(cb) -> unwatch calls cb when the width may have changed
 } = {}) {
   const subs = new Set();
 
@@ -131,39 +157,61 @@ export function createSettings({
       const out = {};
       const rig = Boolean(obj) && obj.motionRig === true;   // Version 8.0: a stored Motion choice is read back only from the test rig's blob
       for (const k of Object.keys(DEFAULT_SETTINGS)) if ((k !== 'motion' || rig) && obj && VALID[k](obj[k])) out[k] = copy(obj[k]);
+      // Version 10.0 (ruling 2322): 9.x saved the whole object, so a stored 100 with no marker was the default and not a choice: it becomes Auto once, and the marker is written.
+      if (obj && obj.textSize === 100 && obj.textSizeAutoOffered !== true) { out.textSize = null; out.textSizeAutoOffered = true; migratedTextSize = true; }
       return out;
     } catch (e) { return {}; }
   }
 
+  let migratedTextSize = false;
   let value = { ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), adviceSeen: DEFAULT_SETTINGS.adviceSeen.slice(), ...load() };
 
   function save() {
     try { if (storage) storage.setItem(key, JSON.stringify(value)); } catch (e) { /* full or blocked storage: the setting still applies this session */ }
   }
 
+  if (migratedTextSize) save();   // the marker is written now, so the next load keeps whatever the player picks
+
   const motionLevel = () => motionLevelOf(value.motion, Boolean(systemReducedMotion()));
   const reducedMotion = () => motionLevel() !== 'full';
 
+  // What get() hands out: the stored value with textSize the size in use (a number, as every reader expects) and textSizeChoice the player's choice (null = Auto).
+  let shown = null;
+  // Version 10.0 (final review D-3, ruling 2324): env() reads the window (two matchMedia calls), so it is read once here and again only when the window may have changed (watchEnv's callback, set()).
+  const readEnv = () => (typeof env === 'function' ? env() : null);
+  let envNow = readEnv();
+  const size = () => effectiveTextSize(value.textSize, envNow);
+  // textSizeChoice is not enumerable, so the object has exactly the keys DEFAULT_SETTINGS has.
+  const make = () => Object.defineProperty({ ...value, textSize: size() }, 'textSizeChoice', { value: value.textSize, enumerable: false });
+  const view = () => (shown && shown.textSize === size() && shown.stored === value ? shown.out : (shown = { stored: value, textSize: size(), out: make() }).out);
+
   function apply() {
-    root.dataset.textSize = String(value.textSize);
+    root.dataset.textSize = String(size());
     root.dataset.hand = value.leftHanded ? 'left' : 'right';
     root.dataset.motion = motionLevel();
     root.classList.toggle('reduce-motion', reducedMotion());
   }
 
-  const notify = () => { for (const fn of [...subs]) fn(value); };
+  const notify = () => { for (const fn of [...subs]) fn(view()); };
   apply();
+  // A resize that moves Auto's size (the window crossed 1600 or 2200 px) re-applies it and tells every subscriber, as set() does; a choice never moves.
+  let lastSize = size();
+  let unwatchEnv = (typeof env === 'function' && typeof watchEnv === 'function' && watchEnv(() => { envNow = readEnv(); const n = size(); if (n === lastSize) return; lastSize = n; apply(); notify(); })) || null;
   // The device's own setting changed: under 'system' the level moves at once (spec 5.4), so the root and every
   // subscriber hear of it as they do of set().
   let unwatch = (typeof watchSystem === 'function' && watchSystem(() => { apply(); notify(); })) || null;
   return {
-    get: () => value,
+    get: view,
+    autoTextSize: () => effectiveTextSize(null, envNow),   // what Auto gives now: the Options row's "Auto (125%)"
     set(patch) {
       const next = { ...value };
       for (const [k, v] of Object.entries(patch)) if (k in VALID && VALID[k](v)) next[k] = copy(v);
       if (!('motion' in patch)) { const m = motionFromLegacy(patch); if (m) next.motion = m; }
+      if ('textSize' in patch && VALID.textSize(patch.textSize)) next.textSizeAutoOffered = true;   // a pick of any size (Auto too) is a choice made: a later load keeps a 100
       value = next;
+      envNow = readEnv();
       save();
+      lastSize = size();
       apply();
       notify();
     },
@@ -171,6 +219,6 @@ export function createSettings({
     motionLevel,
     reducedMotion,
     apply,
-    destroy() { if (typeof unwatch === 'function') unwatch(); unwatch = null; },
+    destroy() { if (typeof unwatch === 'function') unwatch(); unwatch = null; if (typeof unwatchEnv === 'function') unwatchEnv(); unwatchEnv = null; },
   };
 }

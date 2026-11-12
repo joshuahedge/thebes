@@ -82,6 +82,10 @@ $initScript = @'
   let drew = false;
   const fill = CanvasRenderingContext2D.prototype.fillRect;
   CanvasRenderingContext2D.prototype.fillRect = function (...a) { if (!drew && this.canvas && this.canvas.id === 'map') drew = true; return fill.apply(this, a); };
+  // Version 10.0 (Track P, ruling 2293): since Track F's off-map ground (nothing drawn for a view inside the map) a frame may make no fillRect on the
+  // map, so a chunk's drawImage marks a drawn frame too (else every frame read as undrawn: "0 frames").
+  const image = CanvasRenderingContext2D.prototype.drawImage;
+  CanvasRenderingContext2D.prototype.drawImage = function (...a) { if (!drew && this.canvas && this.canvas.id === 'map') drew = true; return image.apply(this, a); };
   window.requestAnimationFrame = (cb) => raf((t) => {
     if (!F.on) { cb(t); return; }
     drew = false;

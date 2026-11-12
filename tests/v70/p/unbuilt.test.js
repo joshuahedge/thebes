@@ -74,10 +74,8 @@ describe('v70 p the marks are drawn in the footprint, at every zoom', () => {
     drawUnbuilt(s.g, w, { x0: 0, y0: 0, x1: 31, y1: 31 });
     const [cx, cy] = s.at(12.5, 9.5);
     const inset = UNBUILT.inset, at = (x, y) => s.at(x, y).map(Math.round);
-    for (const [x, y] of [[12 + inset, 9 + inset], [13 - inset, 9 + inset], [13 - inset, 10 - inset], [12 + inset, 10 - inset]]) {   // the string's four corners, a stake standing on each
-      const [px, py] = at(x, y);
-      expect([x, y, inkIn(s, px - 3, py - 8, px + 3, py + 3) > 6]).toEqual([x, y, true]);
-    }
+    // Version 10.0 (Track Q, ruling 2143): a plot's string and stakes are baked into the ground now (tests/v100/q/groundMarks.test.js); drawn live there is only the sign, and no ink at the corners.
+    void inset; void at;
     let board = 0;                                                                                // the sign's board: the light cream above the footprint's middle, on a post
     for (let y = Math.round(cy) - 60; y < Math.round(cy) - 8; y++) for (let x = Math.round(cx) - 24; x <= Math.round(cx) + 24; x++) if (nearColour(pixelAt(s.c, x, y), UNBUILT.board, 12) && pixelAt(s.c, x, y)[3] > 200) board++;
     expect(board).toBeGreaterThan(30);

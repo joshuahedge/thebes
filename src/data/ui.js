@@ -15,7 +15,7 @@ export const CATEGORIES = [
 // Stage 4.6: each track's dock items (src/data/s46.js S46_DOCK: category id -> items) after the category's own.
 for (const c of CATEGORIES) if (S46_DOCK[c.id]) c.items.push(...S46_DOCK[c.id].filter((t) => !c.items.includes(t)));
 
-export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
+export const CATEGORY_ICONS = { roads: 'roads', homes: 'homes', food: 'food', industry: 'industry', services: 'services', defence: 'defence', monuments: 'monuments' };   // Version 10.0 (Track Q, ruling 2141): ids of the drawn icons (src/render/art/icons.js), no font glyphs
 
 // A thin band on each category button and tab in its buildings' emblem colour (early-game pass 2.5).
 export const CATEGORY_TINT = { roads: '#B39466', homes: '#C9552F', food: '#6AA83A', industry: '#8E7470', services: '#2F6FA8', defence: '#9A3A30', monuments: '#E2B13C' };
@@ -119,7 +119,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '9.3.1';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '10.0';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

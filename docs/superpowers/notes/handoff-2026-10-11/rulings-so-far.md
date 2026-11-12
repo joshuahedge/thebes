@@ -2249,3 +2249,154 @@ A patch on 9.3. The mobile review (notes/2026-11-11-mobile-ux-review.md: 3 must,
 2039. How to play's Crossings entry says a line that meets water runs straight (`V931C_TEXT.help`) and no longer says a bent line is refused; the bar keeps its words. — Cost if wrong: none.
 
 Rulings 2015 to 2040 are used; 2041 is the next free number.
+
+## Part 31: Version 10.0 "A living Nile" (12 Nov 2026)
+
+Visuals and play first, no new sound. The city is drawn alive (townsfolk, bazaar crowds, river life, builders, nights, festivals, wind, shimmer, a dust storm), the first view holds the map on screen, a wide monitor gets an Auto text size, a quality pass finishes the look, performance gets a pass, and Track M clears the phone leftovers. The sim is untouched (`git diff 0209a40 HEAD -- src/sim` is empty; `WORLD_VERSION` stays 12). Spec: specs/2026-11-11-thebes-version-10-0-a-living-nile-design.md; plan: plans/2026-11-11-thebes-version-10-0-a-living-nile.md; each track's rulings are in notes/2026-11-11-version-10-0-rulings-<track>.md. Josh's calls at the final review: the festival cue is left out (2065), the Ground legend's room key stays hidden at 375x667 and 150% (2303), a stored textSize 100 becomes Auto once (2323), the drawn storm stays and is called a "dust storm" in player words (2327), and a 160 MB desktop cache allowance rather than a cap (2295).
+
+*The design's proposed rulings (2050 to 2065)*
+2050. Confirmed, amended: the camera's rule replaces 6.0's edge rule: the map's edge stays on screen, with a margin of 0.7 x half the view, so up to 30% of the view may lie off the map (the booted start frame aims under 22%, 2320). — Cost if wrong: one constant (`holdInMap`'s margin).
+2051. Confirmed: the ground past the map's edge is drawn (a rim colour paling to a haze, dunes), never a flat fill; a chunk not yet baked fills with the rim colour (2112, 2113, 2119). — Cost if wrong: a flat band at the edge.
+2052. Confirmed: the scribe's bubble is a participant in the phone's guidance row, ahead of everything (2115). — Cost if wrong: a third row under the top bar.
+2053. Confirmed: one filled button per surface, the rest outlined; Demolish fills only while the tool is live (2140, 2308). — Cost if wrong: one filled style swapped.
+2054. Confirmed: the dock's category icons are drawn, no text glyph in the interface (2141). — Cost if wrong: an icon looks different per device.
+2055. Confirmed: every sprite has a foot or contact shadow, tested by the file contract (2142, 2148). — Cost if wrong: a figure floats.
+2056. Confirmed: `OWED` is empty and `EXEMPT` grew for no new slot; it was already true at `ec1d9da` (2148). — Cost if wrong: none.
+2057. Confirmed: life is render-side only, a pure function of world, time and a hash; nothing in `src/render` or `src/ui` writes the world (the review checked the diff). The spec's id ranges for life (5a to 5d, 1600000 and up) are superseded by 2101. — Cost if wrong: a render write could desync a save.
+2058. Confirmed: the LIFE budget is 1.5 ms on a desktop and 1.0 ms on a phone with its own dropper (`LIFE.budgetMs`, `LIFE.dropOrder`; 2102); measured at 0.07 to 0.73 ms (2251) and 0.46 to 1.19 ms in the paired night runs (2296). — Cost if wrong: life eats a frame; the dropper sheds it.
+2059. Confirmed: Full, Gentle and Still mean what section 5 says for every new feature (2200 to 2254). — Cost if wrong: a motion setting moves what it should not.
+2060. Confirmed: one wind drifts and everything that leans reads it (`windAt`, 2230). — Cost if wrong: reeds and smoke lean apart.
+2061. Confirmed, amended: storms are seeded by map number and year, never in the first year or the lesson, and touch no rule; 1 or 2 a year from the second year, 20 to 40 s (2232). In player words it is a "dust storm" that changes nothing, because the sim already has a "sandstorm" event that spoils stores (Josh, decision 4; 2327). — Cost if wrong: a player expects the event's losses.
+2062. Confirmed, amended: the budget tests' bounds are the 9.1 targets plus headroom, held unthrottled (2105, 2294, the harness cannot throttle); at a 4x throttle the phone stress city is still about 3.3 to 4.5 times over its target (2292, notes/2026-11-12-version-10-0-followups.md). — Cost if wrong: a real phone drops frames the suite cannot see.
+2063. Confirmed: the default UI scale follows the width on a fine pointer, a stored choice wins (2120 to 2127); a stored 9.x 100 counts as Auto once (2323). — Cost if wrong: a player lands on a size they did not pick.
+2064. Confirmed: no feature loosens a bound; two records are honest changes: the phone stress median is the in-suite measure x 1.1 (2294) and the night frame is judged as life's added cost over the light alone (2296); no day bound moved. — Cost if wrong: a slow frame passes.
+2065. Amended: no new sound in 10.0. The festival piece and its cue do not exist in the code, a festival piece is new music, and 10.0 rules new music out (2243; Josh, decision 1). — Cost if wrong: festivals are silent, as they were.
+
+*Track 0 (the seams, 2100 to 2105)*
+2100. `zoomAt` holds by the view; `panBy` holds only when given one (until Track F passed the view to the pans).
+2101. Life's ids are 2000000 to 2799999 (the plan's 1600000 range fell inside wildlife's); `walkSlotFor` takes the renderer's object.
+2102. The life seam keeps the v90 dropper; a frame's hooks add up under one `now()`, and the dropping test runs 200 frames.
+2103. The life scenes live in `src/dev/v100/index.js`; `tools/shots.ps1 -V100 -Track` names the track.
+2104. The phone frame test has no `it.skip` and no log; its bounds sit behind `BOUNDS_ON` and its numbers print as a test name.
+2105. Today's numbers (11 Nov): the in-suite budget tests measure unthrottled (Josh approved); the 4x-throttle table is the follow-ups' baseline.
+
+*Track F (the first view, 2110 to 2121)*
+2110. Every camera write holds (`jumpTo`, tweens, the fling, the drags and the keyboard pan pass the view).
+2111. `startCamera(world, view, zoom = 1)` runs after `createUI`, for a fresh city only; the phone's opening zoom is kept.
+2112. `TERRAIN.offMap` stays `#C8AE7C`; the ground is that rim colour paling to a haze 12 tiles out.
+2113. `offMap.js` is built to cost (no `fillPattern`, one canvas, one bake), since 12 full fills cost 16 to 30 ms in software canvas.
+2114. The rim shadow is one tile outside the rim, over the existing `drawMapEdge` band.
+2115. The scribe is a participant in the guidance row (`data-guidance="scribe"`), a pinned line floats and takes none.
+2116. Shots: `fresh-corner` takes its size from the page's `?size=`; before and after were taken on 48, 64, 80, 112 and the default.
+2117. `tests/v50/layers/ui.test.js` calls `hush()` before reading the Town tip, since the scribe now holds the row first.
+2118. The lesson's framing tolerance is 80 px, not 2, because the map's edge on screen outranks exact centring.
+2119. Fix rounds: the start nudges up to 2 m under 27%, the off-map ground bakes view plus margin and pans by blit, a missing chunk fills instead of smearing, and a resize re-holds.
+2320. Fix wave (F-1): `startCamera` aims under 0.22, and the booted test holds three seeds at each size.
+2321. Fix wave (F-2): the scribe test polls for the fade (2 s cap) instead of waiting 520 ms.
+
+*Track D (the desktop scale, 2120 to 2129)*
+2120. Auto is `textSize: null`; `settings.get().textSize` is the size in use (125% from 1600 px, 150% from 2200 px, fine pointer only).
+2121. A missing resize listener is added, so Auto follows the window.
+2122. `body[data-layout="wide"]` scales the panel, drawer, minimap and title card; phone layouts keep 320 and 268.
+2123. The panel's minimap is the same 160 px canvas sized by CSS (a little soft at 125% and 150%).
+2124. The sheet's inset on the wide layout is the panel's measured width.
+2125. The wide bar's long date is `Y2 · M9 · D1` (`compactDateText`); the name and aria-label keep "Year 2, month 9, day 1".
+2126. `tests/ui/settings.test.js` and `menu.test.js` compare with `textSize: 100` (Auto with no window).
+2127. The phone frame sizes cannot change: Auto needs 1600 px and a fine pointer.
+2322. Final review D-1: the wide bar's numbers scale in full (`--stat-num: 15px x scale`), 18 px or more at 1920 Auto.
+2323. Final review D-2 (Josh yes): a stored 9.x `textSize: 100` with no marker becomes Auto once; `textSizeAutoOffered` marks it and a later pick of 100 is kept.
+2324. Final review D-3: the window env is read once and again only when it changes.
+
+*Track Q (the quality pass, 2140 to 2148)*
+2140. One button language: the tray's Demolish is outlined coral and fills only while pressed; the building sheet's Demolish is outlined.
+2141. Drawn category icons (`CATEGORY_ICON_DRAWS`, `categoryIconUrl`), cached by id, size, colour and ratio.
+2142. Foot shadows on the raider chariot, elephant and boat raider, the ibis and heron; `waterShadow` under the hippo, fishing boat and wharf.
+2143. Plots are pegged out in the ground with stakes and a cord, baked into the chunk.
+2144. Paved streets get wheel tracks (`WEAR`), baked in `terrainRoads.js`.
+2145. Burnt ground shows charred timbers and an ash drift; problem markers draw 20% smaller (`MARKER.drawScale` 0.8, tap area unchanged).
+2146. Legibility is tested as ring and pill 3:1 and road and water 25, since every word is drawn after the light pass; no colours changed.
+2147. The title's backdrop is a Capital with a festival held 12 days ago (`capitalBackdrop`, a fixture that never ticks).
+2148. The drawings 9.3 did not reach were mostly reached already; a short pass finished the rest.
+
+*Track L (life and motion, 2200 to 2254, and the fix wave 2326 to 2329)*
+2200. Poses are kinds of their own, as `soldier_cheer` is a soldier's.
+2201. The hour comes from a peek at the light loop, not from `lightClock`.
+2202. The share of homes with a townsperson moves smoothly with the hour.
+2203. The cap is met from a fixed set of homes: the nearest 1.6 x cap to the view's middle.
+2204. The bank's figures are `woman_kneel` and the water carrier, next to open water within 2 tiles.
+2205. The walker entry gains `alpha`, `lift` and `depth`.
+2206. The crowd is 3 + 5 x busy(hour), at most 3 bazaars nearest the middle, the last figure fading.
+2207. "Short of food" is under 10 food on the shelf: one figure.
+2208. The lesson's crowd waits on the `workers` step (the plan's food step does not exist), read through `stepDone`.
+2209. The `bazaar-crowd` scene is set in the morning, the busiest hour.
+2210. No second wharf boat: the River track already sends one out; `fisher_cast` waits (placed by 2329).
+2211. Feluccas use the trade boat's slots and cross a river row near the middle, from City (two at Capital).
+2212. A heron lifts in two frames by the nearest boat's distance and is gone under 0.9 tile until it has passed.
+2213. The crocodile (Shemu, basking by day, sliding in at dusk) and the hippo (7 s a minute, with a splash).
+2215. The monuments' builders are drawn with their gangs in `drawMonument`, within its own 1 ms bound, not as life walkers.
+2216. `gang()` gains the poses `carry`, `climb` and `sit`, and a builder's mud kilt and headcloth.
+2217. The rest beat is the first day of each game month: sleds parked, haulers sitting.
+2218. A rising building's builders are life walkers on the scaffold's front poles, climbing on game time.
+2220. The lamps' flicker (plus or minus 8%, Full only) lives in `light.js`, outside the dropper.
+2221. A door's glow is a lit opening drawn as batched quads in the home's front face.
+2222. Hearth smoke: one home in four, 24 (phone 14) nearest the middle, two puffs each, dimmed by half at night.
+2223. The palace's eight windows light one after another over 3 s from the start of dusk.
+2224. A festival night's temple lamps get a warm halo and a lamp a third brighter.
+2230. `windAt(world, nowMs, swing)` lives in `ambient.js` beside `windOf`: 25 degrees of drift.
+2231. The shimmer copies thin bands of far sand a device pixel aside, in up to 16 tiles near the middle.
+2232. `stormsOf(seed, year)`: 1 or 2 a year from the second year, on Shemu days, 20 to 40 s, at least 3 days apart, skipped if a load made it 2 days late.
+2233. The storm draws in the `weather` source: a haze, six dust banks and streaks; Gentle the haze only, Still nothing.
+2234. In a storm lamps dim 30%, figures lean 4 degrees under Full, and the wind swings to 60.
+2235. The `storm` scene forces a 40 s storm begun 12 s earlier.
+2236. V's budget holds with a storm up (`tests/v100/l/storm.test.js`).
+2240. Processions are up to 20 long with a second shrine; figures past the sixteenth take ids from 1100000 + 4 x temple id.
+2241. Onlookers stand on every other tile of the procession's road, in the crowd's source.
+2242. On a festival day the doors and hearths light over the minute before dusk.
+2243. The festival music cue is not done (no festival piece or cue hook exists); amended to no new sound (2065).
+2250. `createLife` skips a source without `lessonOk` while a lesson runs.
+2251. Life measured inside its budget: 0.07 to 0.26 ms by day and 0.36 to 0.73 ms at night.
+2252. Per-frame lookups are cached or ranged, and the shimmer follows the map (fix round 1).
+2253. The frame bounds hold with life's layer on (Josh's condition for the merge).
+2254. A phone's night doors and hearths are 60 and 10 (were 90 and 14).
+2326. Fix wave (L-1): night doors stand on the wall line (0.18 tile in, lifted a plinth, 4 px high).
+2327. Fix wave (L-3): the storm reads on a phone (streaks 2 device px wide, banks 0.1 stronger) and stays, called a "dust storm" (Josh, decision 4).
+2328. Fix wave (L-2): the `festival-crowd` scene shows a festival (16 or more procession figures and an onlooker, else it throws).
+2329. Fix wave (L-4): the wharf's pier fisher is placed, casting under Full while the boat holds.
+
+*Track P (performance, 2280 to 2297)*
+2280. The phone frame test's bounds are on, unthrottled, with one re-measure.
+2281. The stress test's median is the flushed frame.
+2282. The Huge map's whole-frame bound sits beside V's layer bounds, not in place of them.
+2283. A chunk is drawn in bands (`drawChunk`); `renderer.js` gains three lines for it.
+2284. The warm band is the plan's, plus the hill tiles.
+2285. The band never warms past the sprite budget and rests once whole.
+2286. The chunk ceiling follows the 9.3 device rule: a phone bakes at 2 device px per art px at most.
+2287. At zoom 0.6 and under, chunks bake at 2 on every device.
+2288. A phone bakes one chunk a frame after a bake over 8 ms.
+2289. The count cap never evicts a chunk the frame shows, and holds 64.
+2290. The Huge frame's bound moves to zoom 1 and the floor holds to P4's 250 ms.
+2291. The stress test's bound is the in-suite measure x 1.1 (23.0 ms), the target-derived 13.0 being out of reach.
+2292. The P.4 table: two-thirds of a phone frame is native draw time; the 4x throttle is still about 4.5 times over (tell Josh plainly).
+2293. `tools/profile.ps1 -Frames` counts a chunk's `drawImage` as a drawn frame again.
+2294. The phone stress median bound is 25.3 ms (the in-suite measure x 1.1), with js p50 at 8 ms; the 9.1 targets stay held unthrottled.
+2295. A desktop's caches rise from 80 to 160 MB (terrain 48 to 120): Josh's choice over a cap; a phone's stay.
+2296. Final review P-1: the night frame with life is judged as life's added cost over the light alone, paired and interleaved (2 ms or less); the light pass's night raster is a follow-up.
+2297. Final review P-2: the banded "same picture" test also runs with the real registry.
+
+*Track M (the phone leftovers, 2300 to 2311, and the fix wave 2332 to 2333)*
+2300. C7: the lesson's first road bar drops the bridge sentence.
+2301. C12: a double tap zooms without selecting; the single tap waits the 300 ms window.
+2302. C14: the placing bar folds on a phone under 700 px tall at 150%.
+2303. The Ground legend's room key is drawn at 125% and above on phones at least 700 px tall; on a short phone it stays for screen readers (Josh accepted, decision 2).
+2304. C13: the New city card at 150% on an SE keeps Hard whole above Start.
+2305. S14: the bars lose pinch-zoom and a two-finger touch that starts on a bar is cancelled (only a real iPhone can confirm).
+2306. F6: the lesson ring's middle is clamped inside the screen at 375 px; the landscape row is not clamped.
+2307. S8: the City page's tabs are sticky under one title, "Your city".
+2308. C5: the menu's Continue is outlined.
+2309. C6: the Undo toast lifts clear of the Paused tag.
+2310. M.1 is left: it waits for Josh's real-device note.
+2311. The 9.3 follow-ups' C-list and "What the groups left" are marked done with their rulings.
+2332. Fix wave (M-1): a held tap is dropped if a tool opens while it waits.
+2333. Fix wave (M-2): `noZoom.js`'s comment names `css/v93.css`.
+
+Rulings 2050 to 2065, 2100 to 2105, 2110 to 2121, 2200 to 2254, 2280 to 2297, 2300 to 2311, 2320 to 2324, 2326 to 2329 and 2332 to 2333 are used (2120 to 2127 are Track D's, 2140 to 2148 Track Q's); 2325 and 2330 to 2331 were not used, and 2334 is the next free number in the wave 4 range.

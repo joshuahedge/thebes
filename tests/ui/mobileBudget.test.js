@@ -21,6 +21,7 @@ import { devScene, measureRows, MOBILE_SCENES, MOBILE_SCENE_PARAMS } from '../..
 import { TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
+import { say, hush, bubbleOf } from '../../src/ui/v81/scribe.js';   // Version 10.0 (Track F)
 
 const SIZES = [[375, 667], [844, 390], [667, 375]];
 const TEXT_SIZES = [100, 125, 150];
@@ -566,4 +567,92 @@ describe('v92 a mobile budget at 200% text', () => {
       expect(wrong).toEqual([]);
     });
   }
+});
+
+// Version 10.0 (Track F, ruling 2115): the scribe's docked bubble is the guidance row's: a court letter in the alert row, the goal and a line of the scribe's make two rows, not three. While Ipi
+// speaks the bubble has the guidance slot (data-guidance="scribe") and the goal waits; when the line ends the goal comes back; the alert row stays throughout. A wide screen keeps its bubble
+// where it was (the first row under the top bar, as css/v81-t.css docks it) and every row of its own.
+describe('v100 f mobile budget: a court letter, the goal and a scribe line', () => {
+  const LINE = 'Your majesty, the vizier has sent a letter for you to read.';
+  for (const textSize of [100, 150]) {
+    it(`holds two rows at 375x667 and ${textSize}% text: the bubble takes the guidance slot and the goal waits`, async () => {
+      const r = await bootScene('s46-court-letter', 375, 667, 'skipTitle=1&seed=11&sample=1');
+      try {
+        const g = r.api.game();
+        g.ui.settings.set({ textSize, reducedMotion: 'on' });
+        await frame();
+        await devScene(r.api, 's46-court-letter', { alert: true, quick: true });
+        await frame(); await frame();
+        const names = () => Object.keys(measureRows(r.root).layers);
+        expect(Boolean(r.root.querySelector('#banner .critical[data-code="court_letter"]'))).toBe(true);
+        // before the line: the alert row and the goal (two rows)
+        expect(document.body.dataset.guidance).toBe('goal');
+        expect(names().includes('scribe')).toBe(false);
+        expect(names().includes('goal')).toBe(true);
+        // the line: the bubble is the guidance row's
+        const handle = say(LINE, { ms: 0 });
+        await frame(); await frame();
+        const m = measureRows(r.root);
+        expect(document.body.dataset.guidance).toBe('scribe');
+        expect(Object.keys(m.layers).sort()).toEqual(['alert', 'scribe']);
+        expect(m.rows).toBeLessThan(3);
+        expect(m.rowsEnd / m.height).toBeLessThan(textSize === 100 ? 0.3 : 0.4);
+        expect(Boolean(r.root.querySelector('#goals') && getComputedStyle(r.root.querySelector('#goals')).display !== 'none' && r.root.querySelector('#goals').getClientRects().length)).toBe(false);
+        // the line ends: the row is handed back at once and the goal returns beside the alert; clearing the alert leaves the goal alone
+        handle.close();
+        await frame(); await frame();
+        expect(names().includes('scribe')).toBe(false);
+        expect(document.body.dataset.guidance).toBe('goal');
+        expect(names().includes('goal') && names().includes('alert')).toBe(true);
+        for (const l of g.world.court.letters) l.read = true;
+        g.ui.alerts.refresh();
+        await frame(); await frame();
+        expect(document.body.dataset.guidance).toBe('goal');
+        expect(names().includes('alert')).toBe(false);
+      } finally { hush(); r.cleanup(); }
+    });
+  }
+  it('with no alert, the goal waits while the bubble speaks and returns when the line fades by itself', async () => {
+    const r = await bootScene('s46-court-letter', 375, 667, 'skipTitle=1&seed=11&sample=1');
+    try {
+      const g = r.api.game();
+      g.ui.settings.set({ textSize: 100, reducedMotion: 'on' });
+      await frame();
+      await devScene(r.api, 's46-court-letter', { alert: true, quick: true });
+      for (const l of g.world.court.letters) l.read = true;
+      g.ui.alerts.refresh();
+      await frame(); await frame();
+      expect(document.body.dataset.guidance).toBe('goal');
+      say(LINE, { ms: 200 });
+      await frame(); await frame();
+      expect(document.body.dataset.guidance).toBe('scribe');
+      expect(Object.keys(measureRows(r.root).layers)).toEqual(['scribe']);
+      await new Promise((resolve) => setTimeout(resolve, 700));   // the 200 ms and the 240 ms fade
+      await frame(); await frame();
+      expect(document.body.dataset.guidance).toBe('goal');
+      expect(Object.keys(measureRows(r.root).layers).includes('scribe')).toBe(false);
+    } finally { hush(); r.cleanup(); }
+  });
+  it('a pinned line takes no row, and the wide layout keeps its bubble where it was', async () => {
+    const r = await bootScene('s46-court-letter', 375, 667, 'skipTitle=1&seed=11&sample=1');
+    try {
+      r.api.game().ui.settings.set({ textSize: 100, reducedMotion: 'on' });
+      await frame();
+      say(LINE, { ms: 0, anchor: r.root.querySelector('#dock') || r.root.querySelector('#topbar') });
+      await frame(); await frame();
+      expect(document.body.dataset.guidance === 'scribe').toBe(false);
+      expect(Boolean(bubbleOf().classList.contains('pinned'))).toBe(true);
+    } finally { hush(); r.cleanup(); }
+    const w = await bootScene('s46-court-letter', 1280, 800, 'skipTitle=1&seed=11&sample=1');
+    try {
+      await frame();
+      expect(document.body.dataset.guidance === undefined).toBe(true);
+      say(LINE, { ms: 0 });
+      await frame(); await frame();
+      const bubble = bubbleOf(), under = w.root.querySelector('#under-bar');
+      expect(under.firstElementChild).toBe(bubble);                    // still the first row of #under-bar
+      expect(getComputedStyle(bubble).display).toBe('flex');           // and shown, whatever the other rows are
+      expect(document.body.dataset.guidance === undefined).toBe(true);
+    } finally { hush(); w.cleanup(); }
+  });
 });

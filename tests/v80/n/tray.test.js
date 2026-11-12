@@ -5,7 +5,7 @@ import { describe, it, expect } from '../../harness.js';
 import { createTray, TRAY_MAX, PINNED_CODES } from '../../../src/ui/tray.js';
 import { createToasts } from '../../../src/ui/toasts.js';
 import { TOAST_MS } from '../../../src/data/ui.js';
-import { TRAY_TEXT } from '../../../src/ui/text.js';
+import { TRAY_TEXT, V100M_TEXT } from '../../../src/ui/text.js';
 import { igniteBuilding } from '../../../src/sim/fire.js';
 import { housesOf, allBuildings } from '../../../src/sim/world.js';
 import { mount, fire, key } from '../../helpers/dom.js';
@@ -94,7 +94,7 @@ describe('v80 n tray: behind the scroll button', () => {
       expect([n.hidden, count >= 1, count === r.ui.tray.unread(), scroll(r).getAttribute('aria-label')]).toEqual([false, true, true, TRAY_TEXT.buttonName(count, dot)]);
       expect([r.root.querySelectorAll('#toasts .toast').length >= 1, r.ui.tray.list().some((m) => m.text.toLowerCase().includes('plot placed') || m.text.toLowerCase().includes('plots placed'))]).toEqual([true, false]);
       fire(scroll(r), 'click');
-      expect([r.store.get().sheet.kind, r.root.querySelector('#sheet h2').textContent]).toEqual(['advice', TRAY_TEXT.sheetTitle]);
+      expect([r.store.get().sheet.kind, r.root.querySelector('#sheet h2').textContent]).toEqual(['advice', V100M_TEXT.cityPage]);   // Version 10.0 (Track M, ruling 2307): one title over the two tabs
       const first = sheetItems(r).find((row) => row.querySelector('.tray-go') && row.querySelector('.text').textContent === 'Caravan arrived');
       expect(Boolean(first)).toBe(true);
       expect([scroll(r).querySelector('.advice-count').hidden, scroll(r).getAttribute('aria-label')]).toEqual([true, 'City advice']);   // opened: read
@@ -205,7 +205,7 @@ describe('v80 n tray: behind the scroll button', () => {
     try {
       r.ui.refresh();
       fire(scroll(r), 'click');
-      expect([r.root.querySelector('#sheet h2').textContent, r.root.querySelectorAll('#sheet .tray').length]).toEqual(['City advice', 0]);
+      expect([r.root.querySelector('#sheet h2').textContent, r.root.querySelectorAll('#sheet .tray').length]).toEqual([V100M_TEXT.cityPage, 0]);   // Version 10.0 (Track M, ruling 2307): one title over the two tabs
     } finally { r.cleanup(); }
   });
 

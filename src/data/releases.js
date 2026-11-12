@@ -9,7 +9,30 @@
 
 export const RELEASES = [
   {
-    version: '9.3.1', date: '2026-11-11', title: 'Easier on a phone', build: 'live',
+    version: '10.0', date: '2026-11-12', title: 'A living Nile', build: 'live',
+    new: [
+      'A city that lives: people sit, grind grain and play in their yards, goats and dogs lie by the doors, and near the river women wash and carry water. A stocked bazaar draws a crowd, busiest in the morning and gone at night; a bazaar short of food has one hopeful shopper.',
+      'On the river, feluccas cross between the banks once your city is a City (two at Capital). Herons lift as boats pass, a hippo surfaces now and then, and in Shemu a crocodile basks on the bank and slides in at dusk.',
+      'Builders climb and hammer on the scaffolds of your monuments and of new buildings. On the first day of each month the haulers take a rest.',
+      'Nights: homes light their doors, a few hearths send up thin smoke, lamps flicker gently, and the palace\'s windows light one after another at dusk. On a festival night the temple\'s lamps burn brighter.',
+      'Festivals: processions are longer (up to 20 people, with a second shrine), and townsfolk line the street to watch.',
+      'Weather: the wind slowly shifts, and reeds, smoke, clouds and dust lean together. At midday in Shemu the far desert shimmers.',
+      'Once or twice a year, from the second year, a dust storm may blow through for half a minute. It is only weather to watch and changes nothing in your city.',
+      'Gentle motion keeps the figures still (they fade in and out) and the weather calm; Still shows nothing moving.',
+      'The first view: the camera keeps the map on screen, so a new city opens on land, not sand. The ground past the map\'s edge is drawn as desert fading into haze.',
+      'Bigger screens: on a wide monitor with a mouse the interface is larger by itself ("Auto" in Options, 125% from 1600 px wide and 150% from 2200 px); any size you pick wins. The top bar\'s date is shorter: Y2 · M9 · D1.',
+      'A cleaner look: one filled button per screen, the rest outlined, and Demolish fills red only while it is on. The build menu\'s icons are drawn, so they look the same on every device.',
+      'Boats, herons, chariots and the hippo cast shadows. Plots are pegged out with stakes and string, and paved streets show wheel tracks. Burnt ground shows charred timbers and ash, and problem markers are smaller.',
+      'The title screen shows a Capital with a festival under way.',
+      'On phones: a double tap zooms without selecting, and the scribe\'s line takes the guidance row instead of adding a third row. At large text on a short phone the placing bar is shorter.',
+      'The lesson\'s first road bar keeps to one instruction, and the City page keeps its tabs in view under one title, "Your city". The Undo toast no longer covers the Paused tag.',
+    ],
+    fixed: [
+      'On phones the land is drawn a little softer close up, so panning stalls less. Large maps on a desktop pan with fewer pauses to redraw the land.',
+    ],
+  },
+  {
+    version: '9.3.1', date: '2026-11-11', title: 'Easier on a phone', build: '3582196',
     new: [
       'A bridge or ferry is one straight line, laid where you drew it. Drag the road or the Crossing card over water and it lays a bridge over up to 4 tiles of water or a ferry over 5 to 12; where it can\'t, the bar says why, with Show me.',
       'Back on a phone closes one thing at a time: a stat\'s explainer, the Speed popup, the build tray, the lesson\'s chapter card and the title\'s panels no longer throw you out of the game.',

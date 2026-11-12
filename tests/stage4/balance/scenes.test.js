@@ -31,7 +31,8 @@ describe('s4 balance title scene', () => {
     for (const [width, height] of sizes) {
       const r = await bootRig({ width, height });
       try {
-        expect(await window.__thebes.devScene('title')).toBe('title: small obelisk finished, colossus course 3, palace style 2');
+        const said = await window.__thebes.devScene('title');   // Version 10.0 (Track Q, ruling 2147): it also says the backdrop's look and the figures of its procession
+        expect(said.replace(/ \d+ procession figures,/, ' N procession figures,')).toBe('title: look 3 (Capital), N procession figures, small obelisk finished, colossus course 3, palace style 2');
         const { world, cam } = r.api.titleView();
         const box = document.querySelector('.test-mount #title'), card = box.querySelector('.title-card');
         const o = box.getBoundingClientRect(), c = card.getBoundingClientRect();

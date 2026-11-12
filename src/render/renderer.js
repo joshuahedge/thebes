@@ -8,9 +8,9 @@ import { ART, slotFor, FAR_ZOOM } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
-import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
+import { createSpriteCache, drawSprite, bucketFor, WARM_BAND_MS, WARM_AFTER_MS } from './spriteCache.js';
 import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
-import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES } from './terrainBaker.js';
+import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES, drawChunk } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -22,6 +22,7 @@ import { buildingsInRange } from './chunkIndex.js';
 import { effectsV90 } from './v90/effects.js';
 import { v90Off, spend } from './v90/dropper.js';
 import { scaffoldsAt, drawScaffold, watchLooks } from './v90/scaffold.js';
+import { drawOffMap, seasonWashes } from './v100/offMap.js';   // Version 10.0 (Track F)
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -121,7 +122,11 @@ export function collectObjects(world, range, walkers = [], registry = ART, scree
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
     if (cull) { const fd = registry[`fig.${wk.kind}`]; if (fd && !cull.sees(wk.x, wk.y, fd.bounds, fd.height)) continue; }
-    out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y, dir: wk.dir, stand: Boolean(wk.stand) });   // Version 9.0 (V1): its heading and whether it stands, for its pose
+    const o = { key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y, dir: wk.dir, stand: Boolean(wk.stand) };   // Version 9.0 (V1): its heading and whether it stands, for its pose
+    if (wk.alpha !== undefined) o.alpha = wk.alpha;                            // Version 10.0, Track L (ruling 2205): a life figure fading in or out
+    if (wk.lift) o.lift = wk.lift;                                             // and one off the ground (art px): a heron rising, a builder on a course
+    if (wk.depth) o.key += wk.depth;                                           // and one drawn over what shares its depth (a fisher in his boat)
+    out.push(o);
   }
   out.sort(compareDepth);
   return out;
@@ -156,7 +161,7 @@ export function createRenderer({
   const dprOf = () => Math.min(DPR_CAP, rawDpr());   // V0a: the canvas's ratio, capped
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0, warmed: 0 };
   let ring = { key: '', done: false };   // Version 5.0 (Task 8): the ring of chunks round the view that is baked, so a fling finds them ready
   // Version 9.0 (V1): the first time a figure kind is drawn at a zoom bucket and ratio, all its walk slots are drawn into the cache at once, so a figure
   // that turns or steps later never pays for a new sprite in the middle of play (a frame's cost stays flat once warm).
@@ -179,8 +184,6 @@ export function createRenderer({
     const W = Math.round(view.width * dpr), H = Math.round(view.height * dpr);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = TERRAIN.offMap;
-    ctx.fillRect(0, 0, W, H);
     const zoom = cam.zoom;
     const range = visibleTileRange(cam, view, world.size);
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
@@ -188,6 +191,8 @@ export function createRenderer({
     const g = makeDraw(ctx, ART_SCALE * zoom * dpr, ART_SCALE * zoom);   // the CSS px an art px takes, for marks that keep their size on screen
     g.cull = cullControl.on ? viewCull(cam, view) : null;   // Version 5.0 (Task 6): what the view can show, for a pass over the range's tiles that draws each one (markers.js)
 
+    // 0a. Version 10.0 (Track F, rulings 2112-2114): the ground past the map: haze, dune strokes, the rim's shadow and the season's wash (render/v100/offMap.js), where a flat fill was.
+    drawOffMap(g, world, cam, view, opts.now === undefined ? 0 : opts.now, { season: seasonWashes(world) });
     // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     drawMapEdge(g, world.size);
@@ -201,15 +206,23 @@ export function createRenderer({
     if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0, cachesBudget));   // ruling 1687: the terrain gives way to the sprites, to a floor
     if (spriteCache.frame) spriteCache.frame();   // and the sprites this frame gets are never evicted for the sprite budget
     let bakes = 0, chunks = 0, stale = 0;
+    const bakeCap = baker.bakeLimit ? baker.bakeLimit(maxBakesPerFrame) : maxBakesPerFrame;   // Version 10.0 (Track P, ruling 2288): one on a phone after a slow bake
     for (const { cx, cy } of shown) {
       const peeked = baker.peek(world, cx, cy, zoom, dpr);
       let sprite = peeked.fresh ? peeked.sprite : null;
-      if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
+      if (!sprite && bakes < bakeCap) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
       if (!sprite && peeked.sprite) { sprite = peeked.sprite; stale++; }   // stale beats a sand hole
-      if (!sprite) continue;
+      if (!sprite) {   // Version 10.0 (Track F, ruling 2119): drawOffMap draws nothing for a view inside the map, so a chunk not baked yet is filled with the off-map sand, not left to the last frame
+        ctx.fillStyle = TERRAIN.offMap;
+        ctx.beginPath();
+        for (const [i, [qx, qy]] of [[0, 0], [1, 0], [1, 1], [0, 1]].entries()) { const [dx, dy] = toDevice(...p((cx + qx) * CHUNK, (cy + qy) * CHUNK)); if (i) ctx.lineTo(dx, dy); else ctx.moveTo(dx, dy); }
+        ctx.closePath();
+        ctx.fill();
+        continue;
+      }
       const o = p(cx * CHUNK, cy * CHUNK);
       const [px, py] = toDevice(o[0], o[1]);
-      drawSprite(ctx, sprite, px, py, zoom, dpr);
+      drawChunk(ctx, sprite, px, py, zoom, dpr);   // Version 10.0 (Track P, ruling 2283): in bands, its transparent corners not sampled
       chunks++;
     }
 
@@ -296,9 +309,17 @@ export function createRenderer({
       if (!sprite) continue;
       const q = p(o.x, o.y);
       if (o.id >= FIGURE_ID_BASE && isBridgeTile(world, Math.floor(o.x), Math.floor(o.y))) q[1] -= DECK.z + DECK.h;   // a figure on a bridge stands on its deck (Stage 4.5)
+      if (o.lift) q[1] -= o.lift;                                                // Version 10.0, Track L (ruling 2205)
       const [px, py] = toDevice(q[0], q[1]);
+      // Version 10.0, Track L (rulings 2205, 2234): a life figure's fade, and in a sandstorm every figure leaning with the wind (opts.lean, radians:
+      // a skew about its feet, so they stay planted).
+      const fading = o.alpha !== undefined && o.alpha < 1, leaning = opts.lean && o.id >= FIGURE_ID_BASE;
+      if (fading) ctx.globalAlpha = o.alpha;
+      if (leaning) { const k = Math.tan(opts.lean); ctx.setTransform(1, 0, -k, 1, k * py, 0); }
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);
+      if (fading) ctx.globalAlpha = 1;
+      if (leaning) ctx.setTransform(1, 0, 0, 1, 0, 0);
       sprites++;
       const site = scaffolds && o.id < DECOR_ID_BASE ? scaffolds.get(o.id) : null;
       if (site) {                                                                // Version 9.0 (V3, ruling 1612): its poles in its own depth slot, under what stands in front
@@ -325,9 +346,12 @@ export function createRenderer({
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Version 10.0 (Track P, ruling 2284): a quiet frame (no bake, under WARM_AFTER_MS) warms the sprites of the band one chunk outside the view.
+    let warmed = 0;
+    if (cullControl.on && bakes === 0 && prebakes === 0 && spriteCache.warmBand && performance.now() - started < WARM_AFTER_MS) warmed = spriteCache.warmBand(world, cam, view, WARM_BAND_MS, dpr);
     if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes(), cachesBudget));   // Version 9.1: again for the sprites this frame drew
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.warmed = warmed; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }

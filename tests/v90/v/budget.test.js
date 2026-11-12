@@ -6,7 +6,8 @@
 import { describe, it, expect } from '../../harness.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { createCamera, visibleTileRange, artToScreen, zoomFloor } from '../../../src/render/camera.js';
-import { viewCull } from '../../../src/render/renderer.js';
+import { viewCull, createRenderer } from '../../../src/render/renderer.js';
+import { walkersAt } from '../../../src/render/walkers.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { ART_SCALE } from '../../../src/render/iso.js';
 import { makeCanvas } from '../../helpers/canvas.js';
@@ -16,9 +17,12 @@ import { drawWake } from '../../../src/render/v90/wakes.js';
 import { takeSpent } from '../../../src/render/v90/dropper.js';
 import { scaffoldsAt, drawScaffold } from '../../../src/render/v90/scaffold.js';
 import { stageEffects, walkersFor } from './stage.js';
+import { lifeLayer, pairedLifeCost } from '../../v100/w0/lifeLayer.js';   // the merge of Track L (ruling 2253): the Huge frame with life's layer on
+import { LIFE } from '../../../src/data/ambient.js';
 
 const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
 const RASTER_CAP_MS = 14;
+const NIGHT_ADDED_MS = 2.0;   // fix wave (ruling 2296): life's added median over the light alone, at night
 
 export function rigV90(world, view, zoomMode) {
   const cam = createCamera({ x: world.size / 2, y: world.size / 2, zoom: 1, size: world.size });
@@ -65,6 +69,81 @@ function measuredWell(measure, ok, tries = 3) {
   for (let i = 1; i < tries && !ok(m); i++) m = measure();
   return m;
 }
+
+// Version 10.0, Track P (rulings 2282, 2290): the whole frame of the Huge map, where the layers' bounds above stay as they were. The 112 stress city
+// in 1920x1080 DPR 1 with the desktop budgets, the camera standing and the walkers walking, the canvas flushed each frame. At zoom 1 (where Track 0
+// measured the ratio) the median is held to the 9.1 polish design's P4 (the Huge map's median <= 33 ms at 390x844 DPR 2) x 1.2, scaled to 1920x1080
+// by Track 0's harness ratio for the Huge map between the two sizes (19.7 / 15.8 ms, ruling 2105): HUGE_FRAME_MS, unthrottled (ruling 2105). At the
+// zoom floor (the far view, every building on the map in sight) the median is held under P4's other clause, no frame over 250 ms after warm-up.
+export const HUGE_FRAME_MS = 49.4, HUGE_FLOOR_MS = 250;
+describe('v90 v budget: the Huge frame (Version 10.0, Track P)', () => {
+  for (const [zoomMode, bound] of [['zoom 1', HUGE_FRAME_MS], ['zoom floor', HUGE_FLOOR_MS]]) {
+    it(`draws the 112 stress city at ${zoomMode} in 1920x1080 within the P4 bound once warm`, () => {
+      const world = stressWorld(112), view = { width: 1920, height: 1080 };
+      const canvas = makeCanvas(1920, 1080), flush = () => canvas.getContext('2d').getImageData(0, 0, 1, 1);
+      const renderer = createRenderer({ canvas, dpr: 1 });
+      const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+      if (zoomMode === 'zoom floor') cam.zoom = zoomFloor(cam, view);
+      const frame = (i) => renderer.renderFrame(world, cam, { view, now: 1000 + i * 17, walkers: walkersAt(world, world.day + i / 60, visibleTileRange(cam, view, 112)) });
+      for (let i = 0; i < 40; i++) { frame(i); flush(); }                             // bake the view at two chunks a frame, and its ring
+      const median = () => {
+        const times = [];
+        for (let i = 0; i < 15; i++) { const t = performance.now(); frame(40 + i); flush(); times.push(performance.now() - t); }
+        return times.sort((a, b) => a - b)[7];
+      };
+      let ms = median();
+      if (ms > bound) ms = median();
+      expect([zoomMode, ms <= bound ? 'ok' : Math.round(ms * 10) / 10]).toEqual([zoomMode, 'ok']);
+    });
+  }
+  // The merge of Track L (ruling 2253, Josh's condition): the zoom-1 frame again with life's layer on (tests/v100/w0/lifeLayer.js: every source
+  // registered as the game registers them, Full motion, none shed), by day and at night, held to the same HUGE_FRAME_MS, and life's own time to the desktop's
+  // LIFE budget (1.5 ms). The numbers print as a test's name (ruling 2104).
+  // Fix wave (ruling 2296): at night life is measured against the light alone, interleaved on one warm renderer (the night's extra ms are the light
+  // pass's raster, not life's): life adds <= 2 ms to the median and its own time stays in the desktop's LIFE budget.
+  it(`draws the 112 stress city at zoom 1 in 1920x1080 at night: life adds at most ${NIGHT_ADDED_MS} ms to the light alone (paired), life within ${LIFE.budgetMs.desktop} ms a frame (ruling 2296)`, () => {
+    const measure = () => {
+      const world = stressWorld(112), view = { width: 1920, height: 1080 };
+      const canvas = makeCanvas(1920, 1080), ctx = canvas.getContext('2d');
+      const renderer = createRenderer({ canvas, dpr: 1 });
+      const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+      return pairedLifeCost({ world, kind: 'desktop', renderer, flush: () => ctx.getImageData(0, 0, 1, 1), view, cam, blocks: 6, per: 30, warm: 40 });
+    };
+    const within = (m) => m.added <= NIGHT_ADDED_MS && m.lifeMs <= LIFE.budgetMs.desktop;
+    let m = measure();
+    for (let again = 0; !within(m) && again < 2; again++) { const n = measure(); if (n.added < m.added) m = n; }
+    it(`v90 v budget: the Huge frame > with life (night) measured: light alone p50 ${m.lightP50} ms, light and life p50 ${m.lifeP50} ms, life adds ${m.added} ms, LIFE ${m.lifeMs} ms a frame, every source on`, () => {});
+    expect(['night', 'life adds ms', m.added <= NIGHT_ADDED_MS ? 'ok' : m.added]).toEqual(['night', 'life adds ms', 'ok']);
+    expect(['night', 'LIFE ms', m.lifeMs <= LIFE.budgetMs.desktop ? 'ok' : m.lifeMs]).toEqual(['night', 'LIFE ms', 'ok']);
+  });
+  for (const night of [false]) {
+    const when = night ? 'night' : 'day';
+    it(`draws the 112 stress city at zoom 1 in 1920x1080 within the P4 bound with life on (${when}), life within ${LIFE.budgetMs.desktop} ms a frame (ruling 2253)`, () => {
+      const world = stressWorld(112), view = { width: 1920, height: 1080 };
+      const canvas = makeCanvas(1920, 1080), flush = () => canvas.getContext('2d').getImageData(0, 0, 1, 1);
+      const renderer = createRenderer({ canvas, dpr: 1 });
+      const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+      const layer = lifeLayer(world, 'desktop', night);
+      const frame = (i) => {
+        const t = world.day + i / 60, now = 1000 + i * 17, range = visibleTileRange(cam, view, 112);
+        return renderer.renderFrame(world, cam, { view, now, ...layer.hooks(t, now, range, walkersAt(world, t, range)) });
+      };
+      for (let i = 0; i < 40; i++) { frame(i); flush(); }
+      const median = () => {
+        const times = [], from = layer.ms();
+        for (let i = 0; i < 15; i++) { const t = performance.now(); frame(40 + i); flush(); times.push(performance.now() - t); }
+        return { ms: times.sort((a, b) => a - b)[7], life: (layer.ms() - from) / 15 };
+      };
+      let m = median();
+      if (m.ms > HUGE_FRAME_MS || m.life > LIFE.budgetMs.desktop) { const n = median(); if (n.ms < m.ms) m = n; }
+      layer.done();
+      const r = (v, k = 10) => Math.round(v * k) / k;
+      it(`v90 v budget: the Huge frame > with life (${when}) measured: frame median ${r(m.ms)} ms (bound ${HUGE_FRAME_MS}), LIFE ${r(m.life, 100)} ms a frame, every source on`, () => {});
+      expect([when, 'frame', m.ms <= HUGE_FRAME_MS ? 'ok' : r(m.ms)]).toEqual([when, 'frame', 'ok']);
+      expect([when, 'LIFE ms', m.life <= LIFE.budgetMs.desktop ? 'ok' : r(m.life, 100)]).toEqual([when, 'LIFE ms', 'ok']);
+    });
+  }
+});
 
 describe('v90 v budget', () => {
   for (const [size, view, zoomMode, budget] of [[64, { width: 1280, height: 800 }, 'default', 2], [112, { width: 1920, height: 1080 }, 'floor', 4]]) {

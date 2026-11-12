@@ -76,11 +76,20 @@ export function unmountScribe() {
   clearTimeout(host.timer); clearTimeout(host.fadeTimer);
   host.bubble.remove();
   host = null;
+  changed();
 }
 
 // Whether a line is showing now (the tests and the lesson read it).
 export const speaking = () => Boolean(host && host.current);
 export const bubbleOf = () => (host ? host.bubble : null);
+
+// Version 10.0 (Track F, ruling 2115): the bubble is a participant in the phone's guidance row. A docked line (no anchor) has the row while it speaks (createUI's guidanceKind
+// names it 'scribe' and the goal, tip, caption and legend wait); a pinned one floats beside its control and takes no row. docked() says which it is; watchScribe(fn) has fn called
+// whenever a line starts or ends, so the arbiter works the row out again at once (it returns the stop).
+export const docked = () => Boolean(host && host.current && !host.bubble.classList.contains('pinned'));
+let watcher = null;
+export function watchScribe(fn) { watcher = fn; return () => { if (watcher === fn) watcher = null; }; }
+const changed = () => { if (typeof watcher === 'function') { try { watcher(); } catch (e) { console.warn('Thebes: the scribe watcher failed', e); } } };
 
 function finish(entry) {
   if (!entry || entry.done) return;
@@ -127,12 +136,14 @@ export function say(text, { anchor = null, ms = SAY_MS, onDone = null } = {}) {
   const pinned = Boolean(anchor && anchor.isConnected);
   bubble.classList.toggle('pinned', pinned);
   if (pinned) pin(anchor);
+  changed();
   const close = () => {
     if (!host || host.current !== entry) return;
     clearTimeout(host.timer); clearTimeout(host.fadeTimer);
     host.current = null;
     hideNow();
     finish(entry);
+    changed();
   };
   if (ms > 0) {
     host.timer = setTimeout(() => {
@@ -145,4 +156,4 @@ export function say(text, { anchor = null, ms = SAY_MS, onDone = null } = {}) {
 }
 
 // Every line showing goes, at once (a card coming up: no bubble stays under it, as no toast does, ruling 1100).
-export function hush() { if (host && host.current) { const e = host.current; host.current = null; clearTimeout(host.timer); clearTimeout(host.fadeTimer); hideNow(); finish(e); } }
+export function hush() { if (host && host.current) { const e = host.current; host.current = null; clearTimeout(host.timer); clearTimeout(host.fadeTimer); hideNow(); finish(e); changed(); } }

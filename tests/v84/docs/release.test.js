@@ -8,21 +8,21 @@ import { SCOUTS, SPOILS, RAIDS } from '../../../src/data/raids.js';
 
 describe('v84 docs release: What\'s new for 8.4', () => {
   it('is the third entry with its last commit on main (222cb61), and 8.3 below it carries its commit', () => {
-    const r = RELEASES[5];
-    expect([APP_VERSION, r.version, r.date, r.title, r.build]).toEqual(['9.3.1', '8.4', '2026-11-07', 'Gold and war', '222cb61']);   // Version 9.2: 8.4 keeps its last commit on main (9.2 put it fourth)
+    const r = RELEASES[6];
+    expect([APP_VERSION, r.version, r.date, r.title, r.build]).toEqual(['10.0', '8.4', '2026-11-07', 'Gold and war', '222cb61']);   // Version 9.2: 8.4 keeps its last commit on main (9.2 put it fourth)
     expect(RELEASES[0].version).toBe(APP_VERSION);
-    expect([RELEASES[6].version, RELEASES[6].title, RELEASES[6].build]).toEqual(['8.3', 'Lines', '26dfa6d']);
-    expect([RELEASES[7].version, RELEASES[7].build]).toEqual(['8.2.1', '87b5ec3']);
+    expect([RELEASES[7].version, RELEASES[7].title, RELEASES[7].build]).toEqual(['8.3', 'Lines', '26dfa6d']);
+    expect([RELEASES[8].version, RELEASES[8].build]).toEqual(['8.2.1', '87b5ec3']);
   });
   it('says the tax rate, Rush, the luxuries, the scouts, the raid clock, the spoils and the elephants, each note one plain sentence', () => {
-    const r = RELEASES[5], text = [...r.new, ...r.fixed].join(' ');
+    const r = RELEASES[6], text = [...r.new, ...r.fixed].join(' ');
     for (const words of ['tax rate', 'Rush this course', 'imported luxury', 'cedar', 'ivory', 'incense', 'Scouts', 'raid clock', 'captured weapons', 'Victory', 'War elephants', 'fallen elephant leaves ivory', 'no crew today'])
       expect([words, text.includes(words)]).toEqual([words, true]);
     for (const line of [...r.new, ...r.fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
     expect(/ruling|track [a-z]\b|\b1[0-9]{3}\b/.test(text.toLowerCase())).toBe(false);
   });
   it('says what the sim does: the rates, the rush, the scouts, the first warning and the spoils', () => {
-    const text = RELEASES[5].new.join(' ');
+    const text = RELEASES[6].new.join(' ');
     expect([TAX_RATES.low.factor, TAX_RATES.low.mood, TAX_RATES.high.factor, TAX_RATES.high.mood]).toEqual([0.75, 8, 1.25, -8]);
     expect(text.includes('Low (a quarter less gold, mood +8)') && text.includes('High (a quarter more gold, mood -8)')).toBe(true);
     expect([MONUMENT.rushPace, MONUMENT.rushGold, text.includes('twice the work a day for three times the work gold')]).toEqual([2, 3, true]);

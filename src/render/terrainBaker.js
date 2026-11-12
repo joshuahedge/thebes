@@ -12,6 +12,7 @@ import { rock, scrub, dryShrub, dune, tufts, reeds } from './art/nature.js';
 import { hasNewLand, GRASS } from '../data/s47.js';
 import { moistureOf, moistureAt, decorDraw } from './grass.js';
 import { defaultCreateCanvas, bucketFor, DEVICE_BUDGETS, DEVICE_KIND } from './spriteCache.js';
+import { FAR_ZOOM } from './art/registry.js';
 import { drawBeltGround, beltScatter, screeScatter } from './rockBelts.js';
 import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
 import { drawRoads, drawStreetFurniture } from './terrainRoads.js';
@@ -32,9 +33,16 @@ export const FERTILE_TUFT_SHARE = 0.45; // share of fertile tiles that carry two
 
 const TYPE_INDEX = Object.keys(BUILDINGS);
 
-export function chunkScaleFor(zoom, dpr) {
+// Version 10.0 (Track P, rulings 2286-2287): the ceiling follows the 9.3 device rule (spriteCache.js deviceKind): a phone's chunks bake at most at
+// 2 device px per art px (at DPR 2 and zoom 1 a chunk is 2.2 MB, not 4.9, so the pan's ring stays baked inside the phone's budget, and each chunk
+// draws in half the bake time); and at the far view (zoom FAR_ZOOM and under) every device's chunks bake at 2, not 3, so the Huge map's far view
+// keeps its many chunks in fewer bytes. A bare call (no ceiling) keeps the desktop's.
+export const CHUNK_CEILING = { desktop: CHUNK_MAX_SCALE, phone: 2 };
+export const FAR_CHUNK_SCALE = 2;
+export function chunkScaleFor(zoom, dpr, ceiling = CHUNK_MAX_SCALE, far = FAR_CHUNK_SCALE) {
   const s = ART_SCALE * bucketFor(zoom) * dpr;
-  if (s >= CHUNK_MAX_SCALE) return CHUNK_MAX_SCALE;
+  if (zoom <= FAR_ZOOM + 1e-9) ceiling = Math.min(ceiling, far);
+  if (s >= ceiling) return ceiling;
   if (s >= 2) return 2;
   if (s >= 1.5) return 1.5;
   return 1;
@@ -469,6 +477,25 @@ function drawPools(g, world, range) {
   }
 }
 
+// Version 10.0 (Track Q, ruling 2143): an empty housing plot is pegged out in the ground, not outlined over it: a short wooden stake at each corner with its own small shadow and a
+// slack cord between them, baked into the chunk (a plot is ground, so it costs no frame). The live marker (render/unbuilt.js) keeps the sign on its post and the far zoom's sand square.
+export const PLOT_PEGS = { string: '#6B4A25', stake: '#8A6532', stakeLit: '#B98B4A', inset: 0.1, height: 4.6, sag: 1.1 };
+export function drawPlotStakes(g, b) {
+  const { x, y, w, d } = b, i = PLOT_PEGS.inset;
+  const corners = [p(x + i, y + i), p(x + w - i, y + i), p(x + w - i, y + d - i), p(x + i, y + d - i)];
+  const cord = [];
+  corners.forEach((c, k) => {
+    const n = corners[(k + 1) % 4], top = [c[1] - PLOT_PEGS.height + 0.6, n[1] - PLOT_PEGS.height + 0.6];
+    const mid = [(c[0] + n[0]) / 2, (top[0] + top[1]) / 2 + PLOT_PEGS.sag];
+    cord.push(['M', [c[0], top[0]]], ['Q', mid, [n[0], top[1]]]);
+  });
+  g.stroke(corners.flatMap((c) => [['M', [c[0] + 0.5, c[1] + 0.3]], ['L', [c[0] + 2.6, c[1] + 0.9]]]), SHADOW_PEG, 1, 0.3);   // each stake's shadow, laid to the right
+  g.stroke(cord, PLOT_PEGS.string, 0.55, 0.9);
+  g.stroke(corners.flatMap((c) => [['M', c], ['L', [c[0], c[1] - PLOT_PEGS.height]]]), PLOT_PEGS.stake, 1.1);
+  g.stroke(corners.flatMap((c) => [['M', [c[0] - 0.3, c[1] - 0.6]], ['L', [c[0] - 0.3, c[1] - PLOT_PEGS.height + 0.4]]]), PLOT_PEGS.stakeLit, 0.35, 0.8);
+}
+const SHADOW_PEG = '#3E3260';
+
 // A soft pad under every building footprint touching the range, so plots and buildings fade into the ground.
 export function drawPlots(g, world, range) {
   const seen = new Set();
@@ -480,6 +507,18 @@ export function drawPlots(g, world, range) {
     if (!b || hasYard(b)) return;   // 9.3 (Track G): a building with a yard has its own trodden patch (yards.js)
     const c = p(b.x + b.w / 2, b.y + b.d / 2);
     g.radial(c, 15 * (b.w + b.d) / 2, 7.5 * (b.w + b.d) / 2, TERRAIN.plot, 0.6);
+  });
+}
+
+// Version 10.0 (Track Q, ruling 2143): every empty plot in the range is pegged out, after the yards (which would otherwise lie over the stakes).
+export function drawPlotMarks(g, world, range) {
+  const seen = new Set();
+  forTiles(world, range, (x, y, i) => {
+    const id = world.occ[i];
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const b = world.buildings[id];
+    if (b && b.type === 'house' && b.tier === 0 && b.large !== true) drawPlotStakes(g, b);
   });
 }
 
@@ -509,6 +548,7 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   drawPlots(g, world, range);
   drawYards(g, world, range);   // Version 9.3 (Track G): the trodden yards, paths and contact shadows, under the roads
   drawRoads(g, world, range);
+  drawPlotMarks(g, world, range);   // Version 10.0 (Track Q, ruling 2143): the empty plots' stakes and string, over the yards and the roads' edges
   drawStreetFurniture(g, world, range);
   drawBridges(g, world, range);
   drawWalls(g, world, range);
@@ -529,19 +569,49 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   return { canvas, ax, ay, scale, cx, cy };
 }
 
+// Version 10.0 (Track P): a baked chunk drawn in horizontal bands, each only as wide as the chunk's diamond in it, so the transparent corners of
+// its canvas (half its pixels) are mostly not sampled: the software canvas pays for every destination pixel a scaled drawImage covers, opaque or
+// not. Bands overlap by one source row, so no seam opens between them. chunkBands.n 0 draws the canvas whole.
+export const chunkBands = { n: 8 };
+export function drawChunk(ctx, sprite, px, py, zoom, dpr = 1) {
+  const { canvas, ax, ay, scale } = sprite, n = chunkBands.n;
+  const k = (ART_SCALE * zoom * dpr) / scale;
+  if (!n) { ctx.drawImage(canvas, px - ax * k, py - ay * k, canvas.width * k, canvas.height * k); return; }
+  const H = 16 * CHUNK, edge = CHUNK_MARGIN, half = H / 2;   // the diamond: art y 0..H below its top vertex, half-width 2 * min(y, H - y)
+  const reach = (y) => Math.min(y, H - y);
+  for (let i = 0; i < n; i++) {
+    const a = i * H / n, b = (i + 1) * H / n;
+    const hw = 2 * (a <= half && b >= half ? half : Math.max(reach(a), reach(b))) + edge;
+    const sy0 = Math.max(0, Math.floor(ay + (i === 0 ? -edge : a) * scale));
+    const sy1 = Math.min(canvas.height, Math.ceil(ay + (i === n - 1 ? H + edge : b) * scale) + (i === n - 1 ? 0 : 1));
+    const sx0 = Math.max(0, Math.floor(ax - hw * scale)), sx1 = Math.min(canvas.width, Math.ceil(ax + hw * scale));
+    if (sx1 <= sx0 || sy1 <= sy0) continue;
+    ctx.drawImage(canvas, sx0, sy0, sx1 - sx0, sy1 - sy0, px + (sx0 - ax) * k, py + (sy0 - ay) * k, (sx1 - sx0) * k, (sy1 - sy0) * k);
+  }
+}
+
 // Version 9.1 (Track P, ruling 1686): the chunks are held by their canvas bytes as well as their count. At DPR 2 and zoom 1 a chunk bakes at
 // scale 3 (1,560 x 792 px, about 4.9 MB), so 32 of them were about 160 MB; the budget keeps about 48 MB, evicting the least recently used. A
 // chunk the frame shows (the renderer names them in frame()) is never evicted for the budget, at any scale, so a view that needs more than the
 // budget keeps every chunk it shows, and the ring round it is not baked ahead (room()). The renderer may lower the budget for a frame (ruling
 // 1687: the terrain gives way to the sprites a view needs, so the two together keep CACHES_BUDGET_BYTES, target P3's 64 MB at DPR 2 in 9.1, 72 MB on a phone in 9.3), never below
 // TERRAIN_FLOOR_BYTES, so a sprite-heavy view (hills at zoom 2) still keeps the ring round it instead of evicting and baking it again frame after frame.
-export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;
+export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;   // a phone's (iOS ends tabs over canvas memory); fix round 1 (ruling 2295): a desktop's is TERRAIN_BUDGET_BY_DEVICE.desktop
+export const TERRAIN_BUDGET_BY_DEVICE = { desktop: 120 * 1024 * 1024, phone: TERRAIN_BUDGET_BYTES };
 export const CACHES_BUDGET_BYTES = DEVICE_BUDGETS[DEVICE_KIND].caches;   // Version 9.3 Track P (ruling 1936): by device; 9.1: 64 MB on every device
 export const TERRAIN_FLOOR_BYTES = 16 * 1024 * 1024;
 export const terrainBudgetFor = (spriteBytes, caches = CACHES_BUDGET_BYTES) => Math.max(TERRAIN_FLOOR_BYTES, caches - spriteBytes);
 export const chunkBytes = (scale) => Math.ceil((32 * CHUNK + 2 * CHUNK_MARGIN) * scale) * Math.ceil((16 * CHUNK + 2 * CHUNK_MARGIN) * scale) * 4;   // bakeChunk's canvas
 
-export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32, maxBytes = TERRAIN_BUDGET_BYTES } = {}) {
+// Version 10.0 (Track P, ruling 2288; ruling 1919's open cap): on a phone, a frame after a bake that took over SLOW_BAKE_MS bakes at most one chunk.
+export const SLOW_BAKE_MS = 8;
+// Version 10.0 (Track P, ruling 2289): the count cap. 9.1's 32 chunks evicted the oldest chunk at any cost, so the Huge map's far view at 1920x1080
+// (32 chunks shown at zoom 0.5) evicted a chunk it showed and baked two every frame (measured 172 ms a frame); the count now never evicts a chunk
+// the frame shows (as the byte budget never has), and holds 64 (the Huge map's 49 and a ring), the bytes being the real limit.
+export const MAX_CHUNKS = 64;
+export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = MAX_CHUNKS, kind = DEVICE_KIND, maxBytes = TERRAIN_BUDGET_BY_DEVICE[kind] || TERRAIN_BUDGET_BYTES, maxScale = CHUNK_CEILING[kind] || CHUNK_MAX_SCALE, farScale = FAR_CHUNK_SCALE, now = () => performance.now() } = {}) {
+  const scaleOf = (zoom, dpr) => chunkScaleFor(zoom, dpr, maxScale, farScale);
+  let lastBakeMs = 0;
   const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }), bytes }
   // shown: the chunks ('cx,cy') the frame being drawn shows; budget: this frame's; frameTick: the tick it began at (an entry used since was looked at in it)
   let tick = 0, shown = new Set(), budget = maxBytes, frameTick = 0;
@@ -563,7 +633,7 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
 
   // The cached sprite for the chunk and whether it is still fresh (signature unchanged). Never bakes.
   function peek(world, cx, cy, zoom, dpr) {
-    const scale = chunkScaleFor(zoom, dpr);
+    const scale = scaleOf(zoom, dpr);
     const map = entryFor(world).map;
     const e = map.get(key(cx, cy, scale));
     if (e) {
@@ -579,7 +649,7 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
   }
 
   function get(world, cx, cy, zoom, dpr, allowBake = true) {
-    const scale = chunkScaleFor(zoom, dpr);
+    const scale = scaleOf(zoom, dpr);
     const w = entryFor(world);
     const k = key(cx, cy, scale);
     const sig = chunkSignature(world, cx, cy);
@@ -588,12 +658,14 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
       if (!allowBake) return null;
       if (counter) counter.bakes = (counter.bakes || 0) + 1;
       drop(w, k);
+      const t0 = now();
       e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
+      lastBakeMs = now() - t0;
       w.map.set(k, e);
       w.bytes += bytesOf(e.sprite);
       // Drop only this chunk's entries at other scales; the rest stay as fallbacks until their own re-bake.
       for (const [otherKey, v] of [...w.map]) if (otherKey !== k && v.sprite.cx === cx && v.sprite.cy === cy) drop(w, otherKey);
-      if (w.map.size > maxChunks) { const o = oldest(w, k, true); if (o !== null) drop(w, o); }
+      if (w.map.size > maxChunks) { const o = oldest(w, k, false); if (o !== null) drop(w, o); }   // Version 10.0 (Track P, ruling 2289): never a chunk the frame shows
       trim(w, k);
     }
     e.used = ++tick;
@@ -602,6 +674,10 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
 
   return {
     get, peek, capacity: maxChunks, budget: maxBytes, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world),
+    kind, maxScale,
+    // Version 10.0 (Track P): the bakes this frame may make, of the renderer's `max`: one on a phone when the last bake took over SLOW_BAKE_MS.
+    bakeLimit: (max) => (kind === 'phone' && lastBakeMs > SLOW_BAKE_MS ? Math.min(1, max) : max),
+    get lastBakeMs() { return lastBakeMs; },
     // Version 9.1 (Track P): the renderer calls frame(chunks, world, bytes) as each frame begins with the chunks ({ cx, cy }) it shows, which the
     // budget never evicts, and this frame's budget (at most maxBytes), down to which the world's other chunks go at once; trim(world, bytes) sets
     // the budget again later in the frame. bytes(world) is what the world's chunks hold. room(world, zoom, dpr) says whether the ring's pre-bake
@@ -619,7 +695,7 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
       const w = entryFor(world);
       let stale = 0, staleBytes = 0;
       for (const v of w.map.values()) if (v.used <= frameTick && !shown.has(`${v.sprite.cx},${v.sprite.cy}`)) { stale++; staleBytes += bytesOf(v.sprite); }
-      return (w.map.size < maxChunks || stale > 0) && w.bytes - staleBytes + chunkBytes(chunkScaleFor(zoom, dpr)) <= budget;
+      return (w.map.size < maxChunks || stale > 0) && w.bytes - staleBytes + chunkBytes(scaleOf(zoom, dpr)) <= budget;
     },
   };
 }

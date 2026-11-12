@@ -32,6 +32,7 @@ import { holdFestival } from '../sim/festival.js';
 import { tickDay } from '../sim/clock.js';
 import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
 import { PROCESSION } from '../data/ambient.js';
+import { lookOfRank } from '../render/looks.js';   // Version 10.0 (Track Q): the title scene asserts the Capital's look
 import { entryPath } from '../render/newcomers.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
@@ -75,6 +76,10 @@ export { VERSION70_SCENES };
 import { V71_SCENES, VERSION71_SCENES } from './v71/index.js';   // Version 7.1: the 'v71-...' scenes (src/dev/v71/index.js)
 export { VERSION71_SCENES };
 import { V84_E_SCENES } from './v84/elephants.js';                // Version 8.4, Track E: the 'v84-e-...' scenes (war elephants)
+// Version 10.0 (Track 0, ruling 2103): the life scenes (src/dev/v100/index.js; tools/shots.ps1 -V100): bazaar-crowd, night-town, storm, wharf,
+// festival-crowd, fresh-corner.
+import { V100_SCENE_FNS, VERSION100_SCENES } from './v100/index.js';
+export const V100_SCENES = VERSION100_SCENES;
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -518,7 +523,11 @@ async function title(api) {
   const find = (type) => (view ? allBuildings(view.world).find((b) => b.type === type) : null);
   const ob = find('obelisk_small'), co = find('colossus'), pal = find('palace');
   if (!ob || !co || !pal) return 'title';
-  return `title: small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
+  // Version 10.0 (Track Q, ruling 2147): the backdrop is the Capital's look with a festival procession out; the scene says so, or throws.
+  const look = lookOfRank(view.world.milestone), procession = processionsAt(view.world, view.world.day, null).filter((w) => w.id >= PROCESSION_ID_BASE && w.id < PROCESSION_ID_BASE + 400000);
+  if (look !== 3) throw new Error(`devScene title: the backdrop is look ${look}, not the Capital's (3)`);
+  if (!procession.length) throw new Error('devScene title: the backdrop has no procession out');
+  return `title: look ${look} (Capital), ${procession.length} procession figures, small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
 }
 
 // The picture cards (Track G, src/dev/tutorialScenes.js): on the title card, the cards' first card as a player first meets
@@ -647,7 +656,7 @@ async function capstone(api) {
 // most free tiles in the two rows before it, the earliest of equals), so nothing hides it; the
 // city stays paused, so it holds still for the shot, framed on the shrine at zoom 1.5. Returns the temple, the
 // festival's day and how many figures walk (render/walkers.js festivalSize).
-const PROCESSION_DAYS = 6, PROCESSION_DAYS_MAX = 40;
+const PROCESSION_DAYS = 18, PROCESSION_DAYS_MAX = 40;   // Version 10.0, Track L (ruling 2240): from day 18, when all of a festival's 20 figures (0.85 tiles apart) are out (was 6, for 12)
 async function procession(api) {
   const g = inGame(api, 'procession'), { world, ui } = g;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
@@ -1033,6 +1042,7 @@ const SCENES = {
   ...V70_SCENES,
   ...V71_SCENES,
   ...V84_E_SCENES,
+  ...V100_SCENE_FNS,
 };
 
 export async function devScene(api, name, options = {}) {
@@ -1046,7 +1056,7 @@ export async function devScene(api, name, options = {}) {
 // The layers under the top bar, by the container each lives in (index.html's #under-bar): the alert row (the critical
 // banner), then what the guidance row may hold (the overlay legend, the goal with its threshold bar and nudge line, a
 // tip, a caption).
-const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '#tip', caption: '#cheer' };
+const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '#tip', caption: '#cheer', scribe: '.scribe-bubble:not(.pinned)' };   // Version 10.0 (Track F, ruling 2115): the scribe's docked bubble is a row too
 
 // The rows under the top bar, read off the page, for the height budget of the mobile UX review (section 3). frame is the
 // element that stands for the screen (a test's mounted shell); by default the window. Every box is in CSS px from the

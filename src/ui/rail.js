@@ -4,7 +4,7 @@ import { CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { setDock, isToolMode } from './modes.js';
 import { renderCards, activeItemOf, cardsKey, shownCategories } from './cards.js';
 import { CATEGORY_NAMES } from './text.js';
-import { el, iconButton } from './components.js';
+import { el, iconButton, categoryIcon, setCategoryIconTone } from './components.js';
 
 export function createRail({ container, store, world, onPick, layers = null }) {
   const drawer = el('div', { class: 'drawer cards', hidden: true });
@@ -20,7 +20,7 @@ export function createRail({ container, store, world, onPick, layers = null }) {
     shown = next;
     for (const b of catButtons) b.remove();
     catButtons = shown.map((c) => {
-      const b = iconButton(CATEGORY_NAMES[c.id], CATEGORY_ICONS[c.id], {
+      const b = iconButton(CATEGORY_NAMES[c.id], '', {
         class: 'cat', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false',
         onClick: () => {
           const s = store.get();
@@ -29,6 +29,7 @@ export function createRail({ container, store, world, onPick, layers = null }) {
         },
       });
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
+      b.firstChild.replaceWith(categoryIcon(CATEGORY_ICONS[c.id]));   // Version 10.0 (Track Q, ruling 2141): the drawn icon, not a font glyph
       b.append(el('span', { class: 'cat-word', 'aria-hidden': 'true', text: CATEGORY_NAMES[c.id] }));   // Version 9.2 (Track A, ruling 1834): a small word under each icon; the button's name is still its aria-label
       container.insertBefore(b, drawer);
       return b;
@@ -44,7 +45,7 @@ export function createRail({ container, store, world, onPick, layers = null }) {
     const open = s.dock === 'tray' && !isToolMode(s.mode) && !s.sheet;
     drawer.hidden = !open;
     const advisedCat = layers ? layers.advisedCategory() : null;
-    catButtons.forEach((b, i) => { b.setAttribute('aria-pressed', String(open && s.category === shown[i].id)); b.classList.toggle('advised', shown[i].id === advisedCat); });
+    catButtons.forEach((b, i) => { const chosen = open && s.category === shown[i].id; b.setAttribute('aria-pressed', String(chosen)); setCategoryIconTone(b, chosen); b.classList.toggle('advised', shown[i].id === advisedCat); });
     const key = cardsKey(world, s.category, activeItemOf(s.tool), layers);
     if (open && key !== lastCards) {
       renderCards(drawer, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true, layers });

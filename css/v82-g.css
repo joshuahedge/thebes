@@ -23,9 +23,10 @@
 
 /* The title on a tablet or a computer (ruling 1312): at rest the card stays the column the city beside it frames; a panel (What's new, Options, How to play's
    cards, the new-city card, the install guide) opens beside the buttons, and the card grows into two parts, so the panel's lines are a readable width. */
-.title-card.wide:not(.panel-open) { width: min(440px, 100%); padding: 28px 32px; }
+/* Version 10.0 (Track D, ruling 2122): the card grows with --ui-scale, from 440 px at 100% text by 120 px for each quarter step, so 125% gives 560 px (the 1920 title card is at least 560 wide, ruling 1673). */
+.title-card.wide:not(.panel-open) { width: min(calc(440px + (var(--ui-scale) - 1) * 480px), 100%); padding: 28px 32px; }
 .title-card.wide.panel-open {
-  width: min(880px, 100%); display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); grid-auto-rows: min-content;
+  width: min(calc(880px * var(--ui-scale)), 100%); display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); grid-auto-rows: min-content;
   column-gap: 28px; row-gap: 8px; align-items: start; text-align: left;
 }
 .title-card.wide.panel-open > :not(.guide) { grid-column: 1; }

@@ -6,19 +6,19 @@ import { createWorld } from './sim/world.js';
 import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { settleGoals, guideGoal } from './sim/goals.js';
-import { createCamera } from './render/camera.js';
+import { createCamera, holdInMap } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
-import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
+import { buildSampleCity, buildStressCity, capitalBackdrop } from './dev/sampleCity.js';
 import { createUI } from './ui/createUI.js';
-import { createSettings } from './ui/settings.js';
+import { createSettings, windowEnv, watchWindowSize } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
-import { createCameraControl } from './ui/cameraControl.js';
+import { createCameraControl, startCamera } from './ui/cameraControl.js';
 import { createMenuSheets } from './ui/menu.js';
 import { createTitleCard, createBackdrop, firstCityLayout } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
-import { TITLE_SEED } from './data/ui.js';
+import { TITLE_SEED, DOUBLE_TAP_MS } from './data/ui.js';
 import { exportSave, downloadFile, pickTextFile } from './save/exportImport.js';
 import { T, D2_TEXT, V711_TEXT, V90_L_TEXT, U93_TEXT } from './ui/text.js';
 import { el, button } from './ui/components.js';
@@ -65,7 +65,7 @@ export async function boot(doc, win, {
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
-  const settings = createSettings({ storage, root });
+  const settings = createSettings({ storage, root, env: () => windowEnv(win), watchEnv: (cb) => watchWindowSize(cb, win) });   // Version 10.0 (Track D, ruling 2120): Auto's size follows the window
   // Stage 3: the device's records (spec 4.19), and the development scenes hook, there before the title card shows
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
@@ -361,7 +361,11 @@ export async function boot(doc, win, {
         ? { ...hooks, records: undefined, save: () => saveDecree(), home: undefined, exportCity: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, decreeRun: decreeRunFor(world) }
         : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave && !decree ? { savedAt, lastSpeed } : null,
-      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
+      sfx, tapWait: DOUBLE_TAP_MS,   // Version 10.0 (Track M, ruling 2301): a finger's building tap waits for a second tap
+      extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
+    // Version 10.0 (Track F, rulings 2110-2111): the camera the UI framed (or a save's focus) is held in the map; a new city's opens on its entry road's end diamond with the map around it.
+    holdInMap(cam, view());
+    if (!fromSave && !lesson && !decree && !stress && !Object.keys(world.buildings || {}).length && view().width > 0) Object.assign(cam, startCamera(world, view(), cam.zoom));
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); if (lateAsk && events.some((e) => e.type === 'month')) { const ask = lateAsk; lateAsk = null; ask(); } }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
       onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
     current = { world, ui, loop, cam, lesson: Boolean(lesson), decree: Boolean(decree) };
@@ -549,7 +553,7 @@ export async function boot(doc, win, {
 
   function showTitle(loaded, { note = null } = {}) {
     loadedOk = loaded.state === 'ok';
-    const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
+    const world = capitalBackdrop(buildSampleCity(createWorld({ seed: TITLE_SEED })));   // Version 10.0 (Track Q, ruling 2147): the backdrop is the Capital, with a procession out
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
     // The showcase is framed beside the card (art-direction review 4): the backdrop reads the card's box once it shows.

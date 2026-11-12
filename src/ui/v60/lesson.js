@@ -670,8 +670,12 @@ export function createLessonUi(ctx) {
     if (!spot || !run.cam) { scrim.hidden = true; ring.hidden = true; towerRing.hidden = true; }
     else {
       const v = viewOf();
-      const [sx, sy] = tileToScreen(run.cam, v, spot.x + spot.w / 2, spot.y + spot.d / 2);
-      const { rx, ry } = ringHalf(spot, run.cam.zoom);
+      const [tx, sy] = tileToScreen(run.cam, v, spot.x + spot.w / 2, spot.y + spot.d / 2);
+      const half = ringHalf(spot, run.cam.zoom), ry = half.ry;
+      // Version 10.0 (Track M, ruling 2306, F6): the ring's middle stays at least its radius inside the screen's sides (a ring wider than the screen shrinks to fit), so the road step's long ring is
+      // whole on a 375 px phone (9.3.1 left its far end about 20 px off the screen). A ring already inside the screen is not moved.
+      const rx = v.width > 0 ? Math.min(half.rx, v.width / 2) : half.rx;
+      const sx = v.width > 0 ? Math.min(Math.max(tx, rx), v.width - rx) : tx;
       const t2 = tw ? tileToScreen(run.cam, v, tw.x + tw.w / 2, tw.y + tw.d / 2) : null, h2 = tw ? ringHalf(tw, run.cam.zoom) : null;
       const k2 = [Math.round(sx), Math.round(sy), Math.round(rx), Math.round(ry), ...(tw ? [Math.round(t2[0]), Math.round(t2[1]), Math.round(h2.rx), Math.round(h2.ry)] : [])].join(',');
       if (k2 !== key || scrim.hidden || ring.hidden || (tw && towerRing.hidden)) {

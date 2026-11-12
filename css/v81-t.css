@@ -18,6 +18,9 @@
 .scribe-bubble.pinned[data-side="above"]::after { bottom: -7px; border-top: none; border-left: none; }
 .scribe-bubble.pinned[data-side="below"]::after { top: -7px; border-bottom: none; border-right: none; }
 .scribe-bubble.fading { opacity: 0; }
+/* Version 10.0 (Track F, ruling 2115): on a phone a docked bubble is the guidance row's, so it shows only while createUI names it (data-guidance="scribe"); the legend, goal, tip and caption rules in ui.css already hide
+   themselves then. A wide layout has no data-guidance and is unchanged. */
+body:is([data-layout="portrait"], [data-layout="compact"])[data-guidance]:not([data-guidance="scribe"]) .scribe-bubble:not(.pinned) { display: none !important; }
 body.lesson-card-up .scribe-bubble { display: none !important; }   /* no bubble under a card (ruling 1100's rule for toasts) */
 /* Integration (ruling 1262): with a tool in hand the rows under the bar are the tool's (its legend, the goal), so a docked line steps aside; a pinned one stays by its control. */
 body:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) .scribe-bubble:not(.pinned) { display: none !important; }

@@ -354,7 +354,7 @@ describe('v90 v dust, fire fought, the festival and the weather (V6, V7, V9, V10
     drawLight(makeDraw(canvas.getContext('2d'), 1), w, ALL, { ctx: canvas.getContext('2d'), W: 64, H: 64, ox: 0, oy: 0, dpr: 1 }, 0, 'full', DEFAULT_SETTINGS);
     const spy = spyDraw();
     drawFestive(spy.g, w, marchers, ALL, 1300);
-    expect(spy.calls.filter((c) => c.k === 'ell').length).toBe(3 + 4);             // three lamps, two petals for each marcher
+    expect(spy.calls.filter((c) => c.k === 'ell').length).toBe(3 * 2 + 4);         // three lamps (Version 10.0, Track L: each with a festival night's halo), two petals for each marcher
     expect(spy.calls.filter((c) => c.k === 'poly').length).toBe(3);                // three pennants
     setLightClock(w, 0, 0);
     drawLight(makeDraw(canvas.getContext('2d'), 1), w, ALL, { ctx: canvas.getContext('2d'), W: 64, H: 64, ox: 0, oy: 0, dpr: 1 }, 0, 'full', DEFAULT_SETTINGS);
@@ -367,7 +367,7 @@ describe('v90 v dust, fire fought, the festival and the weather (V6, V7, V9, V10
     expect(WEATHER.alpha).toBeLessThan(0.25);
     expect(cloudsAt(w, ALL, 0).length).toBe(3);
     const a = cloudsAt(w, ALL, 0)[0], b = cloudsAt(w, ALL, 4000)[0];
-    expect(Math.round(Math.hypot(b.x - a.x, b.y - a.y) * 100) / 100).toBe(WEATHER.tilesPerSecond * 4);
+    expect(Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - WEATHER.tilesPerSecond * 4) < 0.15).toBe(true);   // Version 10.0, Track L: about, the wind drifting a little over the 4 s
     expect(desertEdge(w).length).toBe(32);                                          // the desert's column beside the green strip
     w.day = SEASONS.indexOf('akhet') * DAYS_PER_MONTH + 3;
     const wet = spyDraw();

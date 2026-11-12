@@ -25,7 +25,7 @@ import { summaryData } from './hud.js';
 import { cityTabs, markTabPanel, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
 import { spoilsSaving } from '../sim/spoils.js';           // Version 8.4 (Track R): the captured weapons' note under the soldiers' pay
-import { V84R_TEXT } from './text.js';
+import { V84R_TEXT, V100M_TEXT } from './text.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
@@ -417,7 +417,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // Version 9.3.1 (Track N, ruling 2024): on a phone the City page is a short list of section rows that open on a tap (the score's open at first, or the one an explainer names).
     if (store.get().layout !== 'wide') collapseSections(body, store.get().sheet && typeof store.get().sheet.id === 'string' ? store.get().sheet.id : 'score');
     // Integration (ruling 1268): the tabs sit above the body, which is the City tab's panel.
-    if (adviceOn()) return [head(T.summary), cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }), markTabPanel(body, 'city')];
+    if (adviceOn()) return [head(V100M_TEXT.cityPage), cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }), markTabPanel(body, 'city')];
     return [head(T.summary), body];
   }
 
@@ -526,6 +526,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   // so the close waits for a microtask and checks again; outside a notification it closes at once.
   let notifying = false;
   let scrolledFor = null;     // the sheet state a scroll to a section was last done for
+  let headWatch = null;       // Version 10.0 (Track M): watches the sheet head's height for the sticky tabs
   function closeGone() {
     const now = store.get();
     if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
@@ -573,6 +574,14 @@ export function createSheets({ container, store, world, placement, cameraControl
     container.hidden = false;
     wasOpen = true;
     container.append(...parts);
+    // Version 10.0 (Track M, ruling 2307, S8): the City page's tabs stick under the head, whose height (it grows with the text size) is told to the stylesheet (css/v100-m.css).
+    const headEl = container.querySelector('.head');
+    if (headEl) {
+      const tell = () => container.style.setProperty('--sheet-head-h', `${headEl.getBoundingClientRect().height}px`);
+      tell();
+      if (headWatch) headWatch.disconnect();
+      if (typeof ResizeObserver === 'function') { headWatch = new ResizeObserver(tell); headWatch.observe(headEl); }
+    }
     // The sheet's own title names it (index.html's "Details" is only the fallback), and a sheet opened from the keyboard puts focus on that title, so a screen reader reads it first.
     const title = container.querySelector('.head h2');
     if (title) container.setAttribute('aria-label', title.textContent); else container.setAttribute('aria-label', 'Details');

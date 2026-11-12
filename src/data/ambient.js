@@ -42,18 +42,36 @@ export const AMBIENT = {
 // temple whose reach meets the new monument's road to it (or along the monument's own road, ownReach tiles, when none
 // does) for dedicationDays after it is finished, with dedicationFigures figures. At most maxOnScreen processions, the
 // nearest the middle of the view; they drop once the ambient budget has dropped all it can (render/walkers.js).
+// Version 10.0, Track L (L.8, spec 5g, ruling 2240): a festival's procession is twice the size, 8 to 20 (was 4 to 12), more musicians and dancers
+// and a second shrine after the tenth figure; a dedication keeps its dedicationFigures.
 export const PROCESSION = {
-  start: 4,
-  max: 12,
+  start: 8,
+  max: 20,
   tilesPerDay: 1,                  // half a walker's pace: a stately walk
   spacing: 0.85,                   // tiles between one figure and the next along the road
   // The figures in walking order (Track B's walker kinds, src/render/art/figures.js): the first four already show a
   // priest holding up the standard (art-direction review 10: the eye finds the festival by it), the carried shrine, a
   // musician and a dancer.
-  order: ['standard', 'shrine', 'musician', 'dancer', 'priest', 'musician', 'dancer', 'musician', 'dancer', 'priest', 'dancer', 'musician'],
+  order: ['standard', 'shrine', 'musician', 'dancer', 'priest', 'musician', 'dancer', 'musician', 'dancer', 'priest', 'shrine', 'dancer', 'musician', 'dancer', 'musician',
+    'priest', 'dancer', 'musician', 'dancer', 'priest'],
   dedicationDays: 30,
   dedicationFigures: 6,
   ownReach: 4,
   maxOnScreen: 3,
   flutterMs: 1000,                 // the temple's streamers change shape once a second, under Full only
+};
+
+// Version 10.0 (Track 0, rulings 2057-2059): the life layer's budget (ms a frame, a running average as the v90 dropper measures it), what goes
+// first when over it, and its caps. Life is render-side only: a pure function of the world, the time and a hash; it never writes the world.
+export const LIFE = {
+  budgetMs: { desktop: 1.5, phone: 1.0 },
+  dropOrder: ['crowd', 'river', 'idle', 'weather', 'flicker'],
+  idleCap: { desktop: 24, phone: 16 },
+  crowdCap: 8,
+  riverCap: 6,
+  buildersPerSite: [2, 4],
+  lineCap: 16,
+  storm: { perYear: [1, 2], seconds: [20, 40], fromYear: 2, dustCap: 60, hazeAlpha: 0.35 },
+  windDriftMs: 240000,
+  fadeMs: 1000,
 };

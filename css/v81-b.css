@@ -6,6 +6,8 @@ body {
   --stat-num: calc(11px + 4px * var(--ui-scale));         /* 15 px at 100% text, 16 at 125%, 17 at 150%: one size for every number */
   --stat-icon: 20px;                                       /* integration (ruling 1266): the pictures at their drawn 20 px at every text size, so the flood gauge and the cartouche read at a glance */
 }
+/* Version 10.0 (final review D-1, ruling 2322): on the wide layout the number grows with the text size in full (15 px at 100%, 18.75 at 125%, 22.5 at 150%); phones keep the formula above */
+body[data-layout="wide"] { --stat-num: calc(15px * var(--ui-scale)); }
 #topbar .stats { display: flex; flex-wrap: nowrap; align-items: center; align-content: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; padding: 0; line-height: 1; position: static; }
 #topbar .stats .stat { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex: none; min-width: var(--tap); min-height: var(--tap); padding: 0 3px; margin: 0;
   background: transparent; border: 0 solid transparent; border-radius: 10px; color: var(--ink); font: 600 var(--stat-num) / 1 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }

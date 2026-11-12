@@ -1,5 +1,5 @@
 // Tweened camera moves for selection and the +/- buttons. Reduced motion makes every move a jump (spec 5.4).
-import { clampZoom, pxPerArt, screenToTile, tileToScreen, zoomAt, panBy, zoomFloor, MIN_ZOOM } from '../render/camera.js';
+import { clampZoom, pxPerArt, screenToTile, tileToScreen, zoomAt, panBy, zoomFloor, holdInMap, halfExtentTiles, OFF_MAP_SHARE, MIN_ZOOM } from '../render/camera.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { allBuildings } from '../sim/world.js';
 import { CAMERA_PAN_MS, FLING_MIN_PX_S, FLING_MAX_PX_S, FLING_STOP_PX_S, FLING_TAU_MS, SHOW_ME_GLIDE_MS, SHOW_ME_GLIDE_MAX_MS, SHOW_ME_GLIDE_MS_PER_TILE, SHOW_ME_GENTLE_MS } from '../data/ui.js';
@@ -55,7 +55,7 @@ const FRAME_UP_ART = 40, FRAME_DOWN_ART = 8;   // art px a building stands above
 
 // The camera that holds `bounds` (tile bounds) inside the view minus the insets and a margin: its centre, and the zoom (the largest up to maxZoom that fits, never under `floor`). Where
 // the floor is reached and the city is still bigger, it is centred and overflows evenly. The pure half of frameCity.
-export function fitCamera(view, bounds, { insets = NO_INSETS, margin = FRAME_MARGIN_PX, floor = MIN_ZOOM, maxZoom = FRAME_MAX_ZOOM } = {}) {
+export function fitCamera(view, bounds, { insets = NO_INSETS, margin = FRAME_MARGIN_PX, floor = MIN_ZOOM, maxZoom = FRAME_MAX_ZOOM, size = 0 } = {}) {
   const corners = [p(bounds.x0, bounds.y0), p(bounds.x1 + 1, bounds.y0), p(bounds.x1 + 1, bounds.y1 + 1), p(bounds.x0, bounds.y1 + 1)];
   const ax0 = Math.min(...corners.map((c) => c[0])), ax1 = Math.max(...corners.map((c) => c[0]));
   const ay0 = Math.min(...corners.map((c) => c[1])) - FRAME_UP_ART, ay1 = Math.max(...corners.map((c) => c[1])) + FRAME_DOWN_ART;
@@ -64,7 +64,50 @@ export function fitCamera(view, bounds, { insets = NO_INSETS, margin = FRAME_MAR
   const k = ART_SCALE * zoom;
   const midX = insets.left + (view.width - insets.left - insets.right) / 2, midY = insets.top + (view.height - insets.top - insets.bottom) / 2;
   const t = artToTile((ax0 + ax1) / 2 + (view.width / 2 - midX) / k, (ay0 + ay1) / 2 + (view.height / 2 - midY) / k);
-  return { x: t.x, y: t.y, zoom };
+  const out = { x: t.x, y: t.y, zoom };
+  if (size) { const held = holdInMap({ ...out, mapSize: size }, view); out.x = held.x; out.y = held.y; }   // Version 10.0 (Track F, ruling 2110): the framed camera holds too
+  return out;
+}
+
+// Version 10.0 (Track F, ruling 2111): where a new city's camera opens. The entry road's end diamond (the last tile of world.startRoad, else the start area's focus) is the
+// centre; it is held in the map (holdInMap), then the centre goes OFF_MAP_SHARE / 2 of the margin further in from the edge the entry stands on, so the diamond sits toward
+// that edge of the screen and the map fills the rest instead of the off-map ground. Same zoom as given (the opening zoom, or what createUI framed).
+export function startCamera(world, view, zoom = 1) {
+  const size = world.size;
+  const road = Array.isArray(world.startRoad) && world.startRoad.length ? world.startRoad : null;
+  const end = road ? road[road.length - 1] : [world.focus.x, world.focus.y];
+  const cam = { x: end[0] + 0.5, y: end[1] + 0.5, zoom: clampZoom(zoom), mapSize: size };
+  holdInMap(cam, view);
+  const e = world.tradeEntry || { x: size / 2, y: size - 1 };
+  const m = Math.min(OFF_MAP_SHARE * halfExtentTiles(view, cam.zoom), size / 2);
+  const gaps = [[e.x, 'x', 1], [size - 1 - e.x, 'x', -1], [e.y, 'y', 1], [size - 1 - e.y, 'y', -1]];   // [distance to the edge, axis, inward direction]
+  const [, axis, dir] = gaps.reduce((a, b) => (b[0] < a[0] ? b : a));
+  // Ruling 2119: m / 2 inward is the least nudge; where that still leaves 30% or more of the screen off the map (a tall phone view, zoomed out) the centre goes further in, a
+  // quarter of m at a time, while the diamond stays on screen with a margin; the first that fits is taken, else the one with the least off-map.
+  const base = { x: cam.x, y: cam.y };
+  const [dx, dy] = end;
+  let best = null;
+  for (let i = 0; i <= 6; i++) {
+    const c = { x: base.x, y: base.y, zoom: cam.zoom, mapSize: size };
+    c[axis] += dir * m * (0.5 + i * 0.25);
+    holdInMap(c, view);
+    const [sx, sy] = tileToScreen(c, view, dx + 0.5, dy + 0.5);
+    if (!(sx > START_DIAMOND_MARGIN && sx < view.width - START_DIAMOND_MARGIN && sy > START_DIAMOND_MARGIN && sy < view.height - START_DIAMOND_MARGIN)) continue;
+    const share = offMapGrid(c, view, size);
+    if (!best || share < best.share) best = { share, c };
+    if (share < START_OFF_MAP_MAX) break;
+  }
+  if (!best) { cam[axis] += dir * m / 2; holdInMap(cam, view); return { x: cam.x, y: cam.y, zoom: cam.zoom }; }
+  return { x: best.c.x, y: best.c.y, zoom: best.c.zoom };
+}
+const START_DIAMOND_MARGIN = 24, START_OFF_MAP_MAX = 0.22;   // px the entry diamond keeps from the screen's edge; the share off the map startCamera aims under on its coarse 24 x 24 grid (0.22 leaves the margin the finer 48 x 48 grid needs on any seed; the spec's bound stays 0.3)
+function offMapGrid(cam, view, size, n = 24) {
+  let off = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const t = screenToTile(cam, view, ((i + 0.5) / n) * view.width, ((j + 0.5) / n) * view.height);
+    if (t.x < 0 || t.y < 0 || t.x >= size || t.y >= size) off++;
+  }
+  return off / (n * n);
 }
 
 // Whether any corner of the bounds (or the buildings' height over them) is outside the free map at the camera as it is.
@@ -102,6 +145,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, mo
     } else if (reducedMotion()) ms = 0;
     if (!(ms > 0)) {
       cam.x = toX; cam.y = toY; cam.zoom = z;
+      holdInMap(cam, view());   // Version 10.0 (Track F, ruling 2110): every camera write holds
       tween = null;
       return;
     }
@@ -118,12 +162,12 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, mo
       zoomAt(target, view(), factor, sx, sy);
       begin(target.x, target.y, target.zoom, ms, { sx, sy, x: under.x, y: under.y });
     },
-    jumpTo(x, y) { tween = null; flinging = null; cam.x = x; cam.y = y; },
+    jumpTo(x, y) { tween = null; flinging = null; cam.x = x; cam.y = y; holdInMap(cam, view()); },
     // Version 9.2 (Track V, ruling 1850): fit the built area (cityBounds) to the free map: pan and, where it is bigger than the screen holds, zoom out to it (never in past FRAME_MAX_ZOOM). The
     // move follows the Motion level as every other (a jump under Still). Returns whether there was anything to frame.
     frameCity(bounds, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, maxZoom = FRAME_MAX_ZOOM) {
       if (!bounds) return false;
-      const fit = fitCamera(view(), bounds, { insets, margin, floor: floor(), maxZoom });
+      const fit = fitCamera(view(), bounds, { insets, margin, floor: floor(), maxZoom, size: cam.mapSize || 0 });
       begin(fit.x, fit.y, fit.zoom, ms);
       return true;
     },
@@ -152,7 +196,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, mo
         const f = flinging, dt = Math.max(0, Math.min(t - f.last, 64)) / 1000;   // a stalled frame counts 64 ms at most
         f.last = t;
         const decay = Math.exp(-dt / f.tau);
-        panBy(cam, f.vx * f.tau * (1 - decay), f.vy * f.tau * (1 - decay));     // the whole of this frame's distance: the integral of the speed over it
+        panBy(cam, f.vx * f.tau * (1 - decay), f.vy * f.tau * (1 - decay), view());     // the whole of this frame's distance: the integral of the speed over it
         f.vx *= decay; f.vy *= decay;
         if (Math.hypot(f.vx, f.vy) < FLING_STOP_PX_S) flinging = null;
         return true;
@@ -168,6 +212,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, mo
         cam.x += a.x - now2.x; cam.y += a.y - now2.y;
       }
       if (k >= 1) { cam.x = tween.toX; cam.y = tween.toY; cam.zoom = tween.toZ; tween = null; }
+      holdInMap(cam, view());   // Version 10.0 (Track F, ruling 2110): a tween step, and its end, hold
       return true;
     },
     get animating() { return tween !== null || flinging !== null; },

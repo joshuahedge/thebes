@@ -71,16 +71,16 @@ describe('s4 motion festival processions', () => {
     temple.staff = 0;                                                            // a temple not at work holds none
     expect(processionsAt(w, w.day).length).toBe(0);
   });
-  it('grows by one figure for each temple, booth and finished monument, up to 12', () => {
+  it('grows by one figure for each temple, booth and finished monument, up to 20 (Version 10.0, Track L: from 8, was 4 to 12)', () => {
     const { w } = street();
-    expect(festivalSize(w)).toBe(5);
+    expect(festivalSize(w)).toBe(9);
     addRaw(w, 'booth', 15, 9);
-    expect(festivalSize(w)).toBe(6);
+    expect(festivalSize(w)).toBe(10);
     const site = addRaw(w, 'colossus', 22, 8);
-    expect(festivalSize(w)).toBe(6);                                            // a site under way does not count
+    expect(festivalSize(w)).toBe(10);                                           // a site under way does not count
     site.site.done = 40;
-    expect(festivalSize(w)).toBe(7);
-    for (let x = 0; x < 10; x += 2) addRaw(w, 'temple', x, 11);
+    expect(festivalSize(w)).toBe(11);
+    for (let x = 0; x < 20; x += 2) addRaw(w, 'temple', x, 11);
     expect(festivalSize(w)).toBe(PROCESSION.max);
   });
   it('walks on game time: the same day shows the same procession, it holds still while paused, and never writes the world', () => {

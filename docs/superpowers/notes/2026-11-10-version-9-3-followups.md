@@ -69,22 +69,23 @@ None of the 14 was touched. Each is small; do them together as a polish pass.
 - **C2** On a phone, How to play leads with Keyboard shortcuts; put Touch second and the keys near the end.
 - **C3** A building's "Pause" reads like the game's Play and Paused; Demolish is the strongest button in the row and has no question.
 - **C4** Layers: "Off" is drawn as the filled, chosen button.
-- **C5** The Menu's first item is a filled "Continue", the third meaning of that word.
-- **C6** The Undo toast sits on the Paused tag at 150% (add the tag's height to `--toast-lift` while paused).
-- **C7** The lesson's first tool bar talks about bridges and ferries before the one instruction; with 9.3.1's straight crossings, hide the water line in the lesson.
+- **C5** The Menu's first item is a filled "Continue", the third meaning of that word. **Done in 10.0 (Track M, ruling 2308): outlined.**
+- **C6** The Undo toast sits on the Paused tag at 150% (add the tag's height to `--toast-lift` while paused). **Done in 10.0 (Track M, ruling 2309).**
+- **C7** The lesson's first tool bar talks about bridges and ferries before the one instruction; with 9.3.1's straight crossings, hide the water line in the lesson. **Done in 10.0 (Track M, ruling 2300).**
 - **C8** A new map opens with a wedge of plain tan past its corner.
 - **C9** The decree card says the decree's name three times.
 - **C10** After a decree, the title says "Rulers (1)" for a decree row.
 - **C11** The date explainer's action is a two-line sentence-button.
-- **C12** In a built-up city a double tap selects a building before it zooms.
-- **C13** The New city card at 150% on an SE hides Hard and the map choices (drop the Thebes cartouche on short screens).
-- **C14** Placing at 150% on a 360 phone leaves about 40% of the screen for the map.
+- **C12** In a built-up city a double tap selects a building before it zooms. **Done in 10.0 (Track M, ruling 2301).**
+- **C13** The New city card at 150% on an SE hides Hard and the map choices (drop the Thebes cartouche on short screens). **Done in 10.0 (Track M, ruling 2304): Hard is whole above Start; the map choices are one scroll down.**
+- **C14** Placing at 150% on a 360 phone leaves about 40% of the screen for the map. **Done in 10.0 (Track M, ruling 2302) for phones under 700 px tall.**
 
 ### What the groups left
-- **S8, sticky tabs (ruling 2024).** The City page folds into rows on a phone, but its Messages and City tabs are not sticky and the two sheet titles ("Messages and advice", "City summary") are unchanged. Only the folding was done.
-- **S14, the iOS zoom cap (ruling 2019).** `maximum-scale=2` closes the case on Chrome; iOS Safari ignores it by design, so an iPhone can still pinch the page past 200% from a bar. The review's other fix (reset the page zoom when the map takes a pinch while `visualViewport.scale > 1`) is not done.
-- **The landscape lesson row clamp.** Sideways (844x390) the lesson row is still line-clamped; ruling 2015 un-clamped the words on a portrait phone only. Check it at 150% sideways.
-- **The 375 lesson ring.** At 375 px wide the road step's long ring is still about 20 px off the screen's far side, the cost of ruling 2026 (the marked end 56 px from the edge; it amends 1674's and 821's whole-ring rule). The drag is still along the line.
+- **S8, sticky tabs (ruling 2024).** The City page folds into rows on a phone, but its Messages and City tabs are not sticky and the two sheet titles ("Messages and advice", "City summary") are unchanged. Only the folding was done. **Done in 10.0 (Track M, ruling 2307): sticky tabs, one title ("Your city").**
+- **S14, the iOS zoom cap (ruling 2019).** **Done in 10.0 (Track M, ruling 2305): the bars lose pinch-zoom and a two-finger touch that starts on a bar is cancelled; only a real iPhone can confirm.** `maximum-scale=2` closes the case on Chrome; iOS Safari ignores it by design, so an iPhone can still pinch the page past 200% from a bar. The review's other fix (reset the page zoom when the map takes a pinch while `visualViewport.scale > 1`) is not done.
+- **The landscape lesson row clamp.** Sideways (844x390) the lesson row is still line-clamped; ruling 2015 un-clamped the words on a portrait phone only. Check it at 150% sideways. **Checked in 10.0 (Track M, ruling 2306): not clamped at 844x390, 100% or 150%.**
+- **The Ground legend's words at large text** (9.2 ruling 1827) **Done in 10.0 (Track M, ruling 2303): the room key is drawn at 125% and above on phones at least 700 px tall; on a short phone (375x667 at 150%, or sideways) it stays for screen readers, which Josh accepted on 12 Nov, decision 2).**
+- **The 375 lesson ring.** At 375 px wide the road step's long ring is still about 20 px off the screen's far side, the cost of ruling 2026 (the marked end 56 px from the edge; it amends 1674's and 821's whole-ring rule). The drag is still along the line. **Done in 10.0 (Track M, ruling 2306): the ring's middle is clamped at least its radius inside the screen.**
 
 ### For Josh to check on a real phone
 Emulation could not show any of these (the review's closing list, plus the straight crossing).

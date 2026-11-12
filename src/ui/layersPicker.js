@@ -60,7 +60,7 @@ export function createLayersPicker({ store, world = null, restoreFocus = () => {
       locks[i].hidden = !locked;
       locks[i].textContent = locked ? LAYERS_LOCKED_TEXT.rank(OVERLAYS[i]) : '';
     });
-    off.setAttribute('aria-pressed', String(!s.overlay));
+    off.setAttribute('aria-pressed', 'false');   // Version 10.0 (Track Q, ruling 2140): Off is the way out, not a choice: never drawn as the chosen layer (it stays outlined whether or not a layer is on)
     if (open === wasOpen) return;
     wasOpen = open;
     if (open) {

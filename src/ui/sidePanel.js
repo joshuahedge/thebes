@@ -1,8 +1,8 @@
 // The wide layout's right-hand panel (spec 6.2): minimap, category tabs, the card grid and a details area.
-import { CATEGORY_TINT } from '../data/ui.js';
+import { CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { renderCards, activeItemOf, cardsKey, shownCategories } from './cards.js';
 import { CATEGORY_NAMES, T, layersText } from './text.js';
-import { el, button, iconButton, clear, setText } from './components.js';
+import { el, button, iconButton, categoryIcon, setCategoryIconTone, clear, setText } from './components.js';
 
 export function createSidePanel({ container, store, world, onPick, minimapNode = null, detailsNode = null, onLayers = () => {}, pickerNode = null, layers: layered = null }) {
   const fold = iconButton(T.fold, '‹', { class: 'fold' });
@@ -26,6 +26,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     tabButtons = shown.map((c) => {
       const b = button(CATEGORY_NAMES[c.id], { class: 'tab', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false', onClick: () => store.set({ category: c.id }) });
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
+      b.prepend(categoryIcon(CATEGORY_ICONS[c.id]));   // Version 10.0 (Track Q, ruling 2141): the drawn icon beside the tab's word
       return b;
     });
     clear(tabs);
@@ -79,7 +80,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     layers.setAttribute('aria-pressed', String(Boolean(s.overlay)));
     layers.setAttribute('aria-expanded', String(s.layersOpen));
     const advisedCat = layered ? layered.advisedCategory() : null;
-    tabButtons.forEach((b, i) => { b.setAttribute('aria-pressed', String(s.category === shown[i].id)); b.classList.toggle('advised', shown[i].id === advisedCat); });
+    tabButtons.forEach((b, i) => { const chosen = s.category === shown[i].id; b.setAttribute('aria-pressed', String(chosen)); setCategoryIconTone(b, chosen, true); b.classList.toggle('advised', shown[i].id === advisedCat); });
     const key = cardsKey(world, s.category, activeItemOf(s.tool), layered);
     if (key !== lastCards) {
       renderCards(cards, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true, layers: layered });

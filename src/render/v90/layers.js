@@ -21,8 +21,12 @@ import { seasonAt } from '../../sim/seasons.js';
 import { festivalOn } from '../walkers.js';
 import { lightShown } from '../light.js';
 import { roofPoint } from '../fire.js';
-import { windOf } from '../ambient.js';
+import { windAt } from '../ambient.js';
 import { UNIT_ID_BASE } from '../units.js';
+import { LIFE } from '../../data/ambient.js';
+import { LIGHT } from '../../data/seasons.js';
+import { lightPeek } from '../light.js';
+import { stormAt, stormSwing } from '../v100/weather.js';
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const inView = (x, y, r) => !r || (x >= r.x0 - 1 && x <= r.x1 + 2 && y >= r.y0 - 1 && y <= r.y1 + 2);
@@ -141,8 +145,9 @@ export function drawFestive(g, world, walkers, range, now) {
       for (const [u, v] of [[0, 1], [1, 1], [1, 0]]) {                       // a lamp on a stand at each front corner
         const q = p(b.x + u * b.w + (u ? -0.1 : 0.1), b.y + v * b.d + (v ? -0.1 : 0.1));
         g.line(q, U(q, 7), '#3A2C1E', 0.7, 0.9);
-        g.ell(U(q, 8), 1.6, 1, GOLD, { alpha: 0.4 + 0.6 * lamps });
-        g.circ(U(q, 8.6), 0.7, '#FFF4C8', { alpha: lamps });
+        if (lamps > 0.3) g.ell(U(q, 8.3), 4.6, 3.2, GOLD, { alpha: 0.3 * 1.3 * (lamps - 0.3) });   // Version 10.0, Track L (L.6): a festival night's lamps burn a third brighter, a warm halo round each
+        g.ell(U(q, 8), 1.6 * 1.15, 1 * 1.15, GOLD, { alpha: Math.min(1, (0.4 + 0.6 * lamps) * 1.3) });
+        g.circ(U(q, 8.6), 0.8, '#FFF4C8', { alpha: lamps });
       }
     }
   }
@@ -185,10 +190,81 @@ export function desertEdge(world) {
   edges.set(world, { terrain: world.terrain, list });
   return list;
 }
+// ── Version 10.0, Track L (L.7, spec 5f, ruling 2231): the heat shimmer ──
+// In Shemu around noon (the middle of the day phase), over open sand farther than SHIMMER.fromWater tiles from water, the ground the canvas already
+// shows ripples: in a few tiles nearest the middle of the view, SHIMMER.slices thin bands of the canvas copied a device pixel aside at SHIMMER.alpha,
+// rising slowly through the tile. Under Full only, never in the lesson, in V's layer (its weather share of V's budget); the interface is the page's,
+// never this canvas, so it is never rippled.
+export const SHIMMER = { fromWater: 6, slices: 3, alpha: 0.3, cap: 16, periodMs: 2400, noon: [0.3, 0.7] };
+const sandFar = new WeakMap();                // world -> { terrain, far: Uint8Array (1 on desert tiles past fromWater tiles of water) }
+export function farSand(world) {
+  const had = sandFar.get(world);
+  if (had && had.terrain === world.terrain) return had.far;
+  const n = world.size, dist = new Int16Array(n * n).fill(-1), queue = [];
+  for (let i = 0; i < n * n; i++) if (world.terrain[i] === T.WATER) { dist[i] = 0; queue.push(i); }
+  for (let qi = 0; qi < queue.length; qi++) {
+    const i = queue[qi], x = i % n, y = (i - x) / n;
+    if (dist[i] > SHIMMER.fromWater) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (!inBounds(n, nx, ny)) continue;
+      const j = idx(n, nx, ny);
+      if (dist[j] < 0) { dist[j] = dist[i] + 1; queue.push(j); }
+    }
+  }
+  const far = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) if (world.terrain[i] === T.DESERT && (dist[i] < 0 || dist[i] > SHIMMER.fromWater)) far[i] = 1;   // occ and road are read at draw time (shimmerTiles), so a tile built on since stops
+  sandFar.set(world, { terrain: world.terrain, far });
+  return far;
+}
+export function shimmerOn(world, motion) {
+  if (motion !== 'full' || world.lesson || seasonAt(world).season !== 'shemu') return false;
+  const l = lightShown();
+  if (l.phase !== 'day') return false;
+  const u = ((lightPeek(world) % LIGHT.cycleMs) + LIGHT.cycleMs) % LIGHT.cycleMs / LIGHT.cycleMs / LIGHT.day;
+  return u >= SHIMMER.noon[0] && u <= SHIMMER.noon[1];
+}
+// The shimmering tiles, nearest the middle of the range first: far sand (kept by terrain), still open now (occ and road read at the time).
+export function shimmerTiles(world, range) {
+  const far = farSand(world), n = world.size, cx = (range.x0 + range.x1) / 2, cy = (range.y0 + range.y1) / 2, tiles = [];
+  const R = 7;                                                                   // a ring round the middle, so the cost does not grow with the view
+  for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(n - 1, Math.floor(cy + R)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(n - 1, Math.floor(cx + R)); x++) {
+      const i = idx(n, x, y);
+      if (far[i] && !world.occ[i] && !world.road[i] && hash2(x, y, (world.seed | 0) + 2252) < 0.5) tiles.push([x, y, Math.abs(x - cx) + Math.abs(y - cy)]);
+    }
+  }
+  return tiles.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
+}
+export function drawShimmer(g, world, range, now, motion) {
+  if (!range || !g.ctx || !shimmerOn(world, motion)) return 0;
+  const tiles = shimmerTiles(world, range);
+  if (!tiles.length) return 0;
+  const ctx = g.ctx, m = ctx.getTransform(), S = g.scale, W = ctx.canvas.width, H = ctx.canvas.height;
+  const tw = (p(1, 0)[0] - p(0, 1)[0]) * S, th = (p(1, 1)[1] - p(0, 0)[1]) * S, band = Math.max(1, Math.round(S * 0.5));
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = SHIMMER.alpha;
+  let drawn = 0;
+  for (const [x, y] of tiles.slice(0, SHIMMER.cap)) {
+    const q = p(x + 0.5, y + 0.5), dx = q[0] * S + m.e, dy = q[1] * S + m.f;
+    for (let k = 0; k < SHIMMER.slices; k++) {
+      const ph = (((now / SHIMMER.periodMs + k / SHIMMER.slices + hash2(x, y, 2253)) % 1) + 1) % 1;   // rising through the tile
+      const sy = Math.round(dy + th * (0.3 - 0.6 * ph)), w = Math.round(tw * 0.6 * Math.sin(Math.PI * ph)), sx = Math.round(dx - w / 2);
+      if (w < 4 || sx < 1 || sy < 0 || sx + w + 1 >= W || sy + band >= H) continue;
+      ctx.drawImage(ctx.canvas, sx, sy, w, band, sx + (k % 2 ? 1 : -1), sy, w, band);
+      drawn++;
+    }
+  }
+  ctx.restore();
+  return drawn ? 1 : 0;
+}
+
 // The cloud shadows at real time now: { x, y (tiles), r } each, drifting with the wind across the view's middle and round again.
 export function cloudsAt(world, range, now) {
   if (!range) return [];
-  const wind = windOf(world), w = range.x1 - range.x0 + 1, h = range.y1 - range.y0 + 1, span = Math.max(w, h) + 16;
+  // Version 10.0, Track L (ruling 2230): the wind drifts, and swings in a storm
+  const wind = windAt(world, now, stormSwing(world, now)), w = range.x1 - range.x0 + 1, h = range.y1 - range.y0 + 1, span = Math.max(w, h) + 16;
   const out = [];
   for (let i = 0; i < WEATHER.clouds; i++) {
     const h0 = hash2(i, 1, (world.seed | 0) + 9041), h1 = hash2(i, 2, (world.seed | 0) + 9041);
@@ -201,8 +277,8 @@ export function cloudsAt(world, range, now) {
 // A shadow is a soft cluster: each lobe is WEATHER.soft nested ellipses, each a share of the alpha, so the middle reaches about WEATHER.alpha
 // and the edge fades out instead of ending in a hard rim (a flat oval read as a rendering fault in the polish review). No clouds in the lesson:
 // over its spotlight's dimming they read as a smudge.
-export function drawWeather(g, world, range, now) {
-  let n = 0;
+export function drawWeather(g, world, range, now, motion = 'full') {
+  let n = drawShimmer(g, world, range, now, motion);                         // Version 10.0, Track L (L.7): the heat shimmer first, over the ground it ripples
   const clouds = world.lesson ? [] : cloudsAt(world, range, now), k = WEATHER.soft;
   for (const c of clouds) {
     const q = p(c.x, c.y), r = c.r * 16;
@@ -217,12 +293,15 @@ export function drawWeather(g, world, range, now) {
     n++;
   }
   if (seasonAt(world).season !== 'shemu' || !range) return n;
-  const wind = windOf(world), list = desertEdge(world), win = Math.floor(now / WEATHER.gustMs);
+  // Version 10.0, Track L (L.7): the wind drifts (windAt), and in a sandstorm it swings and the gusts thicken towards LIFE.storm.dustCap
+  const storm = stormAt(world, now), sk = storm.on ? storm.k : 0;
+  const wind = windAt(world, now, stormSwing(world, now)), list = desertEdge(world), win = Math.floor(now / WEATHER.gustMs);
+  const most = Math.round(WEATHER.gusts + (LIFE.storm.dustCap - WEATHER.gusts) * sk), share = 0.25 + 0.6 * sk;
   const segs = [];
   let gusts = 0;
-  for (let k = 0; k < list.length && gusts < WEATHER.gusts; k++) {
+  for (let k = 0; k < list.length && gusts < most; k++) {
     const i = list[(k * 7919 + win * 104729) % list.length], x = i % world.size, y = (i - x) / world.size;
-    if (!inView(x, y, range) || hash2(x, y + win, (world.seed | 0) + 9043) > 0.25) continue;
+    if (!inView(x, y, range) || hash2(x, y + win, (world.seed | 0) + 9043) > share) continue;
     const t = ((now % WEATHER.gustMs) / WEATHER.gustMs), a = p(x + 0.5 + wind.x * t * 1.2, y + 0.5 + wind.y * t * 1.2), b = p(x + 0.5 + wind.x * (t * 1.2 + 0.6), y + 0.5 + wind.y * (t * 1.2 + 0.6));
     segs.push(['M', [a[0], a[1] - 2]], ['L', [b[0], b[1] - 2]]);
     gusts++;
