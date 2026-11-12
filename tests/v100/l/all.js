@@ -4,3 +4,4 @@ import './townsfolk.test.js';
 import './crowd.test.js';
 import './riverLife.test.js';
 import './builders.test.js';
+import './night.test.js';

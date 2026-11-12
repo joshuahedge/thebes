@@ -43,6 +43,19 @@ export function lightClock(world, now, running = true, advance = true) {
   c.last = now;
   return c.t;
 }
+// Version 10.0, Track L (ruling 2201): the loop's clock as it stands, read without moving it (lightClock notes the frame's time, so a second caller in a
+// frame would stop the loop): life's sources (render/v100/*) read the hour of the day by it. 0 before a frame has drawn the world.
+export function lightPeek(world) {
+  const c = clocks.get(world);
+  return c ? c.t : 0;
+}
+// The hour of the loop's day, 0 .. 1 (0 the start of the day phase), and the light at it, for life's sources; under Still or with Day and night off,
+// noon in daylight (settings as drawLight's).
+export function dayOf(world, motion = 'full', settings = null) {
+  if (!lightOn(motion, settings)) return { u: LIGHT.day / 2, ...lightAt(LIGHT.cycleMs * LIGHT.day / 2) };
+  const t = lightPeek(world), u = (((t % LIGHT.cycleMs) + LIGHT.cycleMs) % LIGHT.cycleMs) / LIGHT.cycleMs;
+  return { u, ...lightAt(t) };
+}
 // Sets the loop's clock (a dev scene, a test): ms into the cycle.
 export function setLightClock(world, ms, now = 0) { clocks.set(world, { t: ms, last: now }); }
 
@@ -87,6 +100,9 @@ function poolSprite(radius) {
   return { canvas: c, r };
 }
 
+// Version 10.0, Track L: the warm pool for life's door glows and windows (render/v100/night.js).
+export const glowPool = (radius) => poolSprite(radius);
+
 // The street lamps: road tiles where x + y is a multiple of LAMP.streetEvery, found once per world and road version.
 const streets = new WeakMap();
 export function streetLamps(world) {
@@ -125,7 +141,15 @@ export function litStreets(world, range, g) {
   return out;
 }
 
-function drawLamps(g, world, range, frame, lamps) {
+// Version 10.0, Track L (L.6, spec 5e, ruling 2220): under Full each lamp's pool flickers gently, its alpha +-FLICKER.amp over its own period of 1 to 2 s
+// (by a hash of where it stands), never faster than about once a second; under Gentle the lights are steady.
+export const FLICKER = { amp: 0.08, periodMs: [1000, 2000] };
+export function flickerOf(x, y, now) {
+  const h = hash2(Math.round(x), Math.round(y), 2242), period = FLICKER.periodMs[0] + (FLICKER.periodMs[1] - FLICKER.periodMs[0]) * h;
+  return 1 + FLICKER.amp * Math.sin((2 * Math.PI * now) / period + h * 6.283);
+}
+function drawLamps(g, world, range, frame, lamps, now = 0, motion = 'gentle') {
+  const flick = motion === 'full';
   const ctx = frame.ctx, scale = g.scale, far = g.cssScale < LAMP.farCss;
   // (ruling 940) Far out every home would be a dot a pixel or two across, thousands of them (a Huge city at its zoom floor): one home in a few shows, more of them the nearer the view.
   const stride = !far ? 1 : g.cssScale < LAMP.farCss * 0.5 ? LAMP.farStride[0] : g.cssScale < LAMP.farCss * 0.75 ? LAMP.farStride[1] : LAMP.farStride[2];
@@ -150,11 +174,15 @@ function drawLamps(g, world, range, frame, lamps) {
       const s = poolSprite(radiusArt * scale);
       const r = radiusArt * scale;                          // the sprite's own radius scaled to the pool's
       for (let i = 0; i < list.length; i += 2) {
-        if (n < LAMP.most) { ctx.drawImage(s.canvas, list[i] * scale - r, list[i + 1] * scale - r, r * 2, r * 2); n++; } else rest.push(list[i], list[i + 1]);
+        if (n < LAMP.most) {
+          if (flick) ctx.globalAlpha = Math.min(1, lamps * flickerOf(list[i], list[i + 1], now));
+          ctx.drawImage(s.canvas, list[i] * scale - r, list[i + 1] * scale - r, r * 2, r * 2); n++;
+        } else rest.push(list[i], list[i + 1]);
       }
     };
     pools(homes, LAMP.home);
     pools(streetsAt, LAMP.street);
+    ctx.globalAlpha = lamps;
     if (rest.length) dots([rest]);
   }
   ctx.restore();
@@ -180,5 +208,5 @@ export function drawLight(g, world, range, frame, now, motion, settings) {
   ctx.fillStyle = `rgb(${m[0]},${m[1]},${m[2]})`;
   ctx.fillRect(0, 0, frame.W, frame.H);
   ctx.restore();                                           // back to the art origin's transform
-  if (l.lamps > 0.01) drawLamps(g, world, range, frame, l.lamps);
+  if (l.lamps > 0.01) drawLamps(g, world, range, frame, l.lamps, now, motion);
 }
