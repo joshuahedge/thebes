@@ -122,7 +122,11 @@ export function collectObjects(world, range, walkers = [], registry = ART, scree
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
     if (cull) { const fd = registry[`fig.${wk.kind}`]; if (fd && !cull.sees(wk.x, wk.y, fd.bounds, fd.height)) continue; }
-    out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y, dir: wk.dir, stand: Boolean(wk.stand) });   // Version 9.0 (V1): its heading and whether it stands, for its pose
+    const o = { key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y, dir: wk.dir, stand: Boolean(wk.stand) };   // Version 9.0 (V1): its heading and whether it stands, for its pose
+    if (wk.alpha !== undefined) o.alpha = wk.alpha;                            // Version 10.0, Track L (ruling 2205): a life figure fading in or out
+    if (wk.lift) o.lift = wk.lift;                                             // and one off the ground (art px): a heron rising, a builder on a course
+    if (wk.depth) o.key += wk.depth;                                           // and one drawn over what shares its depth (a fisher in his boat)
+    out.push(o);
   }
   out.sort(compareDepth);
   return out;
@@ -304,9 +308,14 @@ export function createRenderer({
       if (!sprite) continue;
       const q = p(o.x, o.y);
       if (o.id >= FIGURE_ID_BASE && isBridgeTile(world, Math.floor(o.x), Math.floor(o.y))) q[1] -= DECK.z + DECK.h;   // a figure on a bridge stands on its deck (Stage 4.5)
+      if (o.lift) q[1] -= o.lift;                                                // Version 10.0, Track L (ruling 2205)
       const [px, py] = toDevice(q[0], q[1]);
+      // Version 10.0, Track L (ruling 2205): a life figure's fade.
+      const fading = o.alpha !== undefined && o.alpha < 1;
+      if (fading) ctx.globalAlpha = o.alpha;
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);
+      if (fading) ctx.globalAlpha = 1;
       sprites++;
       const site = scaffolds && o.id < DECOR_ID_BASE ? scaffolds.get(o.id) : null;
       if (site) {                                                                // Version 9.0 (V3, ruling 1612): its poles in its own depth slot, under what stands in front
