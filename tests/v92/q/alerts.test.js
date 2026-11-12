@@ -31,7 +31,7 @@ describe('v92 q alerts: the roll-up by cause', () => {
     const flat = alertsFor(w);
     const rows = rollUpAlerts(flat);
     const codes = rows.map((x) => x.code);
-    expect(rows.length).toBe(13);   // 9.2 balance (ruling 1868): T5 asks at most 12; 13 on this fixture (Track Q measured 11). With the court's letters worth twice the favour (ruling 1865) the scripted Capital, which answers no letter, ends year 6 with a court letter and a demand both open (each past the gate's 6 months) and a low Nile: T5 NOT MET by one row
+    expect(rows.length).toBe(9);   // 10.0.1 (ruling 2369): 9 rows, T5 MET again (the year-6 city's letters and dangers fall differently with 10.0.1's raids). 9.2 balance (ruling 1868): T5 asks at most 12; 13 on this fixture (Track Q measured 11). With the court's letters worth twice the favour (ruling 1865) the scripted Capital, which answers no letter, ends year 6 with a court letter and a demand both open (each past the gate's 6 months) and a low Nile: T5 NOT MET by one row
     expect(new Set(codes).size).toBe(codes.length);
     expect(flatAlerts(rows).length).toBe(flat.length);
     const r = await rigUI({ world: w, width: 1280, height: 800 });
@@ -44,7 +44,7 @@ describe('v92 q alerts: the roll-up by cause', () => {
       r.ui.refresh();
       const li = r.root.querySelectorAll('#sheet .alert-list > li');
       expect(li.length).toBe(rows.length);
-      expect(li.length).toBe(13);   // 9.2 balance (ruling 1868): T5's at most 12 NOT MET by one on this fixture (see above)
+      expect(li.length).toBe(9);   // 10.0.1 (ruling 2369): 9 (T5 met). 9.2 balance (ruling 1868): T5's at most 12 NOT MET by one on this fixture (see above)
     } finally { r.cleanup(); }
   });
 

@@ -30,10 +30,11 @@ describe('v90 balance T1 the Builder\'s great-work run', () => {
     // 9.2 balance (rulings 1857, 1861): T1 was MET on 9.1 (won on day 6,235, 713 the lowest, High 3 and Normal 3). Track S's branch measured it not won (-51,278): the grand
     // years' advice had put a jeweller on the temple's footprint, so the temple was never founded (fixed in greatWorkRun.js foundTemple, ruling 1857). With the court's letters
     // worth twice the favour (ruling 1865) the run is not won by day 7,200 (T1 NOT MET; the Steady's 6,388), its treasury never below 1,587, High 1 and Normal 1 (ruling 1867).
-    expect(r.won).toBe(null);
-    expect(Math.round(r.lowestGold)).toBe(1587);
+    // 10.0.1 (ruling 2369): T1 MET again: won on day 5,918 (the Steady's margin run: 6,217), never under 812, every raid beaten, High 3 and Normal 3 (9.2: not won, 1,587, 1 and 1).
+    expect(r.won && r.won.day).toBe(5918);
+    expect(Math.round(r.lowestGold)).toBe(812);
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
-    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([1, 1]);
+    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([3, 3]);
   });
 });
 
@@ -58,6 +59,6 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
   it('on seed 5 with the player\'s habits: beats all 13 raids, as the Steady does (T3 met)', () => {
     const s5 = greatDangerRun(5, { habits: true, heir: 'unconquered', adapt: true });
     expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
-    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -4735]);   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
+    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -9559]);   // 10.0.1 (ruling 2369): -9,559 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
   });
 });

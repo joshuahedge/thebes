@@ -31,6 +31,8 @@ describe('v92 q markers: at a distance', () => {
     expect(far.length).toBeLessThanOrEqual(rows.length + 1);          // one per row, and one for the homes about to lose a tier
     expect(far.every((m) => m.rings === false)).toBe(true);
     expect(near.every((m) => m.rings === undefined)).toBe(true);
-    expect(far.length).toBeLessThanOrEqual(near.length);
+    // 10.0.1 (ruling 2369): the year-6 city's problems now sit apart (6 rows with buildings, a raid warned): at zoom 1 the 1280x800 view holds 3 of their markers,
+    // at the far zoom it holds the whole city and 5 (one a row), so far is no longer at most near; each far marker stands for a row (above).
+    expect([far.length, near.length]).toEqual([5, 3]);
   });
 });

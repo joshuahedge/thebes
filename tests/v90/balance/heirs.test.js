@@ -116,7 +116,7 @@ describe('v90 balance T4 each strength and each weakness shows, on the capital r
 describe('v90 balance T5 the score at year 6 of the capital run', () => {
   it('scores every heir\'s own run within 8% of the Steady\'s, never below 0 gold', () => {
     const steady = scoreOf(capitalOf('steady').r.w).total;
-    expect(steady).toBe(340);   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795, 1808): was 360 (score v2; v3 counts the terms that have started, and the crowded term dropped from the sickness risk)
+    expect(steady).toBe(341);   // 10.0.1 (ruling 2369): 341 (was 340)   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795, 1808): was 360 (score v2; v3 counts the terms that have started, and the crowded term dropped from the sickness risk)
     for (const heir of HEIRS) {
       const { r } = capitalOf(heir);
       const total = scoreOf(r.w).total;
