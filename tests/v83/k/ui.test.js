@@ -405,6 +405,9 @@ function town(spare) {
 describe('v83 k ui: the two Advice fixes', () => {
   it('a bazaar\'s low granary that a far store can keep stocked: the alert names it, Show me opens the granary at that food, and City advice says so', async () => {
     const { w, bazaar, store, farGranary } = town(500);
+    // 10.0.1 (ruling 2368): left with no orders, a granary whose bazaar has run out fetches the food by itself (src/sim/carts.js autoFetchMap) and Advice asks for no
+    // order; an order of the player's own on it (figs here) makes it a store the player runs, and the Keep stocked item is the player's to act on.
+    store.orders = { figs: { fetch: 20 } };
     const a = bazaarFoodProblem(w, bazaar);
     const len = a.spare.len;
     expect(a).toEqual({ code: 'bazaar_empty', id: bazaar.id, reason: 'granary_low', store: store.id, maker: 'none', spare: { id: farGranary.id, good: 'grain', len, spare: 500 } });

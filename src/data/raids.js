@@ -49,9 +49,11 @@ export const SCOUTS = { days: 30, min: 2, max: 3 };
 export const SPOILS = { share: 0.25, days: 360 };
 
 // Units (spec 4.13): hit points, tiles moved a day, damage dealt a day.
+// Version 10.0.1, Track S (S.2, ruling 2357): raiders 1.5 tiles a day (was 1), soldiers 3 (was 2), so the ratio holds; a band moves a fraction of a tile
+// a day by carrying it over (src/sim/raids.js bandDay: 1.5 is three tiles every two days).
 export const UNITS = {
-  raider: { hp: 10, speed: 1, damage: 2 },
-  soldier: { hp: 12, speed: 2, damage: 3 },
+  raider: { hp: 10, speed: 1.5, damage: 2 },
+  soldier: { hp: 12, speed: 3, damage: 3 },
 };
 
 // Defences (spec 4.13). Wall and gate prices are BUILDINGS.wall.cost and BUILDINGS.gate.cost (per tile, times the
@@ -62,7 +64,7 @@ export const DEFENCE = {
   towerOnWallHp: 80,         // a wall tile with a tower on it
   towerRange: 4,             // straight-line tiles
   towerDamage: 4,            // a day, times the tower's staffing ratio, to the nearest raider in range
-  patrol: 8,                 // straight-line tiles from the barracks' centre
+  // Version 10.0.1, Track S (S.1, ruling 2355): no patrol (was 8 straight-line tiles from the barracks' centre): soldiers go to the nearest raider anywhere.
   soldiersPerBarracks: 4,
   trainDays: 30,             // days to train one soldier at full staff (slower when short-staffed, none below 25%)
   soldierPay: 8,             // gold per soldier per month, in peace too and from a paused barracks

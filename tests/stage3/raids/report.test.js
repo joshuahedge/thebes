@@ -28,14 +28,16 @@ describe('s3 raids report', () => {
     expect(lost.last.stolen).toBeGreaterThan(0);
     expect(lost.last.stolen).toBe(lost.w.tally.goldStolen);
     const beaten = raided(true);
-    expect([beaten.last.won, beaten.last.towers, beaten.last.byTowers, beaten.last.stolen, beaten.last.burned]).toEqual([true, 1, 3, 0, 0]);
+    // Version 10.0.1 (ruling 2358): at 1.5 tiles a day one raider lives to strike the storehouse once (30 gold) before the tower fells it (was 0 stolen).
+    expect([beaten.last.won, beaten.last.towers, beaten.last.byTowers, beaten.last.stolen, beaten.last.burned]).toEqual([true, 1, 3, 30, 0]);
   });
   it('keeps the contract fields in raid.last and sends a copy of it with raid_end', () => {
     const { w, end, last } = raided(true);
     for (const k of ['index', 'dir', 'size', 'won', 'byTowers', 'bySoldiers', 'towers', 'burned', 'stolen', 'day']) expect(k in last).toBe(true);
     expect([last.index, last.day]).toEqual([0, w.day]);
     expect([end.won, end.report]).toEqual([last.won, last]);
+    const kept = last.stolen;   // Version 10.0.1 (ruling 2358): 30 now (was 0), so the copy is checked against what the report held
     end.report.stolen = 999;
-    expect(last.stolen).toBe(0);                                                       // the event's copy is the UI's to keep
+    expect(last.stolen).toBe(kept);                                                    // the event's copy is the UI's to keep
   });
 });

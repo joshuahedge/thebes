@@ -25,7 +25,7 @@ import { checkTiles } from './commands.js';
 import { routeRoad } from './route.js';
 import { isUnlocked } from './progression.js';
 import { roadReach, reachDistance } from './reach.js';
-import { roundTripDays, storesOf, surplusOf, roadLen, canStaff, orderOf } from './carts.js';
+import { roundTripDays, storesOf, surplusOf, roadLen, canStaff, orderOf, autoFetchMap } from './carts.js';
 import { buildingsInReach } from './reach.js';
 import { storeAccepts } from './production.js';
 import { MONUMENT } from '../data/monuments.js';
@@ -323,10 +323,14 @@ export function adviceFixItems(world, alerts, out) {
 // Advice never suggests what the sim would refuse: the store named takes the good in (storeAccepts), can send its cart (canStaff), has no order for it yet
 // (a set order is already the answer), and a source can spare one (setFetch then finds one and sets it; setSource then accepts that source).
 const SITE_GOOD = { no_stone: 'stone', no_bricks: 'bricks' };
+// Version 10.0.1, Track S (S.4, ruling 2365): never for a store that already fetches the good for its neighbours by itself (src/sim/carts.js autoFetchMap).
 export function keepStockedAdvice(world, alerts, out) {
+  let auto = null;
+  const covered = (s, good) => { if (!auto) auto = autoFetchMap(world); return auto.has(s.id) && auto.get(s.id).has(good); };
   for (const a of alerts) {
     if (a.code === 'bazaar_empty' && a.reason === 'granary_low' && a.spare && world.buildings[a.store]) {
       const s = world.buildings[a.store];
+      if (covered(s, a.spare.good)) continue;
       out.push({
         key: `keep_stocked:bazaar:${s.id}`, kind: 'keep_stocked', weight: KEEP_ADVICE.bazaar, count: 1, id: s.id,
         data: { case: 'bazaar', store: s.id, bazaar: a.id, good: a.spare.good, from: a.spare.id, len: a.spare.len, spare: a.spare.spare },

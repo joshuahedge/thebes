@@ -803,7 +803,7 @@ Object.assign(ALERT_TEXT, {
     const phase = alert.phase || (a ? a.phase : 'attack');
     const raiders = plural(alert.left, 'raider', 'raiders');
     if (phase === 'retreat') return { title: `Raid from ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
-    const fix = `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; soldiers fight within ${raidsData.DEFENCE.patrol} tiles of their barracks`;
+    const fix = V1001S_TEXT.raidFix(raidsData.DEFENCE.towerRange, 'soldiers');   // Version 10.0.1, Track S (ruling 2355): was "soldiers fight within 8 tiles of their barracks"
     return { title: phase === 'leave' ? `Raid from ${dir}: ${raiders} leaving` : `Raid from ${dir}: ${raiders}`, fix };
   },
 });
@@ -2347,9 +2347,9 @@ Object.assign(ALERT_TEXT, {
     const a = world.raid.active, home = armUnitsAtHome(world);
     if ((alert.phase || (a ? a.phase : 'attack')) === 'retreat' || !(home.archer > 0 || home.chariot > 0)) return out;
     const kinds = Object.keys(armUnitPlural).filter((k) => home[k] > 0);
-    const reaches = kinds.map((k) => armUnits[k].patrol), lo = Math.min(...reaches), hi = Math.max(...reaches);
     const who = kinds.length === 1 ? `your ${armUnitPlural[kinds[0]]}` : 'your units';
-    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${who} go out within ${lo === hi ? lo : `${lo} to ${hi}`} tiles` };
+    // Version 10.0.1, Track S (ruling 2355): units have no patrol now ("go out within 8 to 12 tiles" before); they go after raiders anywhere.
+    return { ...out, fix: V1001S_TEXT.raidFix(raidsData.DEFENCE.towerRange, who) };
   },
 });
 // The money sheets' row for every unit's pay (soldiersPayOf: soldiers, archers and chariots at home, ruling 386).
@@ -4918,3 +4918,15 @@ export const compactDateText = ({ year, month, day }) => `Y${year} · M${month} 
 export const V100M_TEXT = {
   cityPage: 'Your city',   // S8: the one title of the City page, over its Messages and City tabs (it was "Messages and advice" on one and "City summary" on the other)
 };
+// Version 10.0.1, Track S (the rules: defenders go anywhere, faster raids, storehouses that fetch for their neighbours; rulings 2355-2374). Track S writes only
+// between this header and the next Version 10.0.1 header.
+export const V1001S_TEXT = {
+  // S.1 (ruling 2355): units have no patrol radius; the barracks', range's and stables' Patrol row and the raid alert's fix say so.
+  anywhere: 'Anywhere on the map',
+  raidFix: (towerRange, who) => `Towers hit raiders within ${towerRange} tiles; ${who} go after raiders anywhere`,
+  patrolLine: 'Goes out to the nearest raider, anywhere on the map',
+  // S.4 (ruling 2362): a storehouse or granary with no orders of its own that keeps nearby workshops and bazaars stocked (src/sim/carts.js autoOrdersOf).
+  // for: 'workshops' | 'bazaars' | 'both'; goods: the goods' ids in the store's own order.
+  fetchingFor: (who, goods) => `Fetching for nearby ${{ workshops: 'workshops', bazaars: 'bazaars', both: 'workshops and bazaars' }[who]}: ${goods.map(goodWord).join(', ')}`,
+};
+Object.assign(S46_ARMY_TEXT, { patrolLine: () => V1001S_TEXT.patrolLine });

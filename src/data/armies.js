@@ -12,16 +12,18 @@ import { UNITS, DEFENCE } from './raids.js';
 //   speed       tiles walked (or driven) a day
 //   damage      dealt a day to one enemy, times the matchup (MATCHUPS) and, for chariots, the horses' feed (ARMY.hungry)
 //   range       an archer shoots an enemy up to this many tiles away (straight line); the others strike only beside one
-//   patrol      the unit goes out to enemies within this many tiles of its building's centre
+//   (patrol     Version 10.0.1, Track S (S.1, ruling 2355): gone; it was the reach from the building's centre a unit went out within (8, 10, 12). Every
+//               unit now goes out to the nearest raider anywhere on the map: src/sim/combat.js combatDay.)
 //   perBuilding units one building keeps (it trains another when one is wounded or leaves service)
 //   trainDays   days to train one at full staff (slower when short of workers, none below 25%)
 //   pay         gold a month for each unit at home, in peace too; units away at the capital are not paid
 //   grain       chariots only: grain each chariot's horses eat a month (armyMonth), from the buildings that store grain (feedTypes: granaries)
 // The soldier's numbers are Stage 3's (UNITS.soldier, DEFENCE), read from there so the two never disagree.
+// Version 10.0.1, Track S (S.2, ruling 2357): every kind's speed x 1.5 with the raiders' (archer 2 -> 3, chariot 3 -> 4.5; the soldier's is UNITS').
 export const UNIT_TYPES = {
-  soldier: { building: 'barracks', hp: UNITS.soldier.hp, speed: UNITS.soldier.speed, damage: UNITS.soldier.damage, range: 0, patrol: DEFENCE.patrol, perBuilding: DEFENCE.soldiersPerBarracks, trainDays: DEFENCE.trainDays, pay: DEFENCE.soldierPay },
-  archer: { building: 'archery_range', hp: 8, speed: 2, damage: 2, range: 3, patrol: 10, perBuilding: 4, trainDays: 30, pay: 6 },   // ruling 431: pay 6 (was 8), as an archer has two-thirds of a soldier's hp and damage
-  chariot: { building: 'stables', hp: 16, speed: 3, damage: 4, range: 0, patrol: 12, perBuilding: 3, trainDays: 45, pay: 10, grain: 3 },
+  soldier: { building: 'barracks', hp: UNITS.soldier.hp, speed: UNITS.soldier.speed, damage: UNITS.soldier.damage, range: 0, perBuilding: DEFENCE.soldiersPerBarracks, trainDays: DEFENCE.trainDays, pay: DEFENCE.soldierPay },
+  archer: { building: 'archery_range', hp: 8, speed: 3, damage: 2, range: 3, perBuilding: 4, trainDays: 30, pay: 6 },   // ruling 431: pay 6 (was 8), as an archer has two-thirds of a soldier's hp and damage
+  chariot: { building: 'stables', hp: 16, speed: 4.5, damage: 4, range: 0, perBuilding: 3, trainDays: 45, pay: 10, grain: 3 },
 };
 export const UNIT_KINDS = Object.keys(UNIT_TYPES);
 // The building type -> the unit kind it trains.
@@ -42,14 +44,15 @@ export const UNIT_OF_BUILDING = Object.fromEntries(UNIT_KINDS.map((k) => [UNIT_T
 //   landWithin   boats land on a river bank within this many tiles of a building (ruling 384)
 export const ENEMY_TYPES = {
   foot: { fromRaid: 1, hp: UNITS.raider.hp, damage: UNITS.raider.damage, speed: UNITS.raider.speed, breaksWalls: true },
-  archer: { fromRaid: 3, hp: 8, damage: 2, speed: 1, breaksWalls: false, range: 4 },
-  chariot: { fromRaid: 6, hp: 14, damage: 3, speed: 2, breaksWalls: false, charge: 3 },
+  // Version 10.0.1, Track S (S.2, ruling 2357): speeds x 1.5 (archer 1 -> 1.5, chariot 2 -> 3, elephant 1 -> 1.5; foot and boat read UNITS.raider's 1.5).
+  archer: { fromRaid: 3, hp: 8, damage: 2, speed: 1.5, breaksWalls: false, range: 4 },
+  chariot: { fromRaid: 6, hp: 14, damage: 3, speed: 3, breaksWalls: false, charge: 3 },
   boat: { fromRaid: 5, hp: UNITS.raider.hp, damage: UNITS.raider.damage, speed: UNITS.raider.speed, breaksWalls: true, landWithin: 4 },
   // Version 8.4, Track E (rulings 1500-1503): the war elephant. wallDamage: what it deals the wall in its band's way a day (others deal their
   // damage); trample: its damage goes to every unit beside it, not one. It comes as ELEPHANTS says, never by MIX's shares.
   // Escalation by years (ruling 1531): fromRaid 4 counts 8.3's raids, as every row here does: stage 3, about 12 years after the clock starts, when 8.4's
   // clock brought its 8th raid (design Q14: "about 12 to 13 years after the clock starts"). It was 8, counted in 8.4's raids.
-  elephant: { fromRaid: 4, hp: 60, damage: 3, speed: 1, breaksWalls: true, wallDamage: 6, trample: true },
+  elephant: { fromRaid: 4, hp: 60, damage: 3, speed: 1.5, breaksWalls: true, wallDamage: 6, trample: true },
 };
 export const ENEMY_KINDS = Object.keys(ENEMY_TYPES);
 // Ruling 1506: a mix always has the four 8.3 kinds; it carries elephant only when the raid brings any (absent means 0), so a raid without

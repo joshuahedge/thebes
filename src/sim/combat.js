@@ -52,6 +52,16 @@ function nearest(from, list) {
   return best;
 }
 
+// Version 10.0.1, Track S (S.1, ruling 2355): the raider a unit goes out to: the nearest to the unit anywhere on the map, ties to the lower id.
+function nearestRaider(from, list) {
+  let best = null, bd = Infinity;
+  for (const r of list) {
+    const d = dist(from, r);
+    if (d < bd || (d === bd && best && r.id < best.id)) { bd = d; best = r; }
+  }
+  return best;
+}
+
 // Moves a unit up to `by` tiles straight towards a point, stopping `short` of it.
 function stepTowards(u, to, by, short = 0) {
   const d = dist(u, to);
@@ -210,10 +220,10 @@ function breakTile(world, i) {
   if (id && world.buildings[id] && world.buildings[id].type === 'tower') removeBuilding(world, id);
 }
 
-// An archer's post (ruling 380): the standing wall tile (or a tower's tile) nearest the archer, within its patrol of its building,
-// from which the foe is in range but not beside; posts other archers took today are passed over while another is free. null when
-// none (the archer then closes to its range in the open).
-function archerPost(world, u, foe, home, taken) {
+// An archer's post (ruling 380): the standing wall tile (or a tower's tile) nearest the archer from which the foe is in range but not
+// beside; posts other archers took today are passed over while another is free. null when none (the archer then closes to its range in
+// the open). Version 10.0.1, Track S (S.1, ruling 2355): any such post, not only one within a patrol of its building (units have none now).
+function archerPost(world, u, foe, taken) {
   const def = UNIT_TYPES.archer, n = world.size, r = Math.ceil(def.range);
   let best = null, bd = Infinity, free = null, fd = Infinity;
   for (let y = Math.floor(foe.y) - r; y <= Math.floor(foe.y) + r; y++) for (let x = Math.floor(foe.x) - r; x <= Math.floor(foe.x) + r; x++) {
@@ -222,7 +232,7 @@ function archerPost(world, u, foe, home, taken) {
     const tower = world.occ[i] && world.buildings[world.occ[i]] && world.buildings[world.occ[i]].type === 'tower';
     if (!(world.wall[i] > 0) && !tower) continue;
     const pt = { x: x + 0.5, y: y + 0.5 }, df = dist(pt, foe);
-    if (df > def.range || df <= BESIDE + 0.25 || dist(pt, home) > def.patrol) continue;
+    if (df > def.range || df <= BESIDE + 0.25) continue;
     const d = dist(pt, u);
     if (d < bd) { bd = d; best = pt; }
     if (!taken.has(i) && d < fd) { fd = d; free = { ...pt, i }; }
@@ -234,8 +244,8 @@ function archerPost(world, u, foe, home, taken) {
 // One day of fighting while a raid is under way (spec 4.13, rulings 340-341, 380-389), in this order:
 //   towers: each working tower deals DEFENCE.towerDamage x its staffing ratio to the nearest raider within
 //     DEFENCE.towerRange of its centre, and the shot is kept in raid.active.shots ({ from, to, by: 'tower' } points) for the arrows;
-//   units: each unit with a raider within its kind's patrol of its building goes out ('out') to the nearest one; with none in its
-//     patrol it walks home. A soldier beside it deals its damage, else walks up to its speed towards it. An archer makes for its post
+//   units: each unit goes out ('out') to the nearest raider anywhere on the map (Version 10.0.1, Track S, ruling 2355: it was the nearest
+//     within its kind's patrol of its building); with none left it walks home. A soldier beside it deals its damage, else walks up to its speed towards it. An archer makes for its post
 //     (archerPost) or, with none, for a spot at its range, then shoots the foe if it is within range (a shot by 'archer'). A chariot
 //     beside it deals its damage, else drives towards it (it cannot pass a wall, gate or water);
 //   raiders: each raider beside a unit deals its kind's damage to the nearest. Otherwise an enemy archer shoots the nearest tower
@@ -279,13 +289,14 @@ export function combatDay(world, events = null) {
   const fought = new Set();
   const posts = new Set();
   for (const s of world.soldiers) {
-    const home = homeOf(world, s), def = unitDef(s), kind = kindOf(s), shuns = SHUNS[kind] || [];
+    const def = unitDef(s), kind = kindOf(s), shuns = SHUNS[kind] || [];
     // Version 8.4, Track E (ruling 1501): a kind never goes out to the enemies it shuns (your chariots to a war elephant): the nearest other one, or none.
-    const foe = nearest(s, a.raiders.filter((r) => alive(r) && dist(home, r) <= def.patrol && !shuns.includes(enemyOf(r))));
+    // Version 10.0.1, Track S (S.1, ruling 2355): the nearest raider anywhere on the map (no patrol of home any more); with none left, home.
+    const foe = nearestRaider(s, a.raiders.filter((r) => alive(r) && !shuns.includes(enemyOf(r))));
     if (!foe) { if (s.task !== 'wait') walkHome(world, s); continue; }
     s.task = 'out';
     if (kind === 'archer') {
-      const post = archerPost(world, s, foe, home, posts);
+      const post = archerPost(world, s, foe, posts);
       if (post) stepFoot(world, s, post, def.speed);
       else if (dist(s, foe) > def.range) stepFoot(world, s, foe, def.speed, def.range - 0.2);
       if (dist(s, foe) <= def.range) {

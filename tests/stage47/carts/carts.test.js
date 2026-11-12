@@ -3,7 +3,7 @@
 // a demolished home or source, save and load, determinism, the words, the house tip, the first and the tip's registration.
 import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
-import { cartDay, setFetch, clearFetch, fetchStatus, fetchPreview, fetchSourceId, findSource, roadLen, tripTimes, legDays, cartOf, cartPath, cartFraction, farGoodTip, compass, ordersOf, cartsUnlocked, surplusOf } from '../../../src/sim/carts.js';
+import { cartDay, setFetch, clearFetch, fetchStatus, fetchPreview, fetchSourceId, findSource, roadLen, tripTimes, legDays, cartOf, cartPath, cartFraction, farGoodTip, compass, ordersOf, cartsUnlocked, surplusOf, autoFetchFor } from '../../../src/sim/carts.js';
 import { tickDay, advanceDays } from '../../../src/sim/clock.js';
 import { demolishAt, setAccept, setPaused, previewDemolishTiles, demolishTiles } from '../../../src/sim/commands.js';
 import { removeBuilding } from '../../../src/sim/world.js';
@@ -673,10 +673,14 @@ describe('s47 carts: homes waiting on a good only a far store holds (the tip)', 
     expect(farGoodTip(none.w)).toBe(null);
   });
 
+  // Version 10.0.1, Track S (ruling 2365): a storehouse with no orders in the bazaar's reach fetches the pottery for it by itself (src/sim/carts.js autoFetchMap),
+  // so the tip is gone the moment it stands; it was there until the order was set. A store whose accept switch refuses pottery fetches none: the tip stays.
   it('a near storehouse set to Fetch the good clears the tip once its cart has been home and the bazaar has stocked up', () => {
     const { w } = homes();
-    const near = addRaw(w, 'storehouse', 16, 11, { staff: 6 });
+    const near = addRaw(w, 'storehouse', 16, 11, { staff: 6, accepts: { pottery: false } });
     expect(farGoodTip(w).good).toBe('pottery');
+    near.accepts = {};
+    expect(farGoodTip(w)).toBe(null);
     expect(setFetch(w, near.id, 'pottery', 100).ok).toBe(true);
     step(w, 12);
     expect(near.store.pottery).toBeGreaterThan(0);
@@ -718,10 +722,10 @@ describe('s47 carts: the dev scene city', () => {
     const info = buildCartsCity(w);
     expect(info.road).toBe(true);
     expect([info.far, info.farGranary, info.near].every(Boolean)).toBe(true);
-    expect(info.tip.good).toBe('pottery');
-    expect(info.tip.far).toBe(info.far);
-    expect(info.tip.count).toBeGreaterThan(10);
-    expect(info.tip.len).toBeGreaterThan(BUILDINGS.bazaar.supplyReach);
+    // Version 10.0.1, Track S (ruling 2365): the near storehouse, with no order, already fetches the pottery for the bazaars by itself (autoFetchFor), so the
+    // far-good tip is not raised (it was: pottery, the far store, more than 10 homes, beyond the bazaars' supply reach).
+    expect(info.tip).toBe(null);
+    expect(autoFetchFor(w, w.buildings[info.near]).goods).toContain('pottery');
     expect(w.buildings[info.near].orders).toEqual({});                                // no order yet
     expect(w.buildings[info.near].type).toBe('storehouse');
     expect(roadLen(w, w.buildings[info.near], w.buildings[info.far])).toBeGreaterThan(BUILDINGS.bazaar.supplyReach);
