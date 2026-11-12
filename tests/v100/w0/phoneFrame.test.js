@@ -11,6 +11,7 @@ import { createRenderer } from '../../../src/render/renderer.js';
 import { createCamera, visibleTileRange } from '../../../src/render/camera.js';
 import { createSpriteCache, DEVICE_BUDGETS } from '../../../src/render/spriteCache.js';
 import { walkersAt } from '../../../src/render/walkers.js';
+import { createTerrainBaker } from '../../../src/render/terrainBaker.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { makeCanvas } from '../../helpers/canvas.js';
 
@@ -32,7 +33,8 @@ export function measureFrames(world, { width, height, dpr, kind, frames = FRAMES
   const view = { width, height };
   const canvas = makeCanvas(width * dpr, height * dpr), ctx = canvas.getContext('2d');
   const { sprites, caches } = DEVICE_BUDGETS[kind];
-  const renderer = createRenderer({ canvas, dpr, cachesBudget: caches, spriteCache: createSpriteCache({ maxBytes: sprites }) });
+  // Version 10.0, Track P (ruling 2286): the device's terrain baker too (a phone's chunk ceiling and bake cap), as the device's own game makes it.
+  const renderer = createRenderer({ canvas, dpr, cachesBudget: caches, spriteCache: createSpriteCache({ maxBytes: sprites }), baker: createTerrainBaker({ kind }) });
   const mid = world.size / 2, sweep = Math.min(SWEEP, Math.floor(world.size / 2) - 4);
   const cam = createCamera({ x: mid, y: mid, zoom, size: world.size });
   const at = (i) => { const k = i % (4 * sweep); return k < sweep ? k : k < 3 * sweep ? 2 * sweep - k : k - 4 * sweep; };   // 0 .. +sweep .. -sweep .. 0
