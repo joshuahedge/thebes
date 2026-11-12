@@ -7,6 +7,7 @@ import { rigUI } from '../../helpers/uiWorld.js';
 import { contrastIn } from '../../helpers/contrast.js';
 import { makeCanvas, pixelAt } from '../../helpers/canvas.js';
 import { addRaw } from '../../helpers/testWorld.js';
+import { GROUND } from '../../helpers/ground.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { LIGHT, NIGHT } from '../../../src/data/seasons.js';
 import { TERRAIN, UI } from '../../../src/render/art/palette.js';
@@ -19,7 +20,6 @@ const NIGHT_MS = (LIGHT.day + LIGHT.dusk + LIGHT.night / 2) * LIGHT.cycleMs;
 const lum = (c) => { const f = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
 const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
 const rgbOf = (hex) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-const GROUND = ['sand', 'grass', 'grassSoft', 'fertile', 'bank', 'bankSecond', 'water', 'waterDeep', 'shallows', 'road', 'clay', 'rocky', 'hills', 'plot', 'field', 'wadi', 'beltRock'];
 
 describe('v70 s night: the top bar', () => {
   it('keeps every word of the top bar at 4.5:1 or better at night, unchanged from the day, on a phone at 375 px and 150% text', async () => {

@@ -21,7 +21,7 @@ describe('v100 q rest: the bar and the families', () => {
     ['/src/render/art/defence.js', 'tower', ['shadeWall(', 'contactLine(']],
     ['/src/render/art/ferry.js', 'ferryBoat', ['waterShadow(']],
     ['/src/render/art/trade.js', 'tradeBoat', ['waterShadow(']],
-    ['/src/render/art/nature.js', 'dryShrub', ['INK']],
+    ['/src/render/art/nature.js', 'dryShrub', ['g.ell([c[0] + 0.2, c[1] + 0.3], 2.4, 0.6, INK, { alpha: 0.16 })']],
     ['/src/render/v90/scaffold.js', 'drawScaffold', ['SCAFFOLD.shade']],
   ]) {
     it(`${fn} (${file.split('/').pop()}) draws through ${calls.join(' and ')}`, async () => {

@@ -7,6 +7,7 @@ import { TEXT_PAIRS, contrastRatio, TOKENS } from '../../../src/ui/theme.js';
 import { NIGHT, SEASON_LOOK } from '../../../src/data/seasons.js';
 import { TERRAIN, UI } from '../../../src/render/art/palette.js';
 import { tintFor } from '../../../src/render/light.js';
+import { GROUND } from '../../helpers/ground.js';
 
 const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -17,7 +18,6 @@ const wash = (c, colour, alpha) => c.map((v, i) => v * (1 - alpha) + colour[i] *
 const luma = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 
 const deepest = tintFor({ dark: 1, warm: 0 });
-const GROUND = ['sand', 'grass', 'grassSoft', 'fertile', 'bank', 'bankSecond', 'water', 'waterDeep', 'shallows', 'road', 'clay', 'rocky', 'hills', 'plot', 'field', 'wadi', 'beltRock'];   // tests/v70/s/night.test.js's list
 
 describe('v100 q legibility: the map under the deepest night and the strongest washes', () => {
   it('the deepest tint is the one the light pass holds (NIGHT.rgb)', () => {

@@ -282,13 +282,13 @@ export function porch(g, at, w, h, C = ['#F4EDDF', '#E7DDCC', '#C3B8C6']) {
   g.poly([A2, B2, [B2[0], B2[1] + 1.3], [A2[0], A2[1] + 1.3]], C[1], { outline: true });
 }
 
-// A gilded cap on a landmark: a gold dome with a lit shoulder and a small finial. at is the art point at the dome's base centre; r its half width.
 // Version 10.0 (Track Q, ruling 2142): what a hull casts on the water, the water's own foot shadow: a darker ellipse under it (alpha 0.25, the deep water's colour), at (x, y) the keel's middle,
-// rx the half length of the hull. The raider boat and the fishing boat stand in it.
+// rx the half length of the hull. The hippo, the fishing boat, the ferries and the trade boats stand in it.
 export function waterShadow(g, x, y, rx = 8, ry = rx * 0.28) {
   g.ell([x + rx * 0.12, y + 0.8], rx, ry, TERRAIN.waterDeep, { alpha: 0.25 });
 }
 
+// A gilded cap on a landmark: a gold dome with a lit shoulder and a small finial. at is the art point at the dome's base centre; r its half width.
 export function gildedCap(g, at, r) {
   const [x, y] = at;
   g.ell([x, y], r, r * 0.35, GOLDC[2]);
