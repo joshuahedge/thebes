@@ -82,9 +82,32 @@ export function startCamera(world, view, zoom = 1) {
   const m = Math.min(OFF_MAP_SHARE * halfExtentTiles(view, cam.zoom), size / 2);
   const gaps = [[e.x, 'x', 1], [size - 1 - e.x, 'x', -1], [e.y, 'y', 1], [size - 1 - e.y, 'y', -1]];   // [distance to the edge, axis, inward direction]
   const [, axis, dir] = gaps.reduce((a, b) => (b[0] < a[0] ? b : a));
-  cam[axis] += dir * m / 2;
-  holdInMap(cam, view);
-  return { x: cam.x, y: cam.y, zoom: cam.zoom };
+  // Ruling 2119: m / 2 inward is the least nudge; where that still leaves 30% or more of the screen off the map (a tall phone view, zoomed out) the centre goes further in, a
+  // quarter of m at a time, while the diamond stays on screen with a margin; the first that fits is taken, else the one with the least off-map.
+  const base = { x: cam.x, y: cam.y };
+  const [dx, dy] = end;
+  let best = null;
+  for (let i = 0; i <= 6; i++) {
+    const c = { x: base.x, y: base.y, zoom: cam.zoom, mapSize: size };
+    c[axis] += dir * m * (0.5 + i * 0.25);
+    holdInMap(c, view);
+    const [sx, sy] = tileToScreen(c, view, dx + 0.5, dy + 0.5);
+    if (!(sx > START_DIAMOND_MARGIN && sx < view.width - START_DIAMOND_MARGIN && sy > START_DIAMOND_MARGIN && sy < view.height - START_DIAMOND_MARGIN)) continue;
+    const share = offMapGrid(c, view, size);
+    if (!best || share < best.share) best = { share, c };
+    if (share < START_OFF_MAP_MAX) break;
+  }
+  if (!best) { cam[axis] += dir * m / 2; holdInMap(cam, view); return { x: cam.x, y: cam.y, zoom: cam.zoom }; }
+  return { x: best.c.x, y: best.c.y, zoom: best.c.zoom };
+}
+const START_DIAMOND_MARGIN = 24, START_OFF_MAP_MAX = 0.27;   // px the entry diamond keeps from the screen's edge; the share off the map startCamera aims under (the test's bound is 0.3)
+function offMapGrid(cam, view, size, n = 24) {
+  let off = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const t = screenToTile(cam, view, ((i + 0.5) / n) * view.width, ((j + 0.5) / n) * view.height);
+    if (t.x < 0 || t.y < 0 || t.x >= size || t.y >= size) off++;
+  }
+  return off / (n * n);
 }
 
 // Whether any corner of the bounds (or the buildings' height over them) is outside the free map at the camera as it is.

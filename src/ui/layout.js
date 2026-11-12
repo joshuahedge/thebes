@@ -26,11 +26,12 @@ function windowSubscribe(fn) {
 
 // Calls onChange with the layout now and whenever the size source crosses a breakpoint. Rotation keeps the
 // camera and any placement in progress because nothing here touches them (spec 6.2).
-export function watchLayout({ root, getSize = windowSize, subscribe = windowSubscribe, onChange = null }) {
+export function watchLayout({ root, getSize = windowSize, subscribe = windowSubscribe, onChange = null, onSize = null }) {
   let current = null;
   const check = () => {
     const { width, height } = getSize();
     root.classList.toggle('narrow', width < NARROW_PX);
+    if (onSize) onSize({ width, height });   // every resize or turn, not only a change of layout
     const next = pickLayout(width, height);
     if (next === current) return;
     current = next;

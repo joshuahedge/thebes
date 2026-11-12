@@ -42,18 +42,37 @@ describe('v100 f start frame: the first view keeps the map on screen', () => {
     expect(sy).toBeGreaterThan(view.height / 2);       // so the diamond sits below the middle of the screen, toward the edge
     expect(OFF_MAP_SHARE).toBe(0.7);
   });
+  it('a resize or a turn re-holds the camera for the new view (ruling 2119)', async () => {
+    const r = await bootAt(390, 844);
+    try {
+      startNewCity(r.root.querySelector('#title'));
+      const g = r.api.game();
+      g.cam.x = 4; g.cam.y = 4;                               // as far into the corner as a phone holds it (a smaller margin than a big window's)
+      holdInMap(g.cam, { width: 390, height: 844 });
+      const before = { x: g.cam.x, y: g.cam.y };
+      r.resize(1920, 1080);
+      const want = holdInMap({ ...g.cam, x: before.x, y: before.y }, { width: 1920, height: 1080 });
+      expect(want.x > before.x || want.y > before.y).toBe(true);   // the bigger view's margin is deeper: the camera had to move
+      expect(Math.abs(g.cam.x - want.x) < 1e-6 && Math.abs(g.cam.y - want.y) < 1e-6).toBe(true);
+      const turned = { x: g.cam.x, y: g.cam.y };
+      r.resize(390, 844);                                      // and back: held still (a smaller margin never moves it)
+      expect(g.cam.x).toBe(turned.x); expect(g.cam.y).toBe(turned.y);
+    } finally { r.cleanup(); }
+  });
   for (const view of SIZES) {
     it(`a fresh city booted at ${view.width}x${view.height} opens held, its diamond in sight, under 30% off the map`, async () => {
       const r = await bootAt(view.width, view.height);
-      startNewCity(r.root.querySelector('#title'));
-      const g = r.api.game();
-      const held = holdInMap({ ...g.cam }, view);
-      expect(held.x).toBe(g.cam.x); expect(held.y).toBe(g.cam.y);
-      const [x, y] = diamondOf(g.world);
-      const [sx, sy] = tileToScreen(g.cam, view, x + 0.5, y + 0.5);
-      expect(sx > 0 && sx < view.width && sy > 0 && sy < view.height).toBe(true);
-      expect(offMapShare(g.cam, view, g.world.size)).toBeLessThan(0.3);
-      r.cleanup();
+      try {
+        startNewCity(r.root.querySelector('#title'));
+        const g = r.api.game();
+        const held = holdInMap({ ...g.cam }, view);
+        expect(held.x).toBe(g.cam.x); expect(held.y).toBe(g.cam.y);
+        const [x, y] = diamondOf(g.world);
+        const [sx, sy] = tileToScreen(g.cam, view, x + 0.5, y + 0.5);
+        expect(sx > 0 && sx < view.width && sy > 0 && sy < view.height).toBe(true);
+        const share = offMapShare(g.cam, view, g.world.size);
+        if (!(share < 0.3)) throw new Error(`${Math.round(share * 100)}% off the map; cam ${JSON.stringify(g.cam)} size ${g.world.size}`);
+      } finally { r.cleanup(); }
     });
   }
 });

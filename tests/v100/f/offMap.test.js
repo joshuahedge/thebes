@@ -7,6 +7,8 @@ import { createSpriteCache } from '../../../src/render/spriteCache.js';
 import { createTerrainBaker } from '../../../src/render/terrainBaker.js';
 import { TERRAIN } from '../../../src/render/art/palette.js';
 import { drawOffMap, duneStrokes, duneCanvas, OFF_MAP_HAZE, OFF_MAP_REACH, DUNE_STROKES } from '../../../src/render/v100/offMap.js';
+import { createWorld } from '../../../src/sim/world.js';
+import { startCamera } from '../../../src/ui/cameraControl.js';
 import { riverWorld } from '../../helpers/renderWorld.js';
 import { makeCanvas, pixelAt, canvasHash, hexToRgb } from '../../helpers/canvas.js';
 
@@ -88,6 +90,36 @@ describe('v100 f off-map ground: desert that pales to a haze', () => {
     drawOffMap(g, w, createCamera({ x: 21, y: 33, zoom: 1 }), { width: 200, height: 150 }, 0, { season: [] });
     expect(JSON.stringify(w)).toBe(before);
     expect(pixelAt(canvas, 5, 75)[3]).toBe(255);
+  });
+  it('a view wholly inside the map draws nothing: no fill, no gradient, no pattern (ruling 2119)', () => {
+    const w = createWorld({ seed: 11, size: 64 });
+    const calls = [];
+    const real = makeCanvas(400, 300).getContext('2d');
+    const ctx = new Proxy({}, { get: (_, name) => (name === 'canvas' ? real.canvas : (...a) => { calls.push(name); return real[name] ? real[name](...a) : undefined; }), set: () => true });
+    const view = { width: 400, height: 300 };
+    drawOffMap({ ctx, scale: 2 }, w, { x: 32, y: 32, zoom: 1, mapSize: 64 }, view, 0, { season: [] });
+    expect(calls.filter((c) => /fill|Gradient|Pattern/.test(c))).toEqual([]);
+    drawOffMap({ ctx, scale: 2 }, w, { x: -8, y: 32, zoom: 1, mapSize: 64 }, view, 0, { season: [], bake: false });   // and one over the edge does draw
+    expect(calls.some((c) => c === 'fillRect')).toBe(true);
+  });
+  it('the gradients and patterns are made once per context, not every frame (ruling 2119)', () => {
+    const w = createWorld({ seed: 11, size: 64 });
+    const real = makeCanvas(400, 300).getContext('2d');
+    const made = { grad: 0, pat: 0 };
+    const ctx = new Proxy({}, { get: (_, name) => (name === 'canvas' ? real.canvas : (...a) => { if (name === 'createLinearGradient') made.grad++; if (name === 'createPattern') made.pat++; return real[name](...a); }), set: (_, n, v) => { real[n] = v; return true; } });
+    const view = { width: 400, height: 300 };
+    for (const x of [-8, -9, -10]) drawOffMap({ ctx, scale: 2 }, w, { x, y: 32, zoom: 1, mapSize: 64 }, view, 0, { season: [], bake: false });
+    expect(made).toEqual({ grad: 8, pat: 3 });
+  });
+  it('a still frame on the first view (fresh corner, 390x844, device ratio 2) is one blit, under 4 ms (ruling 2119)', () => {
+    const world = createWorld({ seed: 11, size: 64 });
+    const view = { width: 390, height: 844 };
+    const cam = { ...startCamera(world, view, 0.54), mapSize: 64 };
+    const canvas = makeCanvas(780, 1688);
+    const ctx = canvas.getContext('2d'), g = { ctx, scale: 2 * cam.zoom * 2 };
+    const t = (fn) => { fn(); const t0 = performance.now(); for (let i = 0; i < 40; i++) { fn(); ctx.getImageData(0, 0, 1, 1); } return (performance.now() - t0) / 40; };
+    const still = t(() => drawOffMap(g, world, cam, view, 0, { season: [] }));
+    expect(still).toBeLessThan(4);     // measured 0.9 ms (8.3 before the bake): a frame where the camera did not move is one drawImage
   });
   it('fits the frame budget: a frame wholly past the map costs under 16 ms on average once warm (software canvas, the worst case: a screen of ground)', () => {
     const w = riverWorld();

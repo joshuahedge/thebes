@@ -23,10 +23,11 @@ const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":tru
 export async function bootAt(width, height, { store = createSaveStore({ idb: fakeIndexedDB(), local: null }), params = '' } = {}) {
   const shell = await mountShell(width, height);
   const history = fakeHistory();
+  let size = { width, height }, onResize = null;   // resize(w, h) moves the size the UI reads and fires its resize subscription, as a window resize or a turn does
   const api = await boot(document, window, {
     root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock: () => 1760000000000, storage: noStorage, platform: {}, envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
-    uiOptions: { getSize: () => ({ width, height }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
+    uiOptions: { getSize: () => size, subscribeResize: (fn) => { onResize = fn; return () => { onResize = null; }; }, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
     loopOptions: { raf: () => 0, caf: () => {} },
   });
-  return { api, root: shell.root, store, cleanup() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; } };
+  return { api, root: shell.root, store, resize(w, h) { size = { width: w, height: h }; if (onResize) onResize(); }, cleanup() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; } };
 }

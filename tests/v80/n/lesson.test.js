@@ -5,6 +5,7 @@ import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
 import { LESSON_SCRIPT, stepSpot, stepFrame } from '../../../src/sim/lesson.js';
 import { tileToScreen } from '../../../src/render/camera.js';
+import { FRAME_MARGIN_PX } from '../../../src/ui/cameraControl.js';
 import { V711_TEXT, D2_TEXT } from '../../../src/ui/text.js';
 import { fire } from '../../helpers/dom.js';
 import { pageAt, cardOf, rect, frame, stepIndex } from '../../v711/lessonPage.js';
@@ -14,27 +15,36 @@ const W = 390, H = 844;
 const FREE = { x: W / 2, y: H * 0.3 + (H - H * 0.3 - H * 0.34) / 2 };
 // Version 10.0 (Track F, ruling 2118): the target is framed in the middle of the free map as near as the held camera (holdInMap) allows: a lesson target close to the map's
 // edge sits up to this many px off the middle, never so far that the map's edge is let onto the screen.
-const TOL = 80;
+const TOL = 80;                 // the tower-step test below, which compares two steps
+const FRAME_TOL = 60;           // px from the ideal spot; measured worst: 58 at 390x844, 22 at 375x667 (the targets near the lesson map's edge, where holdInMap keeps the map on screen)
 const centreOf = (spot) => ({ x: spot.x + spot.w / 2, y: spot.y + spot.d / 2 });
 
 describe('v80 n lesson: the view follows each step\'s own target', () => {
-  it('every step that points at a place is framed in the middle of the free map when it begins', async () => {
-    const wrong = [];
-    for (const step of LESSON_STEPS) {
-      const s = await pageAt(step.id, { width: W, height: H });
-      try {
-        const g = s.g();
-        const spot = stepSpot(g.world, step);
-        if (!spot) continue;
-        if (stepFrame(g.world, step)) continue;   // Version 8.2 (Track L): the raid step frames the target with the towers and the raiders' side instead (tests/v82/l/targets.test.js)
-        if (step.id === 'road') continue;         // Version 9.1 (Track F, ruling 1674): nudged east so the start road's diamond is whole beside the ring (tests/v91/f/ui.test.js)
-        const c = centreOf(spot);
-        const [sx, sy] = tileToScreen(g.cam, { width: W, height: H }, c.x, c.y);
-        if (Math.abs(sx - FREE.x) > TOL || Math.abs(sy - FREE.y) > TOL) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)} not ${FREE.x},${Math.round(FREE.y)}`);
-      } finally { s.cleanup(); }
-    }
-    expect(wrong).toEqual([]);
-  });
+  // Ruling 2119: at each phone size every step's target centre lies inside the free map (below the top bar and the lesson card, above the bottom bar and dock, a margin in from
+  // the sides) and within FRAME_TOL px of the ideal spot (the middle of the free map).
+  for (const [w, h] of [[390, 844], [375, 667]]) {
+    it(`every step that points at a place is framed inside the free map, near its middle, when it begins (${w}x${h})`, async () => {
+      const wrong = [], free = { top: h * 0.3, bottom: h - h * 0.34 }, ideal = { x: w / 2, y: free.top + (free.bottom - free.top) / 2 };
+      let worst = 0;
+      for (const step of LESSON_STEPS) {
+        const s = await pageAt(step.id, { width: w, height: h });
+        try {
+          const g = s.g();
+          const spot = stepSpot(g.world, step);
+          if (!spot) continue;
+          if (stepFrame(g.world, step)) continue;   // Version 8.2 (Track L): the raid step frames the target with the towers and the raiders' side instead (tests/v82/l/targets.test.js)
+          if (step.id === 'road') continue;         // Version 9.1 (Track F, ruling 1674): nudged east so the start road's diamond is whole beside the ring (tests/v91/f/ui.test.js)
+          const c = centreOf(spot);
+          const [sx, sy] = tileToScreen(g.cam, { width: w, height: h }, c.x, c.y);
+          const off = Math.hypot(sx - ideal.x, sy - ideal.y);
+          worst = Math.max(worst, off);
+          const inside = sx >= FRAME_MARGIN_PX && sx <= w - FRAME_MARGIN_PX && sy >= free.top && sy <= free.bottom;
+          if (!inside || off > FRAME_TOL) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)}, ${Math.round(off)} px from ${ideal.x},${Math.round(ideal.y)}, ${inside ? 'inside' : 'OUTSIDE'} the free map`);
+        } finally { s.cleanup(); }
+      }
+      if (wrong.length) throw new Error(`worst ${Math.round(worst)}: ${wrong.join('; ')}`);
+    });
+  }
 
   it('after the fire step (which aims at the bazaar) the tower step moves the view to the tower\'s own tile', async () => {
     const s = await pageAt('fire', { width: W, height: H });

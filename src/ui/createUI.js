@@ -13,7 +13,7 @@ import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
-import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
+import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM, holdInMap } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
@@ -401,7 +401,8 @@ export function createUI({
   });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
-  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
+  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }),
+    onSize: () => { holdInMap(cam, view()); } });   // Version 10.0 (Track F, ruling 2119): a resize or a turn re-holds the camera in the map for the new view
   const stopVisibility = speedControl.watchVisibility();
 
   // Screen point -> tile, clamped onto the map, so drags past the edge still mean the edge tile.

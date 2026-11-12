@@ -6,7 +6,7 @@
 // land only) and the night tint (drawLight, over the whole canvas) falls on it as on everything else.
 // Cost: the band is four quads (one a side of the map), each one fill with a linear gradient across it; the dunes are a few fills of the pattern over rings of the band.
 import { p } from '../iso.js';
-import { artToScreen } from '../camera.js';
+import { artToScreen, screenToTile } from '../camera.js';
 import { TERRAIN } from '../art/palette.js';
 import { hash2 } from '../../sim/rng.js';
 import { seasonAt } from '../../sim/seasons.js';
@@ -80,8 +80,71 @@ export const outset = (size, d) => [p(-d, -d), p(size + d, -d), p(size + d, size
 
 // g: the renderer's draw (g.scale = device px per art px) on its context; cam, view: the frame's. opts.season: seasonWashes(world) (none: no wash). opts.dark is the
 // night tint's flag, kept for the signature: the tint is drawn over the whole canvas after the ground, so the off-map takes it as the land does.
+// Ruling 2119: the gradients and patterns are made once per context and kept (they sit in art px from the art origin, so a camera move is only the translation, not new gradients).
+const gradientCache = new WeakMap();   // ctx -> Map(key -> { band: [4 gradients], shade: [4 gradients] })
+const patternCache = new WeakMap();    // ctx -> Map(`${seed}|${ratio}|${variant}` -> pattern)
+function cachedFor(wm, ctx) { let m = wm.get(ctx); if (!m) { m = new Map(); wm.set(ctx, m); } return m; }
+function sideNormal(rimPts, i) {
+  const a = rimPts[i], b = rimPts[(i + 1) % 4];
+  const ex = b[0] - a[0], ey = b[1] - a[1], len = Math.hypot(ex, ey);
+  let nx = ey / len, ny = -ex / len;
+  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, cx = (rimPts[0][0] + rimPts[2][0]) / 2, cy = (rimPts[0][1] + rimPts[2][1]) / 2;
+  if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }
+  return { mx, my, nx, ny };
+}
+function gradientsFor(ctx, size, k, rim, haze, rimPts) {
+  const cache = cachedFor(gradientCache, ctx), key = `${size}|${k}|${rim}|${haze}`;
+  let set = cache.get(key);
+  if (set) return set;
+  if (cache.size > 8) cache.clear();
+  const shade = hexRgb(TERRAIN.edgeFade), band = [], shadow = [];
+  for (let i = 0; i < 4; i++) {
+    const { mx, my, nx, ny } = sideNormal(rimPts, i);
+    const L = OFF_MAP_REACH * TILE_NORMAL_ART;
+    const grad = ctx.createLinearGradient(mx * k, my * k, (mx + nx * L) * k, (my + ny * L) * k);
+    grad.addColorStop(0, rim); grad.addColorStop(1, haze);
+    band.push(grad);
+    const L2 = RIM_SHADOW.tiles * TILE_NORMAL_ART;
+    const sg = ctx.createLinearGradient(mx * k, my * k, (mx + nx * L2) * k, (my + ny * L2) * k);
+    sg.addColorStop(0, `rgba(${shade[0]},${shade[1]},${shade[2]},${RIM_SHADOW.alpha})`);
+    sg.addColorStop(1, `rgba(${shade[0]},${shade[1]},${shade[2]},0)`);
+    shadow.push(sg);
+  }
+  set = { band, shade: shadow };
+  cache.set(key, set);
+  return set;
+}
+function patternFor(ctx, seed, ratio, variant) {
+  const cache = cachedFor(patternCache, ctx), key = `${seed | 0}|${ratio}|${variant}`;
+  let pat = cache.get(key);
+  if (!pat) { pat = ctx.createPattern(duneCanvas(seed, ratio, variant), 'repeat'); cache.set(key, pat); }
+  return pat;
+}
+
+// Ruling 2119: nothing is drawn when the view is wholly inside the map (its four corners are: the map is convex); otherwise the ground is baked to an offscreen canvas keyed on
+// everything it depends on (the art origin's place on screen, the scale, the canvas, the size, the seed, the wash) and a frame where none of those moved is one drawImage.
+// opts.bake === false paints straight onto the context (what the cost tests count).
+const bakeCache = new WeakMap();   // ctx -> { canvas, key }
 export function drawOffMap(g, world, cam, view, nowMs, opts = {}) {
   const ctx = g.ctx, size = world.size, k = g.scale;
+  const inside = [[0, 0], [view.width, 0], [0, view.height], [view.width, view.height]].every(([cx, cy]) => { const t = screenToTile(cam, view, cx, cy); return t.x >= 0 && t.y >= 0 && t.x <= size && t.y <= size; });
+  if (inside) return;
+  if (opts.bake === false) { paintGround(ctx, g, world, cam, view, opts); return; }
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  const [sx, sy] = artToScreen(cam, view, 0, 0);
+  const key = `${W}|${H}|${k}|${cam.zoom}|${sx.toFixed(2)}|${sy.toFixed(2)}|${size}|${world.seed | 0}|${(opts.season || []).join(',')}|${opts.dunes !== false}`;
+  let bake = bakeCache.get(ctx);
+  if (!bake || bake.canvas.width !== W || bake.canvas.height !== H) { const c = document.createElement('canvas'); c.width = W; c.height = H; bake = { canvas: c, key: '' }; bakeCache.set(ctx, bake); }
+  if (bake.key !== key) { paintGround(bake.canvas.getContext('2d'), g, world, cam, view, opts); bake.key = key; }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.drawImage(bake.canvas, 0, 0);
+  ctx.restore();
+}
+
+function paintGround(ctx, g, world, cam, view, opts) {
+  const size = world.size, k = g.scale;
   const W = ctx.canvas.width, H = ctx.canvas.height;
   const washes = opts.season || [];
   const dpr = k / (2 * cam.zoom);                          // ART_SCALE (2) css px an art px at zoom 1
@@ -94,19 +157,11 @@ export function drawOffMap(g, world, cam, view, nowMs, opts = {}) {
   ctx.fillRect(0, 0, W, H);
   ctx.setTransform(1, 0, 0, 1, sx * dpr, sy * dpr);        // the art origin placed by the camera, as the edge band's
   const reach = OFF_MAP_REACH, rimPts = outset(size, 0);
-  const outerPts = outset(size, reach);
+  const outerPts = outset(size, reach), grads = gradientsFor(ctx, size, k, rim, haze, rimPts);
   // One quad a side of the map, from the rim to the haze's edge: a gradient across it (the edge's outward normal), rim colour to haze.
   for (let i = 0; i < 4; i++) {
     const a = rimPts[i], b = rimPts[(i + 1) % 4], a2 = outerPts[i], b2 = outerPts[(i + 1) % 4];
-    const ex = b[0] - a[0], ey = b[1] - a[1], len = Math.hypot(ex, ey);
-    let nx = ey / len, ny = -ex / len;
-    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, cx = (rimPts[0][0] + rimPts[2][0]) / 2, cy = (rimPts[0][1] + rimPts[2][1]) / 2;
-    if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }
-    const L = reach * TILE_NORMAL_ART;
-    const grad = ctx.createLinearGradient(mx * k, my * k, (mx + nx * L) * k, (my + ny * L) * k);
-    grad.addColorStop(0, rim);
-    grad.addColorStop(1, haze);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = grads.band[i];
     ctx.beginPath();
     ctx.moveTo(a[0] * k, a[1] * k); ctx.lineTo(b[0] * k, b[1] * k); ctx.lineTo(b2[0] * k, b2[1] * k); ctx.lineTo(a2[0] * k, a2[1] * k);
     ctx.closePath();
@@ -117,25 +172,17 @@ export function drawOffMap(g, world, cam, view, nowMs, opts = {}) {
   if (opts.dunes !== false) {
     const ratio = Math.max(1, Math.round(dpr)), step = reach / DUNE_THIN.length;
     for (let i = 0; i < DUNE_THIN.length; i++) {
-      ctx.fillStyle = ctx.createPattern(duneCanvas(world.seed, ratio, i), 'repeat');
+      ctx.fillStyle = patternFor(ctx, world.seed, ratio, i);
       ctx.beginPath();
       for (const pts of [outset(size, (i + 1) * step), outset(size, i * step)]) { ctx.moveTo(pts[0][0] * k, pts[0][1] * k); for (let j = 1; j < 4; j++) ctx.lineTo(pts[j][0] * k, pts[j][1] * k); ctx.closePath(); }
       ctx.fill('evenodd');
     }
   }
   // The rim's shadow: a band just outside the edge, darkest at the rim, nothing a tile out (a gradient across each side's one-tile quad).
-  const shade = hexRgb(TERRAIN.edgeFade), shadeEnd = outset(size, RIM_SHADOW.tiles);
+  const shadeEnd = outset(size, RIM_SHADOW.tiles);
   for (let i = 0; i < 4; i++) {
     const a = rimPts[i], b = rimPts[(i + 1) % 4], a2 = shadeEnd[i], b2 = shadeEnd[(i + 1) % 4];
-    const ex = b[0] - a[0], ey = b[1] - a[1], len = Math.hypot(ex, ey);
-    let nx = ey / len, ny = -ex / len;
-    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, cx = (rimPts[0][0] + rimPts[2][0]) / 2, cy = (rimPts[0][1] + rimPts[2][1]) / 2;
-    if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }
-    const L = RIM_SHADOW.tiles * TILE_NORMAL_ART;
-    const grad = ctx.createLinearGradient(mx * k, my * k, (mx + nx * L) * k, (my + ny * L) * k);
-    grad.addColorStop(0, `rgba(${shade[0]},${shade[1]},${shade[2]},${RIM_SHADOW.alpha})`);
-    grad.addColorStop(1, `rgba(${shade[0]},${shade[1]},${shade[2]},0)`);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = grads.shade[i];
     ctx.beginPath();
     ctx.moveTo(a[0] * k, a[1] * k); ctx.lineTo(b[0] * k, b[1] * k); ctx.lineTo(b2[0] * k, b2[1] * k); ctx.lineTo(a2[0] * k, a2[1] * k);
     ctx.closePath();
