@@ -6,17 +6,17 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v70 docs releases', () => {
   it('7.0 carries its merge commit (every version since is newer), and 6.0.1 carries its own', () => {
-    expect([RELEASES[13].version, RELEASES[13].title, RELEASES[13].build, APP_VERSION]).toEqual(['7.0', 'A living world', '16cda04', '9.3.1']);
-    expect([RELEASES[14].version, RELEASES[14].build]).toEqual(['6.0.1', '4502f53']);
+    expect([RELEASES[14].version, RELEASES[14].title, RELEASES[14].build, APP_VERSION]).toEqual(['7.0', 'A living world', '16cda04', '10.0']);
+    expect([RELEASES[15].version, RELEASES[15].build]).toEqual(['6.0.1', '4502f53']);
   });
   it('names the features of the version', () => {
-    const notes = RELEASES[13].new.join(' ');
+    const notes = RELEASES[14].new.join(' ');
     for (const word of ['Nubia', 'Punt', 'Quay', 'Keep at least', 'Trade sheet', 'City events', 'default', 'Seasons', 'day and night', 'Sound', 'Advice', 'lesson card', 'Delete or Backspace', 'Keyboard', 'right or wrong', 'house plots']) {
       expect([word, notes.toLowerCase().includes(word.toLowerCase())]).toEqual([word, true]);
     }
   });
   it('lists what was fixed', () => {
-    const fixed = RELEASES[13].fixed.join(' ');
+    const fixed = RELEASES[14].fixed.join(' ');
     for (const word of ['five digits', 'Space', 'placing bar']) expect([word, fixed.includes(word)]).toEqual([word, true]);
   });
 });
