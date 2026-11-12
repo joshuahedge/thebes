@@ -656,7 +656,7 @@ async function capstone(api) {
 // most free tiles in the two rows before it, the earliest of equals), so nothing hides it; the
 // city stays paused, so it holds still for the shot, framed on the shrine at zoom 1.5. Returns the temple, the
 // festival's day and how many figures walk (render/walkers.js festivalSize).
-const PROCESSION_DAYS = 6, PROCESSION_DAYS_MAX = 40;
+const PROCESSION_DAYS = 18, PROCESSION_DAYS_MAX = 40;   // Version 10.0, Track L (ruling 2240): from day 18, when all of a festival's 20 figures (0.85 tiles apart) are out (was 6, for 12)
 async function procession(api) {
   const g = inGame(api, 'procession'), { world, ui } = g;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);

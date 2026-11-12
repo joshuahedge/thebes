@@ -220,19 +220,25 @@ function cached(world, key, make) {
   return c.loops.get(key);
 }
 
+// Version 10.0, Track L (L.8): the road a festival temple's procession walks (its loop out and back), for the onlookers who line it (render/v100/crowd.js).
+export const festivalLoopOf = (world, t) => loopFor(world, t, BUILDINGS.temple.reach);
+
 // The walker kind a procession figure is drawn as: its own when the registry has the figure (Track B's), else a priest.
 export const figureKind = (kind) => (ART[`fig.${kind}`] ? kind : 'priest');
 
 // One procession's figures on a loop, setting out on day `from`: the first leads, the rest follow PROCESSION.spacing
 // apart, each showing once it is out.
-function figuresOn(world, loop, timeDays, from, n, idBase) {
+// Version 10.0, Track L (ruling 2240): a festival's figures past the sixteenth (it has up to 20) take ids from EXTRA_ID_BASE + temple id x 4, past the
+// streamers' (900000 + id x 2), so they never meet the next temple's.
+export const EXTRA_ID_BASE = 1100000;
+function figuresOn(world, loop, timeDays, from, n, idBase, extraBase = idBase) {
   const out = [];
   if (!loop.length) return out;
   const lead = (timeDays - from) * PROCESSION.tilesPerDay;
   for (let i = 0; i < n; i++) {
     const s = lead - i * PROCESSION.spacing;
     if (s < 0) break;
-    const w = positionAt(loop, s, idBase + i, figureKind(PROCESSION.order[i % PROCESSION.order.length]), loopCum(world, loop));
+    const w = positionAt(loop, s, i < 16 ? idBase + i : extraBase + i - 16, figureKind(PROCESSION.order[i % PROCESSION.order.length]), loopCum(world, loop));
     if (w) out.push(w);
   }
   return out;
@@ -261,7 +267,7 @@ export function processionsAt(world, timeDays, range = null) {
   for (const h of hosts.slice(0, PROCESSION.maxOnScreen)) {
     const b = h.b;
     if (h.kind === 'festival') {
-      out.push(...figuresOn(world, loopFor(world, b, BUILDINGS.temple.reach), timeDays, world.danger.festivalDay, size, PROCESSION_ID_BASE + b.id * 16));
+      out.push(...figuresOn(world, loopFor(world, b, BUILDINGS.temple.reach), timeDays, world.danger.festivalDay, size, PROCESSION_ID_BASE + b.id * 16, EXTRA_ID_BASE + (b.id % 25000) * 4));
       const kind = flutter ? 'streamer2' : 'streamer';
       out.push({ id: STREAMER_ID_BASE + b.id * 2, kind, x: b.x + 0.12, y: b.y + b.d - 0.12, dir: 2 });
       out.push({ id: STREAMER_ID_BASE + b.id * 2 + 1, kind, x: b.x + b.w - 0.12, y: b.y + 0.12, dir: 2 });
