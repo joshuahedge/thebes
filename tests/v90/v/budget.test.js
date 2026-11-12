@@ -6,7 +6,8 @@
 import { describe, it, expect } from '../../harness.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { createCamera, visibleTileRange, artToScreen, zoomFloor } from '../../../src/render/camera.js';
-import { viewCull } from '../../../src/render/renderer.js';
+import { viewCull, createRenderer } from '../../../src/render/renderer.js';
+import { walkersAt } from '../../../src/render/walkers.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { ART_SCALE } from '../../../src/render/iso.js';
 import { makeCanvas } from '../../helpers/canvas.js';
@@ -65,6 +66,31 @@ function measuredWell(measure, ok, tries = 3) {
   for (let i = 1; i < tries && !ok(m); i++) m = measure();
   return m;
 }
+
+// Version 10.0, Track P (ruling 2282): the whole frame of the Huge map, where the layers' bounds above stay as they were. The 112 stress city at its
+// zoom floor in 1920x1080 DPR 1 with the desktop budgets, the camera standing and the walkers walking, the canvas flushed each frame: the median is
+// held to the 9.1 polish design's P4 (the Huge map's median <= 33 ms at 390x844 DPR 2) x 1.2, scaled to 1920x1080 by Track 0's harness ratio for
+// the Huge map between the two sizes (19.7 / 15.8 ms, ruling 2105): 49.4 ms, unthrottled (ruling 2105).
+export const HUGE_FRAME_MS = 49.4;
+describe('v90 v budget: the Huge frame (Version 10.0, Track P)', () => {
+  it('draws the 112 stress city at its zoom floor in 1920x1080 within the P4 bound once warm', () => {
+    const world = stressWorld(112), view = { width: 1920, height: 1080 };
+    const canvas = makeCanvas(1920, 1080), flush = () => canvas.getContext('2d').getImageData(0, 0, 1, 1);
+    const renderer = createRenderer({ canvas, dpr: 1 });
+    const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+    cam.zoom = zoomFloor(cam, view);
+    const frame = (i) => renderer.renderFrame(world, cam, { view, now: 1000 + i * 17, walkers: walkersAt(world, world.day + i / 60, visibleTileRange(cam, view, 112)) });
+    for (let i = 0; i < 40; i++) { frame(i); flush(); }                               // bake the view at two chunks a frame, and its ring
+    const median = () => {
+      const times = [];
+      for (let i = 0; i < 15; i++) { const t = performance.now(); frame(40 + i); flush(); times.push(performance.now() - t); }
+      return times.sort((a, b) => a - b)[7];
+    };
+    let ms = median();
+    if (ms > HUGE_FRAME_MS) ms = median();
+    expect([cam.zoom < 0.6, ms <= HUGE_FRAME_MS ? 'ok' : Math.round(ms * 10) / 10]).toEqual([true, 'ok']);
+  });
+});
 
 describe('v90 v budget', () => {
   for (const [size, view, zoomMode, budget] of [[64, { width: 1280, height: 800 }, 'default', 2], [112, { width: 1920, height: 1080 }, 'floor', 4]]) {

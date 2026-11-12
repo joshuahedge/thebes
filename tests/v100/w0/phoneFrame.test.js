@@ -14,10 +14,13 @@ import { walkersAt } from '../../../src/render/walkers.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { makeCanvas } from '../../helpers/canvas.js';
 
-// Track P turns these on (ruling 2062).
-export const BOUNDS_ON = false;
+// Track P turns these on (ruling 2062). Version 10.0, Track P (ruling 2280): on, unthrottled (ruling 2105: the harness cannot throttle; the 4x
+// numbers are tools/profile.ps1 -Frames's).
+export const BOUNDS_ON = true;
 export const TARGETS = { stress: { p50: 16.7, p95: 33 }, huge: { p50: 33, p95: null } };
 export const HEADROOM = 1.2;
+// The bounds: the targets x HEADROOM, rounded to a tenth (stress p50 20.0, p95 39.6; Huge p50 39.6).
+export const boundsFor = (name) => ({ p50: Math.round(TARGETS[name].p50 * HEADROOM * 10) / 10, p95: TARGETS[name].p95 ? Math.round(TARGETS[name].p95 * HEADROOM * 10) / 10 : null });
 export const FRAMES = 600;
 const SWEEP = 24;   // tiles each way from the middle: a sweep is 4 x SWEEP frames
 
@@ -58,15 +61,18 @@ const said = (name, size, w, h, dpr, kind, m) => `${name} ${size} at ${w}x${h} D
 const results = (typeof window !== 'undefined' && (window.__v100Frames = window.__v100Frames || {})) || {};
 
 describe('v100 w0 phone frame', () => {
-  it('measures the stress city and the Huge map at 390x844 DPR 2 with the phone budgets (bounds off until Track P: ruling 2062)', () => {
+  it('measures the stress city and the Huge map at 390x844 DPR 2 with the phone budgets, inside the 9.1 targets x 1.2 (rulings 2062, 2280)', () => {
     for (const [name, size] of [['stress', 64], ['huge', 112]]) {
-      const m = measureFrames(stressWorld(size), { width: 390, height: 844, dpr: 2, kind: 'phone' });
+      const bound = boundsFor(name);
+      const within = (m) => m.p50 <= bound.p50 && (!bound.p95 || m.p95 <= bound.p95);
+      let m = measureFrames(stressWorld(size), { width: 390, height: 844, dpr: 2, kind: 'phone' });
+      if (BOUNDS_ON && !within(m)) m = measureFrames(stressWorld(size), { width: 390, height: 844, dpr: 2, kind: 'phone' });   // Track P (ruling 2280): once more, as the v90 budget test does
       results[`${name}-390x844`] = m;
       it(`v100 w0 phone frame > measured: ${said(name, size, 390, 844, 2, 'phone', m)}`, () => {});
       expect(m.p50).toBeGreaterThan(0);
       if (BOUNDS_ON) {
-        expect(m.p50).toBeLessThanOrEqual(TARGETS[name].p50 * HEADROOM);
-        if (TARGETS[name].p95) expect(m.p95).toBeLessThanOrEqual(TARGETS[name].p95 * HEADROOM);
+        expect([name, 'p50', m.p50 <= bound.p50 ? 'ok' : m.p50]).toEqual([name, 'p50', 'ok']);
+        if (bound.p95) expect([name, 'p95', m.p95 <= bound.p95 ? 'ok' : m.p95]).toEqual([name, 'p95', 'ok']);
       }
     }
   });
