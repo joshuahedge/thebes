@@ -63,14 +63,16 @@ describe('v100 p far view', () => {
     expect([baker.size(w), baker.peek(w, 0, 0, 1, 1).sprite]).toEqual([3, null]);       // the cap still lets the oldest unshown chunk go (one a bake, as before)
   });
 
-  it('draws a chunk in bands that make the same picture as the chunk drawn whole', () => {
+  // Fix wave (ruling 2297): twice, once on an empty registry (nothing drawn but the terrain) and once with the real registry (the hills drawn into the
+  // chunks, where the band seams overlap hill tiles).
+  for (const [what, empty] of [['empty registry', true], ['real registry (hills drawn)', false]]) it(`draws a chunk in bands that make the same picture as the chunk drawn whole (${what})`, () => {
     const world = stressWorld(64), view = { width: 390, height: 844 };
     const shots = {};
     for (const n of [0, 8]) {
       chunkBands.n = n;
       try {
         const canvas = makeCanvas(780, 1688);
-        const renderer = createRenderer({ canvas, dpr: 2, maxBakesPerFrame: Infinity, baker: createTerrainBaker({ kind: 'phone' }), registry: {}, spriteCache: createSpriteCache({ registry: {} }) });
+        const renderer = createRenderer({ canvas, dpr: 2, maxBakesPerFrame: Infinity, baker: createTerrainBaker({ kind: 'phone' }), ...(empty ? { registry: {}, spriteCache: createSpriteCache({ registry: {} }) } : {}) });
         const cam = createCamera({ x: 30.4, y: 33.7, zoom: 1, size: 64 });
         renderer.renderFrame(world, cam, { view, now: 1000 });
         shots[n] = canvas.getContext('2d').getImageData(0, 0, 780, 1688).data;

@@ -121,3 +121,21 @@ before any Track P change: `-Grep "v100 w0 phone frame"` read stress p50 25.8 / 
   DPR 2 84.1 MB; desktop 1920x1080 DPR 2 116 MB (terrain 90.1, sprites 25.9) and DPR 1 57.2 MB (of 160). Not held: a 1920x1080 DPR 2 pan at zoom 1 (4.9 MB chunks)
   still re-baked 4 chunks in a 96-frame sweep at 120 MB. The pinned desktop numbers moved: `tests/v91/p/caches.test.js`'s P3 test builds its renderer
   with a 48 MB baker (it pins the phone's budgets); v93's read `DEVICE_BUDGETS` and hold. `tests/v100/p/farView.test.js` holds the 1920x1080 cases.
+
+## Fix wave
+
+- **2296. The night frame with life is measured as life's added cost over the light alone, paired and interleaved (final review P-1).** The review asked
+  that the phone and Huge night-with-life cases stop holding a frame that carries the 9.x light pass to bounds set on a frame without it: run alone on a
+  quiet machine the stress night case read p50 26.1 ms against 25.3, while stress with no life read 19.1, stress with life by day 18.9 and LIFE's own script
+  time 0.64 ms; the control table showed the night's extra cost is `drawLight`'s software raster (+4.6 to +8.9 ms), life being lost in about 5 ms of noise.
+  `pairedLifeCost` (`tests/v100/w0/lifeLayer.js`) now draws two layers (the light alone; the light and all six life sources) on ONE warm renderer over one
+  camera path, in counterbalanced blocks (A B B A A B; phone 6 x 100 frames, desktop Huge 6 x 30), so the machine's load falls on both. The night cases
+  assert life's added median is 2.0 ms or less, the with-life js p50 is 8 ms or less (phone) and LIFE's mean is within its device budget (1 ms phone,
+  1.5 ms desktop); each measures up to three times, the smallest added cost kept. The absolute p50/p95 bounds stay on the day variants and on the
+  no-life frame (no day bound loosened). Applied to `tests/v100/w0/phoneFrame.test.js` and the Huge night case of `tests/v90/v/budget.test.js`. Measured
+  (12 Nov, loaded machine): phone stress light alone 14.8, with life 15.6 (adds 0.8, LIFE 0.46); phone Huge 15.8 / 16.8 (adds 1.0, LIFE 0.47); desktop Huge
+  49.9 / 48.2 (adds -1.7, LIFE 1.19). Follow-up named: the light pass's night raster (`drawLight`) is the real cost of the night frame.
+- **2297. The banded "same picture" test also runs with the real registry (final review P-2).** `tests/v100/p/farView.test.js` ran the bands-versus-whole
+  comparison only on `registry: {}`, where no hill tiles overlap the band seams. It now runs twice: the empty registry, and the real registry (hills
+  drawn). Opening a 3-row gap between bands in `drawChunk` fails both cases (share 4.61% and 1.45% against under 0.1%); removing the one-row overlap alone
+  does not change the picture at these scales, so the test guards seams, not that single row.

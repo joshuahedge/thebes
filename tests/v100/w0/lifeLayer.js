@@ -15,6 +15,44 @@ import { nightSource } from '../../../src/render/v100/night.js';
 import { weatherSource, stormLean } from '../../../src/render/v100/weather.js';
 import { drawLight, setLightClock } from '../../../src/render/light.js';
 import { LIGHT } from '../../../src/data/seasons.js';
+import { visibleTileRange } from '../../../src/render/camera.js';
+import { walkersAt } from '../../../src/render/walkers.js';
+
+// Fix wave (ruling 2296): life's added cost at night, measured against the light alone on ONE warm renderer. The night frame's extra cost is the light
+// pass's software raster (drawLight, 5 to 9 ms), which life does not make; an absolute bound set on a frame without the light fails on the light. So two
+// layers (light alone; light and every source) take turns drawing the same camera path in blocks of `per` frames (A B B A A B ...: counterbalanced, so
+// a slow stretch of the machine falls on both), and life's cost is the difference of the two medians, which the machine's load moves together.
+// -> { lightP50, lifeP50, added, jsP50, lifeMs } (lifeMs: LIFE's own mean a frame over the with-life blocks).
+export function pairedLifeCost({ world, kind, renderer, flush, view, cam, at = () => 0, blocks = 6, per = 100, warm = 40 }) {
+  const lightLayer = lifeLayer(world, kind, true, { lightOnly: true }), fullLayer = lifeLayer(world, kind, true);
+  const x0 = cam.x;
+  let n = 0;
+  const frame = (layer) => {
+    const i = n++; cam.x = x0 + at(i);
+    const t = world.day + i / 60, now = 1000 + i * 17, range = visibleTileRange(cam, view, world.size);
+    return renderer.renderFrame(world, cam, { view, now, ...layer.hooks(t, now, range, walkersAt(world, t, range)) });
+  };
+  for (let i = 0; i < warm; i++) { frame(i % 2 ? fullLayer : lightLayer); flush(); }
+  const q = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const order = [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0];   // 0: light alone, 1: light and life
+  const all = [[], []], js = [[], []]; let lifeSum = 0, lifeFrames = 0;
+  for (let b = 0; b < blocks; b++) {
+    const which = order[b % order.length], layer = which ? fullLayer : lightLayer;
+    for (let i = 0; i < per; i++) {
+      const l0 = layer.ms(), t0 = performance.now();
+      frame(layer);
+      const t1 = performance.now();
+      flush();
+      const t2 = performance.now();
+      js[which].push(t1 - t0); all[which].push(t2 - t0);
+      if (which) { lifeSum += layer.ms() - l0; lifeFrames++; }
+    }
+  }
+  lightLayer.done(); fullLayer.done();
+  const lightP50 = q(all[0], 0.5), lifeP50 = q(all[1], 0.5);
+  return { lightP50: r1(lightP50), lifeP50: r1(lifeP50), added: r1(lifeP50 - lightP50), jsP50: r1(q(js[1], 0.5)), lifeMs: Math.round(lifeSum / lifeFrames * 100) / 100 };
+}
 
 // lightOnly: no source registered (the light alone, the control that tells life's share of the night frame from the light's).
 export function lifeLayer(world, kind, night = false, { shed = false, lightOnly = false } = {}) {

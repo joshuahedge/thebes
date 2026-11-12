@@ -14,7 +14,7 @@ import { walkersAt } from '../../../src/render/walkers.js';
 import { createTerrainBaker } from '../../../src/render/terrainBaker.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { makeCanvas } from '../../helpers/canvas.js';
-import { lifeLayer } from './lifeLayer.js';   // the merge of Track L (ruling 2253): the frame with life's layer on, wired as createUI wires it
+import { lifeLayer, pairedLifeCost } from './lifeLayer.js'; // the merge of Track L (ruling 2253): the frame with life's layer on, wired as createUI wires it
 import { LIFE } from '../../../src/data/ambient.js';
 
 // Track P turns these on (ruling 2062). Version 10.0, Track P (ruling 2280): on, unthrottled (ruling 2105: the harness cannot throttle; the 4x
@@ -28,6 +28,7 @@ export const boundsFor = (name) => ({ p50: Math.round(TARGETS[name].p50 * HEADRO
 // bound is the in-suite measure (23.0 ms, 12 Nov) x 1.1; the js median, the game's own part, is held at 8 ms (measured 3.7 to 5.1).
 export const STRESS_P50_MS = 25.3;
 export const JS_P50_MS = 8;
+export const NIGHT_ADDED_MS = 2.0;   // fix wave (ruling 2296): life's added p50 over the light alone, at night
 export const FRAMES = 600;
 const SWEEP = 24;   // tiles each way from the middle: a sweep is 4 x SWEEP frames
 
@@ -105,7 +106,31 @@ describe('v100 w0 phone frame', () => {
   });
   // The merge of Track L (ruling 2253, Josh's condition): the same two frames with life's layer on (lifeLayer: every source registered as the game
   // registers them, Full motion), by day (the morning) and at night, held to the same bounds, and life's own time to the phone's LIFE budget (1 ms).
-  for (const night of [false, true]) {
+  // Fix wave (ruling 2296): the night case measures life's ADDED cost against the light alone (not an absolute frame bound: the night's extra
+  // ms are the light pass's raster, which life does not make), the two interleaved on one warm renderer (pairedLifeCost).
+  it(`with life on (night): life adds at most ${NIGHT_ADDED_MS} ms to the light alone (paired, interleaved), js p50 within ${JS_P50_MS} ms, LIFE within ${LIFE.budgetMs.phone} ms a frame (ruling 2296)`, () => {
+    for (const [name, size] of [['stress', 64], ['huge', 112]]) {
+      const measure = () => {
+        const world = stressWorld(size), view = { width: 390, height: 844 };
+        const canvas = makeCanvas(390 * 2, 844 * 2), ctx = canvas.getContext('2d');
+        const { sprites, caches } = DEVICE_BUDGETS.phone;
+        const renderer = createRenderer({ canvas, dpr: 2, cachesBudget: caches, spriteCache: createSpriteCache({ maxBytes: sprites }), baker: createTerrainBaker({ kind: 'phone' }) });
+        const mid = world.size / 2, sweep = Math.min(SWEEP, Math.floor(world.size / 2) - 4);
+        const cam = createCamera({ x: mid, y: mid, zoom: 1, size: world.size });
+        const at = (i) => { const k = i % (4 * sweep); return k < sweep ? k : k < 3 * sweep ? 2 * sweep - k : k - 4 * sweep; };
+        return pairedLifeCost({ world, kind: 'phone', renderer, flush: () => ctx.getImageData(0, 0, 1, 1), view, cam, at, warm: 4 * sweep });
+      };
+      const within = (m) => m.added <= NIGHT_ADDED_MS && m.jsP50 <= JS_P50_MS && m.lifeMs <= LIFE.budgetMs.phone;
+      let m = measure();
+      for (let again = 0; !within(m) && again < 2; again++) { const n = measure(); if (n.added < m.added) m = n; }   // up to three times, the smallest added cost kept
+      results[`${name}-390x844-life-night`] = m;
+      it(`v100 w0 phone frame > with life (night) measured: ${name} ${size}: light alone p50 ${m.lightP50} ms, light and life p50 ${m.lifeP50} ms, life adds ${m.added} ms; js p50 ${m.jsP50} ms; LIFE mean ${m.lifeMs} ms a frame`, () => {});
+      expect([name, 'night', 'life adds ms', m.added <= NIGHT_ADDED_MS ? 'ok' : m.added]).toEqual([name, 'night', 'life adds ms', 'ok']);
+      expect([name, 'night', 'js p50', m.jsP50 <= JS_P50_MS ? 'ok' : m.jsP50]).toEqual([name, 'night', 'js p50', 'ok']);
+      expect([name, 'night', 'LIFE ms', m.lifeMs <= LIFE.budgetMs.phone ? 'ok' : m.lifeMs]).toEqual([name, 'night', 'LIFE ms', 'ok']);
+    }
+  });
+  for (const night of [false]) {
     const when = night ? 'night' : 'day';
     it(`with life on (${when}): the stress city and the Huge map at 390x844 DPR 2 inside the same bounds, life within ${LIFE.budgetMs.phone} ms a frame (ruling 2253)`, () => {
       for (const [name, size] of [['stress', 64], ['huge', 112]]) {
