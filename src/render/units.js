@@ -61,7 +61,10 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 // Version 9.0, Track V (V2): a unit's glide starts on the day the sim moved it (the whole day of timeDays, not the frame that noticed it) and takes
 // GLIDE_DAYS, so it stands where the sim has it for the rest of the day: never a day behind, and a blow lands where the unit is drawn. Before 9.0 it
 // took the whole next day, a day behind the sim at its end.
-export const GLIDE_DAYS = 0.6;
+// Version 10.0.1 (Track A, A.1, ruling 2375): the glide now takes the WHOLE day (GLIDE_DAYS 1): a walker that keeps walking moves all day long, with no
+// stand between steps; a unit stands only when the sim has not moved it today (looting, fighting, waiting), and any step length (Track S's 1.5 tiles a
+// day comes as steps of one and two tiles, or fractional) is crossed at its own even pace, starting from where the unit is drawn.
+export const GLIDE_DAYS = 1;
 const glide = (t, timeDays) => {
   const f = clamp01((timeDays - t.at) / GLIDE_DAYS);
   return { x: t.fromX + (t.x - t.fromX) * f, y: t.fromY + (t.y - t.fromY) * f };

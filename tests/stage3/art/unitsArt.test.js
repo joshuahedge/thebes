@@ -88,12 +88,13 @@ describe('s3 art units', () => {
     w.raid.active.raiders[0].x = 19;                                             // the sim moved it one tile west
     w.day = 6;
     const at = (t) => unitsAt(w, t)[0];
-    expect([at(6).x, at(6.3).x, at(6.6).x, at(7.6).x].map((v) => Math.round(v * 1000) / 1000)).toEqual([20.5, 20, 19.5, 19.5]);
+    // Version 10.0.1 (ruling 2375): the glide takes the whole day (was 0.6 of it), so it is half way at 6.5 and there at 7
+    expect([at(6).x, at(6.5).x, at(6.999).x, at(7.6).x].map((v) => Math.round(v * 100) / 100)).toEqual([20.5, 20, 19.5, 19.5]);
     expect(at(6.3).dir).toBe(3);
-    expect([at(6.3).stand, at(6.7).stand]).toEqual([undefined, true]);           // V1: it steps while it glides and stands once there
+    expect([at(6.3).stand, at(7.1).stand]).toEqual([undefined, true]);           // V1: it steps while it glides and stands once there
     w.raid.active.raiders[0].y = 11;                                             // moved again: starts from where it is drawn
     expect(unitsAt(w, 7)[0]).toEqual({ id: UNIT_ID_BASE + 1, kind: 'raider', x: 19.5, y: 10.5, dir: 2 });
-    expect(Math.round(unitsAt(w, 7.3)[0].y * 1000) / 1000).toBe(11);
+    expect(Math.round(unitsAt(w, 7.5)[0].y * 1000) / 1000).toBe(11);
   });
   it('shows a health bar only once a unit has been hit, as long as its health', () => {
     const w = raidWorld([[20, 10], [22, 10, 6]]);
