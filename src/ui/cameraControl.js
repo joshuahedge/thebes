@@ -100,7 +100,7 @@ export function startCamera(world, view, zoom = 1) {
   if (!best) { cam[axis] += dir * m / 2; holdInMap(cam, view); return { x: cam.x, y: cam.y, zoom: cam.zoom }; }
   return { x: best.c.x, y: best.c.y, zoom: best.c.zoom };
 }
-const START_DIAMOND_MARGIN = 24, START_OFF_MAP_MAX = 0.27;   // px the entry diamond keeps from the screen's edge; the share off the map startCamera aims under (the test's bound is 0.3)
+const START_DIAMOND_MARGIN = 24, START_OFF_MAP_MAX = 0.22;   // px the entry diamond keeps from the screen's edge; the share off the map startCamera aims under on its coarse 24 x 24 grid (0.22 leaves the margin the finer 48 x 48 grid needs on any seed; the spec's bound stays 0.3)
 function offMapGrid(cam, view, size, n = 24) {
   let off = 0;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {

@@ -59,20 +59,24 @@ describe('v100 f start frame: the first view keeps the map on screen', () => {
       expect(g.cam.x).toBe(turned.x); expect(g.cam.y).toBe(turned.y);
     } finally { r.cleanup(); }
   });
+  // Ruling 2320: three fixed seeds per size (an unseeded boot is a different map each run); each is held under the bound, its share printed in the test name.
   for (const view of SIZES) {
-    it(`a fresh city booted at ${view.width}x${view.height} opens held, its diamond in sight, under 30% off the map`, async () => {
-      const r = await bootAt(view.width, view.height);
-      try {
-        startNewCity(r.root.querySelector('#title'));
-        const g = r.api.game();
-        const held = holdInMap({ ...g.cam }, view);
-        expect(held.x).toBe(g.cam.x); expect(held.y).toBe(g.cam.y);
-        const [x, y] = diamondOf(g.world);
-        const [sx, sy] = tileToScreen(g.cam, view, x + 0.5, y + 0.5);
-        expect(sx > 0 && sx < view.width && sy > 0 && sy < view.height).toBe(true);
-        const share = offMapShare(g.cam, view, g.world.size);
-        if (!(share < 0.3)) throw new Error(`${Math.round(share * 100)}% off the map; cam ${JSON.stringify(g.cam)} size ${g.world.size}`);
-      } finally { r.cleanup(); }
-    });
+    for (const seed of [11, 23, 47]) {
+      it(`a fresh city (seed ${seed}) booted at ${view.width}x${view.height} opens held, its diamond in sight, under 30% off the map`, async () => {
+        const r = await bootAt(view.width, view.height, { params: `seed=${seed}` });
+        try {
+          startNewCity(r.root.querySelector('#title'));
+          const g = r.api.game();
+          const held = holdInMap({ ...g.cam }, view);
+          expect(held.x).toBe(g.cam.x); expect(held.y).toBe(g.cam.y);
+          const [x, y] = diamondOf(g.world);
+          const [sx, sy] = tileToScreen(g.cam, view, x + 0.5, y + 0.5);
+          expect(sx > 0 && sx < view.width && sy > 0 && sy < view.height).toBe(true);
+          const share = offMapShare(g.cam, view, g.world.size);
+          console.log(`start frame seed ${seed} ${view.width}x${view.height}: ${Math.round(share * 1000) / 10}% off the map`);
+          if (!(share < 0.3)) throw new Error(`seed ${seed} ${Math.round(share * 100)}% off the map; cam ${JSON.stringify(g.cam)} size ${g.world.size}`);
+        } finally { r.cleanup(); }
+      });
+    }
   }
 });
