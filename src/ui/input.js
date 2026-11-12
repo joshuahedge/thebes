@@ -44,7 +44,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
     },
     onDrag: (e) => {
       if (dragKind === 'pan') {
-        panBy(cam, e.dx, e.dy);
+        panBy(cam, e.dx, e.dy, view());   // Version 10.0 (Track F, ruling 2110): the pan holds the map in view
         if (e.type !== 'mouse') { const t = now(); samples.push({ t, x: e.x, y: e.y }); while (samples.length > 2 && t - samples[1].t > FLING_WINDOW_MS) samples.shift(); }
       }
       else if (dragKind === 'ghost') actions.ghostDrag({ x: e.x, y: e.y - GHOST_FINGER_OFFSET_PX });
@@ -59,7 +59,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
       dragKind = null;
     },
     onPinchStart: () => { stoppedFling = false; cameraControl.cancel(); actions.panStarted(); },
-    onPinch: (e) => { panBy(cam, e.dx, e.dy); zoomAt(cam, view(), e.scale, e.cx, e.cy); },
+    onPinch: (e) => { panBy(cam, e.dx, e.dy, view()); zoomAt(cam, view(), e.scale, e.cx, e.cy); },
   }, { doubleTap: () => !isToolMode(store.get().mode) });
 
   // A pan drag lifted: the speed over the last FLING_WINDOW_MS of it, in screen px a second, unless the finger rested FLING_REST_MS before lifting (or it was cancelled, or a

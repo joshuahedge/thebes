@@ -15,6 +15,7 @@ import { SUPPLY_GOODS, JOBLESS_BANDS } from '../../../src/data/layers.js';
 import { MIN_STAFF_RATIO } from '../../../src/data/labour.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { mount } from '../../helpers/dom.js';
+import { hush } from '../../../src/ui/v81/scribe.js';   // Version 10.0 (Track F, ruling 2117)
 
 const shownIn = (node) => [...node.querySelectorAll('button.layer')].filter((b) => !b.hidden && !b.classList.contains('locked')).map((b) => b.dataset.layer);   // Version 6.0: a layer the city has not reached is greyed and not offered (its rank is said; tests/v60/c/loose.test.js)
 
@@ -202,6 +203,7 @@ describe('v50 layers: a tip for each new thing, listed in How to play', () => {
       w2.milestone = 'town';
       r2.ui.onEvents([{ type: 'milestone', id: 'town' }]);
       expect(r2.ui.tips.current()).toBe('layers_town');
+      hush();   // Version 10.0 (Track F, ruling 2117): the Town milestone's scribe line has the phone's guidance row while it speaks and the tip waits; its words show once the line has gone
       expect(r2.root.querySelector('#tip').textContent).toContain(TIP_TEXT.layers_town);
       fire(r2.root.querySelector('#tip .tip-show-me'), 'click');
       expect(r2.store.get().layersOpen).toBe(true);

@@ -13,7 +13,7 @@ import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
-import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
+import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM, holdInMap } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
@@ -73,6 +73,7 @@ import { createGuide, canResumeGuide, guideState } from './guide.js';
 import { createTrayLayers } from './v81/trayLayers.js';
 import { createCardDrag, createDragHost } from './v81/cardDrag.js';
 import { installNoZoom } from './v81/noZoom.js';
+import { docked as scribeDocked, watchScribe } from './v81/scribe.js';   // Version 10.0 (Track F, ruling 2115): the scribe's bubble has the phone's guidance row while it speaks
 import { palaceOf } from '../sim/palace.js';
 import { el, setText, clear } from './components.js';
 import { A92_TEXT } from './text.js';
@@ -400,7 +401,8 @@ export function createUI({
   });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
-  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
+  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }),
+    onSize: () => { holdInMap(cam, view()); } });   // Version 10.0 (Track F, ruling 2119): a resize or a turn re-holds the camera in the map for the new view
   const stopVisibility = speedControl.watchVisibility();
 
   // Screen point -> tile, clamped onto the map, so drags past the edge still mean the edge tile.
@@ -1141,6 +1143,9 @@ export function createUI({
   function guidanceKind() {
     const s = store.get();
     if (!phone()) return null;
+    // Version 10.0 (Track F, ruling 2115): a docked line of the scribe's has the row while it speaks, over an alert row, a sheet and everything else (it is brief: SAY_MS), and the
+    // goal, tip, caption and legend wait as they do for each other; not in a tool's mode or under a lesson card, where its bubble is hidden (css/v81-t.css).
+    if (scribeDocked() && !isToolMode(s.mode) && !document.body.classList.contains('lesson-card-up')) return 'scribe';
     if (s.sheet || alertHasRow()) return 'none';
     if (s.overlay) return 'legend';
     if (tips.current()) return 'tip';
@@ -1231,6 +1236,7 @@ export function createUI({
   }
   guidanceWired = true;
   syncGuidance();
+  const unwatchScribe = watchScribe(() => guidanceChanged());   // a line starting or ending hands the row over or back at once
 
   // Version 9.3.1 (group G, rulings 2030, 2033): the tools whose ghost lies on the ground, under the sprites: every one but demolish, whose coral marks the very
   // building that would cover it (a building's, an area's, the house tool's plots, the plazas, and the line tools: a road, wall, gate or ferry is ground too).
@@ -1349,6 +1355,7 @@ export function createUI({
       if (destroyed) return;
       destroyed = true;
       unwatchWords();
+      unwatchScribe();
       for (const s of seams()) s.destroy();
       cornerPicker.destroy(); panelPicker.destroy(); hud.destroy(); sourcePick.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch

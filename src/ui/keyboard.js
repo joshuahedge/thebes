@@ -51,7 +51,9 @@ function noteKeyboard(doc, win) {
 // card again and wiped the road just drawn instead of laying it.
 export function createKeyboard({ target = window, settings = null, cam, cameraControl, actions = {}, hidden = () => false, pending = () => false }) {
   const run = (fn, ...args) => { if (typeof fn === 'function') fn(...args); };
-  const pan = (dx, dy) => { if (cameraControl) cameraControl.cancel(); panBy(cam, dx, dy); };
+  // Version 10.0 (Track F, ruling 2110): the pan holds the map in view; the view is twice the camera control's centre (a test's bare control gives none: the old clamp).
+  const viewOf = () => { const c = cameraControl && typeof cameraControl.centre === 'function' ? cameraControl.centre() : null; return c ? { width: 2 * c.x, height: 2 * c.y } : null; };
+  const pan = (dx, dy) => { if (cameraControl) cameraControl.cancel(); panBy(cam, dx, dy, viewOf()); };
   // Version 6.0 (Track D1): + and - zoom about the middle of the view, a step as the minimap's buttons do (the tween follows the Motion level).
   const zoom = (factor) => { if (cameraControl && typeof cameraControl.zoomStep === 'function') { const c = cameraControl.centre(); cameraControl.zoomStep(factor, c.x, c.y); } };
   const doc = target && target.ownerDocument ? target.ownerDocument : (typeof document !== 'undefined' ? document : null);

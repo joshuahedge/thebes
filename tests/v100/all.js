@@ -2,3 +2,4 @@
 import './w0/all.js';
 import './d/all.js';   // Track D
 import './q/all.js';   // Track Q
+import './f/all.js';   // Track F

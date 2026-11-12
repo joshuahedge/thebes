@@ -127,7 +127,10 @@ describe('terrain look', () => {
     const far = pixelAt(canvas, 20, 150);                          // nearly four tiles off the map
     const edge = pixelAt(canvas, 258, 150);                        // 3 art px outside the edge
     const inside = pixelAt(canvas, 300, 150);                      // sand on the map
-    expect(nearColour(far, TERRAIN.offMap, 3)).toBe(true);
+    // Version 10.0 (Track F, ruling 2112): the off-map ground is no longer one flat colour: it is the off-map sand at the rim, paling to a haze, with dune strokes; so the
+    // far ground is the off-map sand lightened (about a third of the way to the haze here, the season's wash over it), not the flat fill's colour within 3.
+    expect(nearColour(far, TERRAIN.offMap, 40)).toBe(true);
+    expect(far[0] + far[1] + far[2]).toBeGreaterThan(hexToRgb(TERRAIN.offMap).reduce((a, b) => a + b, 0));
     expect(nearColour(edge, TERRAIN.offMap, 6)).toBe(false);
     expect(edge[0] + edge[1] + edge[2]).toBeLessThan(far[0] + far[1] + far[2]);
     expect(nearColour(inside, TERRAIN.offMap, 6)).toBe(false);
