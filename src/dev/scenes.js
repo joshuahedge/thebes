@@ -1051,7 +1051,7 @@ export async function devScene(api, name, options = {}) {
 // The layers under the top bar, by the container each lives in (index.html's #under-bar): the alert row (the critical
 // banner), then what the guidance row may hold (the overlay legend, the goal with its threshold bar and nudge line, a
 // tip, a caption).
-const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '#tip', caption: '#cheer' };
+const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '#tip', caption: '#cheer', scribe: '.scribe-bubble:not(.pinned)' };   // Version 10.0 (Track F, ruling 2115): the scribe's docked bubble is a row too
 
 // The rows under the top bar, read off the page, for the height budget of the mobile UX review (section 3). frame is the
 // element that stands for the screen (a test's mounted shell); by default the window. Every box is in CSS px from the
