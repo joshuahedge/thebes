@@ -151,28 +151,35 @@ const at = (gx, gy) => { const c = p(gx, gy); return [c[0], c[1]]; };
 export const WALK_CYCLE = { gazelle: 0.5, ostrich: 0.7 };   // tiles of ground one four-frame walk cycle covers
 export function gazelle(g0, gx, gy, left = false, pose = 'stand') {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  const walk = typeof pose === 'number', graze = pose === 'graze', bob = (walk && pose % 2 === 0 ? -0.35 : 0) - 1.6;   // Version 10.0.1: the body carried 1.6 px higher on longer legs (the herd looked like tables)
+  const walk = typeof pose === 'number', graze = pose === 'graze', bob = walk && pose % 2 === 0 ? -0.35 : 0;   // the body rises a touch on the passing steps
   footShadow(g, X, Y, 1, 4.2, 0.2);
-  const legs = [[-2.8, '#6E4A22', 0], [-1.6, '#9A6C38', 0.5], [1.7, '#6E4A22', 0.5], [2.9, '#9A6C38', 0]];   // Version 10.0.1: darker legs, so they read against the sand and the pale belly (the herd looked like stools)
+  // Version 10.0.1 (ruling 2388): the gazelle in profile. Legs thin and tapering, two under the chest and two under the haunch (not at the corners of a slab),
+  // about 1.2 times as long as the torso is deep; the far pair lighter, a diagonal gait.
+  const legs = [[-3.2, '#A87C48', 0], [-2.2, '#6E4A22', 0.5], [3.4, '#A87C48', 0.5], [2.5, '#6E4A22', 0]];
   for (const [dx, c, off] of legs) {
     const ph = walk ? ((pose / 4 + off) % 1) * Math.PI * 2 : 0, swing = walk ? Math.cos(ph) * 1.7 : 0, lift = walk ? Math.max(0, Math.sin(ph)) * 1.2 : 0;
-    const hip = [X + dx, Y - 4.6 + bob], knee = [X + dx + 0.7 + swing * 0.45, Y - 2.4 - lift * 0.6], foot = [X + dx + swing, Y - 0.2 - lift];   // a thick thigh, a slim shank, the bend at the hock
-    g.line(hip, knee, c, 1.1); g.line(knee, foot, c, 0.55);
+    const hip = [X + dx, Y - 5.1 + bob], knee = [X + dx + 0.5 + swing * 0.45, Y - 2.7 - lift * 0.6], foot = [X + dx + swing, Y - 0.2 - lift];   // a thigh, a slimmer shank, the bend at the hock
+    g.line(hip, knee, c, 0.95); g.line(knee, foot, c, 0.5);
   }
-  // Version 10.0.1 (ruling 2386): a deep chest tapering to a slim waist and rump (not a slab with a pale belly), the belly a thin pale line
-  g.poly([[X + 3.6, Y - 7.4 + bob], [X + 0.5, Y - 7.7 + bob], [X - 3.2, Y - 7 + bob], [X - 4, Y - 5.8 + bob], [X - 2.6, Y - 4.6 + bob], [X + 0.4, Y - 4.9 + bob], [X + 3.2, Y - 4.3 + bob], [X + 4, Y - 5.8 + bob]], '#C99A5E', { outline: true });
-  g.line([X - 2.2, Y - 4.9 + bob], [X + 2.6, Y - 4.7 + bob], '#F1E2C2', 0.4, 0.9);
-  g.line([X - 3.2, Y - 6.2 + bob], [X + 3.4, Y - 6.4 + bob], '#6B4A2E', 0.5, 0.85);       // the flank stripe
-  g.poly([[X - 4.1, Y - 6.2 + bob], [X - 5, Y - 6.8 + bob], [X - 4.6, Y - 5.2 + bob]], '#F6EFE0');   // the white rump and tail
+  const nb = (walk ? (pose % 2 === 0 ? -0.3 : 0.2) : 0) - 1.6;                              // the head nods with the stride
+  // the neck first, rising in a curve from the top front of the torso (the torso's outline then closes over its foot)
+  if (graze) g.path([['M', [X + 3, Y - 8.4 + bob]], ['Q', [X + 6.2, Y - 7.6], [X + 6.9, Y - 3.6]], ['L', [X + 5.7, Y - 2.9]], ['Q', [X + 4.8, Y - 6], [X + 2.6, Y - 6.6 + bob]], ['Z']], '#C99A5E', { outline: true });
+  else g.path([['M', [X + 2.4, Y - 8.7 + bob]], ['Q', [X + 5, Y - 9.4], [X + 6.1, Y - 11 + nb]], ['L', [X + 4, Y - 11.2 + nb]], ['Q', [X + 3.7, Y - 8.4], [X + 4.2, Y - 6.2 + bob]], ['Z']], '#C99A5E', { outline: true });
+  // the torso: one rounded bean, higher and deeper at the chest, tapering to the rump, every edge a curve; a tan back, a darker flank band, a white underside
+  // and rump patch, and a short dark tail flick
+  const body = [['M', [X - 4.4, Y - 6.4 + bob]], ['Q', [X - 4.6, Y - 8.4 + bob], [X - 1.6, Y - 8.7 + bob]], ['Q', [X + 1.8, Y - 9.1 + bob], [X + 3.6, Y - 8.4 + bob]], ['Q', [X + 5.3, Y - 7.5 + bob], [X + 4.4, Y - 5.7 + bob]],
+    ['Q', [X + 3.8, Y - 4.5 + bob], [X + 2, Y - 4.8 + bob]], ['Q', [X - 0.4, Y - 5.7 + bob], [X - 2.6, Y - 4.7 + bob]], ['Q', [X - 4.7, Y - 4.5 + bob], [X - 4.4, Y - 6.4 + bob]], ['Z']];
+  g.path(body, '#C99A5E', { outline: true });
+  g.path([['M', [X + 4.3, Y - 5.8 + bob]], ['Q', [X + 3.8, Y - 4.5 + bob], [X + 2, Y - 4.8 + bob]], ['Q', [X - 0.4, Y - 5.7 + bob], [X - 2.6, Y - 4.7 + bob]], ['Q', [X - 4.2, Y - 4.6 + bob], [X - 4.5, Y - 5.6 + bob]], ['Q', [X - 0.2, Y - 6.2 + bob], [X + 4.3, Y - 5.8 + bob]], ['Z']], '#F6EFE0');   // the white underside
+  g.stroke([['M', [X - 3.4, Y - 6.6 + bob]], ['Q', [X, Y - 7.3 + bob], [X + 3.6, Y - 6.6 + bob]]], '#7A4E28', 0.9, 0.85);   // the darker flank band
+  g.ell([X - 4.1, Y - 6.9 + bob], 0.9, 1.1, '#F6EFE0');                                      // the white rump patch
+  g.stroke([['M', [X - 4.6, Y - 7.6 + bob]], ['Q', [X - 6, Y - 7.2 + bob], [X - 6, Y - 6.2 + bob]]], '#3A2A1E', 0.6);   // the dark tail flick
   if (graze) {
-    g.poly([[X + 3.2, Y - 7.8], [X + 4.3, Y - 8], [X + 6.6, Y - 3.4], [X + 5.6, Y - 2.8]], '#C99A5E', { outline: true });   // the neck, down to the grass
     g.ell([X + 6.9, Y - 2.4], 1.5, 1, '#C99A5E', { outline: true });
     g.circ([X + 7.1, Y - 2.8], 0.3, '#2A1E16');
     g.stroke([['M', [X + 6.3, Y - 3.3]], ['Q', [X + 5.6, Y - 5.8], [X + 4.4, Y - 5.6]]], '#4A3A2E', 0.55);   // the horns swept back over the neck
     return;
   }
-  const nb = (walk ? (pose % 2 === 0 ? -0.3 : 0.2) : 0) - 1.6;                              // the head nods with the stride, on the raised body
-  g.poly([[X + 3.2, Y - 6.4 + bob], [X + 4.4, Y - 7 + bob], [X + 5.4, Y - 10.4 + nb], [X + 4.2, Y - 10.6 + nb]], '#C99A5E', { outline: true });   // the neck
   g.ell([X + 5.2, Y - 10.8 + nb], 1.5, 1, '#C99A5E', { outline: true });                    // the head
   g.circ([X + 5.6, Y - 11 + nb], 0.3, '#2A1E16');
   g.stroke([['M', [X + 4.6, Y - 11.4 + nb]], ['Q', [X + 4, Y - 14.2 + nb], [X + 5.4, Y - 14.6 + nb]]], '#4A3A2E', 0.55);   // horns
