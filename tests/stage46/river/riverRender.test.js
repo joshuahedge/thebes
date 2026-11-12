@@ -134,7 +134,7 @@ describe('s46 river render: the animals (ruling 335, 367)', () => {
     const h = herd(w, { size: 5 });
     const out = animalsAt(w, 0, ALL, 'full').filter((a) => a.id >= WILDLIFE_ID_BASE + h.id * 16 && a.id < WILDLIFE_ID_BASE + h.id * 16 + 16);
     expect(out.length).toBe(5);
-    expect(out.every((a) => /^gazelle(_l)?$/.test(a.kind))).toBe(true);
+    expect(out.every((a) => /^gazelle(_g)?(_l)?$/.test(a.kind))).toBe(true);   // Version 10.0.1 (ruling 2377): a herd at rest grazes (_g) or stands
   });
   it('never draws more than 40 animals at once, the herds\' first, and gives each figure its own id', () => {
     const w = riverWorld({ size: 80 });
@@ -295,7 +295,9 @@ describe('s46 river render: the art', () => {
       for (let p = 0; p < masks[names[i]].length; p++) { if (masks[names[i]][p] !== masks[names[j]][p]) diff++; if (masks[names[i]][p] || masks[names[j]][p]) either++; }
       expect([`${names[i]}/${names[j]}`, diff / either > 0.25]).toEqual([`${names[i]}/${names[j]}`, true]);
     }
-    expect(inked((g) => gazelle(g, 0, 0, true))).toBe(inked((g) => gazelle(g, 0, 0, false)));   // the left-facing slot is the same drawing mirrored
+    // the left-facing slot is the same drawing mirrored (Version 10.0.1, ruling 2377: to within a pixel of anti-aliasing: the gazelle's bent legs sit on sub-pixel
+    // positions, and the mirror's edge pixels round the other way: 513 against 514)
+    expect(Math.abs(inked((g) => gazelle(g, 0, 0, true)) - inked((g) => gazelle(g, 0, 0, false)))).toBeLessThanOrEqual(2);
   });
   it('draws the nilometer, lodge and wharf directly too', () => {
     expect(inked((g) => nilometer(g, 0, 0))).toBeGreaterThan(500);
