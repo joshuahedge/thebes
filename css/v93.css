@@ -60,3 +60,15 @@
    the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
 body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
 body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
+
+/* Version 10.0, Track M (rulings 2300-2319): the phone leftovers, one block per item, each named by its 9.3.1 follow-up. They sit here, at the end of the last stylesheet, so index.html's list of
+   stylesheets (which older tests pin) is unchanged. */
+
+/* C14 (ruling 2302): placing at 150% or 200% text on a phone under 700 px tall folds the bar to its cost line: the balance and the effect lines go (the chips and the why line keep
+   the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
+body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
+body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
+
+/* The Ground legend at 125% text and more on a phone at least 700 px tall (ruling 2303): its "Bright: room for a farm" key is drawn and wraps, where 9.2's ruling 1827 had it for screen readers
+   only. On a short phone (body.short: a 667 px SE, or any phone held sideways) it stays hidden: the legend's third line costs the farm ghost its frame there (tests/v70/p/review.test.js). */
+body:not(.short):is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
