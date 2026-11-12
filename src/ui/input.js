@@ -22,8 +22,11 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
   let stoppedFling = false; // the touch that is down stopped a fling: its tap is not a tap
 
   let waiting = null;     // a tap held for tapWait: { e, handle }
-  const flushTap = () => { if (!waiting) return; const w = waiting; waiting = null; clearTimer(w.handle); actions.tap(w.e); };
+  // Version 10.0 (Track M, ruling 2332): a held tap that wakes while a tool is open, or after the mode changed, is dropped: it must never land as a tool tap (place or select).
+  const flushTap = () => { if (!waiting) return; const w = waiting; waiting = null; clearTimer(w.handle); if (!isToolMode(store.get().mode)) actions.tap(w.e); };
   const dropTap = () => { if (!waiting) return; clearTimer(waiting.handle); waiting = null; };
+  let heldMode = store.get().mode;
+  const unsubscribe = store.subscribe((s) => { if (s.mode !== heldMode) { heldMode = s.mode; dropTap(); } });
 
   const gestures = createGestures({
     // A primary tap or click is a tap; a right-button press-and-release is Back. A right-button drag is a pan and
@@ -32,7 +35,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
       if (stoppedFling) { stoppedFling = false; gestures.forgetTap(); return; }
       flushTap();                                                      // an earlier tap still waiting counts now, before this one (it was not the first of a double)
       if (e.button !== 0) { if (e.button === 2) actions.secondary(); return; }
-      if (tapWait > 0 && e.type !== 'mouse' && !isToolMode(store.get().mode) && waitsFor(e)) { waiting = { e, handle: setTimer(() => { waiting = null; actions.tap(e); }, tapWait) }; return; }
+      if (tapWait > 0 && e.type !== 'mouse' && !isToolMode(store.get().mode) && waitsFor(e)) { waiting = { e, handle: setTimer(() => { waiting = null; if (!isToolMode(store.get().mode)) actions.tap(e); }, tapWait) }; return; }
       actions.tap(e);
     },
     onDoubleTap: (e) => { dropTap(); cameraControl.zoomStep(ZOOM_STEP, e.x, e.y); },   // the first tap of the pair never selected
@@ -134,6 +137,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
   return {
     detach() {
       dropTap();
+      unsubscribe();
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);

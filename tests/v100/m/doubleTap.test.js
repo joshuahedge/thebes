@@ -28,7 +28,7 @@ function rig({ mode = 'browse', waitsFor = () => true } = {}) {
   const ev = (name, x, y, type = 'touch', id = 1) => fire(canvas, name, { ...at(x, y), pointerId: id, pointerType: type });
   const tap = (type = 'touch', x = 100, y = 80) => { ev('pointerdown', x, y, type); clock.t += 30; ev('pointerup', x, y, type); };
   const advance = (ms) => { clock.t += ms; for (const h of timers) if (h.live && h.at <= clock.t) { h.live = false; h.f(); } };
-  return { cam, log, tap, ev, advance, clock, input, cleanup };
+  return { cam, log, store, tap, ev, advance, clock, input, cleanup };
 }
 
 describe('v100 m: a double tap zooms without selecting (C12)', () => {
@@ -82,6 +82,33 @@ describe('v100 m: a double tap zooms without selecting (C12)', () => {
     bare.tap();
     expect(bare.log).toEqual([['tap', 'touch']]);
     bare.input.detach(); bare.cleanup();
+  });
+});
+
+describe('v100 m: a held tap never lands in a tool (final review M-1)', () => {
+  it('drops the held tap when a tool opens before the timer fires', () => {
+    const r = rig();
+    r.tap();
+    r.store.set({ mode: 'drawing' });
+    r.advance(DOUBLE_TAP_MS + 50);
+    expect(r.log).toEqual([]);
+    r.input.detach(); r.cleanup();
+  });
+  it('drops the held tap when the timer fires with a tool open and no change event reached it', () => {
+    const r = rig();
+    r.tap();
+    r.store.set({ mode: 'drawing' }); r.input.detach();   // nothing listens any more: the timer's own check must hold
+    r.advance(DOUBLE_TAP_MS + 50);
+    expect(r.log).toEqual([]);
+    r.cleanup();
+  });
+  it('drops the held tap when a later tap flushes it into a tool', () => {
+    const r = rig();
+    r.tap();
+    r.store.set({ mode: 'placing' });
+    r.tap('touch', 200, 150);
+    expect(r.log).toEqual([['tap', 'touch']]);   // only the new tap, which is the tool's own
+    r.input.detach(); r.cleanup();
   });
 });
 

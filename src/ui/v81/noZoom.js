@@ -26,7 +26,7 @@ export function installNoZoom({ doc = document, now = () => performance.now() } 
   const onMap = (ev) => within(ev, 'canvas');
   // Version 10.0 (Track M, ruling 2305, S14): iOS Safari ignores the viewport's maximum-scale, so a two-finger touch that starts on a bar (the top bar, the rows under it, the dock, the corner
   // buttons, the placing bar) is cancelled too: a thin strip is where an accident happens, and where a page zoomed past 200% could not be pinched back. A sheet and the rest of the page keep
-  // the deliberate pinch (ruling 1829). css/v100-m.css takes pinch-zoom out of the bars' touch-action for the browsers that read that.
+  // the deliberate pinch (ruling 1829). css/v93.css (the bars' touch-action rule) takes pinch-zoom out of the bars' touch-action for the browsers that read that.
   const onBar = (ev) => within(ev, BARS);
   const onGesture = (ev) => { if (onMap(ev) || onBar(ev)) stop(ev); };
   const onTwoFingers = (ev) => { if (ev.touches && ev.touches.length >= 2 && onBar(ev)) stop(ev); };
