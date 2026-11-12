@@ -469,6 +469,25 @@ function drawPools(g, world, range) {
   }
 }
 
+// Version 10.0 (Track Q, ruling 2143): an empty housing plot is pegged out in the ground, not outlined over it: a short wooden stake at each corner with its own small shadow and a
+// slack cord between them, baked into the chunk (a plot is ground, so it costs no frame). The live marker (render/unbuilt.js) keeps the sign on its post and the far zoom's sand square.
+export const PLOT_PEGS = { string: '#6B4A25', stake: '#8A6532', stakeLit: '#B98B4A', inset: 0.1, height: 4.6, sag: 1.1 };
+export function drawPlotStakes(g, b) {
+  const { x, y, w, d } = b, i = PLOT_PEGS.inset;
+  const corners = [p(x + i, y + i), p(x + w - i, y + i), p(x + w - i, y + d - i), p(x + i, y + d - i)];
+  const cord = [];
+  corners.forEach((c, k) => {
+    const n = corners[(k + 1) % 4], top = [c[1] - PLOT_PEGS.height + 0.6, n[1] - PLOT_PEGS.height + 0.6];
+    const mid = [(c[0] + n[0]) / 2, (top[0] + top[1]) / 2 + PLOT_PEGS.sag];
+    cord.push(['M', [c[0], top[0]]], ['Q', mid, [n[0], top[1]]]);
+  });
+  g.stroke(corners.flatMap((c) => [['M', [c[0] + 0.5, c[1] + 0.3]], ['L', [c[0] + 2.6, c[1] + 0.9]]]), SHADOW_PEG, 1, 0.3);   // each stake's shadow, laid to the right
+  g.stroke(cord, PLOT_PEGS.string, 0.55, 0.9);
+  g.stroke(corners.flatMap((c) => [['M', c], ['L', [c[0], c[1] - PLOT_PEGS.height]]]), PLOT_PEGS.stake, 1.1);
+  g.stroke(corners.flatMap((c) => [['M', [c[0] - 0.3, c[1] - 0.6]], ['L', [c[0] - 0.3, c[1] - PLOT_PEGS.height + 0.4]]]), PLOT_PEGS.stakeLit, 0.35, 0.8);
+}
+const SHADOW_PEG = '#3E3260';
+
 // A soft pad under every building footprint touching the range, so plots and buildings fade into the ground.
 export function drawPlots(g, world, range) {
   const seen = new Set();
@@ -480,6 +499,18 @@ export function drawPlots(g, world, range) {
     if (!b || hasYard(b)) return;   // 9.3 (Track G): a building with a yard has its own trodden patch (yards.js)
     const c = p(b.x + b.w / 2, b.y + b.d / 2);
     g.radial(c, 15 * (b.w + b.d) / 2, 7.5 * (b.w + b.d) / 2, TERRAIN.plot, 0.6);
+  });
+}
+
+// Version 10.0 (Track Q, ruling 2143): every empty plot in the range is pegged out, after the yards (which would otherwise lie over the stakes).
+export function drawPlotMarks(g, world, range) {
+  const seen = new Set();
+  forTiles(world, range, (x, y, i) => {
+    const id = world.occ[i];
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const b = world.buildings[id];
+    if (b && b.type === 'house' && b.tier === 0 && b.large !== true) drawPlotStakes(g, b);
   });
 }
 
@@ -509,6 +540,7 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   drawPlots(g, world, range);
   drawYards(g, world, range);   // Version 9.3 (Track G): the trodden yards, paths and contact shadows, under the roads
   drawRoads(g, world, range);
+  drawPlotMarks(g, world, range);   // Version 10.0 (Track Q, ruling 2143): the empty plots' stakes and string, over the yards and the roads' edges
   drawStreetFurniture(g, world, range);
   drawBridges(g, world, range);
   drawWalls(g, world, range);

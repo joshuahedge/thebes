@@ -32,8 +32,10 @@ import { drawUnbuilt } from './unbuilt.js';
 // The 44 px tap area round a badge and its stem (ruling 281): the half-width either side of the stem and the badge.
 export const MARKER_TAP_PX = 22;
 export const MARKER = {
-  r: 11,          // the badge's radius, CSS px (22 across: P13's 20 at the least)
+  r: 11,          // the badge's layout radius, CSS px (22 across: P13's 20 at the least): spacing, merging and the tap
+  drawScale: 0.8, // Version 10.0 (Track Q, ruling 2145): the badge is drawn 20% smaller than that, so a troubled street is not a row of heavy pins
   stem: 10,       // the shortest stem, CSS px, from the roof dot to the badge's foot
+  stemInk: 1, stemHalo: 2.6,   // Version 10.0 (Track Q, ruling 2145): the stem's ink and the white halo under it, CSS px wide (they were 2 and 4)
   gap: 3,         // CSS px kept clear between two badges
   most: 3,        // more than this many in one place merge into a count badge
   mostWarning: 2, // homes about to lose a tier ("↓", the warning tone) merge sooner: three or more in one place make one
@@ -212,17 +214,17 @@ export function drawMarkers(g, world, alerts, range, layout = []) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const h = makeDraw(ctx, 1, 1);                                                // CSS px from here
   for (const m of layout) {
-    const color = TONE[m.tone] || UI.problem, bottom = m.y + m.r;
-    h.line([m.foot.x, m.foot.y], [m.x, bottom], UI.halo, 4, 0.9);                // the stem: ink on a white halo
-    h.line([m.foot.x, m.foot.y], [m.x, bottom], INK, 2, 1);
+    const color = TONE[m.tone] || UI.problem, R = m.r * MARKER.drawScale, bottom = m.y + R;   // Version 10.0 (Track Q, ruling 2145): the badge is drawn 20% smaller; its layout radius (spacing, merging, the tap) is as it was
+    h.line([m.foot.x, m.foot.y], [m.x, bottom], UI.halo, MARKER.stemHalo, 0.9);  // the stem: ink on a white halo; Version 10.0 (Track Q, ruling 2145): 1 px of ink (it was 2) on a thinner halo
+    h.line([m.foot.x, m.foot.y], [m.x, bottom], INK, MARKER.stemInk, 1);
     h.circ([m.foot.x, m.foot.y], 4, UI.halo, { alpha: 0.95 });                   // the dot on the roof
     h.circ([m.foot.x, m.foot.y], 2.6, color);
-    h.circ([m.x, m.y], m.r + 2, UI.halo, { alpha: 0.95 });                        // the badge
-    h.circ([m.x, m.y], m.r, color, { stroke: INK, strokeWidth: 0.8, strokeAlpha: 0.5 });
+    h.circ([m.x, m.y], R + 2, UI.halo, { alpha: 0.95 });                          // the badge
+    h.circ([m.x, m.y], R, color, { stroke: INK, strokeWidth: 0.8, strokeAlpha: 0.5 });
     const ink = m.tone === 'warning' ? UI.label : UI.halo;
-    if (m.count > 1) h.text([m.x, m.y + 0.5], String(m.count), { size: m.count > 9 ? 0.95 * m.r : 1.2 * m.r, weight: '700', color: ink });
-    else if (m.glyph === 'road') roadMark(h, m.x, m.y, m.r);
-    else h.text([m.x, m.y + 0.5], m.glyph === 'down' ? '↓' : '!', { size: 1.4 * m.r, weight: '700', color: ink });
+    if (m.count > 1) h.text([m.x, m.y + 0.5], String(m.count), { size: m.count > 9 ? 0.95 * R : 1.2 * R, weight: '700', color: ink });
+    else if (m.glyph === 'road') roadMark(h, m.x, m.y, R);
+    else h.text([m.x, m.y + 0.5], m.glyph === 'down' ? '↓' : '!', { size: 1.4 * R, weight: '700', color: ink });
   }
   ctx.restore();
 }

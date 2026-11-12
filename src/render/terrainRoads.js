@@ -10,6 +10,7 @@ import { lookReader } from './groundLooks.js';
 import { wallCode } from './terrainWalls.js';
 
 export const KERB = { drop: 2.4, width: 11, alpha: 0.3 };            // Version 9.2 (Track V): art px the low side's shadow drops, its width and its strength
+export const WEAR = { offset: 0.1, width: 1.1, alpha: 0.2 };             // Version 10.0 (Track Q, ruling 2144): the paved streets' wheel tracks: tiles either side of the axis, art px wide, and the strength
 export const CART_TRACK = { width: 4.6, alpha: 0.3 };                  // the darker centre: art px wide, and the strength of the road's edge tone over the top
 
 const isRoad = (world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
@@ -111,6 +112,13 @@ function drawGroup(g, world, { look, kind, segs, dots }) {
       g.line(at(0, -0.17), at(0, 0.17), CAPITAL_STONE.joint, 0.4, 0.55);
       for (const o of [-0.44, 0.44]) g.line(at(0.5, o), at(0.5, o * 0.39), CAPITAL_STONE.joint, 0.4, 0.55);
     }
+    // Version 10.0 (Track Q, ruling 2144): the wear of the street, baked: two darker tracks along the road's axis where the carts' wheels pass, either side of its middle.
+    const wear = [];
+    for (const [ax, ay, bx, by] of segs) {
+      const alongX = ay === by;
+      for (const o of [-WEAR.offset, WEAR.offset]) wear.push(['M', p(ax + 0.5 + (alongX ? 0 : o), ay + 0.5 + (alongX ? o : 0))], ['L', p(bx + 0.5 + (alongX ? 0 : o), by + 0.5 + (alongX ? o : 0))]);
+    }
+    if (wear.length) g.stroke(wear, SHADOW, WEAR.width, WEAR.alpha);
     if (look === 3 && path.length) g.stroke(path, GOLD, 0.8, 0.6);
     return;
   }

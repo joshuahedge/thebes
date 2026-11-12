@@ -86,7 +86,8 @@ export function drawUnbuilt(g, world, range = null) {
     g.polys(sand, 'none', { stroke: UNBUILT.sandEdge, strokeWidth: 1 / css, strokeAlpha: 0.7 });
   } else {
     // The strings: one path for every footprint in view, a white halo and then the cord.
-    const strings = list.map((u) => quad(u.x + UNBUILT.inset, u.y + UNBUILT.inset, u.w - 2 * UNBUILT.inset, u.d - 2 * UNBUILT.inset, 0));
+    // Version 10.0 (Track Q, ruling 2143): a plot's string and stakes are baked into the ground now (terrainBaker.js drawPlotMarks), so only a monument's site is pegged out live.
+    const strings = list.filter((u) => u.kind === 'site').map((u) => quad(u.x + UNBUILT.inset, u.y + UNBUILT.inset, u.w - 2 * UNBUILT.inset, u.d - 2 * UNBUILT.inset, 0));
     g.polys(strings, 'none', { stroke: UI.halo, strokeWidth: UNBUILT.haloPx / css, strokeAlpha: 0.85 });
     g.polys(strings, 'none', { stroke: UNBUILT.string, strokeWidth: UNBUILT.stringPx / css });
     // The stakes: a short post at each corner, one path (its halo wider).
