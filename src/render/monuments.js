@@ -34,6 +34,8 @@ import { p, U, depthKey } from './iso.js';
 import { v90Off } from './v90/dropper.js';
 import { MONUMENT_PLACING } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { LIFE } from '../data/ambient.js';
+import { DAYS_PER_MONTH } from '../sim/time.js';
 import { V84_G_TEXT as ART_TEXT_V84 } from '../ui/text.js';
 
 export const FADE_MS = { full: 400, gentle: 200 };   // the newest block's fade, by Motion level (Still: none)
@@ -188,8 +190,38 @@ export function isWorking(b, look = siteLook(b)) {
 // game time, crews out of step; two masons a crew (at most four) at the course under way, swinging their mallets. A site
 // that does no work keeps its sleds parked at the ramp's foot, its haulers standing by (and its masons at rest); with no
 // crews, one empty sled stands there.
+// Version 10.0, Track L (L.5, spec 5d, rulings 2215-2218): the builders and the rest beat.
+//   builders  LIFE.buildersPerSite (2 on a site of 2x2 or less, 4 above) a working site, in the builder's kilt and headcloth, each on its own round on
+//             game time: carrying a brick from the foot of the site's front pole, climbing to the course under way, hammering there, climbing down
+//   rest      on the first day of each game month a working site rests: the sleds stand at the ramp's foot, the haulers sit, the masons and builders stand
+//   strike    under Full each mason's mallet strikes every BUILDERS.strikeMs of real time with a small dust puff (4 px) at the course
+export const BUILDERS = { roundDays: 4, carry: 0.3, climb: 0.2, hammer: 0.3, strikeMs: 3000, puffMs: 700, puffPx: 4, dust: '#D9C79C' };
+export const restDay = (timeDays) => ((Math.floor(timeDays) % DAYS_PER_MONTH) + DAYS_PER_MONTH) % DAYS_PER_MONTH === 0;
+export const buildersFor = (b) => (b.w * b.d <= 4 ? LIFE.buildersPerSite[0] : LIFE.buildersPerSite[1]);
+// The builders of a working site at game time timeDays: [{ q, s, pose }] in art px, as gang() takes them. The pole is the footprint's front corner;
+// `top` the course under way (the masons' spot).
+export function buildersLayout(b, top, timeDays, resting) {
+  const n = buildersFor(b), out = [], pole = [b.x + b.w - 0.12, b.y + b.d - 0.12], s = GANG.scale;
+  const [tx, ty, tz] = top;
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? 0.3 : -0.3;
+    if (resting) { const q = U(p(pole[0] - 0.3 - i * 0.18, pole[1] + 0.12), 0); out.push({ q, s, pose: 'rest', builder: true }); continue; }
+    const ph = (((timeDays / BUILDERS.roundDays + i / n) % 1) + 1) % 1;
+    const { carry, climb, hammer } = BUILDERS;
+    const foot = [pole[0] - 0.9 - (i >> 1) * 0.2, pole[1] + side * 0.4], at = [tx + side * 0.25, ty + (i >> 1) * 0.12];
+    let x, y, z, pose;
+    if (ph < carry) { const u = ph / carry; x = foot[0] + (pole[0] - foot[0]) * u; y = foot[1] + (pole[1] - foot[1]) * u; z = 0; pose = 'carry'; }
+    else if (ph < carry + climb) { const u = (ph - carry) / climb; x = pole[0] + (at[0] - pole[0]) * u; y = pole[1] + (at[1] - pole[1]) * u; z = tz * u; pose = 'climb'; }
+    else if (ph < carry + climb + hammer) { x = at[0]; y = at[1]; z = tz; pose = 'mallet'; }
+    else { const u = (ph - carry - climb - hammer) / (1 - carry - climb - hammer); x = at[0] + (foot[0] - at[0]) * u; y = at[1] + (foot[1] - at[1]) * u; z = tz * (1 - u); pose = 'climb'; }
+    out.push({ q: U(p(x, y), z), s, pose, builder: true, swing: pose === 'mallet' ? Math.abs(Math.sin((timeDays * 2.4 + i * 0.3) * Math.PI)) : 0 });
+  }
+  return out;
+}
+
 export function gangLayout(b, look, ramp, timeDays) {
-  const spots = workSpots(b.type, b.x, b.y, b.w, b.d, look), working = isWorking(b, look);
+  const spots = workSpots(b.type, b.x, b.y, b.w, b.d, look), crewsAtWork = isWorking(b, look);
+  const resting = crewsAtWork && restDay(timeDays), working = crewsAtWork && !resting;   // Version 10.0, Track L: the month's rest day
   const way = ramp ? { x0: ramp.xf, x1: ramp.xt, y: (ramp.yo + ramp.yr) / 2, z0: 0, z1: ramp.z1 } : { ...spots.path, z0: 0, z1: 0 };
   const at = (t, side = 0) => U(p(way.x0 + (way.x1 - way.x0) * t, way.y + side), way.z0 + (way.z1 - way.z0) * t);
   const run = Math.max(0.05, Math.abs(way.x1 - way.x0)), dt = GANG.spacing / run;
@@ -199,7 +231,7 @@ export function gangLayout(b, look, ramp, timeDays) {
     if (!working) {
       const t = Math.min(0.9, j * 0.12);                                      // parked at the foot, one behind another
       sleds.push({ q: [way.x0 + (way.x1 - way.x0) * t, way.y], z: way.z0 + (way.z1 - way.z0) * t, loaded: false });
-      if (j < crews) for (let k = 0; k < GANG.haulers; k++) people.push({ q: at(Math.min(1, t + dt * (1 + (k >> 1))), (k % 2 ? 0.1 : -0.1) + 0.04), s: GANG.scale, pose: 'rest' });
+      if (j < crews) for (let k = 0; k < GANG.haulers; k++) people.push({ q: at(Math.min(1, t + dt * (1 + (k >> 1))), (k % 2 ? 0.1 : -0.1) + 0.04), s: GANG.scale, pose: resting ? 'sit' : 'rest' });
       continue;
     }
     const phase = (((timeDays / GANG.tripDays + j / n) % 1) + 1) % 1, up = phase < GANG.upShare;
@@ -221,7 +253,17 @@ export function gangLayout(b, look, ramp, timeDays) {
       masons.push({ q: U(p(mx, my), mz), s: GANG.scale, pose: working ? 'mallet' : 'rest', swing });
     }
   }
-  return { working, sleds, people, masons };
+  const builders = crewsAtWork && !look.done ? buildersLayout(b, spots.masons[0], timeDays, resting) : [];   // never on a paused or stalled site
+  return { working, resting, sleds, people, masons, builders, strikes: working ? masons.map((m) => m.q) : [] };
+}
+// Under Full, a mason's strike: a puff of stone dust at his course every BUILDERS.strikeMs of real time, each mason out of step.
+function strikeDust(g, strikes, now) {
+  strikes.forEach((q, j) => {
+    const t = (((now + j * 1300) % BUILDERS.strikeMs) + BUILDERS.strikeMs) % BUILDERS.strikeMs;
+    if (t >= BUILDERS.puffMs) return;
+    const u = t / BUILDERS.puffMs, r = 1 + (BUILDERS.puffPx / 2) * u;
+    g.circ([q[0] + 2.2, q[1] - 1 - 2 * u], r, BUILDERS.dust, { alpha: 0.55 * (1 - u) });
+  });
 }
 
 // Version 9.0, Track V (V6): dust kicked up behind each loaded sled a working site hauls up its ramp, two soft puffs on the ground at the sled's
@@ -238,8 +280,10 @@ function sledDust(g, sleds) {
 }
 
 // Draws the gangs of gangLayout: the masons (on the course, further back) first, then the sleds and their haulers.
-function drawGangs(g, layout) {
+function drawGangs(g, layout, now = 0, motion = 'full') {
   gang(g, layout.masons);
+  if (layout.builders && layout.builders.length) gang(g, [...layout.builders].sort((a, c) => a.q[1] - c.q[1]));   // Version 10.0, Track L
+  if (motion === 'full' && layout.strikes && layout.strikes.length) strikeDust(g, layout.strikes, now);
   if (layout.working && !v90Off('dust')) sledDust(g, layout.sleds);
   for (const s of layout.sleds) {
     box(g, s.q[0] - 0.13, s.q[1] - 0.08, 0.26, 0.16, 1, s.z, ['#C9A26A', '#A8814E', '#86705E'], 0);
@@ -328,7 +372,7 @@ function drawScene(g, world, b, look, { now, timeDays, motion }) {
     else if (motion !== 'full' && age < OUTLINE_MS) outlineEdge(g, edge);
   }
   if (b.site && b.site.camp) drawCamp(g, b);                                  // Version 8.3: a site under way with its workers' camp
-  drawGangs(g, gangLayout(b, look, ramp, timeDays));
+  drawGangs(g, gangLayout(b, look, ramp, timeDays), now, motion);
   if (b.site && b.site.rush) drawRushLabel(g, b);                            // Version 8.4: the word says it is rushed (not a tint)
   return { look, memo: m, ramp };
 }
