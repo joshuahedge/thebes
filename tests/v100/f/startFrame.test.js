@@ -1,0 +1,59 @@
+// Version 10.0 (Track F, ruling 2111): a new city opens on its entry road's end diamond with the map around it: under 30% of the screen off the map, the diamond in sight
+// and toward the edge the entry stands on.
+import { describe, it, expect } from '../../harness.js';
+import { holdInMap, tileToScreen } from '../../../src/render/camera.js';
+import { startCamera } from '../../../src/ui/cameraControl.js';
+import { createWorld } from '../../../src/sim/world.js';
+import { fire, startNewCity } from '../../helpers/dom.js';
+import { OFF_MAP_SHARE } from '../../../src/render/camera.js';
+import { offMapShare, bootAt } from './helpers.js';
+
+const SIZES = [{ width: 390, height: 844 }, { width: 1920, height: 1080 }];
+const diamondOf = (world) => world.startRoad[world.startRoad.length - 1];
+
+describe('v100 f start frame: the first view keeps the map on screen', () => {
+  it('startCamera holds, keeps the diamond in sight and leaves under 30% off the map, on every size', () => {
+    const bad = [];
+    for (const size of [48, 64, 80, 112]) {
+      const world = createWorld({ seed: 11, size });
+      for (const view of SIZES) {
+        for (const zoom of [1, 0.6]) {
+          const cam = { ...startCamera(world, view, zoom), mapSize: size };
+          const held = holdInMap({ ...cam }, view);
+          const [x, y] = diamondOf(world);
+          const [sx, sy] = tileToScreen(cam, view, x + 0.5, y + 0.5);
+          const share = offMapShare(cam, view, size), label = `${size} ${view.width}x${view.height} z${zoom}`;
+          if (held.x !== cam.x || held.y !== cam.y) bad.push(`${label}: not held`);
+          if (!(sx > 0 && sx < view.width && sy > 0 && sy < view.height)) bad.push(`${label}: diamond off screen`);
+          // a map diamond under twice the screen's long side cannot fill it (its corners are empty whatever the camera does): only a bigger map is held to the 30%
+          if (share >= 0.3 && size * 64 * zoom >= 2 * Math.max(view.width, view.height)) bad.push(`${label}: ${Math.round(share * 100)}% off the map`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+  it('moves the centre inward from the entry: the diamond is on the entry side of the middle', () => {
+    const world = createWorld({ seed: 11, size: 64 });
+    const view = { width: 1920, height: 1080 };
+    const cam = { ...startCamera(world, view, 1), mapSize: 64 };
+    const [x, y] = diamondOf(world);
+    expect(cam.y).toBeLessThan(y + 0.5);              // the entry is on the +y edge: the centre is further in
+    const [, sy] = tileToScreen(cam, view, x + 0.5, y + 0.5);
+    expect(sy).toBeGreaterThan(view.height / 2);       // so the diamond sits below the middle of the screen, toward the edge
+    expect(OFF_MAP_SHARE).toBe(0.7);
+  });
+  for (const view of SIZES) {
+    it(`a fresh city booted at ${view.width}x${view.height} opens held, its diamond in sight, under 30% off the map`, async () => {
+      const r = await bootAt(view.width, view.height);
+      startNewCity(r.root.querySelector('#title'));
+      const g = r.api.game();
+      const held = holdInMap({ ...g.cam }, view);
+      expect(held.x).toBe(g.cam.x); expect(held.y).toBe(g.cam.y);
+      const [x, y] = diamondOf(g.world);
+      const [sx, sy] = tileToScreen(g.cam, view, x + 0.5, y + 0.5);
+      expect(sx > 0 && sx < view.width && sy > 0 && sy < view.height).toBe(true);
+      expect(offMapShare(g.cam, view, g.world.size)).toBeLessThan(0.3);
+      r.cleanup();
+    });
+  }
+});

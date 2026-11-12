@@ -22,6 +22,7 @@ import { buildingsInRange } from './chunkIndex.js';
 import { effectsV90 } from './v90/effects.js';
 import { v90Off, spend } from './v90/dropper.js';
 import { scaffoldsAt, drawScaffold, watchLooks } from './v90/scaffold.js';
+import { drawOffMap, seasonWashes } from './v100/offMap.js';   // Version 10.0 (Track F)
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -179,8 +180,6 @@ export function createRenderer({
     const W = Math.round(view.width * dpr), H = Math.round(view.height * dpr);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = TERRAIN.offMap;
-    ctx.fillRect(0, 0, W, H);
     const zoom = cam.zoom;
     const range = visibleTileRange(cam, view, world.size);
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
@@ -188,6 +187,8 @@ export function createRenderer({
     const g = makeDraw(ctx, ART_SCALE * zoom * dpr, ART_SCALE * zoom);   // the CSS px an art px takes, for marks that keep their size on screen
     g.cull = cullControl.on ? viewCull(cam, view) : null;   // Version 5.0 (Task 6): what the view can show, for a pass over the range's tiles that draws each one (markers.js)
 
+    // 0a. Version 10.0 (Track F, rulings 2112-2114): the ground past the map: haze, dune strokes, the rim's shadow and the season's wash (render/v100/offMap.js), where a flat fill was.
+    drawOffMap(g, world, cam, view, opts.now === undefined ? 0 : opts.now, { season: seasonWashes(world) });
     // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     drawMapEdge(g, world.size);
