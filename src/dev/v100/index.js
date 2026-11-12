@@ -24,7 +24,8 @@ export const VERSION100_SCENES = ['bazaar-crowd', 'night-town', 'storm', 'wharf'
 
 // The light loop's clock (ms into the cycle) at noon (the middle of the day phase) and at the middle of the night.
 export const NOON_MS = LIGHT.cycleMs * (LIGHT.day / 2);
-export const NIGHT_MS = LIGHT.cycleMs * (LIGHT.day + LIGHT.dusk + LIGHT.night / 2);
+export const MORNING_MS = LIGHT.cycleMs * LIGHT.day * 0.12;   // Version 10.0, Track L (ruling 2235): the morning, when the bazaar is busiest
+export const NIGHT_MS =LIGHT.cycleMs * (LIGHT.day + LIGHT.dusk + LIGHT.night / 2);
 const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const SHEMU_MONTH = SEASONS.findIndex((s, m) => s === 'shemu' && SEASONS[(m + MONTHS_PER_YEAR - 1) % MONTHS_PER_YEAR] !== 'shemu');
 
@@ -80,7 +81,7 @@ async function freshCorner(api, options = {}) {
 }
 
 export const V100_SCENE_FNS = {
-  'bazaar-crowd': (api, options = {}) => bazaarAt(api, 'bazaar-crowd', NOON_MS, options),
+  'bazaar-crowd': (api, options = {}) => bazaarAt(api, 'bazaar-crowd', options.noon ? NOON_MS : MORNING_MS, options),   // Version 10.0, Track L: the morning, its busiest (options.noon for noon)
   'night-town': (api, options = {}) => bazaarAt(api, 'night-town', NIGHT_MS, options),
   storm,
   wharf,
