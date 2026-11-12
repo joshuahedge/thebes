@@ -34,7 +34,8 @@ import { previewWall, drawWall, previewWallTiles, drawWallTiles } from '../sim/d
 import { canBurn } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { laidLone } from '../sim/loneRoad.js';
-import { lessonRoadStart } from '../sim/lesson.js';   // Version 9.2 (Track L): the lesson's road begins at the end of the road
+import { lessonRoadStart, stepDone } from '../sim/lesson.js';   // Version 9.2 (Track L): the lesson's road begins at the end of the road; Version 10.0 (Track M, ruling 2300): and its first step's words
+import { LESSON_STEPS } from '../data/lesson.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
@@ -508,7 +509,9 @@ function routePreview(world, l) {
 
 // Stage 4.6 (ruling 350): until a road is drawn the bar's cost line (empty then) says that a road can cross water, and what a bridge costs (the sim's price).
 // Version 8.3 (Track X, ruling 1395): and where a river runs, the two limits: "Water: bridge up to 4 tiles (15 a tile), ferry 5 to 12".
-const bridgeNote = (world, tool) => (tool.kind === 'ferry' ? FERRY_TEXT.note : tool.kind === 'road' && !tool.gate ? CROSSING_TEXT.roadNote(costOf(world, 'bridge'), !riverless(world)) : '');
+// Version 10.0 (Track M, ruling 2300, C7): not in the lesson's road step, whose one instruction is "Tap where it starts" (the water line comes back with the next step).
+const lessonRoadStep = (world) => Boolean(world.lesson) && !stepDone(world, LESSON_STEPS[0]);
+const bridgeNote = (world, tool) => (tool.kind === 'ferry' ? FERRY_TEXT.note : tool.kind === 'road' && !tool.gate && !lessonRoadStep(world) ? CROSSING_TEXT.roadNote(costOf(world, 'bridge'), !riverless(world)) : '');
 const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape', 'landing_taken', 'landing_no_road'];   // Version 8.3: and a ferry's landing
 const CARD_REFUSALS = ['too_wide', 'landing_taken', 'landing_no_road'];   // Version 8.3 (ruling 1402): the ones whose Show me opens the Crossing card
 
