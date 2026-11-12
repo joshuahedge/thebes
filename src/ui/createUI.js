@@ -562,7 +562,9 @@ export function createUI({
     const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
     const corners = cornersHeight(root, canvas, h) || placingInsets(s).bottom;
     const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
-    const withToast = corners + (toast > 0 ? toast + 8 : 0);
+    // Version 10.0 (Track M, ruling 2309, C6): while the game is paused the toasts ride one Paused tag higher (css/v93.css --toast-lift), so the band they cover is that much taller.
+    const tagLift = $('corners') && $('corners').querySelector('.speed-main[data-state="paused"]') ? Math.ceil(10 * (parseFloat(getComputedStyle(root).getPropertyValue('--ui-scale')) || 1)) : 0;
+    const withToast = corners + (toast > 0 ? toast + 8 + tagLift : 0);
     if (h - top - withToast >= need) return { ...plain, insets: { ...i, top, bottom: withToast } };
     const dock = $('dock') ? $('dock').getBoundingClientRect().top - canvas.getBoundingClientRect().top : 0;
     const under = cornersBottom(root, canvas);

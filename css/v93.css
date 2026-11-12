@@ -61,60 +61,6 @@
 body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
 body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
 
-/* Version 10.0, Track M (rulings 2300-2319): the phone leftovers, one block per item, each named by its 9.3.1 follow-up. They sit here, at the end of the last stylesheet, so index.html's list of
-   stylesheets (which older tests pin) is unchanged. */
-
-/* C14 (ruling 2302): placing at 150% or 200% text on a phone under 700 px tall folds the bar to its cost line: the balance and the effect lines go (the chips and the why line keep
-   the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
-
-/* The Ground legend at 125% text and more on a phone at least 700 px tall (ruling 2303): its "Bright: room for a farm" key is drawn and wraps, where 9.2's ruling 1827 had it for screen readers
-   only. On a short phone (body.short: a 667 px SE, or any phone held sideways) it stays hidden: the legend's third line costs the farm ghost its frame there (tests/v70/p/review.test.js). */
-body:not(.short):is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
-
-/* Version 10.0, Track M (rulings 2300-2319): the phone leftovers, one block per item, each named by its 9.3.1 follow-up. They sit here, at the end of the last stylesheet, so index.html's list of
-   stylesheets (which older tests pin) is unchanged. */
-
-/* C14 (ruling 2302): placing at 150% or 200% text on a phone under 700 px tall folds the bar to its cost line: the balance and the effect lines go (the chips and the why line keep
-   the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
-
-/* The Ground legend at 125% text and more on a phone at least 700 px tall (ruling 2303): its "Bright: room for a farm" key is drawn and wraps, where 9.2's ruling 1827 had it for screen readers
-   only. On a short phone (body.short: a 667 px SE, or any phone held sideways) it stays hidden: the legend's third line costs the farm ghost its frame there (tests/v70/p/review.test.js). */
-body:not(.short):is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
-
-/* C13 (ruling 2304): the New city card on a short phone at 125% text and more drops the Thebes cartouche, so the four difficulty tiles clear the sticky Start and Back (the "New city" head stays). */
-body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .title-card.short.panel-open:not(.wide):has(.new-city-body) > .title-head { display: none; }
-
-/* Version 10.0, Track M (rulings 2300-2319): the phone leftovers, one block per item, each named by its 9.3.1 follow-up. They sit here, at the end of the last stylesheet, so index.html's list of
-   stylesheets (which older tests pin) is unchanged. */
-
-/* C14 (ruling 2302): placing at 150% or 200% text on a phone under 700 px tall folds the bar to its cost line: the balance and the effect lines go (the chips and the why line keep
-   the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
-
-/* The Ground legend at 125% text and more on a phone at least 700 px tall (ruling 2303): its "Bright: room for a farm" key is drawn and wraps, where 9.2's ruling 1827 had it for screen readers
-   only. On a short phone (body.short: a 667 px SE, or any phone held sideways) it stays hidden: the legend's third line costs the farm ghost its frame there (tests/v70/p/review.test.js). */
-body:not(.short):is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
-
-/* C13 (ruling 2304): the New city card on a short phone at 125% text and more drops the Thebes cartouche, so the four difficulty tiles clear the sticky Start and Back (the "New city" head stays). */
-body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) .title-card.short.panel-open:not(.wide):has(.new-city-body) > .title-head { display: none; }
-
-/* S14 (ruling 2305): the bars take taps, scrolls and no page pinch (v81-d.css gave the chrome pinch-zoom in 9.2 for someone who needs it: the sheets and the rest still have it). The dock's and the
-   rail's cards keep their own pan rules. */
-#topbar, #under-bar, #dock, #corners, #confirm { touch-action: pan-x pan-y; }
-
-/* Version 10.0, Track M (rulings 2300-2319): the phone leftovers, one block per item, each named by its 9.3.1 follow-up. They sit here, at the end of the last stylesheet, so index.html's list of
-   stylesheets (which older tests pin) is unchanged. */
-
-/* C14 (ruling 2302): placing at 150% or 200% text on a phone under 700 px tall folds the bar to its cost line: the balance and the effect lines go (the chips and the why line keep
-   the reasons), and the floors that held the bar's height for them go too. Body.short is set by layout.js. */
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .info { min-height: 0 !important; }
-body.short[data-layout="portrait"]:is([data-text-size="150"], [data-text-size="200"]) .confirm .lines > :is(.balance, .effect) { display: none; }
-
 /* The Ground legend at 125% text and more on a phone at least 700 px tall (ruling 2303): its "Bright: room for a farm" key is drawn and wraps, where 9.2's ruling 1827 had it for screen readers
    only. On a short phone (body.short: a 667 px SE, or any phone held sideways) it stays hidden: the legend's third line costs the farm ghost its frame there (tests/v70/p/review.test.js). */
 body:not(.short):is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #legend .strip.ground .ground-keys .room { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
@@ -128,3 +74,6 @@ body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) 
 
 /* S8 (ruling 2307): the City page's Messages and City tabs stick under the sheet's head (sheets.js tells the head's height), on a parchment ground so the rows slide under them. */
 #sheet > .sheet-tabs { position: sticky; top: var(--sheet-head-h, 56px); z-index: 1; background-color: var(--parchment); background-image: var(--look-fibre); margin-bottom: 0; padding-bottom: 8px; }
+
+/* C6 (ruling 2309): while the game is paused the Play button wears its "Paused" tag above its edge; the toasts rise by the tag's height so "Road laid / Undo" never sits on it at large text. */
+body:has(#corners .speed-main[data-state="paused"]) { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1) + 10px * var(--ui-scale)); }
