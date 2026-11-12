@@ -15,6 +15,7 @@ import { LIGHT } from '../../data/seasons.js';
 import { SEASONS } from '../../data/tips.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../sim/time.js';
 import { setLightClock } from '../../render/light.js';
+import { forceStorm } from '../../render/v100/weather.js';
 import { festivalScene } from '../v70/cityEvents.js';
 import { S46_SCENES } from '../s46/index.js';
 import { inGame, wait } from '../s46/base.js';
@@ -24,6 +25,7 @@ export const VERSION100_SCENES = ['bazaar-crowd', 'night-town', 'storm', 'wharf'
 
 // The light loop's clock (ms into the cycle) at noon (the middle of the day phase) and at the middle of the night.
 export const NOON_MS = LIGHT.cycleMs * (LIGHT.day / 2);
+export const MORNING_MS = LIGHT.cycleMs * LIGHT.day * 0.12;   // Version 10.0, Track L (ruling 2235): the morning, when the bazaar is busiest
 export const NIGHT_MS = LIGHT.cycleMs * (LIGHT.day + LIGHT.dusk + LIGHT.night / 2);
 const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const SHEMU_MONTH = SEASONS.findIndex((s, m) => s === 'shemu' && SEASONS[(m + MONTHS_PER_YEAR - 1) % MONTHS_PER_YEAR] !== 'shemu');
@@ -54,10 +56,12 @@ async function storm(api, options = {}) {
   if (day < world.day) day += YEAR_DAYS;
   world.day = day;
   hold(world, NOON_MS);
+  // Version 10.0, Track L (ruling 2235): the storm forced on, begun 12 s ago (past its 5 s rise, so a shot shows it at full strength) and 40 s long
+  if (options.storm !== false) forceStorm(world, performance.now() - (options.ago === undefined ? 12000 : options.ago), 40);
   g.ui.refresh();
   look(api, world.size / 2, world.size / 2, options.zoom || 1);
   if (!options.quick) await wait(300);
-  return `storm: day ${world.day} (year ${Math.floor(world.day / YEAR_DAYS) + 1}, Shemu), noon; the storm is Track L's`;
+  return `storm: day ${world.day} (year ${Math.floor(world.day / YEAR_DAYS) + 1}, Shemu), noon; ${options.storm !== false ? 'the storm forced on' : 'no storm'}`;
 }
 
 async function wharf(api, options = {}) {
@@ -80,7 +84,7 @@ async function freshCorner(api, options = {}) {
 }
 
 export const V100_SCENE_FNS = {
-  'bazaar-crowd': (api, options = {}) => bazaarAt(api, 'bazaar-crowd', NOON_MS, options),
+  'bazaar-crowd': (api, options = {}) => bazaarAt(api, 'bazaar-crowd', options.noon ? NOON_MS : MORNING_MS, options),   // Version 10.0, Track L: the morning, its busiest (options.noon for noon)
   'night-town': (api, options = {}) => bazaarAt(api, 'night-town', NIGHT_MS, options),
   storm,
   wharf,

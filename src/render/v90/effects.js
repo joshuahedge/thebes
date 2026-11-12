@@ -21,7 +21,7 @@ const clock = () => (typeof performance !== 'undefined' ? performance.now() : 0)
 export function drawV90(g, world, opts = {}, off = () => false) {
   const range = opts.range || null, clocked = opts.now !== undefined, now = clocked ? opts.now : 0;
   const walkers = opts.walkers || [];
-  if (clocked && !off('weather')) drawWeather(g, world, range, now);        // V10 first, so the rest lie over the clouds' shade
+  if (clocked && !off('weather')) drawWeather(g, world, range, now, opts.motion || 'full');   // V10 first, so the rest lie over the clouds' shade (Version 10.0, Track L: the motion, for the shimmer)
   if (!off('dust')) drawDust(g, world, walkers, range, now);
   if (!off('fire')) drawFireFought(g, world, range, now);
   if (!off('festival')) drawFestive(g, world, walkers, range, now);

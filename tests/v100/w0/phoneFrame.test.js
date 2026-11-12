@@ -14,6 +14,8 @@ import { walkersAt } from '../../../src/render/walkers.js';
 import { createTerrainBaker } from '../../../src/render/terrainBaker.js';
 import { stressWorld } from '../../v60/b2/measure.js';
 import { makeCanvas } from '../../helpers/canvas.js';
+import { lifeLayer } from './lifeLayer.js';   // the merge of Track L (ruling 2253): the frame with life's layer on, wired as createUI wires it
+import { LIFE } from '../../../src/data/ambient.js';
 
 // Track P turns these on (ruling 2062). Version 10.0, Track P (ruling 2280): on, unthrottled (ruling 2105: the harness cannot throttle; the 4x
 // numbers are tools/profile.ps1 -Frames's).
@@ -32,8 +34,9 @@ const SWEEP = 24;   // tiles each way from the middle: a sweep is 4 x SWEEP fram
 const q = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 const r1 = (v) => Math.round(v * 10) / 10;
 
-// measureFrames(world, { width, height, dpr, kind, frames }) -> { p50, p95, max, jsP50, jsP95, bakes, sprites }
-export function measureFrames(world, { width, height, dpr, kind, frames = FRAMES, zoom = 1 }) {
+// measureFrames(world, { width, height, dpr, kind, frames, life }) -> { p50, p95, max, jsP50, jsP95, bakes, sprites, lifeMs?, dropped? }
+// life: null (the frame Track P measured) or { night } (the merge of Track L, ruling 2253: life's layer on, ./lifeLayer.js).
+export function measureFrames(world, { width, height, dpr, kind, frames = FRAMES, zoom = 1, life = null }) {
   const view = { width, height };
   const canvas = makeCanvas(width * dpr, height * dpr), ctx = canvas.getContext('2d');
   const { sprites, caches } = DEVICE_BUDGETS[kind];
@@ -42,24 +45,35 @@ export function measureFrames(world, { width, height, dpr, kind, frames = FRAMES
   const mid = world.size / 2, sweep = Math.min(SWEEP, Math.floor(world.size / 2) - 4);
   const cam = createCamera({ x: mid, y: mid, zoom, size: world.size });
   const at = (i) => { const k = i % (4 * sweep); return k < sweep ? k : k < 3 * sweep ? 2 * sweep - k : k - 4 * sweep; };   // 0 .. +sweep .. -sweep .. 0
+  const layer = life ? lifeLayer(world, kind, Boolean(life.night), { lightOnly: Boolean(life.lightOnly) }) : null;
   const frame = (i) => {
     cam.x = mid + at(i);
-    const t = world.day + i / 60, range = visibleTileRange(cam, view, world.size);
-    return renderer.renderFrame(world, cam, { view, now: 1000 + i * 17, walkers: walkersAt(world, t, range) });
+    const t = world.day + i / 60, range = visibleTileRange(cam, view, world.size), now = 1000 + i * 17, walkers = walkersAt(world, t, range);
+    return renderer.renderFrame(world, cam, layer ? { view, now, ...layer.hooks(t, now, range, walkers) } : { view, now, walkers });
   };
   for (let i = 0; i < 4 * sweep; i++) { frame(i); ctx.getImageData(0, 0, 1, 1); }   // the warm-up: one sweep
-  const all = [], js = [];
+  const all = [], js = [], lifeEach = [], byFrom = layer ? layer.life.stats().spentBy : {};
   let bakes = 0, drawn = 0;
   for (let i = 0; i < frames; i++) {
+    const l0 = layer ? layer.ms() : 0;
     const t0 = performance.now();
     const stats = frame(i);
     const t1 = performance.now();
     ctx.getImageData(0, 0, 1, 1);
     const t2 = performance.now();
     js.push(t1 - t0); all.push(t2 - t0);
+    if (layer) lifeEach.push(layer.ms() - l0);
     bakes += stats.bakes || 0; drawn += stats.sprites || 0;
   }
-  return { p50: r1(q(all, 0.5)), p95: r1(q(all, 0.95)), max: r1(Math.max(...all)), jsP50: r1(q(js, 0.5)), jsP95: r1(q(js, 0.95)), bakes, sprites: Math.round(drawn / frames) };
+  const out = { p50: r1(q(all, 0.5)), p95: r1(q(all, 0.95)), max: r1(Math.max(...all)), jsP50: r1(q(js, 0.5)), jsP95: r1(q(js, 0.95)), bakes, sprites: Math.round(drawn / frames) };
+  if (layer) {                                                                   // LIFE: the mean a frame (held to the budget), its p95 and worst (reported)
+    const r2 = (v) => Math.round(v * 100) / 100;
+    out.lifeMs = r2(lifeEach.reduce((a, b) => a + b, 0) / frames); out.lifeP95 = r2(q(lifeEach, 0.95)); out.lifeMax = r2(Math.max(...lifeEach));
+    const by = layer.life.stats().spentBy;                                       // each source's mean a frame, for the rulings note
+    out.by = Object.keys(by).map((k) => `${k} ${r2((by[k] - (byFrom[k] || 0)) / frames)}`).join(', ');
+    out.dropped = layer.life.stats().dropped; layer.done();
+  }
+  return out;
 }
 
 const said = (name, size, w, h, dpr, kind, m) => `${name} ${size} at ${w}x${h} DPR ${dpr} (${kind} budgets): frame p50 ${m.p50} ms, p95 ${m.p95} ms, worst ${m.max} ms; ` +
@@ -86,6 +100,42 @@ describe('v100 w0 phone frame', () => {
         expect([name, 'p50', m.p50 <= bounds.p50 ? 'ok' : m.p50]).toEqual([name, 'p50', 'ok']);
         expect([name, 'js p50', m.jsP50 <= JS_P50_MS ? 'ok' : m.jsP50]).toEqual([name, 'js p50', 'ok']);
         if (bound.p95) expect([name, 'p95', m.p95 <= bound.p95 ? 'ok' : m.p95]).toEqual([name, 'p95', 'ok']);
+      }
+    }
+  });
+  // The merge of Track L (ruling 2253, Josh's condition): the same two frames with life's layer on (lifeLayer: every source registered as the game
+  // registers them, Full motion), by day (the morning) and at night, held to the same bounds, and life's own time to the phone's LIFE budget (1 ms).
+  for (const night of [false, true]) {
+    const when = night ? 'night' : 'day';
+    it(`with life on (${when}): the stress city and the Huge map at 390x844 DPR 2 inside the same bounds, life within ${LIFE.budgetMs.phone} ms a frame (ruling 2253)`, () => {
+      for (const [name, size] of [['stress', 64], ['huge', 112]]) {
+        const bound = boundsFor(name);
+        const bounds = name === 'stress' ? { ...bound, p50: STRESS_P50_MS } : bound;
+        const within = (m) => m.p50 <= bounds.p50 && (!bounds.p95 || m.p95 <= bounds.p95) && m.lifeMs <= LIFE.budgetMs.phone;
+        const opts = { width: 390, height: 844, dpr: 2, kind: 'phone', life: { night } };
+        let m = measureFrames(stressWorld(size), opts);
+        for (let again = 0; !within(m) && again < 2; again++) {                  // as the frame without life: up to three times, the best median kept
+          const n = measureFrames(stressWorld(size), opts);
+          if (n.p50 < m.p50) m = n;
+        }
+        results[`${name}-390x844-life-${when}`] = m;
+        it(`v100 w0 phone frame > with life (${when}) measured: ${said(name, size, 390, 844, 2, 'phone', m)}; LIFE mean ${m.lifeMs} ms a frame, p95 ${m.lifeP95}, worst ${m.lifeMax}, every source on (${m.by})`, () => {});
+        expect([name, when, 'p50', m.p50 <= bounds.p50 ? 'ok' : m.p50]).toEqual([name, when, 'p50', 'ok']);
+        expect([name, when, 'js p50', m.jsP50 <= JS_P50_MS ? 'ok' : m.jsP50]).toEqual([name, when, 'js p50', 'ok']);
+        if (bound.p95) expect([name, when, 'p95', m.p95 <= bound.p95 ? 'ok' : m.p95]).toEqual([name, when, 'p95', 'ok']);
+        expect([name, when, 'LIFE ms', m.lifeMs <= LIFE.budgetMs.phone ? 'ok' : m.lifeMs]).toEqual([name, when, 'LIFE ms', 'ok']);
+      }
+    });
+  }
+  // The control for ruling 2253's table: the night frame with the light drawn and no life source, so life's share of the night frame is told from
+  // the light's (measured only when the grep names it: -Grep "v100 w0 phone frame > night light alone").
+  it('night light alone: the same two at night with the light and no life source (only when the grep names it)', () => {
+    const grep = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('grep') || '' : '';
+    if (!grep.includes('night light alone')) return;
+    for (const [name, size] of [['stress', 64], ['huge', 112]]) {
+      for (const [what, life] of [['nothing', null], ['light alone', { night: true, lightOnly: true }], ['light and life', { night: true }]]) {   // back to back, one machine state
+        const m = measureFrames(stressWorld(size), { width: 390, height: 844, dpr: 2, kind: 'phone', life });
+        it(`v100 w0 phone frame > night light alone measured (${what}): ${said(name, size, 390, 844, 2, 'phone', m)}${m.lifeMs !== undefined ? `; LIFE mean ${m.lifeMs} ms` : ''}`, () => {});
       }
     }
   });

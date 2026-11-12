@@ -17,6 +17,8 @@ import { drawWake } from '../../../src/render/v90/wakes.js';
 import { takeSpent } from '../../../src/render/v90/dropper.js';
 import { scaffoldsAt, drawScaffold } from '../../../src/render/v90/scaffold.js';
 import { stageEffects, walkersFor } from './stage.js';
+import { lifeLayer } from '../../v100/w0/lifeLayer.js';   // the merge of Track L (ruling 2253): the Huge frame with life's layer on
+import { LIFE } from '../../../src/data/ambient.js';
 
 const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
 const RASTER_CAP_MS = 14;
@@ -91,6 +93,36 @@ describe('v90 v budget: the Huge frame (Version 10.0, Track P)', () => {
       let ms = median();
       if (ms > bound) ms = median();
       expect([zoomMode, ms <= bound ? 'ok' : Math.round(ms * 10) / 10]).toEqual([zoomMode, 'ok']);
+    });
+  }
+  // The merge of Track L (ruling 2253, Josh's condition): the zoom-1 frame again with life's layer on (tests/v100/w0/lifeLayer.js: every source
+  // registered as the game registers them, Full motion, none shed), by day and at night, held to the same HUGE_FRAME_MS, and life's own time to the desktop's
+  // LIFE budget (1.5 ms). The numbers print as a test's name (ruling 2104).
+  for (const night of [false, true]) {
+    const when = night ? 'night' : 'day';
+    it(`draws the 112 stress city at zoom 1 in 1920x1080 within the P4 bound with life on (${when}), life within ${LIFE.budgetMs.desktop} ms a frame (ruling 2253)`, () => {
+      const world = stressWorld(112), view = { width: 1920, height: 1080 };
+      const canvas = makeCanvas(1920, 1080), flush = () => canvas.getContext('2d').getImageData(0, 0, 1, 1);
+      const renderer = createRenderer({ canvas, dpr: 1 });
+      const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+      const layer = lifeLayer(world, 'desktop', night);
+      const frame = (i) => {
+        const t = world.day + i / 60, now = 1000 + i * 17, range = visibleTileRange(cam, view, 112);
+        return renderer.renderFrame(world, cam, { view, now, ...layer.hooks(t, now, range, walkersAt(world, t, range)) });
+      };
+      for (let i = 0; i < 40; i++) { frame(i); flush(); }
+      const median = () => {
+        const times = [], from = layer.ms();
+        for (let i = 0; i < 15; i++) { const t = performance.now(); frame(40 + i); flush(); times.push(performance.now() - t); }
+        return { ms: times.sort((a, b) => a - b)[7], life: (layer.ms() - from) / 15 };
+      };
+      let m = median();
+      if (m.ms > HUGE_FRAME_MS || m.life > LIFE.budgetMs.desktop) { const n = median(); if (n.ms < m.ms) m = n; }
+      layer.done();
+      const r = (v, k = 10) => Math.round(v * k) / k;
+      it(`v90 v budget: the Huge frame > with life (${when}) measured: frame median ${r(m.ms)} ms (bound ${HUGE_FRAME_MS}), LIFE ${r(m.life, 100)} ms a frame, every source on`, () => {});
+      expect([when, 'frame', m.ms <= HUGE_FRAME_MS ? 'ok' : r(m.ms)]).toEqual([when, 'frame', 'ok']);
+      expect([when, 'LIFE ms', m.life <= LIFE.budgetMs.desktop ? 'ok' : r(m.life, 100)]).toEqual([when, 'LIFE ms', 'ok']);
     });
   }
 });
