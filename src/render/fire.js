@@ -152,6 +152,8 @@ function rubbleParts(b, into) {
   const tall = STUMP.hMin + s(2) * (STUMP.hMax - STUMP.hMin), low = tall * (0.4 + s(3) * 0.2);
   const hL = flip > 0 ? tall : low, hR = flip > 0 ? low : tall;
   const um = u0 + (u1 - u0) * (0.35 + s(4) * 0.3), hM = Math.min(hL, hR) * (0.45 + s(5) * 0.25);   // the bite out of the top
+  into.cast.push([at(u0, v1, 0), at(u1, v1, 0), at(u1 + 0.22, v1 + 0.16, 0), at(u0 + 0.22, v1 + 0.16, 0)]);   // Version 10.0 (Track Q, ruling 2142): the stump's cast shadow to the right of its foot, and the dark line where it meets the ground
+  into.base.push(['M', at(u0, v1 + 0.02, 0)], ['L', at(u1, v1 + 0.02, 0)]);
   into.top.push([at(u0, v0, hL), at(u1, v0, hR), at(u1, v1, hR), at(um, v1, hM), at(u0, v1, hL)]);
   into.long.push([at(u0, v1, 0), at(u1, v1, 0), at(u1, v1, hR), at(um, v1, hM), at(u0, v1, hL)]);
   into.end.push([at(u1, v0, 0), at(u1, v1, 0), at(u1, v1, hR), at(u1, v0, hR)]);
@@ -166,7 +168,7 @@ function rubbleParts(b, into) {
 }
 
 export function drawScorch(g, world, range) {
-  const rub = { stain: [], top: [], long: [], end: [], mortar: [], brick: [], lit: [] };
+  const rub = { stain: [], cast: [], base: [], top: [], long: [], end: [], mortar: [], brick: [], lit: [] };
   for (const id in world.buildings) {
     const b = world.buildings[id];
     const rubble = b.type === 'rubble';
@@ -186,6 +188,8 @@ export function drawScorch(g, world, range) {
   }
   if (!rub.stain.length) return;
   for (const b of rub.stain) rubbleParts(b, rub);
+  g.polys(rub.cast, SCORCH.soot, { alpha: 0.28 });                                            // Version 10.0 (Track Q, ruling 2142): the charred stump meets the ground in a contact shadow (batched: two calls however many tiles)
+  g.stroke(rub.base, SCORCH.core, 1, 0.5);
   g.polys(rub.brick, STUMP.brick);
   g.polys(rub.lit, STUMP.brickLit);
   g.polys(rub.long, STUMP.long);

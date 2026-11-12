@@ -80,8 +80,8 @@ describe('v93 n contract: the files draw through the new primitives', () => {
     'palace.js': ['shadeWall', 'contactLine', 'insetOpening', 'parapetSteps', 'cornice', 'gildedCap'],
     'monuments.js': ['shadeWall', 'contactLine', 'insetOpening'],
     'plaza.js': ['shadeWall', 'contactLine'],
-    'armies.js': ['shadeWall', 'silhouette', 'contactLine', 'insetOpening', 'parapetSteps'],
-    'river.js': ['shadeWall', 'contactLine', 'silhouette'],
+    'armies.js': ['shadeWall', 'silhouette', 'contactLine', 'insetOpening', 'parapetSteps', 'footShadow'],   // Version 10.0 (Track Q): the raider chariot, elephant and boat raider too (tests/v100/q/footShadows.test.js reads each function)
+    'river.js': ['shadeWall', 'contactLine', 'silhouette', 'footShadow', 'waterShadow', 'contactShadow'],
     'nature.js': ['contactShadow'],
     'figures.js': ['footShadow'],
     'carts.js': ['INK'],

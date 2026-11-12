@@ -6,7 +6,8 @@
 // the wharf. Animals are told apart by shape (a gazelle's horns, an ostrich's long neck and white tail, an ibis's curved bill, a
 // heron's long legs, a hippo's back and ears showing above the water, a crocodile's long ridged back), never by colour alone.
 // Figures face right; `_l` slots face left (the same drawing mirrored), so a herd that steps the other way turns.
-import { box, crs, qd, door, p, U, quad, hs, shadeWall, contactLine, silhouette } from './primitives.js';
+import { box, crs, qd, door, p, U, quad, hs, shadeWall, contactLine, silhouette, waterShadow } from './primitives.js';
+import { contactShadow } from './nature.js';
 import { pennant } from './services.js';
 import { fig, footShadow } from './figures.js';
 
@@ -100,6 +101,8 @@ export function fishingWharf(g, X, Y, side = 's') {
   const bx = (u0, v0, du, dv, h, z, C, fx) => box(g, ...rect(u0, v0, du, dv), h, z, C, fx);
   const flat = (u0, v0, du, dv, z, c, o) => g.poly(quad(...rect(u0, v0, du, dv), z), c, o);
   flat(0.03, 0.03, 1.94, 0.94, 0, '#D9BE8A', { outline: true });                        // the packed bank
+  contactShadow(g, pt(0.46, 0.62), 9, 2.4, 5);                                          // Version 10.0 (Track Q, ruling 2142): the shed meets the bank in a contact shadow, and the pier's posts darken the water under them
+  waterShadow(g, ...pt(1.4, 1.2), 9.5, 2.6);
   // the net shed: a small reed hut on the land side, toward one end
   const H = bx(0.12, 0.08, 0.7, 0.5, 5.4, 0, MUD2);
   crs(g, H, 5.4, '#9A7A5A', 2);
@@ -175,7 +178,7 @@ export function ostrich(g0, gx, gy, left = false) {
 // An ibis (stage 0) or one with its head down feeding (stage 1): white with a black head and a long curved black bill, dark legs.
 export function ibis(g0, gx, gy, left = false, down = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  g.ell([X, Y], 2.4, 0.7, SHADOW, { alpha: 0.2 });
+  footShadow(g, X, Y, 1, 2.4, 0.2);                                                         // Version 10.0 (Track Q, ruling 2142): the foot shadow, with its contact patch
   g.line([X - 0.4, Y], [X - 0.4, Y - 2.6], '#3A2E3A', 0.4); g.line([X + 0.5, Y], [X + 0.5, Y - 2.6], '#3A2E3A', 0.4);
   g.ell([X, Y - 3.8], 2.5, 1.5, '#FAF6EC', { outline: true });
   g.poly([[X - 2.2, Y - 4.4], [X - 3.4, Y - 4.8], [X - 2.4, Y - 3.4]], '#2A2230');         // black tail tips
@@ -193,7 +196,7 @@ export function ibis(g0, gx, gy, left = false, down = false) {
 // A heron: a tall grey-blue bird on long legs with an S-curved neck, a dark crest and a yellow dagger bill.
 export function heron(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
-  g.ell([X, Y], 2.6, 0.7, SHADOW, { alpha: 0.2 });
+  footShadow(g, X, Y, 1, 2.6, 0.2);                                                         // Version 10.0 (Track Q, ruling 2142): the foot shadow, with its contact patch
   g.line([X - 0.5, Y], [X - 0.4, Y - 5.8], '#B8A27A', 0.5); g.line([X + 0.6, Y], [X + 0.5, Y - 5.8], '#B8A27A', 0.5);
   g.ell([X, Y - 7.4], 2.7, 1.8, '#8FA3B8', { outline: true });
   g.poly([[X - 2.4, Y - 7.4], [X - 4.4, Y - 6.2], [X - 2.2, Y - 6]], '#6F8296');            // the folded wing tip
@@ -206,6 +209,7 @@ export function heron(g0, gx, gy, left = false) {
 // A hippo in the water: its back and head above a ring of ripples, small ears, two eyes and a pair of nostrils, the rest below.
 export function hippo(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
+  waterShadow(g, X, Y, 7.4, 2.2);                                                           // Version 10.0 (Track Q, ruling 2142): the dark of the water under the animal, under its ring of foam
   g.ell([X, Y], 8, 2.4, TERRAIN.foam, { alpha: 0.35 });
   g.ell([X, Y], 6.2, 1.6, TERRAIN.waterLight, { alpha: 0.4 });
   g.ell([X - 1.4, Y - 1.4], 5.4, 2.6, '#8C7E92', { outline: true });                        // the back
@@ -257,6 +261,7 @@ export function hunter(g0, gx, gy, left = false) {
 // A reed skiff with a fisher standing in it, a pole and a line over the side: a curved hull with rising ends, bundles of reed along its sides.
 export function boat(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
+  waterShadow(g, X, Y + 0.6, 8.6);                                                          // Version 10.0 (Track Q, ruling 2142): the dark of the water under the hull
   g.ell([X, Y + 0.4], 8.6, 2.4, TERRAIN.foam, { alpha: 0.3 });
   g.path([['M', [X - 8.4, Y - 3]], ['Q', [X - 5, Y + 1.2], [X, Y + 1.2]], ['Q', [X + 5, Y + 1.2], [X + 8.4, Y - 3.4]], ['Q', [X + 4, Y - 1], [X, Y - 1]], ['Q', [X - 4, Y - 1], [X - 8.4, Y - 3]], ['Z']], '#C9A36B', { outline: true });
   g.path([['M', [X - 8, Y - 2.4]], ['Q', [X - 5, Y + 1], [X, Y + 1]], ['Q', [X + 5, Y + 1], [X + 8.2, Y - 2.6]], ['Q', [X + 4, Y - 0.2], [X, Y - 0.2]], ['Q', [X - 4, Y - 0.2], [X - 8, Y - 2.4]], ['Z']], '#8D6A44', { alpha: 0.55 });   // Version 9.3 (Track N): the hull's shaded strake, its lit gunwale and the dark water under it

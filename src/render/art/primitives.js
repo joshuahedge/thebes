@@ -4,7 +4,7 @@
 import { p, U, quad, hs, tileDiamond } from '../iso.js';
 import {
   SHADOW, INK, WINDOW, DOOR, PARAPET, POT, POT_LIGHT, WOOD, STONE, TEAL, TEAL_DARK, GREEN, GREEN_DARK,
-  RED, GOLD, PURP, PINK, GOLDC, OUTLINE,
+  RED, GOLD, PURP, PINK, GOLDC, OUTLINE, TERRAIN,
 } from './palette.js';
 
 export { p, U, quad, hs };
@@ -283,6 +283,12 @@ export function porch(g, at, w, h, C = ['#F4EDDF', '#E7DDCC', '#C3B8C6']) {
 }
 
 // A gilded cap on a landmark: a gold dome with a lit shoulder and a small finial. at is the art point at the dome's base centre; r its half width.
+// Version 10.0 (Track Q, ruling 2142): what a hull casts on the water, the water's own foot shadow: a darker ellipse under it (alpha 0.25, the deep water's colour), at (x, y) the keel's middle,
+// rx the half length of the hull. The raider boat and the fishing boat stand in it.
+export function waterShadow(g, x, y, rx = 8, ry = rx * 0.28) {
+  g.ell([x + rx * 0.12, y + 0.8], rx, ry, TERRAIN.waterDeep, { alpha: 0.25 });
+}
+
 export function gildedCap(g, at, r) {
   const [x, y] = at;
   g.ell([x, y], r, r * 0.35, GOLDC[2]);
