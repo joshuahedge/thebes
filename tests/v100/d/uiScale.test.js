@@ -1,7 +1,7 @@
 // Version 10.0, Track D (the desktop scale; rulings 2120-2129): the default --ui-scale by width and pointer, a stored choice that wins, Auto in Options, the wide panel / drawer / minimap /
 // title card that grow with it, and the wide top bar's date.
 import { describe, it, expect } from '../../harness.js';
-import { uiScaleDefault, effectiveTextSize, createSettings, DEFAULT_SETTINGS } from '../../../src/ui/settings.js';
+import { uiScaleDefault, effectiveTextSize, createSettings, DEFAULT_SETTINGS, windowEnv } from '../../../src/ui/settings.js';
 import { createMenuSheets } from '../../../src/ui/menu.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { createTitleCard } from '../../../src/ui/titleCard.js';
@@ -42,8 +42,8 @@ describe('v100 d ui scale: the default by width and pointer', () => {
       expect([fresh.settings.get().textSize, fresh.settings.get().textSizeChoice, root.dataset.textSize]).toEqual([125, null, '125']);
       const noKey = settingsAt(2560, { root, storage: memory({ 'thebes.settings': JSON.stringify({ sound: false }) }) });
       expect([noKey.settings.get().textSize, root.dataset.textSize, noKey.settings.get().sound]).toEqual([150, '150', false]);
-      const chose = settingsAt(1920, { root, storage: memory({ 'thebes.settings': JSON.stringify({ textSize: 100 }) }) });
-      expect([chose.settings.get().textSize, chose.settings.get().textSizeChoice, root.dataset.textSize]).toEqual([100, 100, '100']);
+      const chose = settingsAt(1920, { root, storage: memory({ 'thebes.settings': JSON.stringify({ textSize: 150, textSizeAutoOffered: true }) }) });
+      expect([chose.settings.get().textSize, chose.settings.get().textSizeChoice, root.dataset.textSize]).toEqual([150, 150, '150']);
       const small = settingsAt(1366, { root });
       expect(root.dataset.textSize).toBe('100');
       const touch = settingsAt(1920, { root, pointer: { finePointer: true, coarsePointer: true } });
@@ -61,6 +61,41 @@ describe('v100 d ui scale: the default by width and pointer', () => {
       r.settings.set({ textSize: null });
       expect([r.settings.get().textSize, JSON.parse(storage.data['thebes.settings']).textSize, root.dataset.textSize]).toEqual([125, null, '125']);
       r.settings.destroy();
+    } finally { cleanup(); }
+  });
+  it('D-2: a stored 9.x textSize 100 becomes Auto once (marker written); a later pick of 100 is kept after a reload; a stored 150 is untouched', () => {
+    const { root, cleanup } = mount();
+    try {
+      const storage = memory({ 'thebes.settings': JSON.stringify({ textSize: 100, sound: false }) });
+      const first = settingsAt(1920, { root, storage });
+      expect([first.settings.get().textSize, first.settings.get().textSizeChoice, root.dataset.textSize, first.settings.get().sound]).toEqual([125, null, '125', false]);
+      expect(JSON.parse(storage.data['thebes.settings']).textSizeAutoOffered).toBe(true);
+      first.settings.set({ textSize: 100 });
+      first.settings.destroy();
+      const again = settingsAt(1920, { root, storage });
+      expect([again.settings.get().textSize, again.settings.get().textSizeChoice, root.dataset.textSize]).toEqual([100, 100, '100']);
+      again.settings.destroy();
+      // a reload that changes nothing keeps Auto too
+      const auto = memory({ 'thebes.settings': JSON.stringify({ textSize: 100 }) });
+      settingsAt(1920, { root, storage: auto }).settings.destroy();
+      const reloaded = settingsAt(1920, { root, storage: auto });
+      expect(reloaded.settings.get().textSizeChoice).toBe(null);
+      reloaded.settings.destroy();
+      const kept = memory({ 'thebes.settings': JSON.stringify({ textSize: 150 }) });
+      const k = settingsAt(1920, { root, storage: kept });
+      expect([k.settings.get().textSize, k.settings.get().textSizeChoice, JSON.parse(kept.data['thebes.settings']).textSize]).toEqual([150, 150, 150]);
+      k.settings.destroy();
+    } finally { cleanup(); }
+  });
+  it('D-3: 100 get()s read the window at most twice (env is cached, refreshed on a resize)', () => {
+    const { root, cleanup } = mount();
+    try {
+      let calls = 0;
+      const win = { innerWidth: 1920, matchMedia: (q) => { calls++; return { matches: q === '(pointer: fine)' }; } };
+      const settings = createSettings({ storage: memory(), root, systemReducedMotion: () => false, watchSystem: () => () => {}, env: () => windowEnv(win), watchEnv: () => () => {} });
+      for (let i = 0; i < 100; i++) settings.get();
+      expect([calls <= 2, settings.get().textSize]).toEqual([true, 125]);
+      settings.destroy();
     } finally { cleanup(); }
   });
   it('the default follows a resize across 1600 and 2200 px (and tells the subscribers); a choice never moves', () => {
@@ -148,6 +183,20 @@ describe('v100 d ui scale: the wide panel, drawer, minimap and title card grow w
         expect([w, probe('var(--panel-w)'), probe('var(--drawer-w)')]).toEqual([w, 320, 268]);   // the drawer does not grow with a chosen 150% on a phone
       } finally { r.cleanup(); holder.settings.destroy(); }
     }
+  });
+  it('D-1: the top bar\'s gold number is at least 18 px at 1920 Auto (125%); a 390x844 portrait keeps 15 px', async () => {
+    const holder = settingsAt(1920);
+    const wide = await rigUI({ width: 1920, height: 1080, settings: holder.settings });
+    try {
+      wide.ui.refresh();
+      const px = parseFloat(getComputedStyle(wide.root.querySelector('#topbar .stat.gold .value')).fontSize);
+      expect([document.body.dataset.layout, px >= 18]).toEqual(['wide', true]);
+    } finally { wide.cleanup(); holder.settings.destroy(); }
+    const phone = await rigUI({ width: 390, height: 844 });
+    try {
+      phone.ui.refresh();
+      expect([document.body.dataset.layout, parseFloat(getComputedStyle(phone.root.querySelector('#topbar .stat.gold .value')).fontSize)]).toEqual(['portrait', 15]);
+    } finally { phone.cleanup(); }
   });
   it('the title card is at least 560 px wide at 1920x1080 (ruling 1673), 440 at 100%, and wider at 150%', async () => {
     const seen = [];

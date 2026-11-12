@@ -47,6 +47,8 @@ export const DEFAULT_SETTINGS = {
   // Version 8.0 (Track U, ruling 1147): the test rig's mark. A stored Motion level is read back only from a blob that also says motionRig: true (the tests' and shot tools'
   // pre-seeded storage); the game never writes it true, so a Motion choice 7.x left on a device is ignored and everyone moves in full.
   motionRig: false,
+  // Version 10.0 (final review D-2, ruling 2322): true once a stored 9.x textSize of 100 has been turned into Auto (and from the first time the player picks a size), so a later pick of 100 is kept.
+  textSizeAutoOffered: false,
 };
 
 const isBool = (v) => typeof v === 'boolean';
@@ -69,6 +71,7 @@ const VALID = {
   dayNight: isBool,
   effectsVolume: (v) => MUSIC_VOLUMES.includes(v),
   motionRig: isBool,
+  textSizeAutoOffered: isBool,
 };
 // Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
 const copy = (v) => (Array.isArray(v) ? v.slice() : v);
@@ -154,22 +157,30 @@ export function createSettings({
       const out = {};
       const rig = Boolean(obj) && obj.motionRig === true;   // Version 8.0: a stored Motion choice is read back only from the test rig's blob
       for (const k of Object.keys(DEFAULT_SETTINGS)) if ((k !== 'motion' || rig) && obj && VALID[k](obj[k])) out[k] = copy(obj[k]);
+      // Version 10.0 (ruling 2322): 9.x saved the whole object, so a stored 100 with no marker was the default and not a choice: it becomes Auto once, and the marker is written.
+      if (obj && obj.textSize === 100 && obj.textSizeAutoOffered !== true) { out.textSize = null; out.textSizeAutoOffered = true; migratedTextSize = true; }
       return out;
     } catch (e) { return {}; }
   }
 
+  let migratedTextSize = false;
   let value = { ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), adviceSeen: DEFAULT_SETTINGS.adviceSeen.slice(), ...load() };
 
   function save() {
     try { if (storage) storage.setItem(key, JSON.stringify(value)); } catch (e) { /* full or blocked storage: the setting still applies this session */ }
   }
 
+  if (migratedTextSize) save();   // the marker is written now, so the next load keeps whatever the player picks
+
   const motionLevel = () => motionLevelOf(value.motion, Boolean(systemReducedMotion()));
   const reducedMotion = () => motionLevel() !== 'full';
 
   // What get() hands out: the stored value with textSize the size in use (a number, as every reader expects) and textSizeChoice the player's choice (null = Auto).
   let shown = null;
-  const size = () => effectiveTextSize(value.textSize, typeof env === 'function' ? env() : null);
+  // Version 10.0 (final review D-3, ruling 2324): env() reads the window (two matchMedia calls), so it is read once here and again only when the window may have changed (watchEnv's callback, set()).
+  const readEnv = () => (typeof env === 'function' ? env() : null);
+  let envNow = readEnv();
+  const size = () => effectiveTextSize(value.textSize, envNow);
   // textSizeChoice is not enumerable, so the object has exactly the keys DEFAULT_SETTINGS has.
   const make = () => Object.defineProperty({ ...value, textSize: size() }, 'textSizeChoice', { value: value.textSize, enumerable: false });
   const view = () => (shown && shown.textSize === size() && shown.stored === value ? shown.out : (shown = { stored: value, textSize: size(), out: make() }).out);
@@ -185,18 +196,20 @@ export function createSettings({
   apply();
   // A resize that moves Auto's size (the window crossed 1600 or 2200 px) re-applies it and tells every subscriber, as set() does; a choice never moves.
   let lastSize = size();
-  let unwatchEnv = (typeof env === 'function' && typeof watchEnv === 'function' && watchEnv(() => { const n = size(); if (n === lastSize) return; lastSize = n; apply(); notify(); })) || null;
+  let unwatchEnv = (typeof env === 'function' && typeof watchEnv === 'function' && watchEnv(() => { envNow = readEnv(); const n = size(); if (n === lastSize) return; lastSize = n; apply(); notify(); })) || null;
   // The device's own setting changed: under 'system' the level moves at once (spec 5.4), so the root and every
   // subscriber hear of it as they do of set().
   let unwatch = (typeof watchSystem === 'function' && watchSystem(() => { apply(); notify(); })) || null;
   return {
     get: view,
-    autoTextSize: () => effectiveTextSize(null, typeof env === 'function' ? env() : null),   // what Auto gives now: the Options row's "Auto (125%)"
+    autoTextSize: () => effectiveTextSize(null, envNow),   // what Auto gives now: the Options row's "Auto (125%)"
     set(patch) {
       const next = { ...value };
       for (const [k, v] of Object.entries(patch)) if (k in VALID && VALID[k](v)) next[k] = copy(v);
       if (!('motion' in patch)) { const m = motionFromLegacy(patch); if (m) next.motion = m; }
+      if ('textSize' in patch && VALID.textSize(patch.textSize)) next.textSizeAutoOffered = true;   // a pick of any size (Auto too) is a choice made: a later load keeps a 100
       value = next;
+      envNow = readEnv();
       save();
       lastSize = size();
       apply();
