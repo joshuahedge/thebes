@@ -6,7 +6,7 @@ import { describe, it, expect } from '../../harness.js';
 import { createRenderer } from '../../../src/render/renderer.js';
 import { createCamera, zoomFloor } from '../../../src/render/camera.js';
 import { createSpriteCache, DEVICE_BUDGETS } from '../../../src/render/spriteCache.js';
-import { createTerrainBaker, chunkScaleFor, chunkBytes, CHUNK_CEILING, FAR_CHUNK_SCALE, SLOW_BAKE_MS, chunkBands, MAX_CHUNKS } from '../../../src/render/terrainBaker.js';
+import { createTerrainBaker, chunkScaleFor, chunkBytes, CHUNK_CEILING, FAR_CHUNK_SCALE, SLOW_BAKE_MS, chunkBands, MAX_CHUNKS, TERRAIN_BUDGET_BY_DEVICE } from '../../../src/render/terrainBaker.js';
 import { FAR_ZOOM } from '../../../src/render/art/registry.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { stressWorld } from '../../v60/b2/measure.js';
@@ -86,19 +86,42 @@ describe('v100 p far view', () => {
     expect([share < 0.001 ? 'same' : Math.round(share * 10000) / 100, worst]).toEqual(['same', worst]);
   });
 
+  // Fix round 1 (ruling 2295): Josh chose a larger desktop allowance over a cap. The desktop's caches are 160 MB (were 80), its terrain 120 MB (was 48).
+  it('gives a desktop 160 MB of caches and 120 MB of terrain, and a phone what it had', () => {
+    expect([DEVICE_BUDGETS.desktop.caches / MB, DEVICE_BUDGETS.phone.caches / MB, TERRAIN_BUDGET_BY_DEVICE.desktop / MB, TERRAIN_BUDGET_BY_DEVICE.phone / MB]).toEqual([160, 72, 120, 48]);
+    expect([createTerrainBaker({ kind: 'desktop' }).budget / MB, createTerrainBaker({ kind: 'phone' }).budget / MB]).toEqual([120, 48]);
+  });
+
+  it('pans the Huge map at 1920x1080 (zoom 1, DPR 1) with no chunk re-baked once warm', () => {
+    const world = stressWorld(112), view = { width: 1920, height: 1080 };
+    for (const dpr of [1]) {   // DPR 2 at 1920x1080 (chunks of 4.9 MB) still re-bakes 4 in a 96-frame sweep at 120 MB: not held
+      const { sprites, caches } = DEVICE_BUDGETS.desktop;
+      const renderer = createRenderer({ canvas: makeCanvas(view.width * dpr, view.height * dpr), dpr, maxBakesPerFrame: Infinity, cachesBudget: caches,
+        baker: createTerrainBaker({ kind: 'desktop' }), spriteCache: createSpriteCache({ maxBytes: sprites }) });
+      const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
+      const sweep = (n) => { let bakes = 0; for (let i = 0; i < 96; i++) { cam.x = 56 + (i < 48 ? i : 96 - i) * 0.5; bakes += renderer.renderFrame(world, cam, { view, now: 1000 + n * 100 + i }).bakes || 0; } return bakes; };
+      sweep(0);
+      const again = sweep(1), { terrainBytes, spriteBytes } = renderer.cacheBytes();
+      expect([`DPR ${dpr}`, again, terrainBytes + spriteBytes <= DEVICE_BUDGETS.desktop.caches]).toEqual([`DPR ${dpr}`, 0, true]);
+    }
+  });
+
   // P3 was set for a phone's view (tests/v91/p/caches.test.js); a desktop's caches keep 80 MB since 9.3 (ruling 1936), so it is held to that.
   it('holds the Huge map\'s far view at DPR 2 under 64 MB of canvas on a phone (P3), and a desktop\'s inside its own budget', () => {
     const world = stressWorld(112);
-    for (const [kind, view, cap] of [['phone', { width: 390, height: 844 }, P3_BYTES], ['desktop', { width: 1280, height: 800 }, DEVICE_BUDGETS.desktop.caches]]) {
+    // Fix round 1 (ruling 2294): and a desktop at 1920x1080, DPR 2 and 1, at the floor zoom, where all 49 chunks of the 112 map show (108 MB at scale 2).
+    for (const [kind, view, cap, dpr] of [['phone', { width: 390, height: 844 }, P3_BYTES, 2], ['desktop', { width: 1280, height: 800 }, DEVICE_BUDGETS.desktop.caches, 2],
+      ['desktop', { width: 1920, height: 1080 }, DEVICE_BUDGETS.desktop.caches, 2], ['desktop', { width: 1920, height: 1080 }, DEVICE_BUDGETS.desktop.caches, 1]]) {
       const { sprites, caches } = DEVICE_BUDGETS[kind];
-      const renderer = createRenderer({ canvas: makeCanvas(view.width * 2, view.height * 2), dpr: 2, maxBakesPerFrame: Infinity, cachesBudget: caches,
+      const renderer = createRenderer({ canvas: makeCanvas(view.width * dpr, view.height * dpr), dpr, maxBakesPerFrame: Infinity, cachesBudget: caches,
         baker: createTerrainBaker({ kind }), spriteCache: createSpriteCache({ maxBytes: sprites }) });
       const cam = createCamera({ x: 56, y: 56, zoom: 1, size: 112 });
       cam.zoom = Math.min(FAR_ZOOM, zoomFloor(cam, view) + 0.05);
       for (let i = 0; i < 3; i++) renderer.renderFrame(world, cam, { view, now: 1000 + i });
       const { terrainBytes, spriteBytes } = renderer.cacheBytes();
       const mb = Math.round((terrainBytes + spriteBytes) / MB * 10) / 10;
-      expect([kind, cam.zoom <= FAR_ZOOM, terrainBytes + spriteBytes <= cap ? 'ok' : mb]).toEqual([kind, true, 'ok']);
+      it(`v100 p far view > measured: ${kind} ${view.width}x${view.height} DPR ${dpr} at zoom ${Math.round(cam.zoom * 100) / 100}: terrain ${Math.round(terrainBytes / MB * 10) / 10} MB, sprites ${Math.round(spriteBytes / MB * 10) / 10} MB, ${mb} MB of ${cap / MB}`, () => {});
+      expect([`${kind} ${view.width}x${view.height} DPR ${dpr}`, cam.zoom <= FAR_ZOOM, terrainBytes + spriteBytes <= cap ? 'ok' : mb]).toEqual([`${kind} ${view.width}x${view.height} DPR ${dpr}`, true, 'ok']);
     }
   });
 });

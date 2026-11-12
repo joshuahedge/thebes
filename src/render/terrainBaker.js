@@ -596,7 +596,8 @@ export function drawChunk(ctx, sprite, px, py, zoom, dpr = 1) {
 // budget keeps every chunk it shows, and the ring round it is not baked ahead (room()). The renderer may lower the budget for a frame (ruling
 // 1687: the terrain gives way to the sprites a view needs, so the two together keep CACHES_BUDGET_BYTES, target P3's 64 MB at DPR 2 in 9.1, 72 MB on a phone in 9.3), never below
 // TERRAIN_FLOOR_BYTES, so a sprite-heavy view (hills at zoom 2) still keeps the ring round it instead of evicting and baking it again frame after frame.
-export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;
+export const TERRAIN_BUDGET_BYTES = 48 * 1024 * 1024;   // a phone's (iOS ends tabs over canvas memory); fix round 1 (ruling 2295): a desktop's is TERRAIN_BUDGET_BY_DEVICE.desktop
+export const TERRAIN_BUDGET_BY_DEVICE = { desktop: 120 * 1024 * 1024, phone: TERRAIN_BUDGET_BYTES };
 export const CACHES_BUDGET_BYTES = DEVICE_BUDGETS[DEVICE_KIND].caches;   // Version 9.3 Track P (ruling 1936): by device; 9.1: 64 MB on every device
 export const TERRAIN_FLOOR_BYTES = 16 * 1024 * 1024;
 export const terrainBudgetFor = (spriteBytes, caches = CACHES_BUDGET_BYTES) => Math.max(TERRAIN_FLOOR_BYTES, caches - spriteBytes);
@@ -608,7 +609,7 @@ export const SLOW_BAKE_MS = 8;
 // (32 chunks shown at zoom 0.5) evicted a chunk it showed and baked two every frame (measured 172 ms a frame); the count now never evicts a chunk
 // the frame shows (as the byte budget never has), and holds 64 (the Huge map's 49 and a ring), the bytes being the real limit.
 export const MAX_CHUNKS = 64;
-export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = MAX_CHUNKS, maxBytes = TERRAIN_BUDGET_BYTES, kind = DEVICE_KIND, maxScale = CHUNK_CEILING[kind] || CHUNK_MAX_SCALE, farScale = FAR_CHUNK_SCALE, now = () => performance.now() } = {}) {
+export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = MAX_CHUNKS, kind = DEVICE_KIND, maxBytes = TERRAIN_BUDGET_BY_DEVICE[kind] || TERRAIN_BUDGET_BYTES, maxScale = CHUNK_CEILING[kind] || CHUNK_MAX_SCALE, farScale = FAR_CHUNK_SCALE, now = () => performance.now() } = {}) {
   const scaleOf = (zoom, dpr) => chunkScaleFor(zoom, dpr, maxScale, farScale);
   let lastBakeMs = 0;
   const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }), bytes }

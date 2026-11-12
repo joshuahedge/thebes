@@ -44,7 +44,7 @@ export const SPRITE_IDLE_MS = 30000;
 // the terrain and sprites together keep CACHES_BUDGET_BYTES (terrainBaker.js), which rises with it so the terrain is not starved.
 const MB = 1024 * 1024;
 export const DEVICE_BUDGETS = {
-  desktop: { sprites: 32 * MB, caches: 80 * MB },
+  desktop: { sprites: 32 * MB, caches: 160 * MB },   // Version 10.0 fix round 1 (ruling 2295): was 80 MB; the Huge map's far view and a 1920x1080 pan need the room
   phone: { sprites: 24 * MB, caches: 72 * MB },
 };
 export function deviceKind({ deviceMemory, screenWidth, screenHeight, maxTouchPoints } = {}) {
