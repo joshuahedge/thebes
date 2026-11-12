@@ -4,6 +4,7 @@
 // Version 6.0 (Track D1, rulings 740-747): "This week's Nile" and "Play with sound / Play muted" are gone (sound is on by default, Options mutes it),
 // Options opens on the card, and the size picker has Huge. The backdrop only moves the camera; the sim behind it never ticks.
 import { TITLE_DRIFT_MS, TITLE_HOLD_MS } from '../data/ui.js';
+import { SHORT_PX } from './layout.js';
 import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
@@ -244,8 +245,10 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     return r.width && r.height ? { width: r.width, height: r.height } : { width: window.innerWidth, height: window.innerHeight };
   };
   // Version 8.2 (ruling 1312): the card knows it is on a wide screen (a little larger at rest; a panel opens beside the buttons) as the window changes too.
-  const checkPhone = () => { if (sizes) sizes.setPhone(isPhoneScreen(screenNow())); if (!guide) element.classList.toggle('wide', isWideTitle(screenNow())); };
+  // Version 10.0 (Track M, ruling 2304, C13): and that it is short (under SHORT_PX tall), where the New city card at large text drops the Thebes cartouche (css/v100-m.css).
+  const checkPhone = () => { if (sizes) sizes.setPhone(isPhoneScreen(screenNow())); if (!guide) element.classList.toggle('wide', isWideTitle(screenNow())); element.classList.toggle('short', screenNow().height < SHORT_PX); };
   element.classList.toggle('wide', isWideTitle(screenNow()));
+  element.classList.toggle('short', screenNow().height < SHORT_PX);
   window.addEventListener('resize', checkPhone);
   return {
     element,
