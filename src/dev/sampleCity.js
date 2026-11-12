@@ -374,3 +374,13 @@ export function buildStressCity(world, { days = 60 } = {}) {
   assignLabour(world);
   return world;
 }
+
+// Version 10.0 (Track Q, ruling 2147, Task Q.7): the title's backdrop city, retaken as a Capital with a festival procession out on its roads. The title city is never played or saved and
+// never ticks, so what it shows is a fixture, as the stress city's rank is: the rank is Capital (no recorded day for the look to spread from, so the whole city is already in the Capital's look,
+// src/render/looks.js) and a festival was held a few days ago, so each working temple's procession is out along its road (src/render/walkers.js processionsAt).
+export const TITLE_FESTIVAL_AGO = 12;   // days since the festival was held: far enough that a procession of figures is out
+export function capitalBackdrop(world) {
+  world.milestone = 'capital';
+  world.danger.festivalDay = world.day - TITLE_FESTIVAL_AGO;
+  return world;
+}

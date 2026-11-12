@@ -9,7 +9,7 @@ import { settleGoals, guideGoal } from './sim/goals.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
-import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
+import { buildSampleCity, buildStressCity, capitalBackdrop } from './dev/sampleCity.js';
 import { createUI } from './ui/createUI.js';
 import { createSettings } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
@@ -549,7 +549,7 @@ export async function boot(doc, win, {
 
   function showTitle(loaded, { note = null } = {}) {
     loadedOk = loaded.state === 'ok';
-    const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
+    const world = capitalBackdrop(buildSampleCity(createWorld({ seed: TITLE_SEED })));   // Version 10.0 (Track Q, ruling 2147): the backdrop is the Capital, with a procession out
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
     // The showcase is framed beside the card (art-direction review 4): the backdrop reads the card's box once it shows.
