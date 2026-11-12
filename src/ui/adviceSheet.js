@@ -10,7 +10,7 @@ import { ADVICE } from '../data/advice.js';
 import { cityAdvice } from '../sim/advice.js';
 import { milestoneNeedsMet } from '../sim/progression.js';
 import { housesOf, population } from '../sim/world.js';
-import { T, TRAY_TEXT } from './text.js';
+import { T, TRAY_TEXT, V100M_TEXT } from './text.js';
 import { portrait } from './v81/scribe.js';
 import { TRAY_MAX } from './tray.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
@@ -47,8 +47,9 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
     else if (onCity) body.append(cityTabs('messages', { onMessages: () => {}, onCity }));
     const model = tray ? tray() : null;
     const hasTray = Boolean(model) && (model.pinned.length > 0 || model.items.length > 0);
+    if (onCity && typeof ctx.setTitle === 'function') ctx.setTitle(V100M_TEXT.cityPage);   // Version 10.0 (Track M, ruling 2307, S8): one title over the two tabs
     if (hasTray) {
-      if (typeof ctx.setTitle === 'function') ctx.setTitle(TRAY_TEXT.sheetTitle);
+      if (!onCity && typeof ctx.setTitle === 'function') ctx.setTitle(TRAY_TEXT.sheetTitle);
       body.append(traySection(model));
     }
     const list = cityAdvice(world);

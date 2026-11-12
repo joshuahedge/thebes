@@ -95,7 +95,7 @@ describe('v71 fb sheets: a title for the screen reader, focus from the keyboard'
     try {
       const sheet = r.root.querySelector('#sheet');
       const opener = summaryTrade(r);
-      expect(sheet.getAttribute('aria-label')).toBe('City summary');
+      expect(sheet.getAttribute('aria-label')).toBe('Your city');   // Version 10.0 (Track M, ruling 2307): one title over the City page's two tabs (V100M_TEXT.cityPage)
       opener.focus();
       fire(opener, 'keydown', { key: 'Enter' });
       fire(opener, 'click');                                                            // detail 0: what Enter on a button sends

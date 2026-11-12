@@ -9,7 +9,7 @@ import { cityAdvice } from '../../../src/sim/advice.js';
 import { adviceWords, ADVICE_TEXT } from '../../../src/ui/adviceText.js';
 import { adviceUnlocked, adviceTopKeys, adviceHasNew, nextMilestone } from '../../../src/ui/adviceSheet.js';
 import { showMeRefusal } from '../../../src/ui/adviceUi.js';
-import { causeText, plural, T, TIP_TEXT, TIP_HELP_TEXT, buildingName } from '../../../src/ui/text.js';
+import { causeText, plural, T, TIP_TEXT, TIP_HELP_TEXT, buildingName, V100M_TEXT } from '../../../src/ui/text.js';
 import { V81_B_TEXT } from '../../../src/ui/v81/bText.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { ADVICE } from '../../../src/data/advice.js';
@@ -269,7 +269,7 @@ describe('v50 advice the sheet', () => {
         const btn = items[i].querySelector('button');
         expect([a.key, btn ? btn.getAttribute('aria-label') : null]).toEqual([a.key, t.action ? t.action.aria : null]);
       });
-      expect(r.root.querySelector('#sheet h2').textContent).toBe(T.advice);
+      expect(r.root.querySelector('#sheet h2').textContent).toBe(V100M_TEXT.cityPage);   // Version 10.0 (Track M, ruling 2307): one title over the Messages and City tabs
       expect(r.root.querySelector('#sheet .advice-lead').textContent).toBe(T.adviceLead);
       const more = r.root.querySelector('#sheet .advice-more');
       expect(more ? more.textContent : null).toBe(list.length > ADVICE.top ? ADVICE_TEXT.more(list.length - ADVICE.top) : null);
@@ -431,7 +431,7 @@ describe('v50 advice the button', () => {
       expect(r.root.querySelector('#sheet').textContent).toContain(T.incomeVsSpending);
       click(link);
       expect(r.store.get().sheet.kind).toBe('advice');
-      expect(r.root.querySelector('#sheet h2').textContent).toBe(T.advice);
+      expect(r.root.querySelector('#sheet h2').textContent).toBe(V100M_TEXT.cityPage);   // Version 10.0 (Track M, ruling 2307)
       expect(r.root.querySelectorAll('#sheet').length).toBe(1);
       click(r.root.querySelector('#sheet .sheet-tab[data-tab="city"]'));               // the City tab opens the summary: it replaces the advice
       expect(r.store.get().sheet.kind).toBe('summary');
