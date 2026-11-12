@@ -111,6 +111,28 @@ describe('v100 f off-map ground: desert that pales to a haze', () => {
     for (const x of [-8, -9, -10]) drawOffMap({ ctx, scale: 2 }, w, { x, y: 32, zoom: 1, mapSize: 64 }, view, 0, { season: [], bake: false });
     expect(made).toEqual({ grad: 8, pat: 3 });
   });
+  it('panning across the first view costs a blit, not a paint: under 4 ms a frame on average (ruling 2119, round 2)', () => {
+    const world = createWorld({ seed: 11, size: 64 });
+    const view = { width: 390, height: 844 };
+    const cam = { ...startCamera(world, view, 0.54), mapSize: 64 };
+    const canvas = makeCanvas(780, 1688);
+    const ctx = canvas.getContext('2d'), g = { ctx, scale: 2 * cam.zoom * 2 };
+    const mean = (bake) => { const ts = []; for (let i = 0; i < 120; i++) { const t0 = performance.now(); drawOffMap(g, world, { ...cam, x: cam.x - i * 0.03, y: cam.y + i * 0.03 }, view, 0, { season: [], bake }); ctx.getImageData(0, 0, 1, 1); ts.push(performance.now() - t0); } return ts.reduce((a, b) => a + b, 0) / ts.length; };
+    expect(mean(true)).toBeLessThan(4);   // measured 1.3 ms mean over 120 frames of a pan (9.7 painting each frame): a pan inside the margin is a blit
+  });
+  it('a frame with a chunk not baked yet leaves nothing of the last frame in its area (ruling 2119)', () => {
+    const world = createWorld({ seed: 11, size: 64 });
+    const cam = { x: 32, y: 32, zoom: 1, mapSize: 64 };
+    const view = { width: 400, height: 300 };
+    const canvas = makeCanvas(400, 300), ctx = canvas.getContext('2d');
+    const renderer = createRenderer({ canvas, dpr: 1, spriteCache: createSpriteCache(), baker: createTerrainBaker(), maxBakesPerFrame: 0 });
+    ctx.fillStyle = '#ff00ff'; ctx.fillRect(0, 0, 400, 300);        // the last frame
+    renderer.renderFrame(world, cam, { view, now: 0 });             // nothing is baked and nothing may bake
+    const bad = [];
+    for (const [x, y] of [[200, 150], [100, 100], [300, 200], [200, 60], [200, 240]]) { const c = pixelAt(canvas, x, y); if (c[0] > 200 && c[1] < 60 && c[2] > 200) bad.push(`${x},${y}`); }
+    expect(bad).toEqual([]);
+    expect(pixelAt(canvas, 200, 150)[3]).toBe(255);
+  });
   it('a still frame on the first view (fresh corner, 390x844, device ratio 2) is one blit, under 4 ms (ruling 2119)', () => {
     const world = createWorld({ seed: 11, size: 64 });
     const view = { width: 390, height: 844 };

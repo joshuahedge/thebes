@@ -207,7 +207,14 @@ export function createRenderer({
       let sprite = peeked.fresh ? peeked.sprite : null;
       if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
       if (!sprite && peeked.sprite) { sprite = peeked.sprite; stale++; }   // stale beats a sand hole
-      if (!sprite) continue;
+      if (!sprite) {   // Version 10.0 (Track F, ruling 2119): drawOffMap draws nothing for a view inside the map, so a chunk not baked yet is filled with the off-map sand, not left to the last frame
+        ctx.fillStyle = TERRAIN.offMap;
+        ctx.beginPath();
+        for (const [i, [qx, qy]] of [[0, 0], [1, 0], [1, 1], [0, 1]].entries()) { const [dx, dy] = toDevice(...p((cx + qx) * CHUNK, (cy + qy) * CHUNK)); if (i) ctx.lineTo(dx, dy); else ctx.moveTo(dx, dy); }
+        ctx.closePath();
+        ctx.fill();
+        continue;
+      }
       const o = p(cx * CHUNK, cy * CHUNK);
       const [px, py] = toDevice(o[0], o[1]);
       drawSprite(ctx, sprite, px, py, zoom, dpr);

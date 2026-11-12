@@ -132,18 +132,29 @@ export function drawOffMap(g, world, cam, view, nowMs, opts = {}) {
   if (opts.bake === false) { paintGround(ctx, g, world, cam, view, opts); return; }
   const W = ctx.canvas.width, H = ctx.canvas.height;
   const [sx, sy] = artToScreen(cam, view, 0, 0);
-  const key = `${W}|${H}|${k}|${cam.zoom}|${sx.toFixed(2)}|${sy.toFixed(2)}|${size}|${world.seed | 0}|${(opts.season || []).join(',')}|${opts.dunes !== false}`;
+  const dpr = k / (2 * cam.zoom), ox = sx * dpr, oy = sy * dpr;   // the art origin's place on the canvas, device px
+  // Round 2: the bake is the canvas plus a margin each side (up to half a canvas, less where that would pass BAKE_MAX_PX), so a pan inside the margin is a blit at an offset.
+  const f = Math.max(0, Math.min(0.5, (Math.sqrt(BAKE_MAX_PX / (W * H)) - 1) / 2));
+  const mx = Math.round(W * f), my = Math.round(H * f);
+  const key = `${W}|${H}|${k}|${cam.zoom}|${size}|${world.seed | 0}|${(opts.season || []).join(',')}|${opts.dunes !== false}`;
   let bake = bakeCache.get(ctx);
-  if (!bake || bake.canvas.width !== W || bake.canvas.height !== H) { const c = document.createElement('canvas'); c.width = W; c.height = H; bake = { canvas: c, key: '' }; bakeCache.set(ctx, bake); }
-  if (bake.key !== key) { paintGround(bake.canvas.getContext('2d'), g, world, cam, view, opts); bake.key = key; }
+  const BW = W + 2 * mx, BH = H + 2 * my;
+  if (!bake || bake.canvas.width !== BW || bake.canvas.height !== BH) { const c = document.createElement('canvas'); c.width = BW; c.height = BH; bake = { canvas: c, key: '', ox: 0, oy: 0 }; bakeCache.set(ctx, bake); }
+  let dx = Math.round(ox - bake.ox), dy = Math.round(oy - bake.oy);
+  if (bake.key !== key || Math.abs(dx) > mx || Math.abs(dy) > my) {
+    paintGround(bake.canvas.getContext('2d'), g, world, cam, view, opts, mx, my);
+    bake.key = key; bake.ox = ox; bake.oy = oy; dx = 0; dy = 0;
+  }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
-  ctx.drawImage(bake.canvas, 0, 0);
+  ctx.drawImage(bake.canvas, dx - mx, dy - my);
   ctx.restore();
 }
+const BAKE_MAX_PX = 4e6;   // the most the baked ground (view plus margin) covers, device px
 
-function paintGround(ctx, g, world, cam, view, opts) {
+// mx, my: device px the art origin is moved into the canvas (the bake's margin), so what lies past the view's edge is painted too.
+function paintGround(ctx, g, world, cam, view, opts, mx = 0, my = 0) {
   const size = world.size, k = g.scale;
   const W = ctx.canvas.width, H = ctx.canvas.height;
   const washes = opts.season || [];
@@ -155,7 +166,7 @@ function paintGround(ctx, g, world, cam, view, opts) {
   ctx.globalAlpha = 1;
   ctx.fillStyle = haze;
   ctx.fillRect(0, 0, W, H);
-  ctx.setTransform(1, 0, 0, 1, sx * dpr, sy * dpr);        // the art origin placed by the camera, as the edge band's
+  ctx.setTransform(1, 0, 0, 1, sx * dpr + mx, sy * dpr + my);        // the art origin placed by the camera, as the edge band's
   const reach = OFF_MAP_REACH, rimPts = outset(size, 0);
   const outerPts = outset(size, reach), grads = gradientsFor(ctx, size, k, rim, haze, rimPts);
   // One quad a side of the map, from the rim to the haze's edge: a gradient across it (the edge's outward normal), rim colour to haze.
