@@ -8,9 +8,9 @@ import { ART, slotFor, FAR_ZOOM } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
-import { createSpriteCache, drawSprite, bucketFor } from './spriteCache.js';
+import { createSpriteCache, drawSprite, bucketFor, WARM_BAND_MS, WARM_AFTER_MS } from './spriteCache.js';
 import { walkSlotFor, WALK_VARIANTS } from './art/figures.js';
-import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES } from './terrainBaker.js';
+import { createTerrainBaker, drawTileGrid, terrainBudgetFor, CACHES_BUDGET_BYTES, drawChunk } from './terrainBaker.js';
 import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -157,7 +157,7 @@ export function createRenderer({
   const dprOf = () => Math.min(DPR_CAP, rawDpr());   // V0a: the canvas's ratio, capped
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0, warmed: 0 };
   let ring = { key: '', done: false };   // Version 5.0 (Task 8): the ring of chunks round the view that is baked, so a fling finds them ready
   // Version 9.0 (V1): the first time a figure kind is drawn at a zoom bucket and ratio, all its walk slots are drawn into the cache at once, so a figure
   // that turns or steps later never pays for a new sprite in the middle of play (a frame's cost stays flat once warm).
@@ -202,10 +202,11 @@ export function createRenderer({
     if (baker.frame) baker.frame(shown, world, terrainBudgetFor(spriteCache.bytes ? spriteCache.bytes() : 0, cachesBudget));   // ruling 1687: the terrain gives way to the sprites, to a floor
     if (spriteCache.frame) spriteCache.frame();   // and the sprites this frame gets are never evicted for the sprite budget
     let bakes = 0, chunks = 0, stale = 0;
+    const bakeCap = baker.bakeLimit ? baker.bakeLimit(maxBakesPerFrame) : maxBakesPerFrame;   // Version 10.0 (Track P, ruling 2288): one on a phone after a slow bake
     for (const { cx, cy } of shown) {
       const peeked = baker.peek(world, cx, cy, zoom, dpr);
       let sprite = peeked.fresh ? peeked.sprite : null;
-      if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
+      if (!sprite && bakes < bakeCap) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
       if (!sprite && peeked.sprite) { sprite = peeked.sprite; stale++; }   // stale beats a sand hole
       if (!sprite) {   // Version 10.0 (Track F, ruling 2119): drawOffMap draws nothing for a view inside the map, so a chunk not baked yet is filled with the off-map sand, not left to the last frame
         ctx.fillStyle = TERRAIN.offMap;
@@ -217,7 +218,7 @@ export function createRenderer({
       }
       const o = p(cx * CHUNK, cy * CHUNK);
       const [px, py] = toDevice(o[0], o[1]);
-      drawSprite(ctx, sprite, px, py, zoom, dpr);
+      drawChunk(ctx, sprite, px, py, zoom, dpr);   // Version 10.0 (Track P, ruling 2283): in bands, its transparent corners not sampled
       chunks++;
     }
 
@@ -333,9 +334,12 @@ export function createRenderer({
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Version 10.0 (Track P, ruling 2284): a quiet frame (no bake, under WARM_AFTER_MS) warms the sprites of the band one chunk outside the view.
+    let warmed = 0;
+    if (cullControl.on && bakes === 0 && prebakes === 0 && spriteCache.warmBand && performance.now() - started < WARM_AFTER_MS) warmed = spriteCache.warmBand(world, cam, view, WARM_BAND_MS, dpr);
     if (baker.trim && spriteCache.bytes) baker.trim(world, terrainBudgetFor(spriteCache.bytes(), cachesBudget));   // Version 9.1: again for the sprites this frame drew
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.warmed = warmed; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }

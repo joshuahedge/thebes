@@ -1,8 +1,11 @@
 // Art slots rendered once per zoom bucket and devicePixelRatio onto offscreen canvases. A slot's registry
 // entry either draws itself (`draw`) or points at a PNG (`png`); the cache treats both the same way.
-import { ART } from './art/registry.js';
+import { ART, slotFor, FAR_ZOOM } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
 import { ART_SCALE } from './iso.js';
+import { visibleTileRange, CHUNK } from './camera.js';
+import { ringBuildings } from './chunkIndex.js';
+import { hillsIn } from './hills.js';
 
 export const ZOOM_BUCKETS = [0.5, 0.75, 1, 1.5, 2];
 
@@ -41,7 +44,7 @@ export const SPRITE_IDLE_MS = 30000;
 // the terrain and sprites together keep CACHES_BUDGET_BYTES (terrainBaker.js), which rises with it so the terrain is not starved.
 const MB = 1024 * 1024;
 export const DEVICE_BUDGETS = {
-  desktop: { sprites: 32 * MB, caches: 80 * MB },
+  desktop: { sprites: 32 * MB, caches: 160 * MB },   // Version 10.0 fix round 1 (ruling 2295): was 80 MB; the Huge map's far view and a 1920x1080 pan need the room
   phone: { sprites: 24 * MB, caches: 72 * MB },
 };
 export function deviceKind({ deviceMemory, screenWidth, screenHeight, maxTouchPoints } = {}) {
@@ -58,6 +61,13 @@ export const DEVICE_KIND = thisDevice();
 export const SPRITE_BUDGET_BYTES = DEVICE_BUDGETS[DEVICE_KIND].sprites;   // 9.1: 16 MB on every device
 const SWEEP_EVERY = 4096;
 export const canvasBytes = (canvas) => canvas.width * canvas.height * 4;
+// Version 10.0 (Track P, rulings 2284-2285): the warm band. On a frame that baked no terrain and spent under WARM_AFTER_MS, the renderer asks the
+// cache to render, at most WARM_BAND_MS a frame, the slots of the buildings in the chunk ring one chunk outside the view (chunkIndex.js
+// ringBuildings), nearest the view first, so a pan draws them from the cache instead of rendering them fresh mid-pan (the 9.3 follow-ups' cause of
+// the desktop frame's rise). It never warms past the sprite budget (a warmed sprite would only push out one the view drew), and once a band is
+// whole it is not walked again until the view, the bucket or the ratio moves it, or WARM_RECHECK frames pass (a look changed).
+export const WARM_BAND_MS = 2, WARM_AFTER_MS = 8, WARM_RECHECK = 120;
+const FAR_OPTS = { far: true }, NEAR_OPTS = { far: false };
 
 export function createSpriteCache({ registry = ART, counter = null, createCanvas = defaultCreateCanvas, loadImage = defaultLoadImage, now = () => performance.now(), idleMs = SPRITE_IDLE_MS, maxBytes = SPRITE_BUDGET_BYTES } = {}) {
   const sprites = new Map(); // key -> sprite
@@ -65,6 +75,7 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
   const buckets = new Map(); // `${bucket}x${dpr}` -> { keys: Set of sprite keys, bytes, left: when it stopped being the bucket in use }
   const drawnIn = new Map(); // key -> the frame it was last got in
   let current = null, gets = 0, bytes = 0, drops = 0, frameNo = 0, spentIn = -1;   // spentIn: the frame a trim found nothing left to evict
+  const band = { key: '', done: false, at: 0 };   // Version 10.0 (Track P): the warm band walked last, whether it is whole, and the frame it was walked in
 
   const count = (k) => { if (counter) counter[k] = (counter[k] || 0) + 1; };
 
@@ -166,8 +177,42 @@ export function createSpriteCache({ registry = ART, counter = null, createCanvas
       if (!def || !def.png) return Promise.resolve();
       return imageFor(slot, def).promise;
     },
+    // Version 10.0 (Track P): warm the band round the view (see WARM_BAND_MS); the number of sprites rendered. A warmed sprite counts as `warmed`,
+    // never as a miss, and is stamped as got in the frame before this one, so it is the first to go if the budget is ever tight.
+    warmBand(world, cam, view, budgetMs = WARM_BAND_MS, dpr = 1) {
+      const bucket = bucketFor(cam.zoom), bk = `${bucket}x${dpr}`;
+      const range = visibleTileRange(cam, view, world.size);
+      const key = `${range.x0},${range.y0},${range.x1},${range.y1}|${bk}|${cam.zoom <= FAR_ZOOM}`;
+      if (key === band.key && band.done && frameNo - band.at < WARM_RECHECK) return 0;
+      if (key !== band.key) band.key = key;
+      band.done = false; band.at = frameNo;
+      if (bytes >= maxBytes) return 0;
+      const t0 = now(), opts = cam.zoom <= FAR_ZOOM ? FAR_OPTS : NEAR_OPTS;
+      let warmed = 0;
+      // The ring's buildings, nearest first, then its hill tiles (each hill tile is a slot of its own, src/render/hills.js, so a pan meets new ones).
+      const outer = { x0: (Math.floor(range.x0 / CHUNK) - 1) * CHUNK, y0: (Math.floor(range.y0 / CHUNK) - 1) * CHUNK, x1: (Math.floor(range.x1 / CHUNK) + 2) * CHUNK - 1, y1: (Math.floor(range.y1 / CHUNK) + 2) * CHUNK - 1 };
+      const slots = function* () {
+        for (const b of ringBuildings(world, range)) yield slotFor(b, world, opts);
+        for (const h of hillsIn(world, outer, registry)) yield h.slot;
+      };
+      for (const slot of slots()) {
+        const def = registry[slot];
+        if (!def || def.live || def.png || !def.draw) continue;   // a monument draws live; a picture waits for its image in get()
+        const k = spriteKey(slot, bucket, dpr);
+        if (sprites.has(k)) continue;
+        const held = use(bk);
+        const sprite = render(slot, def, bucket, dpr);
+        const n = canvasBytes(sprite.canvas);
+        sprites.set(k, sprite); drawnIn.set(k, frameNo - 1);
+        held.keys.add(k); held.bytes += n; bytes += n;
+        count('warmed'); warmed++;
+        if (bytes >= maxBytes || now() - t0 >= budgetMs) return warmed;
+      }
+      band.done = true;
+      return warmed;
+    },
     size() { return sprites.size; },
-    clear() { sprites.clear(); buckets.clear(); drawnIn.clear(); current = null; bytes = 0; drops++; },
+    clear() { sprites.clear(); buckets.clear(); drawnIn.clear(); current = null; bytes = 0; drops++; band.key = ''; },
     // Version 9.1 (Track P): a frame begins (what it gets is never evicted for the budget); the canvas bytes held, the buckets held, and how
     // many times a bucket has been dropped (the renderer's walk warm-up starts again after one; a single sprite evicted is drawn again when next
     // needed).

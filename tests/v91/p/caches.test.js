@@ -164,9 +164,10 @@ describe('v91 p caches: P3 on a Large map at DPR 2', () => {
     const realGet = cache.get;
     let drawn = new Map();                                            // this frame's sprites and their bytes
     cache.get = (slot, zoom, dpr) => { const s = realGet(slot, zoom, dpr); if (s) drawn.set(slot, canvasBytes(s.canvas)); return s; };
-    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: cache, cachesBudget: PHONE.caches });
+    const renderer = createRenderer({ canvas: makeCanvas(V.width * 2, V.height * 2), dpr: 2, spriteCache: cache, cachesBudget: PHONE.caches,
+      baker: createTerrainBaker({ maxBytes: TERRAIN_BUDGET_BYTES }) });   // Version 10.0 fix round 1 (ruling 2295): the phone's 48 MB terrain, as the test pinned (a desktop baker now holds 120)
     const cam = createCamera({ x: 40, y: 40, zoom: 1 });
-    const n = Math.ceil(w.size / CHUNK);
+    const n =Math.ceil(w.size / CHUNK);
     let maxTerrain = 0, maxSprites = 0, maxBoth = 0, frames = 0, over = 0;
     for (const zoom of ZOOM_BUCKETS) {
       cam.zoom = zoom;
