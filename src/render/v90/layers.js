@@ -23,8 +23,10 @@ import { lightShown } from '../light.js';
 import { roofPoint } from '../fire.js';
 import { windAt } from '../ambient.js';
 import { UNIT_ID_BASE } from '../units.js';
+import { LIFE } from '../../data/ambient.js';
 import { LIGHT } from '../../data/seasons.js';
 import { lightPeek } from '../light.js';
+import { stormAt, stormSwing } from '../v100/weather.js';
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const inView = (x, y, r) => !r || (x >= r.x0 - 1 && x <= r.x1 + 2 && y >= r.y0 - 1 && y <= r.y1 + 2);
@@ -256,8 +258,8 @@ export function drawShimmer(g, world, range, now, motion) {
 // The cloud shadows at real time now: { x, y (tiles), r } each, drifting with the wind across the view's middle and round again.
 export function cloudsAt(world, range, now) {
   if (!range) return [];
-  // Version 10.0, Track L (ruling 2230): the wind drifts
-  const wind = windAt(world, now), w = range.x1 - range.x0 + 1, h = range.y1 - range.y0 + 1, span = Math.max(w, h) + 16;
+  // Version 10.0, Track L (ruling 2230): the wind drifts, and swings in a storm
+  const wind = windAt(world, now, stormSwing(world, now)), w = range.x1 - range.x0 + 1, h = range.y1 - range.y0 + 1, span = Math.max(w, h) + 16;
   const out = [];
   for (let i = 0; i < WEATHER.clouds; i++) {
     const h0 = hash2(i, 1, (world.seed | 0) + 9041), h1 = hash2(i, 2, (world.seed | 0) + 9041);
@@ -286,9 +288,10 @@ export function drawWeather(g, world, range, now, motion = 'full') {
     n++;
   }
   if (seasonAt(world).season !== 'shemu' || !range) return n;
-  // Version 10.0, Track L (L.7): the wind drifts (windAt)
-  const wind = windAt(world, now), list = desertEdge(world), win = Math.floor(now / WEATHER.gustMs);
-  const most = WEATHER.gusts, share = 0.25;
+  // Version 10.0, Track L (L.7): the wind drifts (windAt), and in a sandstorm it swings and the gusts thicken towards LIFE.storm.dustCap
+  const storm = stormAt(world, now), sk = storm.on ? storm.k : 0;
+  const wind = windAt(world, now, stormSwing(world, now)), list = desertEdge(world), win = Math.floor(now / WEATHER.gustMs);
+  const most = Math.round(WEATHER.gusts + (LIFE.storm.dustCap - WEATHER.gusts) * sk), share = 0.25 + 0.6 * sk;
   const segs = [];
   let gusts = 0;
   for (let k = 0; k < list.length && gusts < most; k++) {

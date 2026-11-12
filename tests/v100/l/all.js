@@ -6,5 +6,6 @@ import './riverLife.test.js';
 import './builders.test.js';
 import './night.test.js';
 import './weather.test.js';
+import './storm.test.js';
 import './lesson.test.js';
 import './budget.test.js';

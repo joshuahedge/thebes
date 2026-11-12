@@ -80,6 +80,18 @@ time and a hash, and keeps its notes (a bank spot, a storm's start, the homes li
   the middle 40% of the day phase (the "noon phase"), in Shemu, Full, never in the lesson,** inside `drawWeather` (V's weather share). `effects.js` now passes
   the frame's motion to `drawWeather`, and createUI puts `motion` in `renderFrame`'s options.
 
+## L.7 weather: the sandstorm (its own commit, the last, so it can be dropped: then regenerate `sw-files.js`)
+
+- **2232. `stormsOf(seed, year)` takes the year from 0; storms at least 3 days apart; a storm starts at the first frame on or after its day and is skipped if
+  that frame is 2 days late (a load).** 1 or 2 a year from the second year, on Shemu days, 20 to 40 s, k rising and falling over 5 s.
+- **2233. The storm draws in the life source `weather` (the late hook): the haze (to 0.35), six dust banks rolling with the wind, and `LIFE.storm.dustCap`
+  streaks, each a gust of three lines, in two sets half a window apart.** In pale sand on a sand map the streaks did not read; they are a darker ochre.
+  The desert-edge gusts in `drawWeather` thicken towards the same cap. Gentle: the haze; Still: nothing. `tests/v100/l/budget.test.js` keeps a storm up.
+- **2234. Lamps dim 30% (`light.js` reads `stormAt`); figures lean 4 degrees under Full (`renderFrame` takes `opts.lean`, radians: every figure skewed about
+  its feet, from createUI's `stormLean`); the wind swings to 60 degrees (`windAt`'s swing, in the clouds and gusts).**
+- **2235. The `storm` scene forces a 40 s storm begun 12 s earlier (`forceStorm`), so the shot shows it at full strength.**
+- **2236. The V budget with a storm up: `tests/v100/l/storm.test.js` draws V's layers and the storm on the stress city within V's 2 ms (x1.2).**
+
 ## L.8 festival
 
 - **2240. `PROCESSION.start` 8 and `max` 20, its order 20 long with a second shrine as the eleventh figure; figures past the sixteenth take ids from
@@ -99,5 +111,7 @@ time and a hash, and keeps its notes (a bank spot, a storm's start, the homes li
 ## The budget
 
 - **2251. Life within the LIFE budget, measured by `tests/v100/l/budget.test.js` (the seam's own timing, 90 frames, every source on; by day, and at night).** On this machine: 64 at 1280x800 day 0.11 ms, night 0.36 ms; 64 at 390x844 DPR 2 0.07 / 0.40; 112 at 1280x800 0.26 / 0.73; 112 at 390x844
-  DPR 2 0.30 / 0.40 (budgets 1.5 desktop, 1.0 phone). Track P's headroom file had not appeared when L.7 began or before the final suite, so the Track 0 budget
-  and caps stand unchanged.
+  DPR 2 0.30 / 0.40 (budgets 1.5 desktop, 1.0 phone). Track P's headroom note (12 Nov, 06:40, read before the final suite; it had not appeared when L.7
+  began) finds the in-suite frame bounds do not include life's hooks (they call `renderFrame` directly), and real-game headroom of about 2.1 ms (p50) on
+  the phone's stress city and 2.1 ms in-suite on the desktop's at its settled 23.0 ms bound: so the Track 0 budget (1.5 / 1.0 ms) and every cap stand
+  unchanged.

@@ -310,12 +310,15 @@ export function createRenderer({
       if (o.id >= FIGURE_ID_BASE && isBridgeTile(world, Math.floor(o.x), Math.floor(o.y))) q[1] -= DECK.z + DECK.h;   // a figure on a bridge stands on its deck (Stage 4.5)
       if (o.lift) q[1] -= o.lift;                                                // Version 10.0, Track L (ruling 2205)
       const [px, py] = toDevice(q[0], q[1]);
-      // Version 10.0, Track L (ruling 2205): a life figure's fade.
-      const fading = o.alpha !== undefined && o.alpha < 1;
+      // Version 10.0, Track L (rulings 2205, 2234): a life figure's fade, and in a sandstorm every figure leaning with the wind (opts.lean, radians:
+      // a skew about its feet, so they stay planted).
+      const fading = o.alpha !== undefined && o.alpha < 1, leaning = opts.lean && o.id >= FIGURE_ID_BASE;
       if (fading) ctx.globalAlpha = o.alpha;
+      if (leaning) { const k = Math.tan(opts.lean); ctx.setTransform(1, 0, -k, 1, k * py, 0); }
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);
       if (fading) ctx.globalAlpha = 1;
+      if (leaning) ctx.setTransform(1, 0, 0, 1, 0, 0);
       sprites++;
       const site = scaffolds && o.id < DECOR_ID_BASE ? scaffolds.get(o.id) : null;
       if (site) {                                                                // Version 9.0 (V3, ruling 1612): its poles in its own depth slot, under what stands in front

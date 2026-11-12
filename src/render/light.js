@@ -13,6 +13,7 @@ import { hash2 } from '../sim/rng.js';
 import { idx } from '../sim/grid.js';
 import { p } from './iso.js';
 import { buildingsInRange } from './chunkIndex.js';
+import { stormAt, STORM } from './v100/weather.js';
 
 const smooth = (t) => t * t * (3 - 2 * t);
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -208,5 +209,6 @@ export function drawLight(g, world, range, frame, now, motion, settings) {
   ctx.fillStyle = `rgb(${m[0]},${m[1]},${m[2]})`;
   ctx.fillRect(0, 0, frame.W, frame.H);
   ctx.restore();                                           // back to the art origin's transform
-  if (l.lamps > 0.01) drawLamps(g, world, range, frame, l.lamps, now, motion);
+  const dim = 1 - STORM.lampDim * stormAt(world, now).k;                        // Version 10.0, Track L (L.7): a sandstorm dims the lamps
+  if (l.lamps > 0.01) drawLamps(g, world, range, frame, l.lamps * dim, now, motion);
 }

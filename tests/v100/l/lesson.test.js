@@ -1,5 +1,5 @@
 // Version 10.0, Track L (L.9, spec 5h and Q6, ruling 2250): the lesson's life. During every step only the townsfolk and the hearths may show (and the
-// bazaar's crowd once its food step is done, so food reaching the bazaar shows as people arriving); no river life or builders.
+// bazaar's crowd once its food step is done, so food reaching the bazaar shows as people arriving); no river life, builders or storm.
 import { describe, it, expect } from '../../harness.js';
 import { createLife, LIFE_IDS } from '../../../src/render/v100/life.js';
 import { townsfolkSource } from '../../../src/render/v100/townsfolk.js';
@@ -7,6 +7,7 @@ import { crowdSource, lessonFoodDone } from '../../../src/render/v100/crowd.js';
 import { riverSource } from '../../../src/render/v100/riverLife.js';
 import { buildersSource } from '../../../src/render/v100/builders.js';
 import { nightSource } from '../../../src/render/v100/night.js';
+import { weatherSource } from '../../../src/render/v100/weather.js';
 import { lessonWorld, lessonAt, LESSON_SCRIPT, LESSON_LENGTH } from '../../../src/sim/lesson.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
 import { tickDay } from '../../../src/sim/clock.js';
@@ -21,7 +22,7 @@ describe('v100 l lesson: life under the lesson', () => {
     const life = createLife({ deviceKind: 'desktop', level: () => 'full', now: () => 0, clock: () => 0 });
     const ran = new Set();
     const spy = (s) => { const out = { ...s }; for (const h of ['walkers', 'ground', 'late']) if (s[h]) out[h] = (...a) => { ran.add(s.name + (s.lessonOk ? '' : '!')); return s[h](...a); }; return out; };
-    for (const s of [townsfolkSource(), buildersSource(), crowdSource(), riverSource(), nightSource()]) life.addSource(spy(s));
+    for (const s of [townsfolkSource(), buildersSource(), crowdSource(), riverSource(), nightSource(), weatherSource()]) life.addSource(spy(s));
     const range = { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
     const c = makeCanvas(64, 64), g = makeDraw(c.getContext('2d'), 1);
     const io = { tick: () => tickDay(world), did() {} };
