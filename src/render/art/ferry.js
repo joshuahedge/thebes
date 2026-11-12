@@ -4,7 +4,7 @@
 //
 // The house style: weathered planks, rope and reed, white-washed stone; the Services category's blue pennant. The boat is told from a trade boat by
 // its shape (a flat, open barge with a standing ferryman and his pole, no mast or sail), never by colour.
-import { box, crs, p, U, quad } from './primitives.js';
+import { box, crs, p, U, quad, waterShadow } from './primitives.js';
 import { pennant, styled, lookSlot, planks, isShut, isBusy } from './services.js';
 import { WOOD, WASH, SHADOW, TERRAIN, BLUE, STONE } from './palette.js';
 import { boundsFor } from '../iso.js';
@@ -53,6 +53,7 @@ function facing(g, X, left) {
 // A ferry heading right: a flat planked barge with low rails, a ferryman at the stern leaning on his long pole and two passengers with bundles.
 export function ferryBoat(g0, gx, gy, left = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
+  waterShadow(g, X, Y + 0.6, 12);                                                         // Version 10.0 (Track Q, ruling 2148): the dark of the water under the hull
   g.ell([X, Y + 0.6], 12, 3, TERRAIN.foam, { alpha: 0.4 });
   for (const k of [1, 2]) g.ell([X - 11 - k * 3, Y + 0.4], 2.4 + k, 0.8 + k * 0.2, TERRAIN.foam, { alpha: 0.38 - k * 0.1 });   // the wake
   g.path([['M', [X - 11, Y - 3.4]], ['Q', [X - 8, Y + 1.8], [X, Y + 1.8]], ['Q', [X + 8, Y + 1.8], [X + 11.6, Y - 3.4]],
