@@ -143,8 +143,8 @@ describe('v90 v units in step (V2)', () => {
     w.raid.active.raiders[0].x = 19;
     w.day = 5;
     const at = (t) => unitsAt(w, t).find((u) => u.id === UNIT_ID_BASE + 1);
-    expect(GLIDE_DAYS).toBe(0.6);
-    expect([at(5.05).stand, Math.round(at(5 + GLIDE_DAYS).x * 100) / 100, at(5.7).stand, at(5.9).x]).toEqual([undefined, 19.5, true, 19.5]);
+    expect(GLIDE_DAYS).toBe(1);                                                     // Version 10.0.1 (ruling 2375): the whole day, was 0.6
+    expect([at(5.05).stand, Math.round(at(5 + GLIDE_DAYS - 0.001).x * 100) / 100, at(6).stand, at(6.2).x]).toEqual([undefined, 19.5, true, 19.5]);
   });
 });
 
@@ -284,11 +284,11 @@ describe('v90 v the beaten raid on the map (V5)', () => {
     unitsAt(w, 3.2, null, { now: 0 });
     w.raid.active.raiders[0].x = 15;                                                // the sim moves the raider two tiles, onto the soldier's
     w.day = 4;
-    const drawn = unitsAt(w, 4.3, null, { now: 10 }).find((u) => u.id === UNIT_ID_BASE + 1);
-    expect(Math.round(drawn.x * 100) / 100).toBe(16.5);                              // half way through its glide, a tile behind the sim
+    const drawn = unitsAt(w, 4.5, null, { now: 10 }).find((u) => u.id === UNIT_ID_BASE + 1);
+    expect(Math.round(drawn.x * 100) / 100).toBe(16.5);                              // half way through its glide (Version 10.0.1, ruling 2375: the glide takes the whole day, so 4.5; was 4.3), a tile behind the sim
     expect(fightOf(w).clash).toEqual({ x: 15.5, y: 10.5, day: 4 });                // the clash at the sim's spots
     w.raid.active.raiders = [];
-    unitsAt(w, 4.35, null, { now: 20 });
+    unitsAt(w, 4.55, null, { now: 20 });
     expect([fightOf(w).fall.x, fightOf(w).fall.y]).toEqual([15.5, 10.5]);          // and the fall where the sim had it
   });
   it('has nothing on the map for a lost raid, and ends when the next raid is warned', () => {

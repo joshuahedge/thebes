@@ -287,13 +287,19 @@ export function rareAt(world, kind, now) {
   return t >= 0 && t < 1 ? { t, h: unit(n, k + 10, (world.seed | 0) + SALT.rare) } : null;
 }
 
-function drawBird(g, box, a) {
+// Version 10.0.1 (Track A, A.2, ruling 2381): the bird flaps: its wings pass through FLAP_FRAMES (up, level, down, level) at BIRD_FLAP_MS a frame, on the real
+// clock `now`, in place of the one fixed stroke. A few strokes drawn straight on the ground layer for the one bird on screen, so nothing to bake.
+export const BIRD_FLAP_MS = 110;
+export const FLAP_FRAMES = [[-3.4, -3], [-1.2, -2], [1.4, -0.6], [-1.2, -2]];   // [wing tip y, wing bend y] over the body, art px
+function drawBird(g, box, a, now = 0) {
   const fromLeft = a.h < 0.5, x = fromLeft ? box.l + (box.r - box.l) * a.t : box.r - (box.r - box.l) * a.t;
   const y = box.t + (box.b - box.t) * (0.2 + 0.4 * a.h) - Math.sin(Math.PI * a.t) * 6;
   const dir = fromLeft ? 1 : -1;
+  const [tip, bend] = FLAP_FRAMES[Math.floor(now / BIRD_FLAP_MS + a.h * 4) & 3];
   g.ell([x, y + 14], 2.4, 0.8, SHADOW, { alpha: 0.12 });
-  g.stroke([['M', [x - 3.2, y - 1.2]], ['Q', [x - 1.4, y - 2], [x, y]], ['Q', [x + 1.4, y - 2], [x + 3.2, y - 1.2]]], '#3A3040', 0.6);
-  g.circ([x + dir * 0.4, y - 0.2], 0.5, '#3A3040');
+  g.stroke([['M', [x - 3.4, y + tip]], ['Q', [x - 1.6, y + bend], [x, y]], ['Q', [x + 1.6, y + bend], [x + 3.4, y + tip]]], '#3A3040', 0.6);
+  g.ell([x, y + 0.2], 0.9, 0.45, '#3A3040');
+  g.circ([x + dir * 0.9, y - 0.2], 0.5, '#3A3040');
 }
 
 function drawFelucca(g, rows, range, a) {
@@ -407,7 +413,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
       }
       if (!off.has('rare')) {
         const bird = rareAt(world, 'bird', now);
-        if (bird) drawBird(g, artBox(range), bird);
+        if (bird) drawBird(g, artBox(range), bird, now);
       }
       const ms = (pending ? pending.ms : 0) + Math.max(0, clock() - lateStart - (spentSoFar() - lateV));
       pending = null;
