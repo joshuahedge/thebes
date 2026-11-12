@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../../harness.js';
 import {
-  createAmbient, createFrameGate, drawAmbientLate, glintAt, riverRows, reedTips, treeLean, windOf, rareAt, GLINT_STEPS,
+  createAmbient, createFrameGate, drawAmbientLate, glintAt, riverRows, reedTips, treeLean, windAt, rareAt, GLINT_STEPS,
   LEVEL_HOLD_MS, RESTORE_AFTER_MS,
 } from '../../../src/render/ambient.js';
 import { AMBIENT } from '../../../src/data/ambient.js';
@@ -123,13 +123,14 @@ describe('s3 art ambient', () => {
     const farm = w.buildings[w.occ[10 * 32 + 8]];
     const band = (now) => frame(on(), w, now).late.find((c) => c.k === 'poly' && c.a[1] === '#FBF3C6');
     const centre = (c) => c.a[0].reduce((s, q) => [s[0] + q[0] / 4, s[1] + q[1] / 4], [0, 0]);
-    const wind = windOf(w);
+    const wind = windAt(w, 1000);                                                 // Version 10.0, Track L: the wind drifts slowly with the real clock
     const a = band(1000), b = band(1400);
     expect([Boolean(a), Boolean(b)]).toEqual([true, true]);
     const moved = [centre(b)[0] - centre(a)[0], centre(b)[1] - centre(a)[1]];
     const windArt = [(wind.x - wind.y) * 16, (wind.x + wind.y) * 8];
     expect(moved[0] * windArt[0] + moved[1] * windArt[1]).toBeGreaterThan(0);   // downwind
-    expect(centre(band(1000 + AMBIENT.cropBandEveryMs))).toEqual(centre(a));
+    const again = centre(band(1000 + AMBIENT.cropBandEveryMs));                   // the same band again 6 s on, where the wind's slow drift leaves it (a couple of art px)
+    expect(Math.hypot(again[0] - centre(a)[0], again[1] - centre(a)[1]) < 3).toBe(true);
     farm.staff = 0;
     expect(band(1000)).toBe(undefined);
     staffAll(w);

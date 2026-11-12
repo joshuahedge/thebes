@@ -19,7 +19,7 @@
 // 'still'; without it, enabled() true reads as Full). Full is all of it. Gentle keeps only fades in place: river and pool
 // glints fade in and out where they are (no drift), smoke fades in place rising at most GENTLE_SMOKE_RISE_PX, the bank
 // ripples hold still; no reed or tree sway, no crop bands, no rare life. Still (or enabled() false) draws nothing.
-import { AMBIENT } from '../data/ambient.js';
+import { AMBIENT, LIFE } from '../data/ambient.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
 import { isWorking } from '../sim/labour.js';
@@ -77,6 +77,15 @@ const wave = (now, period, phase) => Math.sin((2 * Math.PI * now) / period + pha
 // The wind (spec 5.6: fixed per seed), as a unit vector in tile space.
 export function windOf(world) {
   const a = unit(world.seed | 0, 0, SALT.wind) * 2 * Math.PI;
+  return { x: Math.cos(a), y: Math.sin(a) };
+}
+
+// Version 10.0, Track L (L.7, spec 5f, ruling 2230): the wind varies: the seed's wind turned by a slow sine of WIND_DRIFT_DEG over LIFE.windDriftMs of
+// real time (about four minutes), plus `swing` radians (a sandstorm's, render/v100/weather.js stormSwing), so reeds, smoke, gusts and clouds lean and
+// change together. At nowMs 0 and no swing it is windOf's.
+export const WIND_DRIFT_DEG = 25;
+export function windAt(world, nowMs = 0, swing = 0) {
+  const a = unit(world.seed | 0, 0, SALT.wind) * 2 * Math.PI + (WIND_DRIFT_DEG * Math.PI / 180) * Math.sin((2 * Math.PI * nowMs) / LIFE.windDriftMs) + swing;
   return { x: Math.cos(a), y: Math.sin(a) };
 }
 
@@ -365,7 +374,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     const moving = full();                   // Gentle: glints and smoke in place; no ripple shift, sway, crops or rare life
     if (!moving) for (const k of ['sway', 'rare']) off.add(k);
     const rows = riverRows(world, range.y0 - 2, range.y1 + 2);
-    const wind = windOf(world);
+    const wind = windAt(world, now);                                           // Version 10.0, Track L: the wind that drifts
     if (!rows.size && blobWater(world)) drawGlints(g, world, range, now, null, moving);   // Version 7.1.1 (ruling 1024 mended): glints on a 7.1 layout's water
     if (rows.size) {
       drawGlints(g, world, range, now, rows, moving);
