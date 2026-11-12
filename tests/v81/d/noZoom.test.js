@@ -73,7 +73,8 @@ describe('v81 d no zoom: the page', () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       const ta = (sel) => getComputedStyle(r.root.querySelector(sel)).touchAction;
-      for (const sel of ['#topbar', '#dock', '#corners', '#sheet', '#dialog', '#under-bar']) expect([sel, ta(sel)]).toEqual([sel, 'manipulation']);   // 9.2: pan-x pan-y pinch-zoom, which the browser reads back as manipulation
+      for (const sel of ['#sheet', '#dialog']) expect([sel, ta(sel)]).toEqual([sel, 'manipulation']);   // 9.2: pan-x pan-y pinch-zoom, which the browser reads back as manipulation
+      for (const sel of ['#topbar', '#dock', '#corners', '#under-bar']) expect([sel, ta(sel)]).toEqual([sel, 'pan-x pan-y']);   // Version 10.0 (Track M, ruling 2305, S14): the bars lose the pinch
       expect(ta('#map')).toBe('none');                                              // the map's pinch and pan are its own (src/ui/input.js)
       r.root.querySelector('#dock .cat[data-category="services"]').click();
       expect(ta('#dock .tray .card')).toBe('pan-x');                                // the tray scrolls sideways; up is free to carry a card
