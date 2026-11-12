@@ -2,6 +2,8 @@
 // Below NARROW_PX wide the root also carries the class "narrow": a phone held sideways is too narrow there for the
 // corner buttons' words beside the card drawer at larger text (css/ui.css).
 export const NARROW_PX = 700;
+// Version 10.0 (Track M, ruling 2302): under SHORT_PX tall the root also carries "short" (an SE held upright is 667): at large text the placing bar folds to its cost line (css/v100-m.css).
+export const SHORT_PX = 700;
 
 export const TOPBAR_PX = 51;           // --topbar-h at 100% text size (48 and the 3 px under the buttons that the band, 6 px since 8.0, shows in)
 
@@ -31,6 +33,7 @@ export function watchLayout({ root, getSize = windowSize, subscribe = windowSubs
   const check = () => {
     const { width, height } = getSize();
     root.classList.toggle('narrow', width < NARROW_PX);
+    root.classList.toggle('short', height < SHORT_PX);   // Version 10.0 (Track M, ruling 2302, C14)
     if (onSize) onSize({ width, height });   // every resize or turn, not only a change of layout
     const next = pickLayout(width, height);
     if (next === current) return;
@@ -40,7 +43,7 @@ export function watchLayout({ root, getSize = windowSize, subscribe = windowSubs
   };
   check();
   const off = subscribe(check);
-  return () => { off(); root.classList.remove('narrow'); };
+  return () => { off(); root.classList.remove('narrow', 'short'); };
 }
 
 // The top of the map the interface leaves free, in CSS px from the map's top (spec 6.3, ruling 168). A wide screen keeps

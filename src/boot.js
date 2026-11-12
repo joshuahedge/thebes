@@ -18,7 +18,7 @@ import { createMenuSheets } from './ui/menu.js';
 import { createTitleCard, createBackdrop, firstCityLayout } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
-import { TITLE_SEED } from './data/ui.js';
+import { TITLE_SEED, DOUBLE_TAP_MS } from './data/ui.js';
 import { exportSave, downloadFile, pickTextFile } from './save/exportImport.js';
 import { T, D2_TEXT, V711_TEXT, V90_L_TEXT, U93_TEXT } from './ui/text.js';
 import { el, button } from './ui/components.js';
@@ -361,7 +361,8 @@ export async function boot(doc, win, {
         ? { ...hooks, records: undefined, save: () => saveDecree(), home: undefined, exportCity: undefined, newCity: undefined, lesson: undefined, passThrone: undefined, canPassThrone: undefined, startHeir: undefined, rulers: undefined, bringRulers: undefined, playMap: undefined, decreeRun: decreeRunFor(world) }
         : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave && !decree ? { savedAt, lastSpeed } : null,
-      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
+      sfx, tapWait: DOUBLE_TAP_MS,   // Version 10.0 (Track M, ruling 2301): a finger's building tap waits for a second tap
+      extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
     // Version 10.0 (Track F, rulings 2110-2111): the camera the UI framed (or a save's focus) is held in the map; a new city's opens on its entry road's end diamond with the map around it.
     holdInMap(cam, view());
     if (!fromSave && !lesson && !decree && !stress && !Object.keys(world.buildings || {}).length && view().width > 0) Object.assign(cam, startCamera(world, view(), cam.zoom));

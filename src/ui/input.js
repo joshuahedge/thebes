@@ -11,20 +11,34 @@ import { panBy, zoomAt } from '../render/camera.js';
 import { isToolMode } from './modes.js';
 import { WHEEL_ZOOM_STEP, ZOOM_STEP, GHOST_FINGER_OFFSET_PX, FLING_WINDOW_MS, FLING_REST_MS } from '../data/ui.js';
 
-export function createMapInput({ canvas, cam, view, cameraControl, store, actions, root = document.body, now = () => performance.now() }) {
+// Version 10.0 (Track M, ruling 2301, C12): tapWait is how long a finger's or pen's tap waits for a second tap before it counts, so a double tap zooms and selects nothing
+// (0: no wait, the default: a tap counts at once). waitsFor({ x, y }) says whether this tap needs the wait at all: createUI says yes only for a tap that would select a building, and
+// only while zoom on a double tap is on (no tool open), so a tap on bare ground, a tap in a tool and every mouse click stay instant.
+export function createMapInput({ canvas, cam, view, cameraControl, store, actions, root = document.body, now = () => performance.now(), tapWait = 0, waitsFor = () => true, setTimer = (f, ms) => setTimeout(f, ms), clearTimer = (h) => clearTimeout(h) }) {
   const local = (ev) => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
   let dragKind = null; // 'pan' | 'ghost' | 'draw' (the mouse's) | 'stroke' (a finger's or pen's)
   let cancelling = false; // true while gestures.cancel runs, so a cancelled draw drag does not commit
   let samples = [];       // a pan drag's recent points { t, x, y } (touch and pen), for the fling
   let stoppedFling = false; // the touch that is down stopped a fling: its tap is not a tap
 
+  let waiting = null;     // a tap held for tapWait: { e, handle }
+  const flushTap = () => { if (!waiting) return; const w = waiting; waiting = null; clearTimer(w.handle); actions.tap(w.e); };
+  const dropTap = () => { if (!waiting) return; clearTimer(waiting.handle); waiting = null; };
+
   const gestures = createGestures({
     // A primary tap or click is a tap; a right-button press-and-release is Back. A right-button drag is a pan and
     // produces no tap, so panning never goes Back (the DOM contextmenu event fires after a drag too).
-    onTap: (e) => { if (stoppedFling) { stoppedFling = false; gestures.forgetTap(); return; } if (e.button === 0) actions.tap(e); else if (e.button === 2) actions.secondary(); },
-    onDoubleTap: (e) => cameraControl.zoomStep(ZOOM_STEP, e.x, e.y),
+    onTap: (e) => {
+      if (stoppedFling) { stoppedFling = false; gestures.forgetTap(); return; }
+      flushTap();                                                      // an earlier tap still waiting counts now, before this one (it was not the first of a double)
+      if (e.button !== 0) { if (e.button === 2) actions.secondary(); return; }
+      if (tapWait > 0 && e.type !== 'mouse' && !isToolMode(store.get().mode) && waitsFor(e)) { waiting = { e, handle: setTimer(() => { waiting = null; actions.tap(e); }, tapWait) }; return; }
+      actions.tap(e);
+    },
+    onDoubleTap: (e) => { dropTap(); cameraControl.zoomStep(ZOOM_STEP, e.x, e.y); },   // the first tap of the pair never selected
     onTwoFingerDoubleTap: (e) => cameraControl.zoomStep(1 / ZOOM_STEP, e.x, e.y),
     onDragStart: (e) => {
+      flushTap();
       stoppedFling = false;
       samples = [];
       const mode = store.get().mode;
@@ -58,7 +72,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
       else if (dragKind === 'stroke') actions.strokeDrag(cancelling || e.pinch ? { phase: 'cancel' } : { x: e.x, y: e.y, phase: 'end' });
       dragKind = null;
     },
-    onPinchStart: () => { stoppedFling = false; cameraControl.cancel(); actions.panStarted(); },
+    onPinchStart: () => { flushTap(); stoppedFling = false; cameraControl.cancel(); actions.panStarted(); },
     onPinch: (e) => { panBy(cam, e.dx, e.dy, view()); zoomAt(cam, view(), e.scale, e.cx, e.cy); },
   }, { doubleTap: () => !isToolMode(store.get().mode) });
 
@@ -119,6 +133,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
 
   return {
     detach() {
+      dropTap();
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);

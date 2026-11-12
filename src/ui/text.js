@@ -4914,3 +4914,7 @@ export const V100D_TEXT = {
 };
 // The wide top bar's date: "Y2 · M9 · D1". The stat's name and explainer keep the words (dateText: "Year 2, month 9, day 1").
 export const compactDateText = ({ year, month, day }) => `Y${year} · M${month} · D${day}`;
+// Version 10.0, Track M (the phone leftovers; rulings 2300-2319). Track M writes only between this header and the next Version 10.0 header.
+export const V100M_TEXT = {
+  cityPage: 'Your city',   // S8: the one title of the City page, over its Messages and City tabs (it was "Messages and advice" on one and "City summary" on the other)
+};
