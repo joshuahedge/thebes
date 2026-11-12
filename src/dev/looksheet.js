@@ -69,6 +69,13 @@ const ROWS = [
     },
   },
   {
+    // Version 10.0 (Track Q, ruling 2148): the drawings 9.3 did not reach, the same in every column (the look does not change them): a fishing boat, the ferry, a tower, a cart, a raider's chariot.
+    id: 'rest', group: 'rest', label: 'Boats, tower,\ncart, chariot', h: 40, oy: 30,
+    cell(g) {
+      [[-60, 'fig.boat'], [-28, 'fig.ferry_boat'], [4, 'tower'], [34, 'fig.cart_grain'], [66, 'fig.raider_chariot']].forEach(([dx, slot]) => at(g, dx, 0, () => ART[slot].draw(g, 0, 0)));
+    },
+  },
+  {
     id: 'ground', group: 'ground', label: 'Ground\nyard, path, road', h: 112, oy: 6, panel: false,
     cell(g, look, cw) {
       const fit = Math.min(1, (cw - 6) / 192);

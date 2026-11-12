@@ -149,7 +149,7 @@ export function renderCards(container, { world, category, activeItem = null, onP
   const buttons = items.map((item) => {
     const info = cardInfo(world, item);
     const advised = Boolean(view) && view.advised === item && !info.locked;
-    const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : '', info.isNew ? 'new' : '', advised ? 'advised' : ''].filter(Boolean).join(' ');
+    const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : '', info.isNew ? 'new' : '', advised ? 'advised' : '', item === 'demolish' ? 'demolish' : ''].filter(Boolean).join(' ');   // Version 10.0 (Track Q, ruling 2140): the Demolish card is outlined with a red glyph and fills red only while the tool is live
     const thumb = drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, dpr);
     // The badge is a word, part of the card's name for screen readers, so the colour never says it alone.
     // Version 9.2 (Track Q, ruling 1792): one badge to a card: Suggested wins over New.

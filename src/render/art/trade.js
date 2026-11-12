@@ -7,7 +7,7 @@
 //
 // The house style: white-washed dressed stone with lavender shadows, weathered planks and rope; the Industry category's pennant. A trade boat
 // is told from a fishing skiff by its shape (a long hull with a raised stern, a tall mast and a broad sail, bales on deck), never by colour.
-import { box, crs, p, U, quad, shadeWall, contactLine } from './primitives.js';
+import { box, crs, p, U, quad, shadeWall, contactLine, waterShadow } from './primitives.js';
 import { pennant, styled, lookSlot, isShut, isBusy, shutFront } from './services.js';
 import { fig } from './figures.js';
 import { wharfSide } from './river.js';
@@ -83,6 +83,7 @@ function facing(g, X, left) {
 // the steering oar, and a tall mast with a broad sail (set while it sails, furled along its yard while moored).
 export function tradeBoat(g0, gx, gy, left = false, moored = false) {
   const [X, Y] = at(gx, gy), g = facing(g0, X, left);
+  waterShadow(g, X, Y + 0.6, 14);                                                         // Version 10.0 (Track Q, ruling 2148): the dark of the water under the hull
   g.ell([X, Y + 0.6], 14, 3.4, TERRAIN.foam, { alpha: moored ? 0.25 : 0.4 });
   if (!moored) for (const k of [1, 2]) g.ell([X - 13 - k * 3, Y + 0.4], 2.6 + k, 0.8 + k * 0.2, TERRAIN.foam, { alpha: 0.4 - k * 0.12 });   // the wake
   g.path([['M', [X - 13, Y - 6.4]], ['Q', [X - 9, Y + 1.6], [X, Y + 1.6]], ['Q', [X + 9, Y + 1.6], [X + 13.4, Y - 4]],

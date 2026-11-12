@@ -32,6 +32,7 @@ import { holdFestival } from '../sim/festival.js';
 import { tickDay } from '../sim/clock.js';
 import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
 import { PROCESSION } from '../data/ambient.js';
+import { lookOfRank } from '../render/looks.js';   // Version 10.0 (Track Q): the title scene asserts the Capital's look
 import { entryPath } from '../render/newcomers.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
@@ -522,7 +523,11 @@ async function title(api) {
   const find = (type) => (view ? allBuildings(view.world).find((b) => b.type === type) : null);
   const ob = find('obelisk_small'), co = find('colossus'), pal = find('palace');
   if (!ob || !co || !pal) return 'title';
-  return `title: small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
+  // Version 10.0 (Track Q, ruling 2147): the backdrop is the Capital's look with a festival procession out; the scene says so, or throws.
+  const look = lookOfRank(view.world.milestone), procession = processionsAt(view.world, view.world.day, null).filter((w) => w.id >= PROCESSION_ID_BASE && w.id < PROCESSION_ID_BASE + 400000);
+  if (look !== 3) throw new Error(`devScene title: the backdrop is look ${look}, not the Capital's (3)`);
+  if (!procession.length) throw new Error('devScene title: the backdrop has no procession out');
+  return `title: look ${look} (Capital), ${procession.length} procession figures, small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
 }
 
 // The picture cards (Track G, src/dev/tutorialScenes.js): on the title card, the cards' first card as a player first meets

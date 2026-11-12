@@ -109,6 +109,7 @@ function mirrored(g, X) {
 // high, a round shield hung on the car's back, and a banner on a pole behind it (Stage 4.6 UX, ruling 406).
 export function raiderChariot(gIn, gx, gy, z = 0, sc = UNIT_SCALE * 0.8) {
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, g = mirrored(gIn, X);
+  footShadow(g, X - 1 * s, Y, s, 8.4, 0.24);                                                // Version 10.0 (Track Q, ruling 2142): under horse and car alike
   horse(g, X + 3 * s, Y, s, ENEMY_HORSE, ENEMY_HORSE_DARK, '#1A1216', RAIDER.crest);
   car(g, X - 5 * s, Y + 0.4 * s, s, RAIDER.kilt, RAIDER.rim);
   g.circ([X - 7.4 * s, Y - 5.8 * s], 2.4 * s, '#6E5A3E', { stroke: RAIDER.rim, strokeWidth: 0.5 * s });   // the round shield
@@ -131,7 +132,7 @@ export function raiderChariot(gIn, gx, gy, z = 0, sc = UNIT_SCALE * 0.8) {
 // A boat raider, landed: a crested raider with no shield, a long oar held upright beside him, its blade above his head.
 export function raiderBoat(g, gx, gy, z = 0, sc = UNIT_SCALE) {
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc;
-  g.ell([X, Y], 3 * s, 1.1 * s, SHADOW, { alpha: 0.3 });
+  footShadow(g, X, Y, s, 3, 0.3);                                                          // Version 10.0 (Track Q, ruling 2142): the foot shadow, with the contact patch the plain ellipse lacked
   g.line([X - 0.9 * s, Y], [X - 1.1 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);
   g.line([X + 0.9 * s, Y], [X + 1.1 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);
   g.poly([[X - 2 * s, Y - 2.6 * s], [X + 2 * s, Y - 2.6 * s], [X + 1.5 * s, Y - 5.7 * s], [X - 1.5 * s, Y - 5.7 * s]], RAIDER.kilt);
@@ -152,7 +153,7 @@ const ELEPHANT = { body: '#857A80', dark: '#62585E', ear: '#9A8A8E', tusk: '#F3E
 export function raiderElephant(gIn, gx, gy, z = 0, sc = UNIT_SCALE, alpha = 1) {
   const g = alpha < 1 ? fadedDraw(gIn, alpha) : gIn;
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc;
-  g.ell([X, Y], 11 * s, 2 * s, SHADOW, { alpha: 0.3 });
+  footShadow(g, X, Y, s, 9.8, 0.3);                                                                                               // Version 10.0 (Track Q, ruling 2142): the foot shadow every figure stands in (a broad cast and a contact patch)
   for (const dx of [-6, 3.6]) g.poly([[X + (dx - 1.1) * s, Y - 0.2 * s], [X + (dx + 1.1) * s, Y - 0.2 * s], [X + (dx + 1.1) * s, Y - 8 * s], [X + (dx - 1.1) * s, Y - 8 * s]], ELEPHANT.dark);   // the far legs
   g.line([X - 8.4 * s, Y - 11.4 * s], [X - 9.6 * s, Y - 6 * s], ELEPHANT.dark, 0.6 * s);                                        // the tail and its tuft
   g.ell([X - 9.7 * s, Y - 5.6 * s], 0.6 * s, 1 * s, '#3A3036');

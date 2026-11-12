@@ -4,7 +4,7 @@
 // 'wall' and 'gate' slots are what their card and the gate's picture show, built from the same pieces.
 import { box, tb, qd, crs, door, win, parapet, pots, awn, p, U, quad, hs } from './primitives.js';
 import { pennant, styled, lookSlot } from './services.js';
-import { gildedCap, contactLine } from './primitives.js';
+import { gildedCap, contactLine, shadeWall } from './primitives.js';
 import { MATERIALS } from './materials.js';
 import {
   WASH, WASH2, MUD, MUD2, STONE, RED, RED_DARK, TEAL, GOLD, WOOD, DOOR, INK, SHADOW, TERRAIN, LIME, TEAL_DARK,
@@ -49,7 +49,8 @@ export function firehouse(g, x, y) {
 // show four copies of one heap.
 const BRICK = ['#D9B27C', '#C49A62', '#9C8070'];
 const HEAP = ['#D2AA74', '#BE965F', '#A2805E'];
-const BURNT = '#4A3A36';
+export const BURNT = '#4A3A36';
+export const ASH = ['#B9ADA6', '#D8CFC8'];   // Version 10.0 (Track Q, ruling 2145): the ash drift, a darker and a paler grey
 
 export function rubble(g, x, y, v = 0) {
   const flip = v === 1, shift = v === 2 ? 0.08 : 0;
@@ -71,6 +72,14 @@ export function rubble(g, x, y, v = 0) {
   for (const [u, w2, w, d, h, z] of chunks) bx(u, w2, w, d, h, z, BRICK);
   g.line(P(0.24, 0.78, 1), P(0.72, 0.5, 3.8), BURNT, 1.1);                       // a charred roof beam across the heap
   g.line(P(0.25, 0.78, 1.4), P(0.71, 0.5, 4.2), '#7A6058', 0.4, 0.8);
+  // Version 10.0 (Track Q, ruling 2145): what the fire leaves is timbers, not a blotch: two more charred beams, one fallen across the foot of the heap and one leaning on its crest,
+  // each with a lit edge, and a drift of pale ash lying to leeward over the soot.
+  g.line(P(0.1, 0.64, 0.6), P(0.5, 0.9, 1), BURNT, 0.9);
+  g.line(P(0.11, 0.64, 0.9), P(0.49, 0.89, 1.3), '#7A6058', 0.3, 0.75);
+  g.line(P(0.62, 0.36, 3.2), P(0.82, 0.62, 1.2), BURNT, 0.8);
+  g.line(P(0.62, 0.35, 3.5), P(0.81, 0.61, 1.5), '#7A6058', 0.28, 0.7);
+  g.ell(P(0.74, 0.7, 0), 8.4, 2.1, ASH[0], { alpha: 0.42 });
+  g.ell(P(0.8, 0.72, 0), 4.6, 1.2, ASH[1], { alpha: 0.5 });
   const loose = [[0.1, 0.8, 0.09, 0.11], [0.84, 0.8, 0.12, 0.08], [0.86, 0.3, 0.09, 0.12], [0.62, 0.16, 0.12, 0.08]];
   loose.forEach(([u, w2, w, d], i) => { const j = (hs(v, i, 3) - 0.5) * 0.08; bx(u + j, w2 - j, w, d, 1.3, 0, BRICK); });
 }
@@ -80,6 +89,10 @@ export function rubble(g, x, y, v = 0) {
 export function tower(g, x, y) {
   const F = tb(g, x + 0.2, y + 0.2, 0.6, 0.6, 22, 0, 0.05, MUD2);
   crs(g, F, 22, '#9A7A5A', 3);
+  // Version 10.0 (Track Q, ruling 2148): the tower stands in the bar as the buildings do: a soft shade down each face and the dark line where it meets the ground.
+  shadeWall(g, [F.L(0, 0), F.L(1, 0), F.L(1, 22), F.L(0, 22)], 22);
+  shadeWall(g, [F.R(0, 0), F.R(1, 0), F.R(1, 22), F.R(0, 22)], 22);
+  contactLine(g, [x + 0.2, y + 0.2, 0.6, 0.6]);
   door(g, F, 0.38, 0.62, 5.2);
   qd(g, F.L, 0.46, 0.54, 13, 17, DOOR);
   qd(g, F.R, 0.46, 0.54, 13, 17, DOOR);
@@ -326,6 +339,9 @@ export function shell(g, x, y, cause, mask, tall, v = 0) {
   if (fire) {
     g.line(P(0.22, 0.8, 1), P(0.62, 0.34, H * 0.95), '#2A2024', 1.1);                          // charred roof beams standing out of the heap
     g.line(P(0.74, 0.78, 1), P(0.4, 0.4, H * 0.7), '#2A2024', 0.9);
+    g.line(P(0.1, 0.62, 0.6), P(0.5, 0.9, 1), BURNT, 0.9);                                     // Version 10.0 (Track Q, ruling 2145): a timber fallen across the foot of the heap, and the ash lying to leeward
+    g.ell(P(0.76, 0.72, 0), 8.4, 2.1, ASH[0], { alpha: 0.4 });
+    g.ell(P(0.82, 0.74, 0), 4.6, 1.2, ASH[1], { alpha: 0.48 });
     for (const [u, w2] of [[0.46, 0.56], [0.6, 0.64], [0.36, 0.7]]) g.circ(P(u, w2, 3.4), 0.55, '#F2A93B', { alpha: 0.85 });   // embers
   } else {
     g.poly([P(0.12, 0.78, 0.4), P(0.44, 0.92, 0.4), P(0.5, 0.88, 2.4), P(0.2, 0.72, 3)], MUD2[1], { outline: true });   // a wall slab that fell outwards

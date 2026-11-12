@@ -100,6 +100,7 @@ export function scrub(g, c) {
 // A dry shrub (Stage 4.7 Task 3b): the drab olive-grey bush of open desert, away from any water, so vivid green is only ever by the water.
 export function dryShrub(g, c) {
   g.ell([c[0] + 2.5, c[1] + 0.5], 4, 1.2, SHADOW, { alpha: 0.09 });
+  g.ell([c[0] + 0.2, c[1] + 0.3], 2.4, 0.6, INK, { alpha: 0.16 });                           // Version 10.0 (Track Q, ruling 2148): the dark where it sits, as every bush has
   g.circ([c[0] - 1.6, c[1] - 0.9], 1.9, '#8A8760');
   g.circ([c[0] + 1.2, c[1] - 1.6], 2.1, '#9A9672');
   g.circ([c[0] + 0.3, c[1] - 0.1], 1.6, '#7C7A58');

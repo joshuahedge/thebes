@@ -1786,3 +1786,20 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]):has(#banner .critical[data-code="raid_warning"], #banner .critical[data-code="raid"]) #dock .cat[data-category="defence"] { order: -1; }
 body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]):has(#banner .critical[data-code="raid_warning"], #banner .critical[data-code="raid"]) #dock .cats { scroll-snap-type: none; overflow-anchor: none; }   /* the reorder must not carry the row's scroll with it (the snap would hold on to Roads) */
 /* ── end Version 9.3.1, Track L ── */
+/* Version 10.0, Track Q (ruling 2140): one button language. Filled lapis is the one main action of a surface; the rest are outlined; the teal ring says a choice is on, and only a choice
+   (Layers' Off is the way out, so it is outlined whether or not a layer is showing); Demolish is outlined with a red glyph and fills red only while the tool is live (its tray card is
+   pressed) or on the bar that confirms it. A button on a sheet is never filled red until it has been asked to be. */
+.layers-picker .layer.off, .layers-picker .layer.off[aria-pressed] { background: transparent; color: var(--lapis); border: 2px solid var(--lapis); box-shadow: none; }
+#dock .card.demolish:not([aria-pressed="true"]), #panel .card.demolish:not([aria-pressed="true"]), #rail .card.demolish:not([aria-pressed="true"]) { background: transparent; color: var(--coral-text); border: 2px solid var(--coral-text); box-shadow: none; }
+#dock .card.demolish:not([aria-pressed="true"]) .cost, #panel .card.demolish:not([aria-pressed="true"]) .cost, #rail .card.demolish:not([aria-pressed="true"]) .cost { color: var(--coral-text); }
+.cards .card.demolish[aria-pressed="true"] { background: var(--coral-text); color: #FFFFFF; border-color: var(--coral-text); box-shadow: none; }
+.cards .card.demolish[aria-pressed="true"] .cost { color: #FFFFFF; }
+#sheet button.demolish.danger { background: transparent; color: var(--coral-text); border: 2px solid var(--coral-text); box-shadow: none; }
+/* ── end Version 10.0, Track Q (buttons) ── */
+/* Version 10.0, Track Q (ruling 2141): the category icons are drawn images (src/render/art/icons.js), sized by the same font-size the glyphs were. */
+.cat .icon.cat-icon, .tab .icon.cat-icon { display: block; width: 1em; height: 1em; object-fit: contain; pointer-events: none; }
+#dock .cat .icon.cat-icon { font-size: calc(20px * var(--ui-scale)); }
+#rail .cat .icon.cat-icon { font-size: calc(20px * var(--ui-scale)); }
+#panel .tab { display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 0 5px; }
+#panel .tab .icon.cat-icon { font-size: 14px; flex: none; }   /* small, so four tabs still make one row at 100% text */
+/* ── end Version 10.0, Track Q (icons) ── */

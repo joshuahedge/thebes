@@ -273,7 +273,7 @@ describe('s4 art pinned markers', () => {
     expect(Math.abs(at[0] - r) < 12 && Math.abs(at[1] - g) < 12 && Math.abs(at[2] - b2) < 12).toBe(true);
     expect(countNear(c, UI.problem, 12)).toBeGreaterThan(200);
     const stem = px(m.x, (m.y + m.r + m.foot.y) / 2);
-    expect(stem[3]).toBe(255);
+    expect(stem[3] >= 200).toBe(true);   // Version 10.0 (Track Q, ruling 2145): the stem is 1 px of ink on a 2.6 px halo (it was 2 on 4), so a pixel of it is not always fully covered
     expect(slotFor(well)).toBe('well.l0.work');   // Version 9.3 (Track B): the look and the state
   });
 });

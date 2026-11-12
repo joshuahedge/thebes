@@ -11,7 +11,7 @@ import { createWorld } from '../../../src/sim/world.js';
 import { LIGHT, NIGHT } from '../../../src/data/seasons.js';
 import { TERRAIN, UI } from '../../../src/render/art/palette.js';
 import { drawLight, setLightClock, lightAt, tinted } from '../../../src/render/light.js';
-import { drawMarkers } from '../../../src/render/markers.js';
+import { drawMarkers, MARKER } from '../../../src/render/markers.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { DEFAULT_SETTINGS } from '../../../src/ui/settings.js';
 
@@ -73,9 +73,9 @@ describe('v70 s night: the map\'s marks and labels', () => {
       const ground = pixelAt(c, 200, 20).slice(0, 3);
       const m = { ids: [home.id], x: 110, y: 60, r: 11, foot: { x: 110, y: 95 }, glyph: '!', tone: 'problem', count: 1 };
       drawMarkers(g, w, [], { x0: 0, y0: 0, x1: 0, y1: 0 }, [m]);
-      const ring = pixelAt(c, m.x + m.r + 1, m.y).slice(0, 3);                            // between the badge's fill and the ring's outer edge
+      const ring = pixelAt(c, m.x + m.r * MARKER.drawScale + 1, m.y).slice(0, 3);          // between the badge's fill and the ring's outer edge (Version 10.0, Track Q: the badge is drawn at MARKER.drawScale of its layout radius)
       expect([key, ratio(ring, ground) >= NIGHT.minRing]).toEqual([key, true]);
-      const fill = pixelAt(c, m.x + m.r - 3, m.y + 3).slice(0, 3);
+      const fill = pixelAt(c, m.x + m.r * MARKER.drawScale - 3, m.y + 3).slice(0, 3);
       expect([key, 'the badge reads against its own ring', ratio(fill, ring) >= 3]).toEqual([key, 'the badge reads against its own ring', true]);
     }
   });

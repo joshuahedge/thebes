@@ -12,7 +12,7 @@ import { BUILDINGS } from '../../data/buildings.js';
 import { frameTimeOf } from './clock.js';
 import { lookOfBuilding } from '../looks.js';
 
-export const SCAFFOLD = { placedDays: 1, upgradeDays: 0.5, cap: 8, share: 0.9, minHeight: 8, maxHeight: 48, puffDays: 0.2, fadeShare: 0.2, pole: '#8A6A44', dust: '#D8C4A0' };
+export const SCAFFOLD = { placedDays: 1, upgradeDays: 0.5, cap: 8, share: 0.9, minHeight: 8, maxHeight: 48, puffDays: 0.2, fadeShare: 0.2, pole: '#8A6A44', dust: '#D8C4A0', shade: '#3E3260' };
 
 const sites = new WeakMap();                 // world -> Map(building id -> { at (game days), days })
 
@@ -80,6 +80,8 @@ export function drawScaffold(g, world, s) {
   for (const c of corners) segs.push(['M', c], ['L', U(c, h)]);
   for (const k of [0.4, 0.75]) for (let i = 0; i < 2; i++) segs.push(['M', U(corners[i], h * k)], ['L', U(corners[i + 1], h * k)]);
   segs.push(['M', corners[0]], ['L', U(corners[1], h * 0.75)], ['M', corners[2]], ['L', U(corners[1], h * 0.4)]);   // a brace on each face
+  // Version 10.0 (Track Q, ruling 2148): where the poles meet the ground: a cast shadow laid to the right of each foot (one batched fill; the poles stay one stroke a site).
+  g.polys(corners.map((c) => [[c[0] - 1.6, c[1] + 0.4], [c[0] + 3.2, c[1] + 1.2], [c[0] + 1.6, c[1] + 1.8], [c[0] - 2.4, c[1] + 1]]), SCAFFOLD.shade, { alpha: 0.2 * fade });
   g.stroke(segs, SCAFFOLD.pole, 0.7, 0.85 * fade);                         // one stroke a site: the poles, ledgers and braces together
   const puff = (s.t * s.days) / SCAFFOLD.puffDays;
   if (s.days === SCAFFOLD.placedDays && !s.look && puff < 1) {   // a look change raises no dust: the building has stood all along
