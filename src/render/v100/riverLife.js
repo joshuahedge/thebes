@@ -32,7 +32,7 @@ const HERON_LOOK_MS = 400;              // the boat's place this long ago: neare
 export const CROC_SWAY_MS = 1800;       // a basking crocodile's tail takes this long to pass from one of its four poses to the next
 export const HIPPO_FLICK_MS = 2400;     // a surfaced hippo flicks its ears once in this long, for HIPPO_FLICK_HOLD_MS
 export const HIPPO_FLICK_HOLD_MS = 350;
-const FROM_CITY =milestoneIndex('city'), FROM_CAPITAL = milestoneIndex('capital');
+const FROM_CITY = milestoneIndex('city'), FROM_CAPITAL = milestoneIndex('capital');
 const rankOf = (world) => milestoneIndex(world.milestone || 'village');
 
 // The river's rows in view (and a row each side), widest-first candidates for a crossing near the middle.
@@ -80,7 +80,7 @@ export function riverLifeAt(world, timeDays, nowMs, range, motion, { day = null 
       const before = boats.reduce((m, f) => Math.min(m, Math.hypot(feluccaAt(f.row, f.k, seed, nowMs - HERON_LOOK_MS, motion).x - x, f.y - y)), Infinity);
       const leaving = dist > before;
       if (dist < RIVER.startle) lift = dist < RIVER.startle * 0.75 ? 9 : 4;
-      if (lift === 9) pose = Math.floor(nowMs / HERON_FLAP_MS) % 2 ? '_u' : '_d';
+      if (lift === 9) pose = Math.floor(nowMs / HERON_FLAP_MS) % 2 ? '_fu' : '_fd';
       else if (lift === 4) pose = '_o';
       else if (leaving && dist < RIVER.startle * 1.25) pose = '_f';              // down again, the wings folding in
     }

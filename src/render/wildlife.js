@@ -189,7 +189,7 @@ export function hopAt(timeDays, h) {
   if (u < 0.12) return { mode: 'o', lift: 0 };
   if (u >= 0.96) return { mode: 'f', lift: 0 };
   if (u >= 0.88) return { mode: 'o', lift: 0.6 };
-  const k = (u - 0.12) / 0.76, flap = Math.floor(t * HOP.flapPerDay) % 2 ? 'u' : 'd';
+  const k = (u - 0.12) / 0.76, flap = Math.floor(t * HOP.flapPerDay) % 2 ? 'fu' : 'fd';   // Version 10.0.1 (ruling 2384): 'fu'/'fd', so a flap frame never shares a name with the feeding ibis_d
   return { mode: flap, lift: HOP.lift * Math.sin(Math.PI * k) };
 }
 

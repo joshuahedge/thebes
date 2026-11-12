@@ -156,12 +156,13 @@ export function gazelle(g0, gx, gy, left = false, pose = 'stand') {
   const legs = [[-2.8, '#6E4A22', 0], [-1.6, '#9A6C38', 0.5], [1.7, '#6E4A22', 0.5], [2.9, '#9A6C38', 0]];   // Version 10.0.1: darker legs, so they read against the sand and the pale belly (the herd looked like stools)
   for (const [dx, c, off] of legs) {
     const ph = walk ? ((pose / 4 + off) % 1) * Math.PI * 2 : 0, swing = walk ? Math.cos(ph) * 1.7 : 0, lift = walk ? Math.max(0, Math.sin(ph)) * 1.2 : 0;
-    const hip = [X + dx, Y - 3.8 + bob], knee = [X + dx + 0.7 + swing * 0.45, Y - 2.4 - lift * 0.6], foot = [X + dx + swing, Y - 0.2 - lift];   // a slim leg with a bend at the hock
-    g.line(hip, knee, c, 0.6); g.line(knee, foot, c, 0.6);
+    const hip = [X + dx, Y - 4.6 + bob], knee = [X + dx + 0.7 + swing * 0.45, Y - 2.4 - lift * 0.6], foot = [X + dx + swing, Y - 0.2 - lift];   // a thick thigh, a slim shank, the bend at the hock
+    g.line(hip, knee, c, 1.1); g.line(knee, foot, c, 0.55);
   }
-  g.ell([X, Y - 5.2 + bob], 4.1, 1.6, '#C99A5E', { outline: true });
-  g.ell([X, Y - 4.6 + bob], 2.7, 0.5, '#F1E2C2');
-  g.line([X - 3.6, Y - 5.4 + bob], [X + 3.2, Y - 5.4 + bob], '#6B4A2E', 0.55, 0.85);       // the flank stripe
+  // Version 10.0.1 (ruling 2386): a deep chest tapering to a slim waist and rump (not a slab with a pale belly), the belly a thin pale line
+  g.poly([[X + 3.6, Y - 7.4 + bob], [X + 0.5, Y - 7.7 + bob], [X - 3.2, Y - 7 + bob], [X - 4, Y - 5.8 + bob], [X - 2.6, Y - 4.6 + bob], [X + 0.4, Y - 4.9 + bob], [X + 3.2, Y - 4.3 + bob], [X + 4, Y - 5.8 + bob]], '#C99A5E', { outline: true });
+  g.line([X - 2.2, Y - 4.9 + bob], [X + 2.6, Y - 4.7 + bob], '#F1E2C2', 0.4, 0.9);
+  g.line([X - 3.2, Y - 6.2 + bob], [X + 3.4, Y - 6.4 + bob], '#6B4A2E', 0.5, 0.85);       // the flank stripe
   g.poly([[X - 4.1, Y - 6.2 + bob], [X - 5, Y - 6.8 + bob], [X - 4.6, Y - 5.2 + bob]], '#F6EFE0');   // the white rump and tail
   if (graze) {
     g.poly([[X + 3.2, Y - 7.8], [X + 4.3, Y - 8], [X + 6.6, Y - 3.4], [X + 5.6, Y - 2.8]], '#C99A5E', { outline: true });   // the neck, down to the grass
@@ -404,7 +405,9 @@ const SIDE_ART = (side) => {
   const S = SIDES[side];
   return { w: S.w, d: S.d, height: 14, bounds: boundsFor(S.w, S.d, 14, 26), shadows: [[0.12, 0.08, 0.8, 0.5, 7]], draw: (g, x, y) => fishingWharf(g, x, y, side) };
 };
-export const RIVER_ART = {
+// Version 10.0.1 (ruling 2384): the registry is built from PARTS, so a test can prove no slot is defined twice (a later part used to overwrite an earlier one
+// silently: the flap frames' ibis_d replaced the feeding ibis).
+export const RIVER_ART_PARTS = [{
   nilometer: { w: 1, d: 1, height: 28, bounds: boundsFor(1, 1, 28), shadows: [[0.12, 0.12, 0.76, 0.62, 3], [0.4, 0.4, 0.2, 0.2, 17]], draw: nilometer },
   hunting_lodge: { w: 2, d: 2, height: 17, bounds: boundsFor(2, 2, 17), shadows: [[0.1, 0.1, 1.3, 0.95, 10]], draw: (g, x, y) => huntingLodge(g, x, y, 0) },
   'hunting_lodge.g1': { w: 2, d: 2, height: 17, bounds: boundsFor(2, 2, 17), shadows: [[0.1, 0.1, 1.3, 0.95, 10]], draw: (g, x, y) => huntingLodge(g, x, y, 1) },
@@ -416,12 +419,15 @@ export const RIVER_ART = {
   'fig.leap0': { ...UNIT(10), draw: (g, x, y) => leap(g, x, y, 0) }, 'fig.leap1': { ...UNIT(10), draw: (g, x, y) => leap(g, x, y, 1) },
   'fig.splash0': { ...UNIT(4), draw: (g, x, y) => splash(g, x, y, 0) }, 'fig.splash1': { ...UNIT(4), draw: (g, x, y) => splash(g, x, y, 1) },
   'fig.splash2': { ...UNIT(4), draw: (g, x, y) => splash(g, x, y, 2) },
+}, {
   // Version 10.0.1 (Track A, A.2, rulings 2377-2380): the walk, graze, take-off, flick, sway and slide frames, each a sprite baked once on first sight.
-  ...poses('gazelle', gazelle, 16, { w0: 0, w1: 1, w2: 2, w3: 3, g: 'graze' }), ...poses('ostrich', ostrich, 24, { w0: 0, w1: 1, w2: 2, w3: 3, g: 'graze' }),
-  ...poses('heron', heronFly, 20, { o: 'o', u: 'u', d: 'd', f: 'f' }), ...poses('ibis', ibisFly, 12, { o: 'o', u: 'u', d: 'd', f: 'f' }),
-  ...poses('hippo', hippo, 10, { e: true }), ...poses('croc', croc, 8, { t1: 1, t2: -1 }),
-  ...croc2('crocodile_t1', 1, 0), ...croc2('crocodile_t2', -1, 0), ...croc2('crocodile_slide2', 0, 2), ...croc2('crocodile_slide3', 0, 3),
-};
+  ...poses('gazelle', gazelle, 16, { w0: 0, w1: 1, w2: 2, w3: 3, g: 'graze' }),
+}, poses('ostrich', ostrich, 24, { w0: 0, w1: 1, w2: 2, w3: 3, g: 'graze' }),
+poses('heron', heronFly, 20, { o: 'o', fu: 'u', fd: 'd', f: 'f' }), poses('ibis', ibisFly, 12, { o: 'o', fu: 'u', fd: 'd', f: 'f' }),   // fu, fd: the flap frames (not u, d: ibis_d is the feeding ibis)
+poses('hippo', hippo, 10, { e: true }), poses('croc', croc, 8, { t1: 1, t2: -1 }),
+croc2('crocodile_t1', 1, 0), croc2('crocodile_t2', -1, 0), croc2('crocodile_slide2', 0, 2), croc2('crocodile_slide3', 0, 3),
+];
+export const RIVER_ART = Object.assign({}, ...RIVER_ART_PARTS);
 
 // The slot a River building shows when it is not just its type: a wharf facing its water, a lodge with game hung while it works, else null.
 export function riverSlot(b, world) {

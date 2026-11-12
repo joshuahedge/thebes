@@ -8,7 +8,8 @@ import { unitsAt, UNIT_ID_BASE, GLIDE_DAYS } from '../../../src/render/units.js'
 import { herdAnimals, animalsAt, hopAt, HOP, GRAZE } from '../../../src/render/wildlife.js';
 import { riverLifeAt, RIVER, HERON_FLAP_MS, CROC_SWAY_MS, HIPPO_FLICK_MS, HIPPO_FLICK_HOLD_MS } from '../../../src/render/v100/riverLife.js';
 import { riverRows, FLAP_FRAMES, BIRD_FLAP_MS } from '../../../src/render/ambient.js';
-import { WALK_CYCLE } from '../../../src/render/art/river.js';
+import { WALK_CYCLE, RIVER_ART, RIVER_ART_PARTS, ibis } from '../../../src/render/art/river.js';
+import { makeDraw } from '../../../src/render/art/ctx.js';
 import { ART } from '../../../src/render/art/registry.js';
 import { createRenderer } from '../../../src/render/renderer.js';
 import { createCamera } from '../../../src/render/camera.js';
@@ -106,7 +107,7 @@ describe('v1001 a walking animals (A.2, rulings 2377)', () => {
       expect(bakes(`${a.kind}${a.pose}`)).toBe(true);
       expect(bakes(`${a.kind}${a.pose}_l`)).toBe(true);
     }
-    for (const base of ['heron', 'ibis']) for (const m of ['o', 'u', 'd', 'f']) { expect(bakes(`${base}_${m}`)).toBe(true); expect(bakes(`${base}_${m}_l`)).toBe(true); }
+    for (const base of ['heron', 'ibis']) for (const m of ['o', 'fu', 'fd', 'f']) { expect(bakes(`${base}_${m}`)).toBe(true); expect(bakes(`${base}_${m}_l`)).toBe(true); }
     for (const k of ['hippo_e', 'hippo_e_l', 'croc_t1', 'croc_t2', 'croc_t1_l', 'croc_t2_l', 'crocodile_t1', 'crocodile_t2', 'crocodile_t1_l', 'crocodile_t2_l',
       'crocodile_slide2', 'crocodile_slide3', 'crocodile_slide2_l', 'crocodile_slide3_l']) expect(bakes(k)).toBe(true);
   });
@@ -120,7 +121,7 @@ describe('v1001 a take-off, flick, sway (A.2, rulings 2378-2380)', () => {
       if (!hop) continue;
       seen.add(hop.mode); lifts.push(hop.lift);
     }
-    expect([...seen].sort()).toEqual(['d', 'f', 'o', 'u']);
+    expect([...seen].sort()).toEqual(['f', 'fd', 'fu', 'o']);
     expect(Math.min(...lifts)).toBe(0);
     expect(Math.max(...lifts)).toBeGreaterThan(HOP.lift * 0.9);
     expect(Math.max(...lifts)).toBeLessThanOrEqual(HOP.lift + 1e-9);
@@ -137,10 +138,10 @@ describe('v1001 a take-off, flick, sway (A.2, rulings 2378-2380)', () => {
     };
     const full = kinds('full'), gentle = kinds('gentle'), still = kinds('still');
     const any = (set, re) => [...set].some((k) => re.test(k));
-    expect(any(full.s, /^(heron|ibis)_[oudf](_l)?$/)).toBe(true);
+    expect(any(full.s, /^(heron|ibis)_(o|fu|fd|f)(_l)?$/)).toBe(true);
     expect(any(full.s, /^hippo_e/)).toBe(true);
     expect(any(full.s, /^croc_t/)).toBe(true);
-    for (const re of [/^(heron|ibis)_[oudf]/, /^hippo_e/, /^croc_t/, /_w\d/]) { expect(any(gentle.s, re)).toBe(false); expect(any(still.s, re)).toBe(false); }
+    for (const re of [/^(heron|ibis)_(o|fu|fd|f)/, /^hippo_e/, /^croc_t/, /_w\d/]) { expect(any(gentle.s, re)).toBe(false); expect(any(still.s, re)).toBe(false); }
     expect(gentle.lift.size).toBe(0);
     expect(still.lift.size).toBe(0);
   });
@@ -151,7 +152,7 @@ describe('v1001 a take-off, flick, sway (A.2, rulings 2378-2380)', () => {
     const w = copyWorld(w0);
     const poses = new Set();
     for (let t = 0; t < 2 * (RIVER.crossMs + RIVER.restMs); t += 100) for (const e of riverLifeAt(w, 40, t, range, 'full', { day: DAY })) if (/^heron/.test(e.kind)) poses.add(e.kind.replace(/_l$/, ''));
-    for (const k of ['heron_u', 'heron_d', 'heron_o']) expect(poses.has(k)).toBe(true);
+    for (const k of ['heron_fu', 'heron_fd', 'heron_o', 'heron_f']) expect(poses.has(k)).toBe(true);   // the landing's fold (_f) too (ruling 2385)
     expect(HERON_FLAP_MS).toBeLessThan(400);
     for (const k of poses) expect(bakes(k) || bakes(`${k}_l`)).toBe(true);
     // the crocodile and the hippo
@@ -177,13 +178,37 @@ describe('v1001 a take-off, flick, sway (A.2, rulings 2378-2380)', () => {
   });
 });
 
+describe('v1001 a review fixes (ruling 2384)', () => {
+  it('the feeding ibis is still the head-down ibis (the flap frames no longer overwrite fig.ibis_d), and no river slot is defined twice', () => {
+    const feeding = (left) => { const c = makeCanvas(60, 60), x = c.getContext('2d'); x.translate(30, 40); ART[left ? 'fig.ibis_dl' : 'fig.ibis_d'].draw(makeDraw(x, 3), 0, 0); return Array.from(x.getImageData(0, 0, 60, 60).data).join(); };
+    const plain = (g) => { const c = makeCanvas(60, 60), x = c.getContext('2d'); x.translate(30, 40); ibis(makeDraw(x, 3), 0, 0, false, g); return Array.from(x.getImageData(0, 0, 60, 60).data).join(); };
+    expect(feeding(false)).toBe(plain(true));
+    expect(feeding(false)).toBe(feeding(false));
+    const seen = new Map();
+    for (const part of RIVER_ART_PARTS) for (const k of Object.keys(part)) seen.set(k, (seen.get(k) || 0) + 1);
+    expect([...seen].filter(([, n]) => n > 1)).toEqual([]);
+    expect(Object.keys(RIVER_ART).length).toBe(seen.size);
+  });
+  it('river life stays pose-free under Gentle: herons stand, the crocodile is the one slide frame, the hippo is plain', () => {
+    const w0 = sampleCity(), rows = [...riverRows(w0, 0, w0.size - 1).entries()].filter(([, r]) => r.right - r.left >= RIVER.minWidth);
+    const [y, r] = rows[Math.floor(rows.length / 2)];
+    const range = { x0: Math.floor(r.left) - 8, y0: y - 8, x1: Math.ceil(r.right) + 8, y1: y + 8 };
+    const w = copyWorld(w0);
+    w.day = 5 * 30 + 5;
+    const kinds = new Set();
+    for (const day of [DAY, { phase: 'dusk', u: 0.6, dark: 0.8, warm: 0.5, lamps: 0.4 }]) for (let t = 0; t < 2 * (RIVER.crossMs + RIVER.restMs); t += 250) for (const e of riverLifeAt(w, 40, t, range, 'gentle', { day })) kinds.add(e.kind);
+    for (const k of kinds) expect(/^(heron|hippo|crocodile)/.test(k) ? /^(heron|heron_l|hippo|hippo_l|crocodile|crocodile_l|crocodile_slide)$/.test(k) : true).toBe(true);
+    expect([...kinds].some((k) => /^heron/.test(k))).toBe(true);
+  });
+});
+
 describe('v1001 a cost (A.3, ruling 2381)', () => {
   it('the new frames are sprites baked once: drawing them again over a new frame adds no bake', () => {
     const counter = {}, cache = createSpriteCache({ counter });
     const world = makeTestWorld();
     const r = createRenderer({ canvas: makeCanvas(10, 10), dpr: 1, spriteCache: cache, maxBakesPerFrame: Infinity });
     const cam = createCamera({ x: 16, y: 16, zoom: 1 });
-    const walkers = ['gazelle_w1', 'gazelle_w3_l', 'gazelle_g', 'ostrich_w2', 'heron_u', 'heron_d_l', 'ibis_o', 'hippo_e', 'croc_t1', 'crocodile_slide3'].map((kind, i) => ({ id: i + 1, kind, x: 14.5 + i * 0.3, y: 15.5, dir: 1 }));
+    const walkers = ['gazelle_w1', 'gazelle_w3_l', 'gazelle_g', 'ostrich_w2', 'heron_fu', 'heron_fd_l', 'ibis_o', 'hippo_e', 'croc_t1', 'crocodile_slide3'].map((kind, i) => ({ id: i + 1, kind, x: 14.5 + i * 0.3, y: 15.5, dir: 1 }));
     r.renderFrame(world, cam, { view: { width: 300, height: 200 }, walkers });
     const misses = counter.misses;
     expect(misses).toBeGreaterThan(0);
