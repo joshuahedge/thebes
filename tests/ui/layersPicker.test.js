@@ -43,7 +43,7 @@ describe('ui layers picker (placement review P2)', () => {
     press('off');
     expect([r.store.get().overlay, r.store.get().layersOpen]).toEqual([null, false]);
     r.store.set({ layersOpen: true });
-    expect(r.picker.node.querySelector('[data-layer="off"]').getAttribute('aria-pressed')).toBe('true');
+    expect(r.picker.node.querySelector('[data-layer="off"]').getAttribute('aria-pressed')).toBe('false');   // Version 10.0 (Track Q, ruling 2140): Off is outlined when off, never the chosen one
     r.cleanup();
   });
   it('closes on a press outside it, but not on one inside it or on a Layers button (which toggle it themselves)', () => {
