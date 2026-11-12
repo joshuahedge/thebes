@@ -4,7 +4,7 @@ import { CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { pickCategory, setDock } from './modes.js';
 import { renderCards, activeItemOf, cardsKey, shownCategories } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
-import { el, button, icon, clear } from './components.js';
+import { el, button, categoryIcon, setCategoryIconTone, clear } from './components.js';
 
 const SWIPE_PX = 30;
 
@@ -29,7 +29,7 @@ export function createDock({ container, store, world, onPick, layers = null }) {
     shownKey = key;
     shown = next;
     catButtons = shown.map((c) => {
-      const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
+      const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false' }, [categoryIcon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
       b.addEventListener('click', () => {
         const s = store.get();
@@ -80,7 +80,7 @@ export function createDock({ container, store, world, onPick, layers = null }) {
     document.body.dataset.dock = s.dock;
     handle.setAttribute('aria-expanded', String(s.dock === 'tray'));
     const advisedCat = layers ? layers.advisedCategory() : null;
-    catButtons.forEach((b, i) => { b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === shown[i].id)); b.classList.toggle('advised', shown[i].id === advisedCat); });
+    catButtons.forEach((b, i) => { const chosen = s.dock === 'tray' && s.category === shown[i].id; b.setAttribute('aria-pressed', String(chosen)); setCategoryIconTone(b, chosen); b.classList.toggle('advised', shown[i].id === advisedCat); });
     const key = cardsKey(world, s.category, activeItemOf(s.tool), layers);
     if (s.dock === 'tray' && key !== lastCards) {
       renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, layers });
