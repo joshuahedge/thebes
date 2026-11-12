@@ -6,14 +6,14 @@ import { createWorld } from './sim/world.js';
 import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { settleGoals, guideGoal } from './sim/goals.js';
-import { createCamera } from './render/camera.js';
+import { createCamera, holdInMap } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
 import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
 import { createUI } from './ui/createUI.js';
 import { createSettings } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
-import { createCameraControl } from './ui/cameraControl.js';
+import { createCameraControl, startCamera } from './ui/cameraControl.js';
 import { createMenuSheets } from './ui/menu.js';
 import { createTitleCard, createBackdrop, firstCityLayout } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
@@ -362,6 +362,9 @@ export async function boot(doc, win, {
         : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave && !decree ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }), ...(lesson || decree ? {} : { rulers: (body, { setTitle }) => { setTitle(V90_L_TEXT.sheetTitle); renderRulers(body, rulersDeps({ onInstall: () => hooks.install() })); } }) }, ...uiOptions });
+    // Version 10.0 (Track F, rulings 2110-2111): the camera the UI framed (or a save's focus) is held in the map; a new city's opens on its entry road's end diamond with the map around it.
+    holdInMap(cam, view());
+    if (!fromSave && !lesson && !decree && !stress && !Object.keys(world.buildings || {}).length && view().width > 0) Object.assign(cam, startCamera(world, view(), cam.zoom));
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); if (lateAsk && events.some((e) => e.type === 'month')) { const ask = lateAsk; lateAsk = null; ask(); } }, render: (f) => { ui.render(f); music.tick(f.now); rescue.frameOk(); }, allowFrame: ui.allowFrame,
       onError: (e) => rescue.loopError(e), ...loopOptions });   // Version 9.1 (Track R, ruling 1675): a throw in a day's tick or in the draw goes to the rescue
     current = { world, ui, loop, cam, lesson: Boolean(lesson), decree: Boolean(decree) };

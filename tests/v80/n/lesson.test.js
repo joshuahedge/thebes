@@ -12,6 +12,9 @@ import { pageAt, cardOf, rect, frame, stepIndex } from '../../v711/lessonPage.js
 const W = 390, H = 844;
 // The middle of the map a phone held upright leaves free (src/ui/v60/lesson.js freeInsets): 30% under the top, 34% above the bottom.
 const FREE = { x: W / 2, y: H * 0.3 + (H - H * 0.3 - H * 0.34) / 2 };
+// Version 10.0 (Track F, ruling 2118): the target is framed in the middle of the free map as near as the held camera (holdInMap) allows: a lesson target close to the map's
+// edge sits up to this many px off the middle, never so far that the map's edge is let onto the screen.
+const TOL = 80;
 const centreOf = (spot) => ({ x: spot.x + spot.w / 2, y: spot.y + spot.d / 2 });
 
 describe('v80 n lesson: the view follows each step\'s own target', () => {
@@ -27,7 +30,7 @@ describe('v80 n lesson: the view follows each step\'s own target', () => {
         if (step.id === 'road') continue;         // Version 9.1 (Track F, ruling 1674): nudged east so the start road's diamond is whole beside the ring (tests/v91/f/ui.test.js)
         const c = centreOf(spot);
         const [sx, sy] = tileToScreen(g.cam, { width: W, height: H }, c.x, c.y);
-        if (Math.abs(sx - FREE.x) > 2 || Math.abs(sy - FREE.y) > 2) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)} not ${FREE.x},${Math.round(FREE.y)}`);
+        if (Math.abs(sx - FREE.x) > TOL || Math.abs(sy - FREE.y) > TOL) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)} not ${FREE.x},${Math.round(FREE.y)}`);
       } finally { s.cleanup(); }
     }
     expect(wrong).toEqual([]);
@@ -39,13 +42,13 @@ describe('v80 n lesson: the view follows each step\'s own target', () => {
       const g = s.g();
       const at = (step) => { const c = centreOf(stepSpot(g.world, LESSON_STEPS[stepIndex(step)])); return tileToScreen(g.cam, { width: W, height: H }, c.x, c.y); };
       const [fx, fy] = at('fire');
-      expect([Math.abs(fx - FREE.x) <= 2, Math.abs(fy - FREE.y) <= 2]).toEqual([true, true]);   // the bazaar is in the middle during the fire step
+      expect([Math.abs(fx - FREE.x) <= TOL, Math.abs(fy - FREE.y) <= TOL]).toEqual([true, true]);   // the bazaar is in the middle during the fire step
       s.root.querySelector('.lesson-card .lc-go').click();
       LESSON_SCRIPT.fire(g.world, s.io);                                                         // the fire is put out: the tower step begins
       await frame();
       expect(s.root.querySelector('#lesson').dataset.step).toBe('tower');
       const [tx, ty] = at('tower');
-      expect([Math.abs(tx - FREE.x) <= 2, Math.abs(ty - FREE.y) <= 2]).toEqual([true, true]);   // and now the tower's tile is
+      expect([Math.abs(tx - FREE.x) <= TOL, Math.abs(ty - FREE.y) <= TOL]).toEqual([true, true]);   // and now the tower's tile is
       const bazaar = stepSpot(g.world, LESSON_STEPS[stepIndex('fire')]);
       const [bx, by] = tileToScreen(g.cam, { width: W, height: H }, centreOf(bazaar).x, centreOf(bazaar).y);
       expect(Math.abs(by - FREE.y) > 2 || Math.abs(bx - FREE.x) > 2).toBe(true);                // the bazaar is no longer where the view's focus sits
