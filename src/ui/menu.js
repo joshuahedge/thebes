@@ -47,7 +47,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const inDecree = Boolean(hooks.decreeRun);   // Version 9.3 (Track U): a decree run has Back to your city and Start the decree again, and no new city, ruler or lesson rows (it is never the city's)
     const inLesson = Boolean(hooks.lessonRun) || inDecree;
     body.append(el('div', { class: 'menu-list' }, [
-      button(T.continueGame, { class: 'primary', onClick: close }),
+      button(T.continueGame, { class: 'secondary menu-continue', onClick: close }),   // Version 10.0 (Track M, ruling 2308, C5): it only shuts the menu, which the x does too: outlined, so the menu has no filled button
       inDecree ? button(U93_TEXT.backToCity, { class: 'menu-back-to-city', onClick: () => hooks.decreeRun.back() }) : null,
       inDecree ? button(U93_TEXT.startAgain, { class: 'menu-decree-again', onClick: () => store.set({ confirmDialog: { text: U93_TEXT.againQuestion, confirmLabel: U93_TEXT.againYes, destructive: true, onConfirm: () => hooks.decreeRun.again() } }) }) : null,
       // After 8.3 (ruling 1454): Home goes back to the title, the city saved first, so Continue there brings it straight back; a city that cannot be saved stays open
