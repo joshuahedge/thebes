@@ -62,7 +62,8 @@ function bazaarCrowd(world, b, timeDays, motion, day, out) {
   if (light < 0.02) return;
   let room = LIFE.crowdCap;
   // two sitting at a plaza or garden near it
-  const seat = allBuildings(world).find((o) => (o.type === 'plaza' || o.type === 'garden') && Math.abs(o.x + o.w / 2 - cx) + Math.abs(o.y + o.d / 2 - cy) <= CROWD.seatReach + 1);
+  const reach = CROWD.seatReach + 1, near = { x0: Math.floor(cx - reach), y0: Math.floor(cy - reach), x1: Math.ceil(cx + reach), y1: Math.ceil(cy + reach) };
+  const seat = buildingsInRange(world, near).find((o) => (o.type === 'plaza' || o.type === 'garden') && Math.abs(o.x + o.w / 2 - cx) + Math.abs(o.y + o.d / 2 - cy) <= CROWD.seatReach + 1);
   const short = food(b) < CROWD.shortBelow;
   if (seat && !short) {
     for (let i = 0; i < 2; i++) out.push({ id: base + 14 + i, kind: 'citizen_sit', x: seat.x + (i ? 1.12 : 0.4) * seat.w, y: seat.y + (i ? 0.45 : 1.12) * seat.d, dir: i ? 3 : 1, stand: true, alpha: light });
@@ -101,9 +102,20 @@ export function crowdAt(world, timeDays, nowMs, range, motion, { day = null } = 
 }
 
 // ── L.8: the festival's onlookers ──
+// The working temples, kept a frame to the next for the same world (until a building is added, or TEMPLES_FRESH_MS passes, so one staffed or emptied
+// since is seen within a couple of seconds): a render-side note kept by the world record, never in it. The list is shared; callers do not change it.
+export const TEMPLES_FRESH_MS = 2000;
+const templesKept = new WeakMap();
+export function workingTemples(world, nowMs = 0) {
+  const had = templesKept.get(world);
+  if (had && had.next === world.nextId && nowMs >= had.at && nowMs - had.at < TEMPLES_FRESH_MS) return had.list;
+  const list = allBuildings(world).filter((t) => t.type === 'temple' && isWorking(world, t));
+  templesKept.set(world, { next: world.nextId, at: nowMs, list });
+  return list;
+}
 export function festivalLineAt(world, timeDays, nowMs, range, motion) {
   if (motion === 'still' || !range || !world || !world.buildings || !festivalOn(world)) return [];
-  const temples = allBuildings(world).filter((t) => t.type === 'temple' && isWorking(world, t));
+  const temples = workingTemples(world, nowMs);
   const out = [], seed = world.seed | 0;
   for (const t of nearestFirst(temples, range)) {
     const loop = festivalLoopOf(world, t);

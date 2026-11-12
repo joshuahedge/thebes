@@ -213,7 +213,7 @@ export function farSand(world) {
     }
   }
   const far = new Uint8Array(n * n);
-  for (let i = 0; i < n * n; i++) if (world.terrain[i] === T.DESERT && (dist[i] < 0 || dist[i] > SHIMMER.fromWater) && !world.occ[i] && !world.road[i]) far[i] = 1;
+  for (let i = 0; i < n * n; i++) if (world.terrain[i] === T.DESERT && (dist[i] < 0 || dist[i] > SHIMMER.fromWater)) far[i] = 1;   // occ and road are read at draw time (shimmerTiles), so a tile built on since stops
   sandFar.set(world, { terrain: world.terrain, far });
   return far;
 }
@@ -224,17 +224,22 @@ export function shimmerOn(world, motion) {
   const u = ((lightPeek(world) % LIGHT.cycleMs) + LIGHT.cycleMs) % LIGHT.cycleMs / LIGHT.cycleMs / LIGHT.day;
   return u >= SHIMMER.noon[0] && u <= SHIMMER.noon[1];
 }
-export function drawShimmer(g, world, range, now, motion) {
-  if (!range || !g.ctx || !shimmerOn(world, motion)) return 0;
+// The shimmering tiles, nearest the middle of the range first: far sand (kept by terrain), still open now (occ and road read at the time).
+export function shimmerTiles(world, range) {
   const far = farSand(world), n = world.size, cx = (range.x0 + range.x1) / 2, cy = (range.y0 + range.y1) / 2, tiles = [];
-  const R = 7;                                                                     // a ring round the middle, so the cost does not grow with the view
+  const R = 7;                                                                   // a ring round the middle, so the cost does not grow with the view
   for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(n - 1, Math.floor(cy + R)); y++) {
     for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(n - 1, Math.floor(cx + R)); x++) {
-      if (far[idx(n, x, y)] && hash2(x, y, (world.seed | 0) + 2252) < 0.5) tiles.push([x, y, Math.abs(x - cx) + Math.abs(y - cy)]);
+      const i = idx(n, x, y);
+      if (far[i] && !world.occ[i] && !world.road[i] && hash2(x, y, (world.seed | 0) + 2252) < 0.5) tiles.push([x, y, Math.abs(x - cx) + Math.abs(y - cy)]);
     }
   }
+  return tiles.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
+}
+export function drawShimmer(g, world, range, now, motion) {
+  if (!range || !g.ctx || !shimmerOn(world, motion)) return 0;
+  const tiles = shimmerTiles(world, range);
   if (!tiles.length) return 0;
-  tiles.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
   const ctx = g.ctx, m = ctx.getTransform(), S = g.scale, W = ctx.canvas.width, H = ctx.canvas.height;
   const tw = (p(1, 0)[0] - p(0, 1)[0]) * S, th = (p(1, 1)[1] - p(0, 0)[1]) * S, band = Math.max(1, Math.round(S * 0.5));
   ctx.save();

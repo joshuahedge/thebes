@@ -115,3 +115,7 @@ time and a hash, and keeps its notes (a bank spot, a storm's start, the homes li
   began) finds the in-suite frame bounds do not include life's hooks (they call `renderFrame` directly), and real-game headroom of about 2.1 ms (p50) on
   the phone's stress city and 2.1 ms in-suite on the desktop's at its settled 23.0 ms bound: so the Track 0 budget (1.5 / 1.0 ms) and every cap stand
   unchanged.
+
+## Fix round 1 (review)
+
+- **2252. Per-frame lookups are cached or ranged, and the shimmer follows the map.** The bazaar's seat is found with `buildingsInRange` round the bazaar (reach + 1), not by scanning every building; a festival day's working temples are kept per world (`workingTemples`, until `world.nextId` changes or 2 s pass, as `nearestHomes`); `stormsOf` is kept by seed and year (a Map cleared past 8 entries); `farSand` keeps only the terrain-based candidates and `shimmerTiles` reads `occ` and `road` at draw time, so a tile built or roaded since stops shimmering. Night, storm and festival-line tests now carry the cap, deep-frozen and determinism checks.

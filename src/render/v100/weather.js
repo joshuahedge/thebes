@@ -23,7 +23,17 @@ export const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const SHEMU = SEASONS.map((s, m) => (s === 'shemu' ? m : -1)).filter((m) => m >= 0);
 
 // The storms of a year (0-based), sorted by day.
+// Kept by seed and year (a render-side note, bounded): stormAt asks several times a frame. The list is shared, so callers do not change it.
+const stormsKept = new Map();
 export function stormsOf(seed, year) {
+  const key = `${seed | 0}:${year}`, had = stormsKept.get(key);
+  if (had) return had;
+  const list = makeStorms(seed, year);
+  if (stormsKept.size > 8) stormsKept.clear();
+  stormsKept.set(key, list);
+  return list;
+}
+function makeStorms(seed, year) {
   const L = LIFE.storm;
   if (!(year >= L.fromYear - 1) || !SHEMU.length) return [];
   const n = hash2(year, 1, ((seed | 0) + S.storm) | 0) < 0.5 ? L.perYear[0] : L.perYear[1], out = [];

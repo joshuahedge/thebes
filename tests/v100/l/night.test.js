@@ -17,6 +17,12 @@ function draw(w, range, l, motion = 'full', now = 5000, only = null) {
   return { n, url: c.toDataURL() };
 }
 
+function draw2(w, range, only, deviceKind) {
+  const c = makeCanvas(640, 480), ctx = c.getContext('2d'), mid = p((range.x0 + range.x1) / 2, (range.y0 + range.y1) / 2);
+  ctx.setTransform(1, 0, 0, 1, 320 - mid[0] * 2, 240 - mid[1] * 2);
+  return { n: drawNightLife(makeDraw(ctx, 2, 2), w, range, 5000, 'full', NIGHT, only, deviceKind), url: c.toDataURL() };
+}
+
 describe('v100 l night: doors, hearths, lamps and the palace', () => {
   it('lights every lived-in home\'s door at night (capped, nearest first), nothing by day, nothing under Still, never writing the world', () => {
     const { w, range } = bazaarCity(10);
@@ -39,6 +45,17 @@ describe('v100 l night: doors, hearths, lamps and the palace', () => {
     const doors = new Set(['doors']);
     expect(draw(w, range, NIGHT, 'gentle', 100, doors).url).toBe(draw(w, range, NIGHT, 'gentle', 700, doors).url);
     expect(draw(w, range, NIGHT, 'full', 100, doors).url !== draw(w, range, NIGHT, 'full', 600, doors).url).toBe(true);
+  });
+  it('holds the door and hearth caps per device (desktop, phone) and is the same twice', () => {
+    const { w, range } = bazaarCity(40);
+    const parts = (kind, only) => draw2(w, range, only, kind);
+    for (const [kind, cap] of [['desktop', NIGHT_LIFE], ['phone', NIGHT_LIFE.phone]]) {
+      expect(parts(kind, new Set(['doors'])).n <= cap.doors).toBe(true);
+      expect(parts(kind, new Set(['hearths'])).n <= cap.hearths).toBe(true);
+    }
+    expect(parts('phone', new Set(['doors'])).n <= parts('desktop', new Set(['doors'])).n).toBe(true);
+    expect(doorPoints(w, range, null, 5).length <= 5).toBe(true);
+    expect(parts('desktop', null).url).toBe(parts('desktop', null).url);
   });
   it('lights the hearths a minute before dusk on a festival day', () => {
     const { w } = bazaarCity(10);

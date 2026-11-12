@@ -10,6 +10,8 @@ import { makeDraw } from '../../../src/render/art/ctx.js';
 import { createCamera, visibleTileRange } from '../../../src/render/camera.js';
 import { p } from '../../../src/render/iso.js';
 import { makeCanvas } from '../../helpers/canvas.js';
+import { LIFE } from '../../../src/data/ambient.js';
+import { deepFreeze } from './helpers.js';
 
 describe('v100 l storm: the rare sandstorm', () => {
   it('is seeded: the same storms for the same seed and year, none in the first year, 1 or 2 a year after, in Shemu, 20 to 40 s', () => {
@@ -59,6 +61,27 @@ describe('v100 l storm: the rare sandstorm', () => {
     const full = shot('full'), gentle = shot('gentle'), still = shot('still');
     expect(full.n > 1 && gentle.n === 1 && still.n === 0).toBe(true);
     expect(full.url !== gentle.url && gentle.url !== still.url).toBe(true);
+    forceStorm(w, null);
+  });
+  it('holds LIFE.storm.dustCap, is the same twice, never writes a deep-frozen world, and keeps stormsOf cached (the same list for the same seed and year)', () => {
+    expect(stormsOf(5, 1)).toBe(stormsOf(5, 1));
+    for (let s = 1; s < 30; s++) stormsOf(s, 1);                               // past the cache's bound: still right
+    expect(JSON.stringify(stormsOf(5, 1))).toBe(JSON.stringify(stormsOf(5, 1)));
+    const w = createWorld({ seed: 5 }), range = { x0: 10, y0: 10, x1: 40, y1: 40 }, mid = p(25, 25);
+    forceStorm(w, 0, 30);
+    const shot = (world, now, motion = 'full') => {
+      const c = makeCanvas(400, 300), ctx = c.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 200 - mid[0], 150 - mid[1]);
+      return { n: drawStorm(makeDraw(ctx, 1), world, range, now, motion), url: c.toDataURL() };
+    };
+    for (const now of [3000, 10000, 17000, 29000]) expect(shot(w, now).n <= 1 + LIFE.storm.dustCap).toBe(true);
+    const a = shot(w, 10000);
+    expect(shot(w, 10000).url).toBe(a.url);
+    deepFreeze(w);
+    let b = null, err = null;
+    try { b = shot(w, 10000); shot(w, 10000, 'gentle'); } catch (e) { err = String(e); }
+    expect(err).toBe(null);
+    expect(b.url).toBe(a.url);
     forceStorm(w, null);
   });
   it('keeps the V layers within their budget with a storm up (the storm scene\'s stress city)', () => {
