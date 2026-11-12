@@ -118,6 +118,7 @@ export function createUI({
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
   keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null, extraSheets = {},
   settings: givenSettings = null, clock = () => Date.now(), sfx: givenSfx = null,
+  tapWait = 0,   // Version 10.0 (Track M, ruling 2301): how long a finger's building tap waits for a second tap (the game's boot passes DOUBLE_TAP_MS; a rig leaves it 0)
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -997,7 +998,8 @@ export function createUI({
     const offered = placement.canUndo() && topUndoKind() !== 'demolish' && ((Boolean(undoToast) && undoToast.isConnected) || isToolMode(s.mode));
     if (offered) undo();
   }
-  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  // Version 10.0 (Track M, ruling 2301): a finger's tap that would select a building waits the double-tap window, so a double tap zooms and selects nothing; any other tap is instant.
+  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root, tapWait, waitsFor: ({ x, y }) => !isPicking(store.get()) && Boolean(pickBuilding(world, cam, view(), x, y)) });
   // Version 8.1 (Track D, rulings 1241-1245): drag to build. A card pressed and dragged onto the map builds on release (src/ui/v81/cardDrag.js); the pointer side lives there, and the game side
   // here borrows the map's own stroke wiring (actions) and the tick (confirm), so a dragged build is the same build, with the same toast and Undo, as a tapped one.
   const cardDrag = createCardDrag({
