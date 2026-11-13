@@ -7,21 +7,21 @@ import { MUSIC } from '../../../src/audio/music.js';
 
 describe('v82 m release: Version 8.2 "Song of the Nile"', () => {
   it('is the fourth entry with its merge commit (8.4, 8.3 and 8.2.1 are newer), and 8.1 carries its own', () => {
-    expect([APP_VERSION, RELEASES[11].version, RELEASES[11].date, RELEASES[11].title, RELEASES[11].build]).toEqual(['10.0.2', '8.2', '2026-10-26', 'Song of the Nile', 'c4bff18']);   // Version 10.0.2: one newer entry again
-    expect([RELEASES[12].version, RELEASES[12].build]).toEqual(['8.1', 'ad57f92']);
+    expect([APP_VERSION, RELEASES[12].version, RELEASES[12].date, RELEASES[12].title, RELEASES[12].build]).toEqual(['10.0.3', '8.2', '2026-10-26', 'Song of the Nile', 'c4bff18']);   // Version 10.0.2: one newer entry again
+    expect([RELEASES[13].version, RELEASES[13].build]).toEqual(['8.1', 'ad57f92']);
   });
   it('says what changed in the words a player would look for, as the music has it, each note one plain sentence', () => {
-    const notes = [...RELEASES[11].new, ...RELEASES[11].fixed];
+    const notes = [...RELEASES[12].new, ...RELEASES[12].fixed];
     const text = notes.join(' ').toLowerCase();
     for (const word of ['seven short pieces', 'harp', 'low flute', 'warm pad', 'one to four minutes', 'differently every time', 'season', 'danger music', 'softer and lower', 'high plucked note']) expect([word, text.includes(word)]).toEqual([word, true]);
     // The words match the music: seven pieces, each named, and gaps of one to four minutes.
     expect([PIECES.length, MUSIC.gap[0], MUSIC.gap[1]]).toEqual([7, 60, 240]);
     for (const p of PIECES) expect([p.name, text.includes(p.name.toLowerCase().replace('lullaby for the workers\' village', 'lullaby'))]).toEqual([p.name, true]);
     for (const line of notes) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
-    expect([RELEASES[11].new.length, RELEASES[11].fixed.length]).toEqual([6, 6]);   // the integration added the Oasis, the preview and the fixes (tests/v82/i/release.test.js)
+    expect([RELEASES[12].new.length, RELEASES[12].fixed.length]).toEqual([6, 6]);   // the integration added the Oasis, the preview and the fixes (tests/v82/i/release.test.js)
   });
   it('says nothing about rulings or tracks', () => {
-    const text = [...RELEASES[11].new, ...RELEASES[11].fixed].join(' ').toLowerCase();
+    const text = [...RELEASES[12].new, ...RELEASES[12].fixed].join(' ').toLowerCase();
     expect([/ruling|track [a-z]\b|\b1[0-9]{3}\b/.test(text)]).toEqual([false]);
   });
 });

@@ -6,14 +6,14 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v711 docs releases', () => {
   it('7.1.1 carries its merge commit (8.4, 8.3, 8.2.1, 8.2, 8.1 and 8.0 are newer), and 7.1 carries its own', () => {
-    expect([RELEASES[14].version, RELEASES[14].date, RELEASES[14].title, RELEASES[14].build, APP_VERSION]).toEqual(['7.1.1', '2026-10-24', 'Clearer first steps', 'a6eae26', '10.0.2']);   // Version 10.0.2: one newer entry (10.0.1 had one)
-    expect([RELEASES[15].version, RELEASES[15].build]).toEqual(['7.1', 'e032f2c']);
+    expect([RELEASES[15].version, RELEASES[15].date, RELEASES[15].title, RELEASES[15].build, APP_VERSION]).toEqual(['7.1.1', '2026-10-24', 'Clearer first steps', 'a6eae26', '10.0.3']);   // Version 10.0.2: one newer entry (10.0.1 had one)
+    expect([RELEASES[16].version, RELEASES[16].build]).toEqual(['7.1', 'e032f2c']);
   });
   it('names what changed, including the skip and the goal', () => {
-    const notes = [...RELEASES[14].new, ...RELEASES[14].fixed].join(' ').toLowerCase();
+    const notes = [...RELEASES[15].new, ...RELEASES[15].fixed].join(' ').toLowerCase();
     for (const word of ['seat of the two lands', 'great temple', "skip, i've played before", 'how to play', 'undo', 'close button', 'middle']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
   it('every note is one plain sentence of a sensible length', () => {
-    for (const line of [...RELEASES[14].new, ...RELEASES[14].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
+    for (const line of [...RELEASES[15].new, ...RELEASES[15].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
   });
 });
