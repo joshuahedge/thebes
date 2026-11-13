@@ -83,7 +83,7 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
     if (name === 'remove' && hasOwnKeys(ev.target)) return;                              // Version 7.0 (Track P): a list or a slider may use Delete for itself
     if (ev.repeat && !viewKey) return;                                                  // held keys fire toggles once; the view keeps moving
     const placing = name === 'confirm' && pending(ev.target);                             // a placement waits: Enter lays it, whatever has focus
-    if (isActivatable(ev.target) && (name === 'confirm' || name === 'pause') && !placing) return;   // leave the button its Enter and Space
+    if (isActivatable(ev.target) && (ev.key === ' ' || ev.key === 'Enter') && (name === 'confirm' || name === 'pause') && !placing) return;   // leave the button its Enter and Space (Version 10.0.1, ruling 2415: by the key, so a rebound P or C still works with a button focused)
     if (!ALWAYS.has(name) && settings && settings.get().keyboardShortcuts === false) return;
     switch (name) {
       case 'panLeft': pan(PAN_STEP_PX, 0); break;

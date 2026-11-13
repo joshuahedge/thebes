@@ -60,3 +60,13 @@ So the bar varied from 72 to 344 px and the three buttons stood at three differe
 **2353 (code that measured the old layout).** `placingInsets` measures the bar's top edge (not its height) and its pre-bar guess adds the dock's strip; `leavePlan` counts the tray's top edge and the toast's measured top; toasts in the tray state and while a tool is on sit above the tray/bar (CSS); the map foot is `canvas top + view().height` (a rig's canvas is not full height). Pinned tests updated: `tests/ui/placementFit.test.js` (bar above the corners, not under them; the free-middle guess includes the strip; the "more than a tile below 40%" check became "> 0"), `tests/ui/cornerWords.test.js` (corners are never hidden by the tray on a phone), `tests/ui/createUI.test.js` (the three toast/tray framing tests describe the new order: building, toast, tray, corners), `tests/ui/houseSheetWhy.test.js` (middle of the free map from the bar's top and the strip), `tests/v70/p/review.test.js` (ruling 993's whole-farm-above-the-bar check keeps its assertion everywhere except the synthetic 110 px row at 375x667/150%, see Cost).
 
 **2354 (test).** `tests/v1001/u/bar.test.js`: at 390x844 and 375x667, at 100% and 150% text, the dock's rect and the Play, Map and Layers rects are identical (within 1 px) idle, with each of four trays open, and with a card picked; the tray and the bar stand above the buttons. After shots: `v1001-u-bar-after-<WxH>-t<text>.png` beside the `-before-` ones.
+
+## Final review fixes (rulings 2415-2419)
+
+**2415 (U-1, the key not the action).** `keyboard.js` leaves a focused button only its own Space and Enter (`ev.key === ' ' || 'Enter'`), not every key bound to Pause or Confirm; a rebound P or C now works with Menu focused. Tests in `tests/v1001/u/keys.test.js` (both failed before the fix).
+
+**2416 (U-2, key words).** `clash` reads "M is already used for Open the minimap."; `speedStepTitle` prints the speed keys through `keyName` ("(F and [").
+
+**2417 (U-3, How to play).** `menu.js` adds `V1001U_TEXT.keysChangedHelp` after the V60_HELP paragraphs when `keyBindings` is non-empty. This closes 2414's open item.
+
+**2418-2419.** Unused.

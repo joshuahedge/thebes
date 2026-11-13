@@ -9,7 +9,7 @@ import { openSheet } from '../../../src/ui/modes.js';
 import { KEYS } from '../../../src/data/ui.js';
 import { CATEGORIES } from '../../../src/data/ui.js';
 import { fakeLocal } from '../../helpers/fakeStorage.js';
-import { V1001U_TEXT as K } from '../../../src/ui/text.js';
+import { V1001U_TEXT as K, S46_UX_TEXT } from '../../../src/ui/text.js';
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const tabButtons = (r) => [...r.root.querySelectorAll(r.store.get().layout === 'wide' ? '#panel .tab' : '#dock .cat')];
@@ -203,5 +203,55 @@ describe('v1001 u keys: rebinding', () => {
       expect(log).toEqual(['rotate']);
       expect(matchKey({ key: 'r' })).toBe('rotate');                       // the defaults are untouched
     } finally { kb.detach(); cleanup(); }
+  });
+});
+
+describe('v1001 u keys: review fixes (rulings 2415-2417)', () => {
+  it('a rebound Pause key works with a button focused; Space on a focused button does not pause by default', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      r.renderer.renderFrame = () => {};
+      const button = r.root.querySelector('button');
+      button.focus();
+      r.world.speed = 1;
+      key(button, ' ');                                                   // default Space: the button's own
+      expect(r.world.speed).toBe(1);
+      r.ui.settings.set({ keyBindings: { pause: ['p', 'P'] } });
+      key(button, 'p');
+      expect(r.world.speed).toBe(0);
+    } finally { r.cleanup(); }
+  });
+  it('a rebound Confirm key works with a button focused; Enter on it is left alone', () => {
+    const { root, cleanup } = mount('<button id="b">Menu</button>');
+    const log = [];
+    const b = root.querySelector('#b');
+    const kb = createKeyboard({ target: b, settings: { get: () => ({ keyBindings: { confirm: ['c', 'C'] } }) }, cam: { x: 0, y: 0, zoom: 1 }, cameraControl: null, actions: { confirm: () => log.push('confirm') } });
+    try {
+      b.focus();
+      key(b, 'Enter');
+      expect(log).toEqual([]);
+      key(b, 'c');
+      expect(log).toEqual(['confirm']);
+    } finally { kb.detach(); cleanup(); }
+  });
+  it('words the clash line and prints a rebound speed key in upper case', () => {
+    expect(K.clash('M', 'Open the minimap')).toBe('M is already used for Open the minimap. Press another key, or Esc to cancel.');
+    expect(S46_UX_TEXT.speedStepTitle(1, true, effectiveKeys({ speedUp: ['f', 'F'] })).includes('(F and [')).toBe(true);
+  });
+  it('How to play adds the changed-keys line only once a key has been changed', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      r.renderer.renderFrame = () => {};
+      r.store.set(openSheet(r.store.get(), 'help'));
+      expect(r.root.textContent.includes(K.keysChangedHelp)).toBe(false);
+      r.ui.settings.set({ keyBindings: { pause: ['p', 'P'] } });
+      r.store.set(openSheet(r.store.get(), 'help'));
+      await tick();
+      expect(r.root.textContent.includes(K.keysChangedHelp)).toBe(true);
+      r.ui.settings.set({ keyBindings: {} });
+      r.store.set(openSheet(r.store.get(), 'help'));
+      await tick();
+      expect(r.root.textContent.includes(K.keysChangedHelp)).toBe(false);
+    } finally { r.cleanup(); }
   });
 });
