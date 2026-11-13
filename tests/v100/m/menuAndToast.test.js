@@ -35,8 +35,10 @@ describe('v100 m: a toast clears the Paused tag (C6)', () => {
           await wait(150); await frame();
           const tag = r.root.querySelector('#corners .speed-main[data-state="paused"] .state-tag');
           expect([...at, Boolean(tag)]).toEqual([...at, true]);
+          // Version 10.0.2 (ruling 2441): the Paused tag sits above the Play button in the side rail, not in the toast's corner, so "above the tag" moved to "not on the tag": the boxes do not meet.
           const toast = rect(r.root, '#toasts .toast'), tagBox = tag.getBoundingClientRect();
-          expect([...at, toast.bottom <= tagBox.top + 0.5]).toEqual([...at, true]);
+          const meet = toast.left < tagBox.right && toast.right > tagBox.left && toast.top < tagBox.bottom && toast.bottom > tagBox.top;
+          expect([...at, meet]).toEqual([...at, false]);
         } finally { r.cleanup(); }
       });
     }

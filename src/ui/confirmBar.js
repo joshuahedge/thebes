@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT, PLACING_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT, PLACING_TEXT, V1002_TEXT } from './text.js';
 import { drawThumb, hasThumb } from './thumbs.js';
 import { activeItemOf } from './cards.js';
 import { AREA_TEXT } from './areaText.js';
@@ -49,7 +49,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     flashTimer = setTimeout(() => { flashTimer = null; const b = element.querySelector('.confirm'); if (b) b.classList.remove('flash'); }, FLASH_MS);
   }
   function keepTallest(bar, s) {
-    const key = `${s.layout}|${document.body.dataset.textSize}|${s.tool.kind}|${s.tool.type || ''}`;
+    const key = `${s.layout}|${document.body.dataset.textSize}|${s.tool.kind}|${s.tool.type || ''}|${s.layout === 'portrait' && s.placingMore ? 'more' : 'less'}`;   // Version 10.0.2 (ruling 2447): More taller, Less shorter again
     if (key !== heldKey) { heldKey = key; tallest = 0; }
     tallest = Math.max(tallest, bar.getBoundingClientRect().height);
     bar.style.minHeight = `${tallest}px`;
@@ -78,7 +78,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   function render() {
     const s = store.get();
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
-    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit', 'area-toggle'].includes(c)) : null;
+    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit', 'area-toggle', 'more-toggle'].includes(c)) : null;
     const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
     const focusedShape = element.contains(document.activeElement) ? document.activeElement.dataset.shape || null : null;   // Version 5.0 (Task 5): the road shape button that had focus
     const focusedCrossing = element.contains(document.activeElement) ? document.activeElement.dataset.crossing || null : null;   // Version 8.2.1: the crossing button that had focus
@@ -159,7 +159,15 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // work yet) or can't. The row is always there for a building tool, empty or not, so the bar keeps one height as the ghost moves;
     // it takes the whole width under the words and the buttons. A chip's words are its name for screen readers, with its state.
     // A terrain building's and (Stage 4, ruling 230) a monument's row keep room for two rows of chips from the start.
-    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].monument ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
+    // Version 10.0.2 (rulings 2444-2447): on a phone held upright the panel folds to the name, the cost and ONE row of condition pills (the ones that say no first, so a row that has to scroll
+    // never hides the reason), with Undo, Cancel and Confirm; More opens the rest (the balance, what it feeds, the pleasantness line, the pills wrapped). The choice is store.placingMore.
+    const phone = s.layout === 'portrait';
+    const moreOpen = phone && Boolean(s.placingMore);
+    const RANK = { cant: 0, later: 1, met: 2 };
+    const shownConds = phone && !moreOpen ? [...(p.conditions || [])].sort((a, b) => (RANK[a.state] ?? 3) - (RANK[b.state] ?? 3)) : (p.conditions || []);
+    const hasMore = phone && (s.tool.kind === 'building' || Boolean(info.querySelector('.balance, .why, .effect, .nicer, .monument-line, .copy-line')));
+    const moreToggle = hasMore ? button(moreOpen ? V1002_TEXT.less : V1002_TEXT.more, { class: 'more-toggle', 'aria-expanded': String(moreOpen), 'aria-label': moreOpen ? V1002_TEXT.lessLabel(name) : V1002_TEXT.moreLabel(name), onClick: () => store.set({ placingMore: !store.get().placingMore }) }) : null;
+    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].monument ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, shownConds.map((c) =>
       el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
     // Stage 4.6 (rulings 331, 350): a refused terrain or water spot, and a road that meets water too wide or crooked to bridge, offer Show me on a row of
     // its own under the bar's words and buttons (css/ui.css .show-fit): it asks the Map seam (src/ui/s46/map.js, on the 'thebes:show-fit' event) to go to
@@ -209,7 +217,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
         if (again) again.focus();
       },
     })))]) : null;
-    const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}${crossingRow ? ' has-crossings' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow, crossingRow]);
+    const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}${crossingRow ? ' has-crossings' : ''}${phone ? ' phone' : ''}${moreOpen ? ' more-open' : ''}`, dataset: { state: p.state || '' } }, [info, ...controls, chips, moreToggle, showFit, fitRoom, styleRow, spacingRow, routeRow, crossingRow]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

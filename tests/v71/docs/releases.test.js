@@ -6,22 +6,22 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v71 docs releases', () => {
   it('7.1 carries its merge commit (every version since is newer), and 7.0 carries its own', () => {
-    expect([RELEASES[14].version, RELEASES[14].date, RELEASES[14].title, RELEASES[14].build, APP_VERSION]).toEqual(['7.1', '2026-10-24', 'Rivers of the world', 'e032f2c', '10.0.1']);   // Version 10.0.1: one newer entry
-    expect([RELEASES[15].version, RELEASES[15].build]).toEqual(['7.0', '16cda04']);
+    expect([RELEASES[15].version, RELEASES[15].date, RELEASES[15].title, RELEASES[15].build, APP_VERSION]).toEqual(['7.1', '2026-10-24', 'Rivers of the world', 'e032f2c', '10.0.2']);   // Version 10.0.2: one newer entry (10.0.1 had one)
+    expect([RELEASES[16].version, RELEASES[16].build]).toEqual(['7.0', '16cda04']);
   });
   it('names the features of the version', () => {
-    const notes = RELEASES[14].new.join(' ').toLowerCase();
+    const notes = RELEASES[15].new.join(' ').toLowerCase();
     for (const word of ['delta', 'confluence', 'twin rivers', 'wide nile', 'cataract', 'lake', 'two new cities in three', 'ferry', '5 to 12 tiles', 'road tool', 'saved cities']) {
       expect([word, notes.includes(word)]).toEqual([word, true]);
     }
   });
   it('lists what the bug review fixed', () => {
-    const fixed = RELEASES[14].fixed.join(' ').toLowerCase();
+    const fixed = RELEASES[15].fixed.join(' ').toLowerCase();
     for (const word of ['fever', 'lesson card', 'paid event choices', 'strike', 'buy', 'keep at least', 'by 50', 'how to play', 'focus', 'sound off', 'delta maps', 'ferry']) {
       expect([word, fixed.includes(word)]).toEqual([word, true]);
     }
   });
   it('every note is one plain sentence of a sensible length', () => {
-    for (const line of [...RELEASES[14].new, ...RELEASES[14].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
+    for (const line of [...RELEASES[15].new, ...RELEASES[15].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
   });
 });

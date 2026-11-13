@@ -109,17 +109,23 @@ describe('ui toasts', () => {
       expect([t.right <= panel.left, t.width < 200]).toEqual([true, true]);
     } finally { wide.cleanup(); }
   });
-  it('keeps a phone toast above the corner buttons, whatever the text size (spec 6.3)', async () => {
+  // Version 10.0.2 (ruling 2442): the corner row is a side rail, so a phone toast is kept off the rail (it never overlaps a rail button, idle or with a tray open) and stands just above the dock; "above the corner
+  // buttons" (spec 6.3) was the row's rule and moved with it.
+  it('keeps a phone toast clear of the side rail and just above the dock, whatever the text size (spec 6.3)', async () => {
     for (const [w, h] of [[375, 667], [390, 844], [360, 640]]) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
           r.ui.settings.set({ textSize: size });
-          r.ui.toasts.show('Housing plots: 6 laid for 60 gold', { action: 'Undo' });
-          const at = `${w}x${h} at ${size}%`, t = r.root.querySelector('#toasts .toast').getBoundingClientRect();
-          const tops = [...r.root.querySelectorAll('#corners button')].map((b) => b.getBoundingClientRect()).filter((b) => b.height > 0).map((b) => b.top);
-          expect([at, tops.length > 0]).toEqual([at, true]);
-          expect([at, t.bottom <= Math.min(...tops) + 0.5]).toEqual([at, true]);      // the Speed label makes the corner row taller as the text grows
+          for (const dock of ['slim', 'tray']) {
+            r.store.set({ category: 'roads', dock });
+            r.ui.toasts.show('Housing plots: 6 laid for 60 gold', { action: 'Undo' });
+            const at = `${w}x${h} at ${size}% ${dock}`, t = r.root.querySelector('#toasts .toast').getBoundingClientRect(), dockTop = r.root.querySelector('#dock').getBoundingClientRect().top;
+            const rail = [...r.root.querySelectorAll('#corners button')].map((b) => b.getBoundingClientRect()).filter((b) => b.height > 0);
+            expect([at, rail.length > 0]).toEqual([at, true]);
+            const hit = rail.some((b) => t.left < b.right && t.right > b.left && t.top < b.bottom && t.bottom > b.top);
+            expect([at, hit, t.bottom <= dockTop + 0.5]).toEqual([at, false, true]);
+          }
         } finally { r.cleanup(); }
       }
     }

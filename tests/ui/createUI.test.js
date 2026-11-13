@@ -128,11 +128,11 @@ describe('ui createUI', () => {
       r.ui.cameraControl.tick(1e6);
       const k = 2 * r.cam.zoom, well = r.screenOf(g.x + 0.5, g.y + 0.5);
       const rect = (sel) => r.root.querySelector(sel).getBoundingClientRect();
-      const corners = [...r.root.querySelectorAll('#corners .group')].map((e) => e.getBoundingClientRect()).filter((b) => b.height > 0);
-      // Version 10.0.1 (Track U, ruling 2352): an open tray stands above the corner row, so `dock` is the top of what stands over the foot of the map: the tray's top edge when one is open, else the dock's.
-      const trayNode = r.root.querySelector('#dock .tray'), trayUp = trayNode && trayNode.getClientRects().length ? trayNode.getBoundingClientRect().top : Infinity;
-      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: Math.min(rect('#dock').top, trayUp), toast: rect('#toasts .toast'),
-        cornersTop: Math.min(...corners.map((b) => b.top)), cornersBottom: Math.max(...corners.map((b) => b.bottom)), zoom: r.cam.zoom, low: document.body.classList.contains('toast-low') };
+      // Version 10.0.2 (rulings 2443, 2449): the corner row is a side rail, so the building is kept LEFT of the rail (its right edge, `east`, against the rail's left edge) instead of above a row; the dock is one box
+      // again (its tray inside), so `dock` is its top.
+      const rails = [...r.root.querySelectorAll('#corners .speed-main, #corners .speed-chevron, #corners .minimap-button, #corners .overlay-button')].map((e) => e.getBoundingClientRect());
+      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: rect('#dock').top, toast: rect('#toasts .toast'),
+        railLeft: Math.min(...rails.map((b) => b.left)) - r.canvas.getBoundingClientRect().left, east: well.x + 16 * k, zoom: r.cam.zoom, low: document.body.classList.contains('toast-low') };
       r.cleanup();
       return out;
     }
@@ -143,13 +143,13 @@ describe('ui createUI', () => {
       // Version 10.0.1 (Track U, ruling 2352): the tray stands above the corner row (which never moves), so there is no free map between the buttons and the tray for the toast: it sits above the tray,
       // and the building is framed above the toast (zoomed out a little where the band is short), never behind the toast, the tray or the buttons.
       expect([o.low, o.zoom >= 0.5 && o.zoom <= 1]).toEqual([false, true]);
-      expect([o.ground <= o.toast.top, o.ground <= o.dock, o.ground <= o.cornersTop]).toEqual([true, true, true]);
+      expect([o.ground <= o.toast.top, o.ground <= o.dock, o.east <= o.railLeft]).toEqual([true, true, true]);   // 10.0.2: left of the rail (it was "above the corner buttons")
       expect(o.toast.bottom <= o.dock + 1).toBe(true);                           // the toast above the tray
     });
     it('does the same whatever height the dock is given (the tray no longer rides it)', async () => {
       const o = await leaveNarrow(200);
       expect(o.roof >= o.legend.bottom).toBe(true);
-      expect([o.ground <= o.toast.top, o.toast.bottom <= o.dock + 1, o.ground <= o.cornersTop]).toEqual([true, true, true]);
+      expect([o.ground <= o.toast.top, o.toast.bottom <= o.dock + 1, o.east <= o.railLeft]).toEqual([true, true, true]);
     });
     it('puts the toast just above the bar while a tool is on', async () => {
       const r = await rigUI();

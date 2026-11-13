@@ -27,7 +27,7 @@ import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isT
 import { createSourcePick } from './s47/sourcePick.js';   // Version 8.3 (Track K): the pick of a Keep stocked order's source
 import { aimKeepStocked } from './s47/carts.js';
 import { supplyLineAt } from '../render/layers.js';      // Version 8.3 (Track K): a tap on a supply line
-import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_PX } from './layout.js';
+import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings, gentleTipDue } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
@@ -377,11 +377,11 @@ export function createUI({
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
   // side panel's tabs to more rows, so the panel measures them again.
   let lastHelp = settings.get().help;
-  let stopStackTight = null;                             // Version 10.0.1 (Track U, ruling 2410): set where the stack-tight watch is made, below
+  let stopRailClear = null;                              // Version 10.0.2 (ruling 2442): set where the side rail's watch is made, below
   let keyBadges = null;                                 // Version 10.0.1 (Track U, ruling 2344): made with the keyboard below; this watch repaints it when the keys or Single keys change
   const stopSettingsWatch = settings.subscribe((v) => {
     if (keyBadges) keyBadges.decorate();
-    if (typeof updateStackTight === 'function' && stopStackTight) updateStackTight(store.get());   // a new text size changes the bar's room
+    if (stopRailClear) { updateRailClear(store.get()); publishDockHeight(); }   // a new text size changes how far down the rows run, and how tall the dock is
     sidePanel.render();
     speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
     mapKeyHint();
@@ -453,7 +453,6 @@ export function createUI({
     const c = screenToTile(cam, v, at.x, at.y);
     const tool = toolForItem(item);
     placement.start(tool, { x: c.x, y: c.y });
-    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2410): the bar is up now, so decide the steady stack or the tight one before the ghost is framed
     const g = store.get().ghost;
     if (g && tool.kind === 'building') {
       const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
@@ -482,7 +481,6 @@ export function createUI({
     const open = store.get().tool;
     const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
     if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : tool.kind === 'ferry' ? { x, y } : null);   // road, plot and demolish tools ignore the point; the Ferry tool ranks its crossings from it (Version 8.2.1)
-    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2410): as in pick()
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
@@ -568,14 +566,10 @@ export function createUI({
     return r;
   }
   // Where a new building goes once a touch tick has ended the tool, kept whole (`need` px tall with its margins) and clear of the
-  // rows under the top bar (the overlay legend stays on), the "placed · Undo" toast and the corner buttons, which ride on the
-  // dock with the toast on them. On a phone held upright, in this order:
+  // rows under the top bar (the overlay legend stays on), the "placed · Undo" toast, the dock and (on a phone) the side rail. On a phone held upright, in this order:
   // 1. the band between the rows above and the toast, when it is tall enough;
-  // 2. at large text it is not, but the tray can be shorter than the room kept for it, leaving free map under the corner buttons:
-  //    when the toast fits there, it moves down into it (toastLow: its bottom, px above the map's bottom edge) and the building
-  //    takes the band between the rows above and the corner buttons;
-  // 3. the free map under the corner buttons itself, when that alone holds the building;
-  // 4. else the band above the toast, with the map zoomed out just enough for the building to fit it (never past the least zoom).
+  // 2. else the same band, with the map zoomed out just enough for the building to fit it (never past the least zoom).
+  // (Version 10.0.1 had two steps between these for the free map under the corner row; the rail has no row, so they are gone, ruling 2443.)
   // Every other layout keeps the sheet's insets.
   function leavePlan(s, need = 0, margin = 0) {
     const i = sheetInsets(s);
@@ -583,29 +577,18 @@ export function createUI({
     if (s.layout !== 'portrait') return plain;
     const h = view().height;
     const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
-    // Version 10.0.1 (Track U, ruling 2352): an open tray stands above the corner row, so what the bottom covers is the tray's top edge when that is higher than the buttons'.
-    const tray0 = $('dock') ? $('dock').querySelector('.tray') : null;
-    const trayCover = tray0 && tray0.getClientRects().length && getComputedStyle(tray0).position === 'fixed' ? Math.max(0, mapFoot() - tray0.getBoundingClientRect().top) : 0;
-    const corners = Math.max(cornersHeight(root, canvas, h) || placingInsets(s).bottom, trayCover);
+    // Version 10.0.2 (rulings 2443, 2449): the corner row is gone, so steps 2 and 3 above (the free map under it) are dead and the toast no longer moves. What covers the bottom is the dock with
+    // its open tray (one box again) or the placing panel; the rail is a column at the map's side (railInsets), kept clear by the right (or left) inset.
+    const dockBox = $('dock') && $('dock').getClientRects().length ? $('dock').getBoundingClientRect() : null;
+    const cover = dockBox && dockBox.height > 0 ? Math.max(0, mapFoot() - dockBox.top) : placingInsets(s).bottom;
     const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
-    // Version 10.0 (Track M, ruling 2309, C6): while the game is paused the toasts ride one Paused tag higher (css/v93.css --toast-lift), so the band they cover is that much taller.
-    const tagLift = $('corners') && $('corners').querySelector('.speed-main[data-state="paused"]') ? Math.ceil(10 * (parseFloat(getComputedStyle(root).getPropertyValue('--ui-scale')) || 1)) : 0;
-    // Version 10.0.1 (Track U, ruling 2352): the toast stands above the tray by its own estimate, so where it really is counts as well (its top edge, measured).
-    const toastRect = toast > 0 ? $('toasts').getBoundingClientRect() : null;
-    const withToast = corners + (toast > 0 ? toast + 8 + tagLift : 0) > 0 && toastRect ? Math.max(corners + toast + 8 + tagLift, mapFoot() - toastRect.top + 8) : corners;
-    if (h - top - withToast >= need) return { ...plain, insets: { ...i, top, bottom: withToast } };
-    const trayBox = $('dock') ? $('dock').querySelector('.tray') : null;   // Version 10.0.1 (Track U, ruling 2352): an open tray stands above the corner row, not in the dock
-    const dockTop = $('dock') ? Math.min($('dock').getBoundingClientRect().top, trayBox && trayBox.getClientRects().length && getComputedStyle(trayBox).position === 'fixed' ? trayBox.getBoundingClientRect().top : Infinity) : 0;
-    const dock = $('dock') ? dockTop - canvas.getBoundingClientRect().top : 0;
-    const under = cornersBottom(root, canvas);
-    const gap = dock > 0 && under > 0 ? dock - under : 0;
-    if (toast > 0 && gap >= toast + 8 && h - top - corners >= need) {
-      return { insets: { ...i, top, bottom: corners }, toastLow: h - dock + Math.round((gap - toast) / 2), zoom: null };
-    }
-    if (gap >= need) return { ...plain, insets: { ...i, top: under, bottom: h - dock } };
+    const toastRect = toast > 0 ? $('toasts').getBoundingClientRect() : null;   // where it really stands counts (its top edge, measured)
+    const withToast = toastRect ? Math.max(cover + toast + 8, mapFoot() - toastRect.top + 8) : cover;
+    const side = railInsets();
+    if (h - top - withToast >= need) return { ...plain, insets: { ...i, top, bottom: withToast, ...side } };
     const band = h - top - withToast;
     const zoom = band > 2 * margin && need > 2 * margin ? cam.zoom * (band - 2 * margin) / (need - 2 * margin) : MIN_ZOOM;
-    return { insets: { ...i, top, bottom: withToast }, toastLow: null, zoom: Math.max(MIN_ZOOM, Math.min(cam.zoom, zoom)) };
+    return { insets: { ...i, top, bottom: withToast, ...side }, toastLow: null, zoom: Math.max(MIN_ZOOM, Math.min(cam.zoom, zoom)) };
   }
   // The toast moved down into the free map under the corner buttons (leavePlan, step 2), or put back (null). It goes back by
   // itself once no toast is showing, or when the dock, the mode, a sheet or the layout changes. toastLow is declared at the top.
@@ -1056,22 +1039,35 @@ export function createUI({
   keyBadges = createKeyBadges({ root, store, settings, win });
   // Version 10.0.1 (Track U, ruling 2343): once a picked card's tool has ended (placed or put away) the wide panel's card keys let go, so the digits open tabs again without an Esc.
   let wasTool = false;
-  // Version 10.0.1 (Track U, ruling 2410, review fix 1): the bar and the corner row stand steady, with the bar above the corners. On a phone too short for that (the band left between the rows and the
-  // bar is less than a ghost needs: about 700 px tall at 125% text and more) the 10.0 stacking comes back under the class stack-tight: the bar at the foot, the corners riding it, the dock gone.
-  // Decided from the steady geometry every time (the class is taken off, measured, and put back), so it never flaps. Josh's 390x844-class phone is never tight.
-  function updateStackTight(s) {
-    root.classList.remove('stack-tight');
-    if (s.layout !== 'portrait' || !isToolMode(s.mode)) return;
-    const barEl = root.querySelector('#confirm .confirm'), wrap = $('confirm');
-    if (!barEl || !wrap || wrap.hidden || !barEl.getClientRects().length) return;
-    const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
-    const reach = s.tool && s.tool.kind === 'building' && !BUILDINGS[s.tool.type].monument && s.ghost ? ghostReach(dimsOf(s.tool.type, s.tool.rot || 0)) : null;
-    const need = (reach ? Math.min(MIN_FREE_MAP_PX, Math.ceil(2 * reach.down * pxPerArt(cam))) : MIN_FREE_MAP_PX) + 24;
-    const band = barEl.getBoundingClientRect().top - canvas.getBoundingClientRect().top - top;
-    if (band < need) root.classList.add('stack-tight');
+  // Version 10.0.2 (rulings 2442-2443, 2449): U.5's steady stack and 10.0.1's stack-tight fallback are gone (the corner row they measured no longer exists). On a phone Play, Speed, Map and Layers are the side
+  // rail (css/v93.css), which has one fixed place. Two things follow it here. (1) The rows under the top bar must not run under it: when one reaches the rail's top edge (measured with the class taken off, so
+  // it never flaps), body.rail-clear ends them at the rail's edge. (2) A toast stands 8 px above the dock, whatever its height (an open tray makes it taller): --dock-h says how tall.
+  function updateRailClear(s) {
+    root.classList.remove('rail-clear');
+    if (s.layout !== 'portrait') return;
+    const rail = $('corners'), under = $('under-bar');
+    const rb = rail ? rail.getBoundingClientRect() : null;
+    if (!rb || rb.height <= 0 || !under) return;
+    const hit = [...under.children].filter((n) => n.getClientRects().length).map((n) => n.getBoundingClientRect()).some((r) => r.width > 2 && r.height > 2 && r.bottom > rb.top + 1 && r.right > rb.left - 4);
+    if (hit) root.classList.add('rail-clear');
   }
-  stopStackTight = store.subscribe(updateStackTight);
-  updateStackTight(store.get());
+  const publishDockHeight = () => {
+    const d = $('dock'), h = d ? d.offsetHeight : 0;
+    if (h > 0) root.style.setProperty('--dock-h', `${h}px`); else root.style.removeProperty('--dock-h');
+  };
+  updateRailClear(store.get());
+  publishDockHeight();
+  const railWatch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { updateRailClear(store.get()); publishDockHeight(); }) : null;
+  if (railWatch) { if ($('under-bar')) railWatch.observe($('under-bar')); if ($('dock')) railWatch.observe($('dock')); }
+  // Version 10.0.2 (ruling 2447): More opens or folds the placing panel, which changes how much map is below the ghost: it is framed again above the panel and left of the rail.
+  let lastMore = store.get().placingMore;
+  const stopMoreWatch = store.subscribe((s) => {
+    if (s.placingMore === lastMore) return;
+    lastMore = s.placingMore;
+    if (s.layout !== 'portrait' || !isToolMode(s.mode) || !s.ghost || !s.tool || s.tool.kind !== 'building' || BUILDINGS[s.tool.type].monument) return;
+    const { w, d } = dimsOf(s.tool.type, s.tool.rot || 0), ins = placingInsets(s);
+    cameraControl.keepVisible(s.ghost.x + w / 2, s.ghost.y + d / 2, ins, ins.margin, undefined, ghostReach({ w, d }));
+  });
   const stopCardKeys = store.subscribe((s) => { const tool = isToolMode(s.mode); if (wasTool && !tool && s.cardKeys) store.set({ cardKeys: false }); wasTool = tool; });   // Version 10.0.1 (Track U, ruling 2344)
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
@@ -1092,27 +1088,31 @@ export function createUI({
   function placingInsets(s) {
     if (s.layout !== 'portrait') return sheetInsets(s);
     const h = view().height;
-    // Version 10.0.1 (Track U, ruling 2352): the bar and the corner row stand above the dock's strip now (they used to cover it), so that strip's height is added to the guess made before the bar is up.
-    const cornerBox = $('corners') ? $('corners').getBoundingClientRect() : null;
-    const strip = cornerBox && cornerBox.height > 0 && !root.classList.contains('stack-tight') ? Math.max(0, mapFoot() - cornerBox.bottom - 8) : 0;
-    const estimate = Math.min(h * 0.3, 240) + strip;
-    // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corner row, so what it covers from the foot is its measured top edge (its own height no longer reaches the foot).
+    // Version 10.0.2 (rulings 2443, 2449): the panel takes the dock's place (no strip, no corner row), so the guess made before it is up is the plain estimate; the rail is a column at the map's side, kept clear by
+    // the left or right inset (railInsets).
+    const estimate = Math.min(h * 0.3, 240);
+    const side = railInsets();
     const barBox = root.querySelector('#confirm .confirm'), mapBottom = mapFoot();
     const bar = barBox && !root.querySelector('#confirm').hidden && barBox.getClientRects().length ? Math.max(0, mapBottom - barBox.getBoundingClientRect().top) : 0;
     let bottom = estimate;
     if (bar > 0 && isToolMode(s.mode)) {
-      const measured = Math.max(bar, cornersHeight(root, canvas, h));
       const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
       const reach = s.tool && s.tool.kind === 'building' && !BUILDINGS[s.tool.type].monument && s.ghost ? ghostReach(dimsOf(s.tool.type, s.tool.rot || 0)) : null;
       const room = reach ? Math.min(MIN_FREE_MAP_PX, Math.ceil(2 * reach.down * pxPerArt(cam))) : MIN_FREE_MAP_PX;
-      bottom = Math.max(estimate, Math.min(measured, h - top - room));
+      bottom = Math.min(bar, h - top - room);   // 10.0.2: the panel's measured top edge (the folded panel is shorter than 10.0.1's guess, which no longer holds the ghost up)
       if (reach) {
         // A whole ghost is framed in the band with the usual margin where the band has room for it, and with what is left over where it has not (pick, showMeAt read it as .margin).
         const margin = Math.max(0, Math.min(FRAME_MARGIN_PX, Math.floor((h - bottom - top - 2 * reach.down * pxPerArt(cam)) / 2)));
-        return { ...phoneInsets(s, { right: 0, bottom, left: 0 }, margin), margin };
+        return { ...phoneInsets(s, { ...side, bottom }, margin), margin };
       }
     }
-    return phoneInsets(s, { right: 0, bottom, left: 0 });
+    return phoneInsets(s, { ...side, bottom });
+  }
+  // Version 10.0.2 (ruling 2443): how far the side rail reaches into the map from its edge, plus 8 px, as the inset that keeps a ghost beside it ({ left, right }; none when there is no rail).
+  function railInsets() {
+    const rail = $('corners'), b = rail ? rail.getBoundingClientRect() : null, c = canvas.getBoundingClientRect(), mapW = view().width;   // (the map's own width, as everything here measures: a rig's canvas is not the phone's size)
+    if (!b || b.width <= 0 || b.height <= 0 || store.get().layout !== 'portrait') return { left: 0, right: 0 };
+    return b.left + b.width / 2 > c.left + mapW / 2 ? { left: 0, right: Math.max(0, Math.ceil(c.left + mapW - b.left + 8)) } : { left: Math.max(0, Math.ceil(b.right - c.left + 8)), right: 0 };
   }
   // A phone's free map starts below the rows under the top bar, measured (ruling 168). At large text they can reach far
   // down; the top then stops twice the camera's margin above the sheet or bar, so what is framed stays clear of that
@@ -1150,6 +1150,7 @@ export function createUI({
     panelDetails();
   });
   root.dataset.mode = store.get().mode;
+  stopRailClear = store.subscribe((s) => { updateRailClear(s); publishDockHeight(); });   // after the subscriber above, which puts the mode on the page: the dock's height is read once the page has it
   // Tips and the nudge watch the interface: a tool starting (a card picked, Show me) and a sheet opening are
   // meaningful actions; a house sheet and an overlay turned on by hand have tips; a held tip shows once no tool is active.
   let seenMode = store.get().mode, seenSheet = store.get().sheet, seenOverlay = store.get().overlay;
@@ -1429,7 +1430,7 @@ export function createUI({
       root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
       cardDrag.detach(); noZoom.detach();
-      mapInput.detach(); keyboard.detach(); keyBadges.destroy(); stopCardKeys(); if (stopStackTight) stopStackTight(); root.classList.remove('stack-tight'); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
+      mapInput.detach(); keyboard.detach(); keyBadges.destroy(); stopCardKeys(); if (stopRailClear) stopRailClear(); stopMoreWatch(); if (railWatch) railWatch.disconnect(); root.classList.remove('rail-clear'); root.style.removeProperty('--dock-h'); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       stopGoalsPlace(); stopScreenshotFocus(); dialog.destroy();   // Version 9.2 (fix wave, rulings 1878, 1879)
       if ($('goals').parentNode === $('panel')) $('under-bar').insertBefore($('goals'), $('tip'));   // Version 9.2 (Track Q): home again for the next UI

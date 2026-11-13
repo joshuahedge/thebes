@@ -5,18 +5,18 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v81 i release: Version 8.1 "The vizier"', () => {
   it('is the fifth entry with its merge commit (8.4, 8.3, 8.2.1 and 8.2 are newer), and 8.0 carries its own', () => {
-    expect([APP_VERSION, RELEASES[11].version, RELEASES[11].date, RELEASES[11].title, RELEASES[11].build]).toEqual(['10.0.1', '8.1', '2026-10-26', 'The vizier', 'ad57f92']);   // Version 10.0.1: one newer entry
-    expect([RELEASES[12].version, RELEASES[12].build]).toEqual(['8.0', '702481b']);
+    expect([APP_VERSION, RELEASES[12].version, RELEASES[12].date, RELEASES[12].title, RELEASES[12].build]).toEqual(['10.0.2', '8.1', '2026-10-26', 'The vizier', 'ad57f92']);   // Version 10.0.2: one newer entry again
+    expect([RELEASES[13].version, RELEASES[13].build]).toEqual(['8.0', '702481b']);
   });
   it('names what changed in the words a player would look for, each note one plain sentence', () => {
-    const notes = [...RELEASES[11].new, ...RELEASES[11].fixed];
+    const notes = [...RELEASES[12].new, ...RELEASES[12].fixed];
     const text = notes.join(' ').toLowerCase();
     for (const word of ['vizier', 'great temple', 'ipi', 'seven short chapters', 'top bar', 'city page', 'drag a card', 'more', 'nilometer', 'pinching', 'cancelling a road']) expect([word, text.includes(word)]).toEqual([word, true]);
     for (const line of notes) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
-    expect([RELEASES[11].new.length, RELEASES[11].fixed.length]).toEqual([7, 3]);
+    expect([RELEASES[12].new.length, RELEASES[12].fixed.length]).toEqual([7, 3]);
   });
   it('says nothing about rulings or tracks', () => {
-    const text = [...RELEASES[11].new, ...RELEASES[11].fixed].join(' ').toLowerCase();
+    const text = [...RELEASES[12].new, ...RELEASES[12].fixed].join(' ').toLowerCase();
     expect([/ruling|track [a-z]\b|\b1[0-9]{3}\b/.test(text)]).toEqual([false]);
   });
 });

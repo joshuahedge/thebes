@@ -104,7 +104,8 @@ const shown = (n) => Boolean(n) && n.offsetParent !== null && n.getBoundingClien
 // The band of map left free between the rows under the top bar and the corner buttons, as a share of the height; on a landscape phone also left of an open tray.
 function freeMap(s) {
   const top = Math.max(...[...s.root.querySelectorAll('#topbar, #under-bar > *')].filter(shown).map((n) => n.getBoundingClientRect().bottom)) - s.box.top;
-  const corners = [...s.root.querySelectorAll('#corners .group')].filter(shown).map((n) => n.getBoundingClientRect().top - s.box.top);
+  // Version 10.0.2 (ruling 2440): on a portrait phone the corner buttons are a side rail (a column, not a row across the map's foot), so they take no height from the free map; only compact keeps them as a bottom row.
+  const corners = s.g.ui.store.get().layout === 'portrait' ? [] : [...s.root.querySelectorAll('#corners .group')].filter(shown).map((n) => n.getBoundingClientRect().top - s.box.top);
   const dock = s.root.querySelector('#dock');
   const bottom = Math.min(corners.length ? Math.min(...corners) : s.box.height, shown(dock) && s.g.ui.store.get().layout === 'portrait' ? dock.getBoundingClientRect().top - s.box.top : s.box.height);
   return Math.max(0, bottom - top) / s.box.height;

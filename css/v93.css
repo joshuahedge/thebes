@@ -77,3 +77,53 @@ body:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) 
 
 /* C6 (ruling 2309): while the game is paused the Play button wears its "Paused" tag above its edge; the toasts rise by the tag's height so "Road laid / Undo" never sits on it at large text. */
 body:has(#corners .speed-main[data-state="paused"]) { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1) + 10px * var(--ui-scale)); }
+
+/* ===== Version 10.0.2 "A clearer phone" (rulings 2440-2459): the portrait phone only. Landscape, tablet and wide keep 10.0.1's corner rows. ===== */
+
+/* 2440-2441. Play, Speed, Map and Layers are four round 44 px buttons in a rail on the right edge. The rail has ONE place in every state: its foot is just above the tallest bottom panel (an open
+   tray, or the placing panel with More, which is capped to the same height), so nothing ever pushes it. Its buttons do not grow with --ui-scale (the words move into the accessible names). */
+#corners .speed-now { display: none; }
+body[data-layout="portrait"] { --phone-rail-btn: 44px; --phone-rail-gap: 8px; --phone-rail-edge: 8px; --phone-rail-gutter: calc(var(--phone-rail-btn) + 2 * var(--phone-rail-edge)); --phone-rail-b: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
+body[data-layout="portrait"] #corners { left: auto; right: calc(var(--safe-right) + var(--phone-rail-edge)); bottom: var(--phone-rail-b); width: var(--phone-rail-btn); padding: 0; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: var(--phone-rail-gap); }
+body[data-layout="portrait"][data-hand="left"] #corners { right: auto; left: calc(var(--safe-left) + var(--phone-rail-edge)); flex-direction: column; }
+body[data-layout="portrait"] #corners .group { display: contents; }
+body[data-layout="portrait"] #corners .speed-corner.group { display: flex; flex-direction: column; gap: var(--phone-rail-gap); position: relative; }
+body[data-layout="portrait"] #corners :is(.speed-main, .speed-chevron, .minimap-button, .overlay-button) { box-sizing: border-box; width: var(--phone-rail-btn); height: var(--phone-rail-btn); min-width: var(--phone-rail-btn); min-height: var(--phone-rail-btn); padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-direction: row; }
+body[data-layout="portrait"] #corners .labelled .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* the word stays for screen readers (the name is the aria-label too) */
+body[data-layout="portrait"] #corners .speed-main > .sizer, body[data-layout="portrait"] #corners .speed-main .face .word { display: none; }
+body[data-layout="portrait"] #corners .speed-main .icon { margin-right: 0; }
+body[data-layout="portrait"] #corners .speed-picture svg { height: 16px; }
+body[data-layout="portrait"] #corners .speed-chevron .icon { display: none; }
+body[data-layout="portrait"] #corners .speed-now { display: block; font-size: 15px; font-weight: 700; line-height: 1; white-space: nowrap; }
+body[data-layout="portrait"] #corners .speed-main[data-state="paused"] .state-tag { left: auto; right: -2px; top: 0; transform: translateY(-100%); padding: 0 5px; font-size: 12px; }   /* "Paused", small, above the Play button and clear of the screen's edge */
+body[data-layout="portrait"] #corners .overlay-button[aria-pressed="true"] { background: var(--teal-soft); border-color: var(--teal); color: var(--ink); }   /* tinted while a layer is on */
+body[data-layout="portrait"] #corners .speed-options { bottom: auto; left: auto; top: calc(var(--phone-rail-btn) + var(--phone-rail-gap)); right: calc(100% + 8px); }
+body[data-layout="portrait"][data-hand="left"] #corners .speed-options { right: auto; left: calc(100% + 8px); }
+body[data-layout="portrait"] #corners .layers-picker { position: fixed; bottom: var(--phone-rail-b); left: 8px; right: calc(var(--safe-right) + var(--phone-rail-gutter)); width: auto; max-width: 360px; margin-left: auto; max-height: calc(100% - var(--phone-rail-b) - var(--topbar-h) - 24px); }   /* beside the rail, its foot level with the rail's, inside the screen (fixed: the screen's own width, not the rail column's) */
+body[data-layout="portrait"][data-hand="left"] #corners .layers-picker { left: calc(var(--safe-left) + var(--phone-rail-gutter)); right: 8px; margin-left: 0; margin-right: auto; }
+/* The rail never covers the rows under the top bar or a toast: when the rows run down to it (createUI updateRailClear), they end at its edge; a toast does so while a tray or a tool is up. */
+body.rail-clear[data-layout="portrait"] #under-bar { right: calc(max(8px, var(--safe-right)) + var(--phone-rail-btn) + var(--phone-rail-edge)); }   /* 8 px between the rows and the rail */
+body.rail-clear[data-layout="portrait"][data-hand="left"] #under-bar { right: max(8px, var(--safe-right)); left: calc(max(8px, var(--safe-left)) + var(--phone-rail-btn) + var(--phone-rail-edge)); }
+body[data-layout="portrait"]:is([data-dock="tray"], [data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { right: calc(var(--safe-right) + var(--phone-rail-gutter)); }
+body[data-layout="portrait"][data-hand="left"]:is([data-dock="tray"], [data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { right: calc(var(--safe-right) + 16px); left: calc(var(--safe-left) + var(--phone-rail-gutter)); }
+
+/* 2444-2447. The placing panel on a phone folds to: the picture and name with Undo, Cancel and Confirm, the cost line, and ONE row of condition pills (or the reason it cannot go there) with a More
+   toggle. More (store.placingMore) opens everything 10.0.1 showed. It takes the tab row's place (the dock is out of sight while a tool is on) and is capped to the tray's height. */
+body[data-layout="portrait"] #confirm .confirm.phone { flex-wrap: wrap; align-items: center; row-gap: 6px; column-gap: 8px; padding-top: 10px; max-height: var(--dock-tray); overflow-y: auto; overscroll-behavior: contain; }
+body[data-layout="portrait"] #confirm .confirm.phone .info { display: contents; }
+body[data-layout="portrait"] #confirm .confirm.phone .info > .title { order: 0; flex: 1 1 0; min-width: 0; }
+body[data-layout="portrait"] #confirm .confirm.phone .info > .lines { order: 3; flex: 1 0 100%; min-height: 0; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #confirm .confirm.phone .info > .title { font-size: calc(18px * min(var(--ui-scale), 1.15)); }   /* 20 px at 100% as before; a little smaller at large text, where the name shares a row with four buttons */
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #confirm .confirm.phone:not(.more-open) .info .title .thumb { display: none; }   /* at large text the name needs the room (the picture is back with More) */
+body[data-layout="portrait"] #confirm .confirm.phone .conds, body[data-layout="portrait"] #confirm .confirm.phone .show-fit { margin-top: 0; }
+body[data-layout="portrait"] #confirm .confirm.phone .show-fit { flex: none; order: 9; padding: 0 12px; }   /* Show me joins the pills' row (before More), so a refused spot does not make the panel taller */
+body[data-layout="portrait"] #confirm .confirm.phone .show-fit-room { display: none; }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .lines > :is(.balance, .reason, .why, .effect, .nicer, .monument-line, .copy-line) { display: none; }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open):not(.has-conds) .lines > :is(.reason:not([hidden]), .why, .effect, .monument-line, .copy-line) { display: block; min-height: 0; }   /* a road, a plot or a demolish has no pills: its one line of words stays */
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open):not(.has-conds) .info > .lines { min-height: calc(3 * 1.4 * 12px * var(--ui-scale)); }   /* the cost and two lines of words, so the panel keeps its height as they change (a building's pills are the row that changes, and it is always one row) */
+body[data-layout="portrait"] #confirm .confirm.phone.more-open .lines > :is(.balance, .effect) { display: block; }   /* More is the whole 10.0.1 panel, also on a short phone at large text (v93 C14 folded these) */
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds { flex: 1 1 0; min-width: 0; min-height: var(--chip-h); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds::-webkit-scrollbar { display: none; }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds .cond { flex: none; white-space: nowrap; }
+body[data-layout="portrait"] #confirm .confirm.phone.more-open .conds { flex: 1 1 0; min-width: 0; min-height: var(--chip-h); }   /* opened, the pills wrap beside the Less toggle */
+body[data-layout="portrait"] #confirm .confirm.phone .more-toggle { order: 10; flex: none; margin-left: auto; padding: 0 12px; font-weight: 600; color: var(--teal); }

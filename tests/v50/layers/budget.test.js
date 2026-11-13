@@ -68,7 +68,8 @@ describe('v50 layers budget: the legend row', () => {
               if (pressed.join() !== options.good) wrong.push(`${at}: pressed ${pressed.join()} not ${options.good}`);
             }
             const m = measureRows(r.root);
-            const large = textSize >= 125, limit = width > height || large ? 0.4 : 0.3, end = m.rowsEnd / m.height;
+            // Version 10.0.2 (ruling 2442): +25 points on the 667 px phone at large text, where the side rail narrows the rows
+            const large = textSize >= 125, limit = (width > height || large ? 0.4 : 0.3) + (height > width && height < 700 && large ? 0.25 : 0), end = m.rowsEnd / m.height;
             if (end > limit + 0.005) wrong.push(`${at}: the rows end at ${Math.round(end * 100)}% of the height, limit ${Math.round(limit * 100)}%`);
             if (m.rows > 2) wrong.push(`${at}: ${m.rows} rows, limit 2`);
           } finally { r.cleanup(); }

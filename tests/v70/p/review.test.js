@@ -182,13 +182,14 @@ describe('v70 p review: the ghost is framed above the bar and the corner buttons
         const { w, d } = dimsOf('farm_grain', s.tool.rot || 0);
         const ys = [[0, 0], [w, 0], [0, d], [w, d]].map(([dx, dy]) => tileToScreen(r.cam, { width, height }, s.ghost.x + dx, s.ghost.y + dy)[1]);
         const lowest = Math.max(...ys), highest = Math.min(...ys);
-        const corners = [...r.root.querySelectorAll('#corners .group')].filter((n) => n.getBoundingClientRect().height > 0).map((n) => n.getBoundingClientRect().top);
+        const xs = [[0, 0], [w, 0], [0, d], [w, d]].map(([dx, dy]) => tileToScreen(r.cam, { width, height }, s.ghost.x + dx, s.ghost.y + dy)[0]);
+        const rails = [...r.root.querySelectorAll('#corners .speed-main, #corners .speed-chevron, #corners .minimap-button, #corners .overlay-button')].filter((n) => n.getBoundingClientRect().height > 0).map((n) => n.getBoundingClientRect().left - r.canvas.getBoundingClientRect().left);   // (the rig's shell stands off to the left: x is the map's own)
         const bar = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;
-        expect(corners.length).toBeGreaterThan(0);
+        expect(rails.length).toBe(4);
         const rowsEnd = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
-        // Version 10.0.1 (Track U, ruling 2410): the real assertion again for every case, the whole footprint above the corner buttons and above the bar. On a phone too short for the steady stack
-        // (375x667 at 125% text and more) the 10.0 stacking comes back (body.stack-tight), which is what keeps the farm above the bar there.
-        expect([highest >= rowsEnd - 2, lowest <= Math.min(...corners), lowest <= bar]).toEqual([true, true, true]);
+        // Version 10.0.1 (Track U, ruling 2410): the real assertion again for every case. Version 10.0.2 (ruling 2443): the corner row is a side rail and the stack-tight fallback is gone, so the whole
+        // footprint is above the panel (as always), clear of the rows, and LEFT of the rail (the pin "above the corner buttons" moved: the rail is a column beside the map, not a row under it).
+        expect([highest >= rowsEnd - 2, Math.max(...xs) <= Math.min(...rails), lowest <= bar]).toEqual([true, true, true]);
       } finally { r.cleanup(); }
     });
   }
@@ -208,10 +209,11 @@ describe('v70 p review: the ghost is framed above the bar and the corner buttons
       expect([s.mode, Boolean(s.ghost)]).toEqual(['placing', true]);
       const { w, d } = dimsOf('farm_grain', s.tool.rot || 0);
       const ys = [[0, 0], [w, 0], [0, d], [w, d]].map(([dx, dy]) => tileToScreen(r.cam, { width: 375, height: 667 }, s.ghost.x + dx, s.ghost.y + dy)[1]);
-      const corners = Math.min(...[...r.root.querySelectorAll('#corners .group')].filter((n) => n.getBoundingClientRect().height > 0).map((n) => n.getBoundingClientRect().top));
+      const xs = [[0, 0], [w, 0], [0, d], [w, d]].map(([dx, dy]) => tileToScreen(r.cam, { width: 375, height: 667 }, s.ghost.x + dx, s.ghost.y + dy)[0]);
+      const railLeft = Math.min(...[...r.root.querySelectorAll('#corners .speed-main, #corners .speed-chevron, #corners .minimap-button, #corners .overlay-button')].map((n) => n.getBoundingClientRect().left - r.canvas.getBoundingClientRect().left));
       const rowsEnd = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
-      const barTop = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;   // Version 10.0.1 (Track U, ruling 2410): and above the bar, which is not always above the corners now
-      expect([Math.max(...ys) <= corners, Math.max(...ys) <= barTop, Math.min(...ys) >= rowsEnd - 2]).toEqual([true, true, true]);
+      const barTop = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;   // Version 10.0.1 (Track U, ruling 2410): and above the bar. Version 10.0.2 (ruling 2443): and left of the rail (the old "above the corner buttons" moved)
+      expect([Math.max(...xs) <= railLeft, Math.max(...ys) <= barTop, Math.min(...ys) >= rowsEnd - 2]).toEqual([true, true, true]);
     } finally { r.cleanup(); }
   });
 });

@@ -4962,3 +4962,11 @@ export const V1001U_TEXT = {
   helpCard: 'Pick a card, while its tab is open',
 };
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'category') + 1, 0, ['card', V1001U_TEXT.helpCard, '1 to 9']);   // How to play's key table names the card keys, after the tab keys
+
+// Version 10.0.2 (A clearer phone; rulings 2440-2459). The phone's placing panel folds to the name, the cost and the conditions; More opens the rest.
+export const V1002_TEXT = {
+  more: 'More',
+  less: 'Less',
+  moreLabel: (name) => `More about ${name}`,
+  lessLabel: (name) => `Less about ${name}`,
+};

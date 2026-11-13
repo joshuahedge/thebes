@@ -115,9 +115,12 @@ describe('v1001 u review: the bottom stack keeps its order at 375x667 and 150% t
       const k = 2 * r.cam.zoom, well = r.screenOf(g.x + 0.5, g.y + 0.5);
       const ground = well.y + 8 * k;
       const box = (sel) => { const n = r.root.querySelector(sel); return n && n.getClientRects().length ? n.getBoundingClientRect() : null; };
-      const toast = box('#toasts .toast'), tray = box('#dock .tray'), corners = box('#corners .speed-main');
-      expect([Boolean(toast), Boolean(tray), Boolean(corners)]).toEqual([true, true, true]);
-      expect([ground <= toast.top, toast.bottom <= tray.top + 1, tray.bottom <= corners.top + 1]).toEqual([true, true, true]);
+      // Version 10.0.2 (ruling 2449): the corner row is a side rail now, so the order is building, toast, tray (the toast clear of the rail beside it); the pin for "then the corner buttons" moved.
+      const toast = box('#toasts .toast'), tray = box('#dock .tray'), rail = box('#corners .speed-main');
+      expect([Boolean(toast), Boolean(tray), Boolean(rail)]).toEqual([true, true, true]);
+      const rails = ['.speed-main', '.speed-chevron', '.minimap-button', '.overlay-button'].map((c) => box(`#corners ${c}`));
+      const overlaps = rails.some((b) => b.left < toast.right && b.right > toast.left && b.top < toast.bottom && b.bottom > toast.top);
+      expect([ground <= toast.top, toast.bottom <= tray.top + 1, overlaps]).toEqual([true, true, false]);
       expect(r.cam.zoom >= 0.5 && r.cam.zoom <= 1).toBe(true);
     } finally { r.cleanup(); }
   });

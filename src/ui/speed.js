@@ -77,6 +77,9 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       // The chevron says its word like the other corner buttons (ruling 174): a bare ▴ read as "scroll up". Its name is the same word.
       const chevron = iconButton(T.speed, '▴', { class: 'speed-chevron labelled', 'aria-expanded': 'false' });   // ▴ renders in every system font
       chevron.append(el('span', { class: 'label', text: T.speed }));
+      // Version 10.0.2 (rulings 2440-2442): on a phone the Speed button sits in the side rail as a round button that shows the speed itself ("1×"); the word under it and the ▴ stay for every other layout (css).
+      const speedNow = el('span', { class: 'speed-now', 'aria-hidden': 'true' });
+      chevron.append(speedNow);
       const options = el('div', { class: 'speed-options', hidden: true });
       // Version 9.3.1 (Track N, ruling 2020): the popup is a step of the Back button: store.speedOpen says it is open (src/ui/backstack.js), and the popup follows it,
       // so the phone's Back (or Esc) closes the popup and never leaves the game.
@@ -93,6 +96,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         const running = world.speed > 0;
         if (shown !== running) { shown = running; clear(face); face.append(cornerPicture(running), word); }
         setText(word, running ? SPEED_LABELS[world.speed] : T.play);
+        setText(speedNow, SPEED_LABELS[running ? world.speed : (store.get().lastSpeed || 1)]);   // paused: the speed Play will go back to
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);

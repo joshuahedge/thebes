@@ -46,6 +46,11 @@ describe('v70 p the compact placing bar keeps the name on screen', () => {
     const shownWhy = (r) => getComputedStyle(r.root.querySelector('#confirm .why')).display !== 'none';
     try { expect(shownWhy(wide)).toBe(true); } finally { wide.cleanup(); }
     const tall = await barAt(QUAY, 20, 20, 150, 390, 844, [20, 20]);
-    try { expect(shownWhy(tall)).toBe(true); } finally { tall.cleanup(); }
+    // Version 10.0.2 (ruling 2444): the portrait phone's panel is folded, so the why line waits for More (the pills say what fails); opened, it shows as before.
+    try {
+      expect(shownWhy(tall)).toBe(false);
+      tall.store.set({ placingMore: true });
+      expect(shownWhy(tall)).toBe(true);
+    } finally { tall.cleanup(); }
   });
 });
