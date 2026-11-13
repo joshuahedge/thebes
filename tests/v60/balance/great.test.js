@@ -66,9 +66,9 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
   // the 8.3 pin is not.
   it('seed 10 with the script as it was and 8.4\'s raid clock: Great Capital, every raid beaten, not won (the 8.3 pin not met)', () => {
     const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
-    // 10.0.1 (rulings 2370, 2374): NOT MET: the script as it was reaches Great Capital on day 3,660 in the great-work years but never the Seat now, so the great work is
-    // never founded and the court's due stays a share of the treasury; it is in debt (-40,316) and loses 1 of its 11 raids (5 lost before the fix; 10.0: Seat on day
-    // 3,690, 23,055 the lowest, none lost).
+    // 10.0.1 (rulings 2370, 2374, 2420): NOT MET: the script as it was reaches Great Capital on day 3,660 in the great-work years but never the Seat now, so the great work is
+    // never founded and the court's due stays a share of the treasury; it is in debt (-20,291) but loses none of its 11 raids (-40,316 and 1 lost after 2374; -16,818 and 2 lost
+    // before 2420; 10.0: Seat on day 3,690, 23,055 the lowest, none lost).
     expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);   // 8.4 (ruling 1551): was Great Capital on day 3,660 (in the great-work years). 9.2 balance (ruling 1866): Great Capital in the grand years and the Seat on day 3,690, not won
     expect(Math.round(r.lowestGold)).toBe(-20291);   // ruling 2420: -20,291 and no raid lost with the home reach (-16,818 and 2 of 11 lost before it; 10.0: none lost, 23,055 the lowest). Ruling 2397: -16,818 and 2 of 11 lost (-40,316 and 1 before)                                               // 8.4 (ruling 1551): was -36,172. 9.2 balance (ruling 1866): 23,055, never in debt
     expect([raids, raidsLost]).toEqual([11, 0]);                                                  // 9.2 balance (ruling 1866): every raid beaten (before ruling 1865 raid 8 was lost)
