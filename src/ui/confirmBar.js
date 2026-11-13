@@ -102,7 +102,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const info = el('div', { class: 'info', role: 'group', 'aria-label': PLACING_TEXT.lit(name) }, [
       el('div', { class: 'title' }, [item && hasThumb(item) ? drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, deviceRatio()) : null, el('span', { class: 'name', text: name })]),
       el('div', { class: 'lines' }, [
-        el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
+        // Version 10.0.3 (ruling 2462): on a phone the Crossing card no longer carries the water line, so the panel says the two reaches, before a crossing is picked (crossings shown, or none near).
+        el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note || (s.layout === 'portrait' && s.tool.kind === 'ferry' && (p.state === 'idle' || p.reason === 'ferry_none_near') && !p.open ? FERRY_TEXT.note : '')].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
         // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
         p.upkeep ? el('div', { class: `balance small ${p.balance && p.balanceNet < 0 ? 'coral' : 'muted'}`, text: p.balance || ' ' }) : null,   // a blocked spot keeps the line's room, empty
         // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.

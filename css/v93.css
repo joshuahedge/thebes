@@ -130,3 +130,6 @@ body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds .con
 body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #confirm .confirm.phone:not(.more-open) .conds { flex: 1 0 100%; }   /* at large text the pills have the whole width; Show me, +N and More sit on the row beneath */
 body[data-layout="portrait"] #confirm .confirm.phone.more-open .conds { flex: 1 1 0; min-width: 0; min-height: var(--chip-h); }   /* opened, the pills wrap beside the Less toggle */
 body[data-layout="portrait"] #confirm .confirm.phone .more-toggle { order: 10; flex: none; margin-left: auto; padding: 0 12px; font-weight: 600; color: var(--teal); }
+/* Version 10.0.3 (ruling 2460): on a portrait phone the Road and Crossing cards show a name and a cost like every other card. The water line ("Bridges over water: 25 gold a tile", "Cross water: ...") stays in the page for
+   screen readers (clipped, like .sr-only) and in the card's title; the placing panel says it once the card is picked. Other layouts keep the line. */
+body[data-layout="portrait"] .card:is([data-item="road"], [data-item="ferry"]) .terrain { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

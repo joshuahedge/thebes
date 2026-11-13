@@ -191,3 +191,5 @@ import './v100/all.js';
 import './v1001/all.js';
 // Version 10.0.2 ("A clearer phone"): one aggregator (tests/v1002/all.js); nothing is added here.
 import './v1002/all.js';
+// Version 10.0.3 ("Shorter road cards"): one aggregator (tests/v1003/all.js); nothing is added here.
+import './v1003/all.js';

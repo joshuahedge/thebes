@@ -156,7 +156,7 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const badge = info.isNew && !advised ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
     // Version 9.2 (Track Q, ruling 1792): the card shows the price alone; the monthly cost and workers are in the confirm bar.
-    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'data-lock': `tray-item-${item}`, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
+    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'data-lock': `tray-item-${item}`, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : item === 'road' || item === 'ferry' ? `${info.name}: ${terrainTitleOf(world, item)}` : null }, [   // Version 10.0.3 (ruling 2461): the water words are off a phone's card face, so its title carries them whole
       thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge, advised ? el('span', { class: 'hint', text: TRAY_V81_TEXT.advised }) : null,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));

@@ -423,6 +423,9 @@ body[data-layout="wide"] #tip .tip-row .got-it { grid-column: 4; grid-row: 2; }
 .key-badge.tab-key { top: -5px; left: -3px; }   /* half over the button's corner, clear of its icon and word */
 .key-badge.card-key { bottom: 4px; right: 4px; }
 body.reduce-motion .key-badge { opacity: 0.82; }
+/* Version 10.0.3 (ruling 2469, Josh): the badges are for a desktop only. Outside the wide layout (a phone, a sideways phone, a small tablet)
+   they are hidden even with a mouse or a keyboard attached; the keys still work there and the tooltips still name them. */
+[data-layout]:not([data-layout="wide"]) .key-badge { display: none; }
 
 /* Options > Keys (Version 10.0.1, Track U, ruling 2347): one row to an action; the tab and card rows hold a button a slot. */
 .key-rows .key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }

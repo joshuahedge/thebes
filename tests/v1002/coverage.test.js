@@ -43,7 +43,7 @@ describe('v1002 coverage: the bottom of a 390x844 phone at 100% text', () => {
       const more = coverage(r, 390, 844);
       const note = JSON.stringify({ idle, trays, placing, more });
       expect([note, idle <= 12]).toEqual([note, true]);                                           // about 10%: the dock (8.5%) and the rail (2.7%)
-      expect([note, Math.min(...Object.values(trays)) <= 25, Math.max(...Object.values(trays)) <= 31]).toEqual([note, true, true]);   // the shortest tray is within 25%; the tallest (Roads, three tall cards) stays under 31% (10.0.1: 32.6% and a 37%-tall stack)
+      expect([note, Math.min(...Object.values(trays)) <= 25, Math.max(...Object.values(trays)) <= 25.5]).toEqual([note, true, true]);   // the shortest tray is within 25%; Version 10.0.3 (ruling 2464): the Roads tray lost its water lines (30.1% to 23.9%), so the tallest is Food's 25.1% (10.0.2 allowed 31%; 10.0.1: 32.6% and a 37%-tall stack)
       expect([note, placing <= 20]).toEqual([note, true]);
       expect([note, more <= 31]).toEqual([note, true]);
     } finally { r.cleanup(); }
