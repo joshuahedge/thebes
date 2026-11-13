@@ -2497,7 +2497,7 @@ Rulings 2340 to 2433 are used where listed above (2418 and 2419 were not used; 2
 
 A patch from Josh's play of 10.0.1 on his phone: the steady bottom bar (the tray or placing card, a full-width row only for Play, Speed, Map and Layers, then the tab row) covered about 37% of a 390x844 screen, and placing left the tab row's space as an empty band. He chose a side rail from mock-ups. Portrait phone only; landscape, tablet and wide are as in 10.0.1 (their corner rects pinned in tests/v1002/layouts.test.js); `WORLD_VERSION` stays 12 and nothing in the sim or the renderer changed. Rulings: notes/2026-11-13-version-10-0-2-rulings.md (2440 to 2453), with the before and after coverage table.
 
-*The screen (2440 to 2453)*
+*The screen (2440 to 2458)*
 2440. On a portrait phone Play, Speed, Map and Layers are four round 44 px buttons stacked down the right edge (block at the end of css/v93.css; the markup is unchanged). — Cost if wrong: buttons out of place.
 2441. The rail has one place in every state (its foot is `--dock-tray + 8` px above the screen's foot), does not grow with `--ui-scale`, and shows: Play's picture and a small Paused tag, Speed's speed, Map's count, Layers tinted while a layer is on; titles, aria labels, key hints, click and double tap, the Speed popup and the Layers picker (beside the rail) are as before.
 2442. The rail never covers the rows under the top bar (`body.rail-clear`, `updateRailClear`) or a toast (a gutter while a tray or a tool is up); a toast stands 8 px above the dock (`--dock-h`) or the panel. Cost: at 375x667 and 150% text the Ground legend wraps a line more (41.8% of the height).
@@ -2510,7 +2510,11 @@ A patch from Josh's play of 10.0.1 on his phone: the steady bottom bar (the tray
 2449. Removed as dead: `stack-tight`, `updateStackTight`, `--corner-h`, `--stack-b`, the fixed tray, the dock strip offsets, U.5's hidden dock; the tray is back in the dock (one box).
 2450. Moved pins, each named in the rulings note: v1001 u bar, ghost and review; v70 p review; ui placementFit, cornerWords, createUI, houseSheetWhy, toasts; v60 d2 trap; v100 m placingFold, menuAndToast, groundLegend.
 2451. New tests in tests/v1002 (rail, panel, layouts, coverage).
-2452. The What's new entry, `APP_VERSION` 10.0.2, README and this Part.
-2453. Left: the Roads tray's 25% target; the rail narrowing the top rows at 375x667 and 150% text; the picture beside the name hidden at 125% text and more while folded.
+2452. Review: each row budget that the rail pushed over its line has its own ceiling, measured plus 3, in place of the blanket +25 points.
+2453. Review: the folded pills row fades and shows a "+N" chip (tap opens More) when pills run past its edge.
+2454. Review: What's new says More stays open "until you close the game"; `cornersBottom` removed.
+2455. Review: a left-handed test (the rail on the left, rects identical).
+2457. The What's new entry, `APP_VERSION` 10.0.2, README and this Part.
+2458. Left: the Roads tray's 25% target; the rail narrowing the top rows at 375x667 and 150% text; the picture beside the name hidden at 125% text and more while folded.
 
-Rulings 2454 to 2459 are unused; 2460 is the next free number.
+Rulings 2456 and 2459 are unused; 2460 is the next free number.

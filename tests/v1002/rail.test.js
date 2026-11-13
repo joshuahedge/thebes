@@ -95,6 +95,31 @@ for (const [w, h] of [[390, 844], [375, 667]]) {
   }
 }
 
+describe('v1002 rail: left-handed play', () => {
+  it('puts the rail on the left edge, and its four rects stay identical idle, with cards open and placing', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    try {
+      r.renderer.renderFrame = () => {};
+      r.ui.settings.set({ leftHanded: true, reducedMotion: 'on' });
+      r.world.milestone = 'capital';
+      r.store.set({ dock: 'slim', mode: 'browse', tool: null, sheet: null });
+      await tick();
+      expect(document.body.dataset.hand).toBe('left');
+      const idle = rects(r);
+      expect(idle.every((q) => q.x < 390 / 2 && q.x >= 0 && q.w >= 44)).toBe(true);
+      r.store.set({ category: 'roads', dock: 'tray' });
+      await tick();
+      expect(same(idle, rects(r))).toBe(true);
+      r.store.set({ category: 'food', dock: 'tray' });
+      await tick();
+      firstCard(r, 'farm_grain').click();
+      await tick();
+      expect(r.store.get().mode).toBe('placing');
+      expect(same(idle, rects(r))).toBe(true);
+    } finally { r.ui.settings.set({ leftHanded: false }); r.cleanup(); }
+  });
+});
+
 describe('v1002 rail: what each button shows, and what it keeps', () => {
   it('Play shows the drawn picture and the Paused tag; Speed shows the speed; Map its count; Layers is tinted while a layer is on', async () => {
     const r = await rigUI({ width: 390, height: 844 });

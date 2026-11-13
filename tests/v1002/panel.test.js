@@ -51,6 +51,28 @@ describe('v1002 panel: folded and More', () => {
       expect(pills().length).toBeGreaterThan(1);
     } finally { r.cleanup(); }
   });
+  it('says when pills run past the row\'s edge: a fade and a +N chip with the count not fully in view; the failing ones stay first; the chip opens More (375x667, 150% text)', async () => {
+    const r = await rigUI({ width: 375, height: 667 });
+    try {
+      r.ui.settings.set({ textSize: 150, reducedMotion: 'on', help: 'off' });
+      r.world.milestone = 'capital';
+      r.ui.refresh();
+      card(r, 'food', 'farm_grain');
+      r.ui.placement.moveGhost(20, 20);                                                   // no fertile land, no road, no granary: three that fail or wait
+      const conds = r.root.querySelector('#confirm .conds'), pills = () => [...conds.querySelectorAll('.cond')];
+      expect(pills().length).toBeGreaterThanOrEqual(3);
+      expect(pills().slice(0, 3).every((p) => p.classList.contains('cant') || p.classList.contains('later'))).toBe(true);
+      const box = conds.getBoundingClientRect();
+      const cut = pills().filter((p) => p.getBoundingClientRect().right > box.right + 1).length;
+      const chip = r.root.querySelector('#confirm .more-count');
+      expect([Boolean(chip), cut >= 1, chip && chip.textContent]).toEqual([true, true, `+${cut}`]);
+      const detail = JSON.stringify({ box: [box.left, box.right], pills: pills().map((p) => [p.className, Math.round(p.getBoundingClientRect().left), Math.round(p.getBoundingClientRect().right)]) });
+      expect([detail, pills()[0].getBoundingClientRect().right <= box.right + 1]).toEqual([detail, true]);        // the first is whole
+      expect([detail, conds.classList.contains('overflow')]).toEqual([detail, true]);
+      chip.click();
+      expect([r.store.get().placingMore, r.root.querySelector('#confirm .more-count')]).toEqual([true, null]);
+    } finally { r.cleanup(); }
+  });
   it('remembers More for the session: it stays open for the next card, and Less stays folded', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {

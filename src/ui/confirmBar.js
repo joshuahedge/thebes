@@ -219,6 +219,18 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     })))]) : null;
     const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}${crossingRow ? ' has-crossings' : ''}${phone ? ' phone' : ''}${moreOpen ? ' more-open' : ''}`, dataset: { state: p.state || '' } }, [info, ...controls, chips, moreToggle, showFit, fitRoom, styleRow, spacingRow, routeRow, crossingRow]);
     element.append(bar);
+    // Version 10.0.2 (review fix, ruling 2452): the folded pills row scrolls sideways, so when pills run past its edge it says so: a fade at its right edge and a "+N" chip counting the pills not fully in view
+    // (the refused ones come first, so what hides is the least urgent); tapping the chip opens More, where the pills wrap.
+    if (phone && !moreOpen && chips) {
+      const cut = () => { const box = chips.getBoundingClientRect(); return [...chips.querySelectorAll('.cond')].filter((c) => c.getBoundingClientRect().right > box.right + 1).length; };
+      if (cut() > 0) {
+        const chip = button('', { class: 'more-count', onClick: () => store.set({ placingMore: true }) });
+        chips.after(chip);
+        chips.classList.add('overflow');
+        const n = cut();
+        if (n > 0) { chip.textContent = V1002_TEXT.moreCount(n); chip.setAttribute('aria-label', V1002_TEXT.moreCountLabel(n)); } else { chip.remove(); chips.classList.remove('overflow'); }
+      }
+    }
     keepTallest(bar, s);
     publishHeight();
     if (focusedClass) {

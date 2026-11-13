@@ -13,7 +13,7 @@ export const RELEASES = [
     new: [
       'On a phone held upright, Play, Speed, Map and Layers are four round buttons in a column at the right edge of the map. They stay in the same place whatever is open. Play shows Paused when the game is stopped, Speed shows the speed, Map shows its count, and Layers is tinted while a layer is on.',
       'The bottom of the screen is smaller: the row of buttons between the cards and the tabs is gone, and the tabs stay in view while the cards are open.',
-      'When you place something on a phone, the panel is short. It shows the name, the cost, one row of conditions and Undo, Cancel and Confirm, and it takes the place of the tabs. Tap More for the rest, such as what it feeds and the monthly balance. The game remembers whether you left More open.',
+      'When you place something on a phone, the panel is short: the name, the cost, one row of conditions and Undo, Cancel and Confirm, in place of the tabs. Tap More for the rest, such as what it feeds and the monthly balance. More stays open until you close the game.',
       'The building you are placing always stays above the panel and clear of the buttons.',
     ],
     fixed: [

@@ -4969,4 +4969,6 @@ export const V1002_TEXT = {
   less: 'Less',
   moreLabel: (name) => `More about ${name}`,
   lessLabel: (name) => `Less about ${name}`,
+  moreCount: (n) => `+${n}`,
+  moreCountLabel: (n) => `${n} more ${n === 1 ? 'condition' : 'conditions'}, open More`,
 };

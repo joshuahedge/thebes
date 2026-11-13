@@ -124,6 +124,9 @@ body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open):not(.has-co
 body[data-layout="portrait"] #confirm .confirm.phone.more-open .lines > :is(.balance, .effect) { display: block; }   /* More is the whole 10.0.1 panel, also on a short phone at large text (v93 C14 folded these) */
 body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds { flex: 1 1 0; min-width: 0; min-height: var(--chip-h); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds::-webkit-scrollbar { display: none; }
-body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds .cond { flex: none; white-space: nowrap; }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds.overflow { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }   /* more pills run past the right edge */
+body[data-layout="portrait"] #confirm .confirm.phone .more-count { order: 9; flex: none; padding: 0 8px; font-weight: 700; color: var(--teal); }
+body[data-layout="portrait"] #confirm .confirm.phone:not(.more-open) .conds .cond { flex: none; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* a pill longer than the row is cut with an ellipsis, so the first is always in view */
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"], [data-text-size="200"]) #confirm .confirm.phone:not(.more-open) .conds { flex: 1 0 100%; }   /* at large text the pills have the whole width; Show me, +N and More sit on the row beneath */
 body[data-layout="portrait"] #confirm .confirm.phone.more-open .conds { flex: 1 1 0; min-width: 0; min-height: var(--chip-h); }   /* opened, the pills wrap beside the Less toggle */
 body[data-layout="portrait"] #confirm .confirm.phone .more-toggle { order: 10; flex: none; margin-left: auto; padding: 0 12px; font-weight: 600; color: var(--teal); }

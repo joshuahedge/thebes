@@ -269,8 +269,8 @@ describe('v60 b2 moment on a phone', () => {
           // the report's caption is dropped as the result goes up, on every phone (the final review: the two stood one over the other saying the same)
           expect([at, Boolean(rig.root.querySelector('#cheer .cheer')), Boolean(rowOf(rig))]).toEqual([at, false, true]);
           rig.frame(1);                                                                                    // a frame: the guidance row sees the alert row's claim (syncGuidance runs each frame)
-          const m = measureRows(rig.root);   // Version 10.0.2 (ruling 2442): the limit gains 25 points on the 667 px phone at large text, where the side rail narrows the rows
-          const limit = (portrait && textSize < 125 ? 0.3 : 0.4) + (portrait && height < 700 && textSize >= 125 ? 0.25 : 0), rowsAllowed = !portrait && textSize >= 125 ? 1 : 2;
+          const m = measureRows(rig.root);   // Version 10.0.2 (rulings 2442, 2452): the court-letter row measured 59% at 375x667 and 150% with the side rail narrowing it (40% before), so the ceiling there is 62%
+          const limit = (portrait && textSize < 125 ? 0.3 : 0.4) + (portrait && height < 700 && textSize >= 125 ? 0.22 : 0), rowsAllowed = !portrait && textSize >= 125 ? 1 : 2;
           if (!rowOf(rig)) { wrong.push(`${at}: no result shown`); continue; }
           if (m.rows > rowsAllowed) wrong.push(`${at}: ${m.rows} rows (${Object.keys(m.layers).join('+')}), at most ${rowsAllowed}`);
           if (m.rowsEnd / m.height > limit + 0.005) wrong.push(`${at}: rows end at ${Math.round((m.rowsEnd / m.height) * 100)}%, limit ${Math.round(limit * 100)}%`);

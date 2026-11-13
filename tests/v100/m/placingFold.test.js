@@ -21,7 +21,7 @@ describe('v100 m: the placing bar folds on a short phone at large text (C14)', (
     const big = await placingAt(375, 667, 150), plain = await placingAt(375, 667, 100);
     expect([big.short, big.cost, big.chips, big.balance, big.effect]).toEqual([true, true, true, false, false]);
     expect([plain.cost, plain.chips, plain.balance]).toEqual([true, true, false]);   // 10.0.2: folded at 100% as well; More brings the balance back (below)
-    expect(big.bar.height).toBeLessThan(160);
+    expect(big.bar.height).toBeLessThan(182);   // Version 10.0.2 (ruling 2453): 178 px measured (it was under 160): at large text the pills have a row of their own and More (and +N) sit on the row beneath; still far under the 10.0.1 bar's 244
     const more = await placingAt(375, 667, 150, true);
     expect([more.cost, more.chips, more.balance]).toEqual([true, true, true]);
     expect(more.bar.height).toBeGreaterThan(big.bar.height);
