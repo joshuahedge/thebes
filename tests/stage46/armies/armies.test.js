@@ -37,8 +37,10 @@ describe('s46 armies data', () => {
     expect(DESIRABILITY.stables).toEqual([-6, -4, -2]);
   });
   it('keeps the soldier\'s numbers Stage 3\'s, gives each kind one building, and lists the plan\'s matchups', () => {
-    expect([UNIT_TYPES.soldier.hp, UNIT_TYPES.soldier.damage, UNIT_TYPES.soldier.patrol, UNIT_TYPES.soldier.perBuilding, UNIT_TYPES.soldier.pay])
-      .toEqual([UNITS.soldier.hp, UNITS.soldier.damage, DEFENCE.patrol, DEFENCE.soldiersPerBarracks, DEFENCE.soldierPay]);
+    // Version 10.0.1, Track S (ruling 2355): no kind has a patrol now (the soldier's was DEFENCE.patrol, 8); its speed is still UNITS'.
+    expect([UNIT_TYPES.soldier.hp, UNIT_TYPES.soldier.damage, UNIT_TYPES.soldier.speed, UNIT_TYPES.soldier.perBuilding, UNIT_TYPES.soldier.pay])
+      .toEqual([UNITS.soldier.hp, UNITS.soldier.damage, UNITS.soldier.speed, DEFENCE.soldiersPerBarracks, DEFENCE.soldierPay]);
+    expect(Object.values(UNIT_TYPES).some((u) => 'patrol' in u) || 'patrol' in DEFENCE).toBe(false);
     expect(UNIT_KINDS.map((k) => UNIT_TYPES[k].building)).toEqual(['barracks', 'archery_range', 'stables']);
     expect([ENEMY_TYPES.archer.fromRaid, ENEMY_TYPES.boat.fromRaid, ENEMY_TYPES.chariot.fromRaid]).toEqual([3, 5, 6]);
     expect(MATCHUPS.archer.foot).toEqual({ wall: 2, melee: 0.5 });

@@ -72,8 +72,9 @@ describe('s3 contract data', () => {
     });
     for (const t of RAIDS.targets) expect(Boolean(BUILDINGS[t])).toBe(true);
     expect(new Set(Object.values(RAID_SALT)).size).toBe(Object.keys(RAID_SALT).length);
-    expect(UNITS).toEqual({ raider: { hp: 10, speed: 1, damage: 2 }, soldier: { hp: 12, speed: 2, damage: 3 } });
-    expect(DEFENCE).toEqual({ wallHp: 40, gateHp: 40, towerOnWallHp: 80, towerRange: 4, towerDamage: 4, patrol: 8, soldiersPerBarracks: 4, trainDays: 30, soldierPay: 8 });
+    // Version 10.0.1, Track S (rulings 2355, 2357): raiders 1.5 tiles a day (was 1) and soldiers 3 (was 2); no patrol (was 8).
+    expect(UNITS).toEqual({ raider: { hp: 10, speed: 1.5, damage: 2 }, soldier: { hp: 12, speed: 3, damage: 3 } });
+    expect(DEFENCE).toEqual({ wallHp: 40, gateHp: 40, towerOnWallHp: 80, towerRange: 4, towerDamage: 4, soldiersPerBarracks: 4, trainDays: 30, soldierPay: 8 });
     expect(FESTIVAL).toEqual({ from: 'town', cost: 200, mood: 6, days: 90, every: 360 });
   });
   it('sets the danger mood terms of spec 4.9', () => {

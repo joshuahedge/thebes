@@ -118,8 +118,9 @@ describe('s46 armies words: the building sheets', () => {
     const ui = createArmiesUi({ world: w });
     const range = addRaw(w, 'archery_range', 2, 2, { staff: 6 }), stab = addRaw(w, 'stables', 6, 2, { staff: 6 }), bar = addRaw(w, 'barracks', 10, 2);
     const text = (b) => ui.sheetParts.building(b).map((n) => n.textContent);
-    expect(text(range)).toEqual([`Archers0 of ${UNIT_TYPES.archer.perBuilding}`, `Patrol${UNIT_TYPES.archer.patrol} tiles`, A.trains('archer'), A.archerDoes, A.pay('archer')]);
-    expect(text(stab)).toEqual([`Chariots0 of ${UNIT_TYPES.chariot.perBuilding}`, `Patrol${UNIT_TYPES.chariot.patrol} tiles`, A.trains('chariot'), A.chariotDoes, A.pay('chariot'), A.horses(UNIT_TYPES.chariot.grain, 0), A.grainHeld(0)]);
+    // Version 10.0.1 (ruling 2356): the Patrol row says "Anywhere on the map" (was "10 tiles" and "12 tiles").
+    expect(text(range)).toEqual([`Archers0 of ${UNIT_TYPES.archer.perBuilding}`, 'PatrolAnywhere on the map', A.trains('archer'), A.archerDoes, A.pay('archer')]);
+    expect(text(stab)).toEqual([`Chariots0 of ${UNIT_TYPES.chariot.perBuilding}`, 'PatrolAnywhere on the map', A.trains('chariot'), A.chariotDoes, A.pay('chariot'), A.horses(UNIT_TYPES.chariot.grain, 0), A.grainHeld(0)]);
     expect(text(bar)).toEqual([]);
     w.army.away.push({ id: 7, kind: 'soldier', barracks: bar.id, back: w.day + 30 });
     expect(text(bar)).toEqual(['1 soldier away at the capital, back in 1 month']);
@@ -166,18 +167,20 @@ describe('s46 armies words: the barracks with soldiers away', () => {
 });
 
 describe('s46 armies words: the raid under way, pay and the score line', () => {
-  it("names each kind's patrol in the raid alert with archers or chariots at home, and the soldiers' alone without", () => {
+  // Version 10.0.1, Track S (ruling 2356): units have no patrol now; the fix names who goes ("soldiers", "your units", "your archers") and says they go after
+  // raiders anywhere. It was "soldiers fight within 8 tiles of their barracks" and "your units go out within 8 to 10 tiles".
+  it("names the units at home in the raid alert, going after raiders anywhere, and the soldiers alone without archers or chariots", () => {
     const w = makeTestWorld();
     const bar = addRaw(w, 'barracks', 10, 2), range = addRaw(w, 'archery_range', 2, 2);
     w.raid.active = { phase: 'attack', dir: 'east', raiders: [] };
     const alert = { code: 'raid', dirs: ['east'], left: 5, phase: 'attack' };
     w.soldiers.push({ id: w.nextUnitId++, kind: 'soldier', barracks: bar.id, x: 11, y: 3, hp: 10, hit: false, task: 'wait' });
-    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`);
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers go after raiders anywhere`);
     w.soldiers.push({ id: w.nextUnitId++, kind: 'archer', barracks: range.id, x: 3, y: 3, hp: 8, hit: false, task: 'wait' });
-    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your units go out within ${DEFENCE.patrol} to ${UNIT_TYPES.archer.patrol} tiles`);
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your units go after raiders anywhere`);
     expect(alertText({ ...alert, phase: 'retreat' }, w).fix).toBe('Towers keep shooting as they go');
     w.soldiers = w.soldiers.filter((u) => u.kind === 'archer');
-    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your archers go out within ${UNIT_TYPES.archer.patrol} tiles`);
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your archers go after raiders anywhere`);
   });
   it("keeps every raid fix within the soldiers' line, so the wide banner keeps View beside the side panel", () => {
     const w = makeTestWorld();
@@ -185,7 +188,7 @@ describe('s46 armies words: the raid under way, pay and the score line', () => {
     const home = { soldier: bar, archer: range, chariot: stab };
     w.raid.active = { phase: 'attack', dir: 'east', raiders: [] };
     const alert = { code: 'raid', dirs: ['east', 'south'], left: 99, phase: 'attack' };
-    const budget = `Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`.length;
+    const budget = `Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within 8 tiles of their barracks`.length;   // 10.0's soldiers' line (ruling 2356): the banner's budget stays
     const fixes = [];
     for (let m = 1; m < 8; m++) {
       w.soldiers = Object.keys(home).filter((k, i) => m & (1 << i)).map((k) => ({ id: w.nextUnitId++, kind: k, barracks: home[k].id, x: 3, y: 3, hp: 8, hit: false, task: 'wait' }));
@@ -193,7 +196,7 @@ describe('s46 armies words: the raid under way, pay and the score line', () => {
     }
     expect(fixes.length).toBe(14);
     expect(fixes.filter((f) => f.length > budget)).toEqual([]);
-    expect(fixes.some((f) => f.includes(`${DEFENCE.patrol} to ${UNIT_TYPES.chariot.patrol} tiles`))).toBe(true);
+    expect(fixes.some((f) => f.includes('your chariots go after raiders anywhere'))).toBe(true);   // Version 10.0.1 (ruling 2356): was "8 to 12 tiles"
   });
   it("labels unit pay as the army's, and counts every kind as army units in the score line", () => {
     expect(T.soldiersPay).toBe('Army pay');

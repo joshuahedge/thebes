@@ -71,6 +71,10 @@ export const isCart = (c) => isRec(c) && ['id', 'from', 'to', 'left', 'turn', 'd
 // Task 5 (ruling 466): the carts' numbers, all tunable here. perTrip: the most a cart carries a trip; speed: road tiles a game day each
 // way; defaultFetch: the amount a new order fetches up to. A trip's days are worked out in src/sim/carts.js tripTimes.
 export const CARTS = { perTrip: 20, speed: 8, defaultFetch: 100 };
+// Version 10.0.1, Track S (S.4, ruling 2362): a store with no orders of its own keeps stocked, of each good it fetches for its neighbours (src/sim/carts.js
+// autoFetchMap), up to `amount` (two cart loads: enough to keep a workshop or a bazaar going between trips without emptying the store it draws on).
+// goods: the bazaars' goods it fetches for (the foods and the household goods; the luxuries stay where the festivals and the Fine manors' bazaars find them).
+export const AUTO_FETCH = { amount: 40 };
 // Version 8.3 (Track K, ruling 1425): what City advice's Keep stocked items weigh, in its points (src/data/advice.js ADVICE: one point is one home held back one
 // tier): a bazaar's granary running low that another store could keep stocked, and a monument site stalled for a material a store could keep near it. Each
 // weighs a Manor's tier, as the Quay and the Large plot do (src/sim/adviceFixes.js keepStockedAdvice).

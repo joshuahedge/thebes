@@ -165,7 +165,7 @@ describe('s3 raids alerts and words', () => {
       index: 0, entry: { x: 16, y: 0 }, dir: 'north', size: 3, target: 'building', day: 900, phase: 'attack', targetId: null, struck: [], wait: 0,
       byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], raiders: [{ id: 1, x: 16.5, y: 3.5, hp: 10, hit: false }, { id: 2, x: 16.5, y: 3.5, hp: 10, hit: false }],
     };
-    const fix = `Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`;
+    const fix = `Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers go after raiders anywhere`;   // Version 10.0.1 (ruling 2356): was "soldiers fight within 8 tiles of their barracks"
     expect(alertText(raidAlerts(w)[0], w)).toEqual({ title: 'Raid from the north: 2 raiders', fix });
     w.raid.active.phase = 'strike';
     expect(alertText(raidAlerts(w)[0], w).title).toBe('Raid from the north: 2 raiders');

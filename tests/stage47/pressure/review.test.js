@@ -158,7 +158,9 @@ describe('s47 review7 far-good tip', () => {
     const w = makeTestWorld({ size: 64 });
     setRoad(w, 0, 10, 63, 10);
     addRaw(w, 'bazaar', 9, 8);
-    addRaw(w, 'storehouse', 4, 8, { store: {} });
+    // 10.0.1 (ruling 2368): the near storehouse refuses the three goods, so it does not fetch them for the bazaar by itself (src/sim/carts.js autoFetchMap), which
+    // would answer the tip before it is asked.
+    addRaw(w, 'storehouse', 4, 8, { store: {}, accepts: { pottery: false, beer: false, linen: false } });
     addRaw(w, 'storehouse', 52, 8, { store: { pottery: 400, beer: 400, linen: 400 } });
     const home = addRaw(w, 'house', 12, 11, { tier: 7, residents: 150, stockedFor: 150, stock: { pottery: 6, beer: 6, linen: 6 } });
     staffAll(w);

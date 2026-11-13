@@ -99,7 +99,7 @@ describe('s3 raids the raid', () => {
   it('stays two days at a target, striking on the first, and never takes the treasury below 0', () => {
     const { w, store } = city(7);
     arriveNow(w, 3);
-    const events = runRaid(w, 23);
+    const events = runRaid(w, 16);   // Version 10.0.1 (ruling 2358): 23 tiles at 1.5 a day (1, 2, 1, 2, ...) reach the store on day 16 (at 1 a day, 23)
     expect(strikes(events)).toEqual([{ type: 'raid_strike', id: store.id, stolen: 7 }]);  // 5, then the last 2, then nothing
     expect([w.gold, w.raid.active.phase, w.raid.active.wait, w.raid.active.x, w.raid.active.y]).toEqual([0, 'strike', RAIDS.strikeDays, 8, 16]);
     runRaid(w, 1);
@@ -150,6 +150,8 @@ describe('s3 raids the raid', () => {
 });
 
 describe('s3 raids defence', () => {
+  // Version 10.0.1 (ruling 2358): the band crosses the tower's 4 tiles 1.5x as fast, so the third raider lives long enough to strike the storehouse once
+  // (30 gold) before the tower fells it; the raid is still beaten (it was beaten with no strike at 1 tile a day).
   it('one staffed tower beats the first raid; without it the raid is lost', () => {
     const lost = city();
     arriveNow(lost.w, RAIDS.firstSize);
@@ -161,7 +163,7 @@ describe('s3 raids defence', () => {
     const events = runRaid(w);
     const end = ended(events);
     expect(end.won).toBe(true);
-    expect(strikes(events)).toEqual([]);
+    expect(strikes(events)).toEqual([{ type: 'raid_strike', id: store.id, stolen: 30 }]);
     expect(store.id in w.buildings).toBe(true);
     expect([end.report.towers, end.report.byTowers, end.report.bySoldiers]).toEqual([1, 3, 0]);   // two fell, the third as it ran
     expect([w.tally.raidsBeaten, w.tally.raidersByTowers, w.raid.adaptation]).toEqual([1, end.report.byTowers, 1]);
@@ -206,7 +208,7 @@ describe('s3 raids defence', () => {
     expect(w.wallVersion).toBe(shape + 1);
     expect(w.raid.active.struck).toEqual([store.id]);
     const breachDays = Math.ceil(DEFENCE.wallHp / (3 * UNITS.raider.damage));
-    expect(w.raid.active.day + 21 + breachDays).toBeLessThan(w.day + 1);
+    expect(w.raid.active.day + Math.ceil(21 / UNITS.raider.speed) + breachDays).toBeLessThan(w.day + 1);   // Version 10.0.1 (ruling 2358): 21 tiles at the raiders' pace (was 21 days at 1 a day)
     // The same raid against the same ring with a staffed tower on it beside the cheapest tile: beaten at the wall.
     const t = city();
     drawWall(t.w, 4, 13, 9, 18);
@@ -249,25 +251,30 @@ describe('s3 raids defence', () => {
     expect(blocked).toBe(idx(w.size, 10, 13));
     expect(w.road[blocked]).toBe(1);
   });
-  it('sends soldiers out to raiders within their patrol, has them fight, and walks them back after', () => {
+  // Version 10.0.1, Track S (ruling 2355): every soldier goes out to the nearest raider anywhere. The far barracks' soldier, 12 tiles off and outside 10.0's
+  // patrol of 8, waited at home before; now it marches out too.
+  it('sends soldiers out to the raiders however far their barracks, has them fight, and walks them back after', () => {
     const { w } = city();
     const barracks = addRaw(w, 'barracks', 14, 14);
     const far = addRaw(w, 'barracks', 14, 26);
     staffAll(w);
     for (const b of [barracks, barracks, far]) w.soldiers.push({ id: w.nextUnitId++, barracks: b.id, x: b.x + 1, y: b.y + 1, hp: UNITS.soldier.hp, hit: false, task: 'wait' });
     arriveNow(w, 3);
-    const events = runRaid(w);
+    const events = [];
+    const out = w.soldiers.find((s) => s.barracks === far.id);
+    // Version 10.0.1 (ruling 2372): it goes once the band comes within SORTIE.cityReach of the store it is after (it waits while the band is at the map's edge).
+    let went = false;
+    for (let k = 0; k < 40 && w.raid.active && !went; k++) { w.day += 1; raidDay(w, events); went = out.task === 'out' && out.y < far.y + 1; }
+    expect(went).toBe(true);                                                          // on its way north to the band
+    events.push(...runRaid(w));
     const end = ended(events);
     expect(end.won).toBe(true);
     expect(end.report.bySoldiers).toBeGreaterThan(0);
     expect(w.tally.raidersBySoldiers).toBe(end.report.bySoldiers);
-    const mine = w.soldiers.filter((s) => s.barracks === barracks.id);
-    expect(mine.length + w.tally.soldiersWounded).toBe(2);
-    expect(mine.some((s) => s.hit)).toBe(true);
-    const idle = w.soldiers.find((s) => s.barracks === far.id);
-    expect([idle.task, idle.x, idle.y]).toEqual(['wait', far.x + 1, far.y + 1]);    // 12 tiles away: outside its patrol
+    expect(w.soldiers.length + w.tally.soldiersWounded).toBe(3);
+    expect(w.soldiers.some((s) => s.hit) || w.tally.soldiersWounded > 0).toBe(true);
     for (let k = 0; k < 20; k++) { w.day += 1; raidDay(w, []); }
-    expect(mine.every((s) => s.task === 'wait' && s.x === barracks.x + 1 && s.y === barracks.y + 1)).toBe(true);
+    expect(w.soldiers.every((s) => { const b = w.buildings[s.barracks]; return s.task === 'wait' && s.x === b.x + 1 && s.y === b.y + 1; })).toBe(true);
   });
 });
 
@@ -330,7 +337,9 @@ describe('s3 raids determinism', () => {
   it('gives the same world for the same seed and days, and the same again when saved and loaded mid-raid', () => {
     const a = town(), b = town();
     let day = 0;
-    while (!(a.raid.active && a.raid.active.raiders.length && a.raid.active.x < 26) && day < 400) { tickDay(a); tickDay(b); day++; }
+    // Version 10.0.1 (ruling 2358): mid-raid is now three days after the band arrives. It was "once the band is past the wall at x 26": the barracks' soldiers
+    // now go out to it anywhere and end the raid at the wall, so that day never came.
+    while (!(a.raid.active && a.raid.active.raiders.length && a.day - a.raid.active.day >= 3) && day < 400) { tickDay(a); tickDay(b); day++; }
     expect(Boolean(a.raid.active)).toBe(true);
     expect(serialize(a)).toBe(serialize(b));
     const c = deserialize(serialize(a));

@@ -15,8 +15,10 @@ const unit = (w, kind, b, x, y, extra = {}) => {
 };
 const raider = (kind, x, y, extra = {}) => ({ id: 9000 + Math.round(x * 100 + y), kind, x, y, hp: ENEMY_TYPES[kind].hp, hit: false, ...extra });
 // A raid under way in the contract's shape, with the given raiders.
+// Version 10.0.1 (ruling 2372): the band is striking ('strike'; was 'attack' with no target), so it threatens the city and the units go out to it wherever
+// it stands (src/sim/combat.js threatBands); combatDay reads the phase for nothing else.
 function raidOf(w, raiders) {
-  w.raid.active = { index: 6, entry: { x: 31, y: 16 }, dir: 'east', size: raiders.length, mix: null, target: 'building', day: w.day, raiders, phase: 'attack', targetId: null,
+  w.raid.active = { index: 6, entry: { x: 31, y: 16 }, dir: 'east', size: raiders.length, mix: null, target: 'building', day: w.day, raiders, phase: 'strike', targetId: null,
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: 20, y: 16, blocked: null, towerIds: [], fires: [], burnedKinds: [] };
   return w.raid.active;
 }
@@ -140,11 +142,14 @@ describe('s46 armies combat', () => {
     expect(a2.shots).toEqual([]);
     expect(Boolean(t2)).toBe(true);
   });
+  // Version 10.0.1, Track S (ruling 2359): the unit charged is an archer that holds its ground (the chariot is within its range, so it shoots and does not close in;
+  // with a wall it takes a post on it, out of the charge's line). It was a soldier waiting at home with the raider outside its patrol: no unit has a patrol now,
+  // and a soldier walks up beside the chariot, which is melee, not a charge.
   it('has an enemy chariot charge a unit along a clear line, and not across a wall or rocky ground', () => {
     const make = (block) => {
       const w = makeTestWorld({ size: 32 });
-      const bar = addRaw(w, 'barracks', 2, 2);
-      const s = unit(w, 'soldier', bar, 15.5, 15.5);                                  // waiting: its raider is outside its patrol
+      const bar = addRaw(w, 'archery_range', 2, 2);
+      const s = unit(w, 'archer', bar, 15.5, 15.5);
       if (block === 'wall') for (let x = 10; x <= 20; x++) wallAt(w, x, 17);
       if (block === 'rocky') for (let x = 10; x <= 20; x++) w.terrain[idx(w.size, x, 17)] = T.ROCKY;
       const r = raider('chariot', 15.5, 15.5 + ENEMY_TYPES.chariot.charge - 0.2);
@@ -153,10 +158,10 @@ describe('s46 armies combat', () => {
       return { s, r, out };
     };
     const clear = make(null);
-    expect([clear.s.hp, clear.out.fighting]).toEqual([UNIT_TYPES.soldier.hp - ENEMY_TYPES.chariot.damage, true]);
+    expect([clear.s.hp, clear.out.fighting]).toEqual([UNIT_TYPES.archer.hp - ENEMY_TYPES.chariot.damage, true]);
     for (const b of ['wall', 'rocky']) {
       const m = make(b);
-      expect([b, m.s.hp, m.out.fighting]).toEqual([b, UNIT_TYPES.soldier.hp, false]);
+      expect([b, m.s.hp, m.out.fighting]).toEqual([b, UNIT_TYPES.archer.hp, false]);
     }
   });
   it('lets only wall-breakers hit the wall in their band\'s way', () => {
