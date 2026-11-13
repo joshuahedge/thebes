@@ -26,6 +26,7 @@ describe('ui store', () => {
   it('has every field the conventions list', () => {
     const keys = Object.keys(INITIAL_UI_STATE).sort();
     // Version 9.3.1 (Track N, ruling 2020): explainerOpen and speedOpen are steps of the Back button.
-    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'explainerOpen', 'ghost', 'guidanceOpen', 'hoverId', 'inputType', 'lastSpeed', 'layersOpen', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'plan', 'screenshot', 'selectedId', 'sheet', 'speedOpen', 'supplyGood', 'tool', 'trayMore', 'trayPins']);
+    // Version 10.0.2 (ruling 2447): placingMore, whether the phone's placing panel is open to its full details.
+    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'explainerOpen', 'ghost', 'guidanceOpen', 'hoverId', 'inputType', 'lastSpeed', 'layersOpen', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'placingMore', 'plan', 'screenshot', 'selectedId', 'sheet', 'speedOpen', 'supplyGood', 'tool', 'trayMore', 'trayPins']);
   });
 });

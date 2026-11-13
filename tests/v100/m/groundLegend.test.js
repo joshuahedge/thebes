@@ -21,7 +21,9 @@ describe('v100 m: the Ground legend at large text (the words wrap where there is
       const l = await legendAt(w, h, text);
       expect([w, h, text, l.roomHeight > 8, l.keysShown >= 3]).toEqual([w, h, text, drawn, true]);
       expect(/room for a farm/i.test(l.roomText)).toBe(true);
-      expect(l.share).toBeLessThanOrEqual(0.4);
+      // Version 10.0.2 (ruling 2442): at 375x667 and 150% text the side rail's column reaches up into the rows (it stands above the 350 px tray), so the legend ends at the rail's edge and wraps one line more:
+      // 41.8% of the height, not 40. Every other size keeps the 40% budget.
+      expect(l.share).toBeLessThanOrEqual(h === 667 && text === 150 ? 0.42 : 0.4);
     });
   }
 });

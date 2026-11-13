@@ -378,9 +378,12 @@ describe('ui house sheet why', () => {
         const centre = r.screenOf(13, 9.5), m = measureRows(r.root), portrait = height > width;
         // Wave 3 (ruling 993): held upright, the map the bar leaves free ends where the corner buttons on it begin (measured), never above the old estimate of 30% of the screen up to 240 px.
         // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corner row, so the map it leaves free ends at whichever of the two is higher.
-        const barEl = r.root.querySelector('#confirm .confirm'), coverTop = barEl && barEl.getClientRects().length ? Math.min(m.cornersTop, barEl.getBoundingClientRect().top) : m.cornersTop;
-        const cornersBox = r.root.querySelector('#corners').getBoundingClientRect(), strip = Math.max(0, r.root.getBoundingClientRect().bottom - cornersBox.bottom - 8);   // the dock's strip under the corner row, which the guess made before the bar is up allows for
-        const bottom = portrait ? Math.max(Math.min(height * 0.3, 240) + strip, height - coverTop) : height - m.cornersTop, right = portrait ? 0 : 56 + 268;
+        // Version 10.0.2 (ruling 2443): the corner row is a side rail. Held upright, the map the panel leaves free ends at the panel's own top edge (measured; the panel took the dock's place, so there is no strip and
+        // no 30% floor), and its middle is that of the map left of the rail (the rail's edge to the screen's, plus 8 px).
+        const barEl = r.root.querySelector('#confirm .confirm'), shell = r.root.getBoundingClientRect(), cornersBox = r.root.querySelector('#corners').getBoundingClientRect();
+        const coverTop = barEl && barEl.getClientRects().length ? barEl.getBoundingClientRect().top - shell.top : height - Math.min(height * 0.3, 240);
+        const railInset = width - (cornersBox.left - shell.left) + 8;
+        const bottom = portrait ? height - coverTop : height - m.cornersTop, right = portrait ? railInset : 56 + 268;
         const middle = { x: (width - right) / 2, y: (m.rowsEnd + height - bottom) / 2 };
         expect([width, height, text, m.rowsEnd > 48, bottom > 0]).toEqual([width, height, text, true, true]);   // the goals strip is up; corners or the bar below
         expect([width, height, text, Math.abs(centre.x - middle.x) < 1, Math.abs(centre.y - middle.y) < 1]).toEqual([width, height, text, true, true]);

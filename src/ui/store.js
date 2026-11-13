@@ -26,6 +26,7 @@ export const INITIAL_UI_STATE = {
   speedOpen: false,      // Version 9.3.1 (Track N): the Speed popup is open (ui/speed.js); a step of the Back button
   trayMore: {},        // Version 8.1 (Track D, ruling 1247): the categories whose More is open, { category: true }
   trayPins: [],          // Version 8.1 (Track D, ruling 1248): items the layered tray must show whatever its layers say (a lesson step's card)
+  placingMore: false,    // Version 10.0.2 (ruling 2447): the phone's placing panel shows its full details (More); kept for the session, never saved
 };
 
 export function createStore(initial) {

@@ -381,7 +381,7 @@ describe('stage 2 placement preview', () => {
         const read = () => {
           const bar = r.root.querySelector('#confirm').getBoundingClientRect();
           const corner = r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom;
-          expect([size, bar.bottom <= r.root.querySelector('#corners .minimap-button').getBoundingClientRect().top + 0.5]).toEqual([size, true]);   // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corners, which stay put
+          expect([size, r.root.querySelector('#corners .overlay-button').getBoundingClientRect().bottom <= bar.top + 0.5]).toEqual([size, true]);   // Version 10.0.2 (ruling 2449): the rail's foot is above the panel (the pin moved)   // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corners, which stay put
           void corner;
           return bar.height;
         };

@@ -37,7 +37,7 @@ describe('ui confirm bar', () => {
     expect(r.root.querySelector('.reason').classList.contains('amber')).toBe(true);
     expect(r.root.querySelector('.ok').disabled).toBe(false);
     expect([...r.root.querySelectorAll('.conds .cond')].map((c) => `${c.className}|${c.textContent}|${c.getAttribute('aria-label')}`)).toEqual([
-      'cond met|✓ Free ground|Met: Free ground', 'cond later|! No road yet|Not yet: No road yet']);
+      'cond later|! No road yet|Not yet: No road yet', 'cond met|✓ Free ground|Met: Free ground']);   // Version 10.0.2 (ruling 2445): on a phone the folded row puts the pills that say no or not yet first
     r.placement.moveGhost(5, 9);
     r.bar.render();
     expect(r.root.querySelector('.ok').disabled).toBe(false);

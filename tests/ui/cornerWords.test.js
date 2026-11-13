@@ -127,13 +127,12 @@ describe('ui corner words', () => {
       r.ui.settings.set({ textSize: 150 });
       r.ui.speedControl.set(3);
       r.store.set({ overlay: 'entertainment' });                                  // the longest overlay word
-      const left = box(r, '#corners .left'), right = box(r, '#corners .right'), shell = r.root.getBoundingClientRect();
-      expect(left.right).toBeLessThanOrEqual(right.left);
-      expect(left.left).toBeGreaterThanOrEqual(shell.left);
-      expect(right.right).toBeLessThanOrEqual(shell.right);
-      for (const sel of ['.speed-main', '.speed-chevron', '.minimap-button', '.overlay-button']) {
-        const b = box(r, `#corners ${sel}`);
-        expect([sel, b.width >= 44, b.height >= 44]).toEqual([sel, true, true]);
+      // Version 10.0.2 (rulings 2440-2441): the four buttons are a side rail (a column of 44 px buttons, none touching another, all inside the screen), not a left group and a right group.
+      const shell = r.root.getBoundingClientRect();
+      const rail = ['.speed-main', '.speed-chevron', '.minimap-button', '.overlay-button'].map((sel) => box(r, `#corners ${sel}`));
+      for (const [i, b] of rail.entries()) {
+        expect([i, b.width >= 44, b.height >= 44, b.left >= shell.left, b.right <= shell.right]).toEqual([i, true, true, true, true]);
+        if (i > 0) expect([i, b.top >= rail[i - 1].bottom]).toEqual([i, true]);
       }
       expect(parseFloat(getComputedStyle(r.root.querySelector('#corners .overlay-button .label')).fontSize)).toBeGreaterThanOrEqual(12);
     } finally { r.cleanup(); }

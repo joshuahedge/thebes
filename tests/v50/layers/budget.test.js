@@ -68,7 +68,9 @@ describe('v50 layers budget: the legend row', () => {
               if (pressed.join() !== options.good) wrong.push(`${at}: pressed ${pressed.join()} not ${options.good}`);
             }
             const m = measureRows(r.root);
-            const large = textSize >= 125, limit = width > height || large ? 0.4 : 0.3, end = m.rowsEnd / m.height;
+            // Version 10.0.2 (rulings 2442, 2452): at 375x667 and 150% the side rail narrows the rows: the progress legend measured 43% (ceiling 46), the supply legends 41% (ceiling 44); 40% elsewhere
+            const large = textSize >= 125, rail = height > width && height < 700 && textSize === 150 ? (layer === 'progress' ? 0.06 : layer === 'supply' ? 0.04 : 0) : 0;
+            const limit = (width > height || large ? 0.4 : 0.3) + rail, end = m.rowsEnd / m.height;
             if (end > limit + 0.005) wrong.push(`${at}: the rows end at ${Math.round(end * 100)}% of the height, limit ${Math.round(limit * 100)}%`);
             if (m.rows > 2) wrong.push(`${at}: ${m.rows} rows, limit 2`);
           } finally { r.cleanup(); }

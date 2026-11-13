@@ -99,7 +99,7 @@ describe('v80 v the band is 6 px and is the frame of every panel', () => {
       r.ui.placement.start({ kind: 'building', type: 'well' });
       const bar = r.root.querySelector('#confirm .confirm');
       expect(parseFloat(getComputedStyle(bar).paddingTop)).toBeGreaterThanOrEqual(6 + 4);
-      expect(bar.querySelector('.info').getBoundingClientRect().top - bar.getBoundingClientRect().top).toBeGreaterThanOrEqual(6);
+      expect(bar.querySelector('.info .title').getBoundingClientRect().top - bar.getBoundingClientRect().top).toBeGreaterThanOrEqual(6);   // Version 10.0.2: .info is display: contents on the phone panel, so its first line is the title
     } finally { r.cleanup(); }
   });
 });
