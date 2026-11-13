@@ -258,23 +258,24 @@ describe('s3 raids defence', () => {
     const barracks = addRaw(w, 'barracks', 14, 14);
     const far = addRaw(w, 'barracks', 14, 26);
     staffAll(w);
-    for (const b of [barracks, barracks, far]) w.soldiers.push({ id: w.nextUnitId++, barracks: b.id, x: b.x + 1, y: b.y + 1, hp: UNITS.soldier.hp, hit: false, task: 'wait' });
+    // Ruling 2420: all three stand at the far barracks (a band within 8 tiles of a near barracks' soldiers would be met by them first and end before the far one went).
+    for (const b of [far, far, far]) w.soldiers.push({ id: w.nextUnitId++, barracks: b.id, x: b.x + 1, y: b.y + 1, hp: UNITS.soldier.hp, hit: false, task: 'wait' });
     arriveNow(w, 3);
     const events = [];
     const out = w.soldiers.find((s) => s.barracks === far.id);
     // Version 10.0.1 (ruling 2372): it goes once the band comes within SORTIE.cityReach of the store it is after (it waits while the band is at the map's edge).
     let went = false;
     for (let k = 0; k < 40 && w.raid.active && !went; k++) { w.day += 1; raidDay(w, events); went = out.task === 'out' && out.y < far.y + 1; }
-    expect(went).toBe(true);                                                          // on its way north to the band
+    expect([went, 'went']).toEqual([true, 'went']);                                   // on its way north to the band
     events.push(...runRaid(w));
     const end = ended(events);
-    expect(end.won).toBe(true);
+    expect([end.won, 'won']).toEqual([true, 'won']);
     expect(end.report.bySoldiers).toBeGreaterThan(0);
     expect(w.tally.raidersBySoldiers).toBe(end.report.bySoldiers);
     expect(w.soldiers.length + w.tally.soldiersWounded).toBe(3);
     expect(w.soldiers.some((s) => s.hit) || w.tally.soldiersWounded > 0).toBe(true);
     for (let k = 0; k < 20; k++) { w.day += 1; raidDay(w, []); }
-    expect(w.soldiers.every((s) => { const b = w.buildings[s.barracks]; return s.task === 'wait' && s.x === b.x + 1 && s.y === b.y + 1; })).toBe(true);
+    expect(w.soldiers.map((s) => { const b = w.buildings[s.barracks]; return [s.task, s.x - b.x - 1, s.y - b.y - 1]; })).toEqual(w.soldiers.map(() => ['wait', 0, 0]));
   });
 });
 

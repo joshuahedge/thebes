@@ -70,6 +70,16 @@ export function threatBands(world, a, unit = null) {
     // a bend in the band's way or a second band about as near does not turn it about.
     if (unit && unit.task === 'out' && unit.chase === k) { near.push({ k, d: -2 }); continue; }
     if (rec.phase === 'strike') { near.push({ k, d: -1 }); continue; }
+    // Ruling 2420 (D1-B): a live raider of the band within 10.0's old reach of the unit's own building threatens it at once, the nearer to home first.
+    if (unit) {
+      const hb = world.buildings[unit.barracks], reachHome = SORTIE.home[kindOf(unit)] || SORTIE.home.soldier;
+      if (hb) {
+        const hc = centre(hb);
+        let hd = Infinity;
+        for (const r of a.raiders) if (alive(r) && (r.band ? 1 : 0) === k) hd = Math.min(hd, dist(hc, r));
+        if (hd <= reachHome) { near.push({ k, d: -1 + hd / 1000 }); continue; }
+      }
+    }
     const target = rec.targetId ? world.buildings[rec.targetId] : null;
     if (!target && !blds) blds = allBuildings(world).filter((b) => b.type !== 'rubble');
     const goals = target ? [target] : blds;

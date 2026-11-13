@@ -4923,9 +4923,12 @@ export const V100M_TEXT = {
 // between this header and the next Version 10.0.1 header.
 export const V1001S_TEXT = {
   // S.1 (ruling 2355): units have no patrol radius; the barracks', range's and stables' Patrol row and the raid alert's fix say so.
-  anywhere: 'Anywhere on the map',
-  raidFix: (towerRange, who) => `Towers hit raiders within ${towerRange} tiles; ${who} go after raiders anywhere`,
-  patrolLine: 'Goes out to the nearest raider, anywhere on the map',
+  // Ruling 2420 (final review, D1-B): near home at once, beyond it wherever raiders threaten (the old "anywhere on the map" overstated ruling 2372).
+  anywhere: 'Near home, and wherever raiders threaten',
+  raidFix: (towerRange, who) => `Towers hit raiders within ${towerRange} tiles; ${who} go out wherever raiders threaten`,
+  patrolLine: 'Goes out to raiders near home, and to any that threaten the city',
+  // Ruling 2421: the store sheet's state word for a good a store with no orders fetches for its neighbours.
+  autoState: 'For neighbours',
   // S.4 (ruling 2362): a storehouse or granary with no orders of its own that keeps nearby workshops and bazaars stocked (src/sim/carts.js autoOrdersOf).
   // for: 'workshops' | 'bazaars' | 'both'; goods: the goods' ids in the store's own order.
   fetchingFor: (who, goods) => `Fetching for nearby ${{ workshops: 'workshops', bazaars: 'bazaars', both: 'workshops and bazaars' }[who]}: ${goods.map(goodWord).join(', ')}`,

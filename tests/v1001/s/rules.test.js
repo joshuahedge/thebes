@@ -12,6 +12,7 @@ import { UNIT_TYPES, ENEMY_TYPES, footMix } from '../../../src/data/armies.js';
 import { AUTO_FETCH } from '../../../src/data/s47.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { alertText, S46_ARMY_TEXT, V1001S_TEXT } from '../../../src/ui/text.js';
+import { createCartsUi } from '../../../src/ui/s47/carts.js';
 import { raidBench } from './bench.js';
 import { walkLesson } from '../../v91/f/lesson.test.js';
 
@@ -86,6 +87,30 @@ describe('v1001 s S.1 defenders go anywhere', () => {
     combatDay(w);
     expect(w.raid.active.raiders.find((u) => u.id === 900).hp).toBeLessThan(hp);
   });
+  it('sends a unit out at once to a band within its 10.0 reach of home (8, 10, 12), even on its way to a target 15 tiles further on (ruling 2420)', () => {
+    const w = town();
+    const bar = addRaw(w, 'barracks', 2, 22), rng = addRaw(w, 'archery_range', 2, 30), st = addRaw(w, 'stables', 2, 12);
+    staffAll(w);
+    const s = unit(w, 'soldier', bar), a = unit(w, 'archer', rng), c = unit(w, 'chariot', st);
+    const home = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+    const rec = (x, y) => ({ index: 0, entry: { ...EAST }, dir: 'east', size: 1, target: 'storehouse', day: 0, phase: 'attack', targetId: null, struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [],
+      raiders: [{ id: 900, kind: 'foot', x, y, hp: 10, hit: false }] });
+    w.raid.active = rec(0, 0);
+    w.raid.active.targetId = Object.values(w.buildings).find((b) => b.type === 'storehouse').id;   // the storehouse at (30, 16): 15+ tiles beyond the raider below
+    const at = (u, dx) => { const h = home(w.buildings[u.barracks]); w.raid.active.raiders[0].x = h.x + dx; w.raid.active.raiders[0].y = h.y; };
+    for (const [u, reach] of [[s, 8], [a, 10], [c, 12]]) {
+      at(u, 6);
+      expect(threatBands(w, w.raid.active, u)).toEqual([0]);                          // 6 tiles from home: out
+      at(u, reach - 0.5);
+      expect(threatBands(w, w.raid.active, u)).toEqual([0]);                          // just inside its reach: out
+    }
+    at(s, 6);
+    combatDay(w);
+    expect(s.task).toBe('out');
+    // A band falling back never threatens, near home or not (ruling 2372 holds).
+    at(s, 6); w.raid.active.phase = 'retreat';
+    expect(threatBands(w, w.raid.active, s)).toEqual([]);
+  });
   it('plays the same raid the same way twice (deterministic)', () => {
     const run = () => {
       const w = town();
@@ -102,11 +127,11 @@ describe('v1001 s S.1 defenders go anywhere', () => {
   });
   it('says no patrol radius anywhere: the sheets\' Patrol row and the raid alert\'s fix', () => {
     expect([DEFENCE.patrol, UNIT_TYPES.soldier.patrol, UNIT_TYPES.archer.patrol, UNIT_TYPES.chariot.patrol]).toEqual([undefined, undefined, undefined, undefined]);
-    expect(V1001S_TEXT.anywhere).toBe('Anywhere on the map');
-    expect(S46_ARMY_TEXT.patrolLine('archer')).toBe('Goes out to the nearest raider, anywhere on the map');
+    expect(V1001S_TEXT.anywhere).toBe('Near home, and wherever raiders threaten');   // ruling 2420 (was "Anywhere on the map")
+    expect(S46_ARMY_TEXT.patrolLine('archer')).toBe('Goes out to raiders near home, and to any that threaten the city');
     const w = town();
     arriveNow(w, { foot: 2 });
-    expect(alertText({ code: 'raid', x: 39, y: 20, left: 2 }, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers go after raiders anywhere`);
+    expect(alertText({ code: 'raid', x: 39, y: 20, left: 2 }, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers go out wherever raiders threaten`);
   });
 });
 
@@ -141,7 +166,7 @@ describe('v1001 s S.3 the balance check', () => {
     // Ruling 2373: with the units going to the band that threatens (ruling 2372) 1 of 5 raids is lost, 3 struck, 744 gold, 20 defenders lost (10.0: 2 lost, 6,
     // 1,309, 16; S.1 + S.2 before the fix: 2 lost, 6, 1,269, 30).
     expect(raids.map((r) => r.won)).toEqual([true, true, true, false, true]);
-    expect(total).toEqual({ struck: 3, gold: 614, food: 30, fled: 1, defenders: 18, lost: 1 });   // ruling 2394: 614 gold and 18 defenders (744 and 20 before the sortie held its band)
+    expect(total).toEqual({ struck: 3, gold: 570, food: 30, fled: 1, defenders: 19, lost: 1 });   // ruling 2420: 570 gold and 19 defenders with the home reach (614 and 18 before it); ruling 2394: 614 and 18 (744 and 20 before the sortie held its band)
   });
   it('keeps the lesson\'s raid winnable as the lesson teaches it: one tower beats its three raiders', () => {
     const { world } = walkLesson();
@@ -226,6 +251,22 @@ describe('v1001 s S.4 storehouses fetch for their neighbours', () => {
     const near = store(w, 'storehouse', 16);
     expect(autoFetchFor(w, near)).toEqual({ who: 'bazaars', goods: ['pottery'], fetching: true });
     expect(farGoodTip(w)).toBe(null);
+  });
+  it('the store sheet reads "For neighbours" on a good the store fetches for its neighbours (not Off), and its switch still sets a player\'s order (ruling 2421)', () => {
+    const w = street();
+    addRaw(w, 'bazaar', 9, 11, { staff: 6, store: {} });
+    addRaw(w, 'house', 12, 9, { tier: 4, residents: 10, stock: {} });
+    addRaw(w, 'house', 13, 9, { tier: 4, residents: 10, stock: {} });
+    addRaw(w, 'storehouse', 56, 11, { staff: 6, store: { pottery: 100 } });
+    const near = store(w, 'storehouse', 16);
+    expect(autoOrdersOf(w, near).map((o) => o.good)).toEqual(['pottery']);
+    const seam = createCartsUi({ world: w, refresh() {}, afterCommand() {}, selectBuilding() {} });
+    const row = (g) => seam.sheetParts.store(near)[0].querySelector(`.fetch-good[data-good="${g}"]`);
+    expect(V1001S_TEXT.autoState).toBe('For neighbours');
+    expect(row('pottery').querySelector('.onoff').textContent).toBe('For neighbours');
+    expect(row('linen').querySelector('.onoff').textContent).toBe('Off');          // a good it fetches for nobody stays Off
+    row('pottery').querySelector('.fetch-switch').click();
+    expect(Boolean(near.orders && near.orders.pottery)).toBe(true);                  // the switch still sets an order (ruling 2364)
   });
   it('keeps no new state: the automatic orders are worked out from the world, and the same city plays the same way twice', () => {
     const run = () => { const { w } = workshop(); days(w, 40); return serialize(w); };

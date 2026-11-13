@@ -15,7 +15,7 @@ import { BUILDINGS } from '../../data/buildings.js';
 import { capacityOf } from '../../sim/rules.js';   // Version 9.3 (Track U): a store's room as the sim counts it (Low Nile's granary holds double)
 import { CARTS } from '../../data/s47.js';
 import { FOOD_GOODS } from '../../data/goods.js';
-import { cartsUnlocked, isStore, ordersOf, setFetch, clearFetch, setSource, fetchPreview, fetchStatus, fetchSourceId, holderOf, orderSource, storesOf, autoFetchFor } from '../../sim/carts.js';
+import { cartsUnlocked, isStore, ordersOf, setFetch, clearFetch, setSource, fetchPreview, fetchStatus, fetchSourceId, holderOf, orderSource, storesOf, autoFetchFor, autoOrdersOf } from '../../sim/carts.js';
 import { NEED_ICONS } from '../../render/layers.js';
 import { iconPath } from '../../render/spots.js';
 import { el, button } from '../components.js';
@@ -88,9 +88,10 @@ export function createCartsUi(ctx) {
     const amount = order ? order.fetch : draftOf(b, good);
     const name = goodName(good);
     const on = Boolean(order);
-    const sw = el('button', { type: 'button', role: 'switch', class: 'switch fetch-switch', 'aria-checked': String(on), 'aria-label': W.setLabel(good), dataset: { good } }, [
+    const neighbours = !on && !ordersOf(b).length && autoOrdersOf(world, b).some((o) => o.good === good);
+    const sw =el('button', { type: 'button', role: 'switch', class: 'switch fetch-switch', 'aria-checked': String(on), 'aria-label': W.setLabel(good), dataset: { good } }, [
       el('span', { class: 'good' }, [goodIcon(good), el('span', { class: 'name', text: name })]),
-      el('span', { class: 'state small' }, [el('span', { class: 'word', text: W.switchWord }), ' ', el('span', { class: 'onoff', text: on ? W.on : W.off })]),
+      el('span', { class: 'state small' }, [el('span', { class: 'word', text: W.switchWord }), ' ', el('span', { class: 'onoff', text: on ? W.on : (neighbours ? V1001S_TEXT.autoState : W.off) })]),   // ruling 2421: a good the store fetches for its neighbours is not "Off"
     ]);
     sw.addEventListener('click', () => {
       if (on) {
