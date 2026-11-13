@@ -285,7 +285,7 @@ describe('v90 v the beaten raid on the map (V5)', () => {
     w.raid.active.raiders[0].x = 15;                                                // the sim moves the raider two tiles, onto the soldier's
     w.day = 4;
     const drawn = unitsAt(w, 4.5, null, { now: 10 }).find((u) => u.id === UNIT_ID_BASE + 1);
-    expect(Math.round(drawn.x * 100) / 100).toBe(16.5);                              // half way through its glide (Version 10.0.1, ruling 2375: the glide takes the whole day, so 4.5; was 4.3), a tile behind the sim
+    expect(Math.round(drawn.x * 100) / 100).toBe(16.75);                             // three quarters of a tile along its glide at 4.5 (Version 10.0.1, ruling 2430: at the raider's 1.5 tiles a day; was 16.5), over a tile behind the sim
     expect(fightOf(w).clash).toEqual({ x: 15.5, y: 10.5, day: 4 });                // the clash at the sim's spots
     w.raid.active.raiders = [];
     unitsAt(w, 4.55, null, { now: 20 });

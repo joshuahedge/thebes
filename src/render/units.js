@@ -64,12 +64,23 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 // Version 10.0.1 (Track A, A.1, ruling 2375): the glide now takes the WHOLE day (GLIDE_DAYS 1): a walker that keeps walking moves all day long, with no
 // stand between steps; a unit stands only when the sim has not moved it today (looting, fighting, waiting), and any step length (Track S's 1.5 tiles a
 // day comes as steps of one and two tiles, or fractional) is crossed at its own even pace, starting from where the unit is drawn.
-export const GLIDE_DAYS = 1;
+// Version 10.0.1 (Track A, A-1 of the final review, ruling 2430): a day's glide at a fixed day made a band at 1.5 tiles a day (steps of 1 and 2) draw at 1 and
+// 2 tiles a day in turn: a visible surge. Now each unit glides at its OWN pace (tiles a day: its kind's speed, a raider band's slowest) over however long its
+// step from the drawn spot is, so a steady walker draws at a constant speed; the drawn spot may lag the sim by about half a tile, and never by more than
+// LAG_DAYS days of walking (a long jump, a reload, a teleport is crossed in at most that), and it stands once it is there.
+export const GLIDE_DAYS = 1;                 // the day the spread eases over (and what a pace-less step took before 10.0.1)
+const LAG_DAYS = 2;
+const lenOf = (t) => Math.hypot(t.x - t.fromX, t.y - t.fromY);
+const paceOf = (t, len) => Math.max(t.pace || 1.5, len / LAG_DAYS);
 const glide = (t, timeDays) => {
-  const f = clamp01((timeDays - t.at) / GLIDE_DAYS);
+  const len = lenOf(t);
+  if (len === 0) return { x: t.x, y: t.y };
+  const f = clamp01(((timeDays - t.at) * paceOf(t, len)) / len);
   return { x: t.fromX + (t.x - t.fromX) * f, y: t.fromY + (t.y - t.fromY) * f };
 };
-const standsAt = (t, timeDays) => timeDays - t.at >= GLIDE_DAYS || (t.x === t.fromX && t.y === t.fromY);   // V1: no glide under way, so no step
+const standsAt = (t, timeDays) => { const len = lenOf(t); return len === 0 || (timeDays - t.at) * paceOf(t, len) >= len; };   // V1: no glide under way, so no step
+// A soldier out of its barracks stands spread (the scrum offset): it eases in over GLIDE_DAYS from leaving and out again on coming home (A-2, ruling 2431).
+const scrumFactor = (t, timeDays) => t.scrumFrom + ((t.scrum ? 1 : 0) - t.scrumFrom) * clamp01((timeDays - t.scrumAt) / GLIDE_DAYS);
 const dirOf = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : dx < 0 ? 3 : 2) : (dy > 0 ? 2 : 0));
 // The Motion level of a call: its own option, else for unitsAt (which createUI calls with none) the interface's hook; drawUnitMarks always gets the
 // level from its caller (createUI passes motion), and without one is as it was before Version 6.0: Full unless reducedMotion.
@@ -97,11 +108,16 @@ function standing(world) {
   const out = [];
   const active = world.raid && world.raid.active;
   if (active && active.raiders) {
+    const bandPace = new Map();               // a band walks at its slowest raider's pace (the sim's rule), so each raider is drawn at that
+    for (const u of active.raiders) {
+      const key = u.band ? 1 : 0, sp = (ENEMY_TYPES[u.kind || 'foot'] || ENEMY_TYPES.foot).speed;
+      bandPace.set(key, Math.min(bandPace.has(key) ? bandPace.get(key) : Infinity, sp));
+    }
     for (const u of active.raiders) {
       const base = u.kind || 'foot', def = ENEMY_TYPES[base] || ENEMY_TYPES.foot;
       const slot = u.chief ? 'chief' : base !== 'foot' ? RAIDER_SLOT[base] || 'raider' : carries(active, u) ? 'raider_sack' : 'raider';
       const gates = [active.entry, active.second && active.second.entry].filter(Boolean);
-      out.push({ u, kind: slot, base, side: 'raider', chief: Boolean(u.chief), gates, max: def.hp * (u.chief ? CHIEFTAIN.hpFactor : 1), x: u.x + 0.5, y: u.y + 0.5, ...(base === 'elephant' ? { lift: ELEPHANT_BAR_LIFT } : {}) });
+      out.push({ u, kind: slot, base, side: 'raider', chief: Boolean(u.chief), gates, pace: bandPace.get(u.band ? 1 : 0), max: def.hp * (u.chief ? CHIEFTAIN.hpFactor : 1), x: u.x + 0.5, y: u.y + 0.5, ...(base === 'elephant' ? { lift: ELEPHANT_BAR_LIFT } : {}) });
     }
   }
   const waiting = new Map();                 // barracks id -> soldiers waiting in its yard so far
@@ -109,10 +125,11 @@ function standing(world) {
     const b = world.buildings[u.barracks];
     const home = b && u.x >= b.x && u.x < b.x + b.w && u.y >= b.y && u.y < b.y + b.d;
     const kind = UNIT_TYPES[u.kind] ? u.kind : 'soldier', max = UNIT_TYPES[kind].hp;
-    if (!home) { out.push({ u, kind, base: kind, side: 'soldier', max, x: u.x + 0.5, y: u.y + 0.5 }); continue; }
+    const pace = UNIT_TYPES[kind].speed;
+    if (!home) { out.push({ u, kind, base: kind, side: 'soldier', max, pace, x: u.x + 0.5, y: u.y + 0.5 }); continue; }
     const rank = waiting.get(b.id) || 0;
     waiting.set(b.id, rank + 1);
-    out.push({ u, kind, base: kind, side: 'soldier', max, home: true, x: b.x + 0.35 + 0.42 * rank, y: b.y + b.d - 0.28 });
+    out.push({ u, kind, base: kind, side: 'soldier', max, pace, home: true, x: b.x + 0.35 + 0.42 * rank, y: b.y + b.d - 0.28 });
   }
   return out;
 }
@@ -139,15 +156,17 @@ function placed(world, timeDays, now = hooks.now()) {
   for (const s of standing(world)) {
     seen.add(s.u.id);
     let t = m.get(s.u.id);
-    if (!t) t = { x: s.x, y: s.y, fromX: s.x, fromY: s.y, at: timeDays, dir: 2, hp: s.u.hp };
+    const spread = s.side === 'soldier' && !s.home && s.u.task === 'out';
+    if (!t) t = { x: s.x, y: s.y, fromX: s.x, fromY: s.y, at: timeDays, dir: 2, hp: s.u.hp, pace: s.pace, scrum: spread, scrumFrom: spread ? 1 : 0, scrumAt: timeDays };
     else if (t.x !== s.x || t.y !== s.y) {
       const now2 = glide(t, timeDays);
-      Object.assign(t, { fromX: now2.x, fromY: now2.y, x: s.x, y: s.y, at: Math.floor(timeDays), dir: dirOf(s.x - now2.x, s.y - now2.y) });   // V2: from the day the sim moved it
+      Object.assign(t, { fromX: now2.x, fromY: now2.y, x: s.x, y: s.y, at: Math.floor(timeDays), pace: s.pace, dir: dirOf(s.x - now2.x, s.y - now2.y) });   // V2: from the day the sim moved it
     }
+    if (t.scrum !== spread) Object.assign(t, { scrumFrom: scrumFactor(t, timeDays), scrum: spread, scrumAt: timeDays });   // A-2: ease the spread in or out from where it is
     const at = glide(t, timeDays), stand = standsAt(t, timeDays);
     // A company out of its barracks stands spread (the sim keeps them on one spot): the offset is the drawing's; pairs are judged without it (unitsAt).
-    const scrum = s.side === 'soldier' && !s.home && s.u.task === 'out' ? SCRUM[s.u.id % SCRUM.length] : null;
-    const ox = scrum ? scrum[0] * FIGHT.spread : 0, oy = scrum ? scrum[1] * FIGHT.spread : 0;
+    const scrum = s.side === 'soldier' ? SCRUM[s.u.id % SCRUM.length] : null, k = scrum ? scrumFactor(t, timeDays) : 0;
+    const ox = scrum ? scrum[0] * FIGHT.spread * k : 0, oy = scrum ? scrum[1] * FIGHT.spread * k : 0;
     if (s.u.hp < t.hp && !s.home) scene.sparks.push({ x: at.x + ox, y: at.y + oy, at: now });
     Object.assign(t, { hp: s.u.hp, side: s.side, chief: s.chief, barracks: s.u.barracks, gates: s.gates, last: { x: at.x + ox, y: at.y + oy } });
     m.set(s.u.id, t);

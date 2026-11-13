@@ -2,7 +2,8 @@
 // slides (A.2), all baked once (A.3).
 import { describe, it, expect } from '../../harness.js';
 import { makeCanvas } from '../../helpers/canvas.js';
-import { makeTestWorld } from '../../helpers/testWorld.js';
+import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
+import { p } from '../../../src/render/iso.js';
 import { riverWorld } from '../../stage46/river/riverHelpers.js';
 import { unitsAt, UNIT_ID_BASE, GLIDE_DAYS } from '../../../src/render/units.js';
 import { herdAnimals, animalsAt, hopAt, HOP, GRAZE } from '../../../src/render/wildlife.js';
@@ -32,35 +33,54 @@ function raidWorld(x, y) {
 }
 
 describe('v1001 a steady walk (A.1, ruling 2375)', () => {
-  it('glides across the whole day: a raider that steps every day advances at every sample, never standing, at the pace of its step length', () => {
+  it('a band at 1.5 tiles a day, which the sim moves 1 then 2 tiles, is drawn at an even pace (A-1 of the final review, ruling 2430)', () => {
     expect(GLIDE_DAYS).toBe(1);
     const w = raidWorld(10, 10), r = w.raid.active.raiders[0];
-    const xs = [], stands = [];
-    const steps = [1.5, 1.5, 1.5, 1.5, 1, 2, 1.5];                                    // Track S's 1.5 a day (and a day of a whole step either side)
-    for (let day = 5; day < 5 + steps.length; day++) {
-      if (day > 5) r.x += steps[day - 5];
-      for (let k = 0; k < 20; k++) {
-        const u = unitsAt(w, day + k / 20, null, { now: 0, motion: 'full' })[0];
-        if (day > 5) { xs.push(u.x); stands.push(Boolean(u.stand)); }
+    const FRAMES = 60, DAYS = 6, xs = [], sim = [];
+    for (let day = 5; day < 5 + DAYS; day++) {
+      if (day > 5) r.x += day % 2 ? 2 : 1;                                              // the sim's steps: 1, 2, 1, 2, ...
+      for (let k = 0; k < FRAMES; k++) {
+        const u = unitsAt(w, day + k / FRAMES, null, { now: 0, motion: 'full' })[0];
+        xs.push(u.x); sim.push(r.x + 0.5);
+        if (day > 6) expect(Boolean(u.stand)).toBe(false);                              // never stands while the sim keeps stepping (the first one-tile step, from rest, ends early)
       }
     }
-    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan(xs[i - 1] - 1e-9);   // monotone
-    expect(stands.some(Boolean)).toBe(false);                                           // no 40% stand between steps
-    let flat = 0;
-    for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - xs[i - 1]) < 1e-9) flat++;
-    expect(flat).toBe(0);                                                               // not one flat sample while the sim keeps stepping
-    // within one 1.5-tile day the 20 samples are evenly spaced: the interpolation covers the step's real duration
-    const day9 = xs.slice(xs.length - 20);
-    const gaps = day9.slice(1).map((v, i) => v - day9[i]);
-    for (const g of gaps) expect(Math.abs(g - 1.5 / 20)).toBeLessThan(1e-6);
+    const screen = (x) => Math.abs(p(x, 0)[0]) / 16;                                    // along the row: a tile is 16 art px a side on the diagonal
+    let top = 0;
+    for (let i = 1; i < xs.length; i++) top = Math.max(top, screen(xs[i] - xs[i - 1]));
+    expect(top).toBeLessThan(0.08);                                                     // no frame jump
+    for (let day = 2; day < DAYS; day++) {                                              // after the first step's day each day covers 1.5 +- 0.15 tiles
+      const first = xs[day * FRAMES], last = xs[(day + 1) * FRAMES - 1] + (xs[(day + 1) * FRAMES - 1] - xs[(day + 1) * FRAMES - 2]);
+      expect(Math.abs(last - first - 1.5)).toBeLessThan(0.15);
+    }
+    for (let i = 0; i < xs.length; i++) expect(sim[i] - xs[i]).toBeLessThan(2.01);      // a bounded lag behind the sim
+  });
+  it('a soldier eases its spread in on leaving the yard and out on coming home: no frame jump over 0.1 tile (A-2 of the final review, ruling 2431)', () => {
+    const w = makeTestWorld({ fertile: [] });
+    const bk = addRaw(w, 'barracks', 6, 6);
+    const s = { id: 4, kind: 'soldier', barracks: bk.id, x: 6, y: 6, hp: 12, hit: false, task: 'wait' };
+    w.soldiers = [s];
+    const FRAMES = 60, path = [[6, 6, 'wait'], [9, 8, 'out'], [12, 9, 'out'], [12, 9, 'out'], [9, 8, 'back'], [6, 6, 'wait'], [6, 6, 'wait']];
+    let last = null, top = 0, spreadSeen = 0;
+    for (let day = 3; day < 3 + path.length; day++) {
+      [s.x, s.y, s.task] = path[day - 3];
+      for (let k = 0; k < FRAMES; k++) {
+        const u = unitsAt(w, day + k / FRAMES, null, { now: 0, motion: 'full' })[0];
+        if (last) top = Math.max(top, Math.hypot(u.x - last.x, u.y - last.y));
+        last = u;
+        if (day === 5) spreadSeen = Math.max(spreadSeen, Math.hypot(u.x - 12.5, u.y - 9.5));
+      }
+    }
+    expect(top).toBeLessThan(0.1);
+    expect(spreadSeen).toBeGreaterThan(0.1);                                            // the spread itself is still shown while out
   });
   it('stands only when the sim has not moved it: a looting raider stands from the day after its last step', () => {
     const w = raidWorld(10, 10), r = w.raid.active.raiders[0];
     unitsAt(w, 4.5, null, { now: 0, motion: 'full' });
     r.x = 11;
     expect(unitsAt(w, 5.2, null, { now: 0, motion: 'full' })[0].stand).toBe(undefined);   // walking
-    expect(unitsAt(w, 5.9, null, { now: 0, motion: 'full' })[0].stand).toBe(undefined);
-    for (const t of [6.05, 6.5, 7.2, 8]) expect(unitsAt(w, t, null, { now: 0, motion: 'full' })[0].stand).toBe(true);   // looting: no new step
+    expect(unitsAt(w, 5.5, null, { now: 0, motion: 'full' })[0].stand).toBe(undefined);   // a one-tile step at 1.5 tiles a day takes two thirds of a day
+    for (const t of [5.9, 6.05, 6.5, 7.2, 8]) expect(unitsAt(w, t, null, { now: 0, motion: 'full' })[0].stand).toBe(true);   // looting: no new step
     expect(unitsAt(w, 8, null, { now: 0, motion: 'full' })[0].x).toBe(11.5);
     expect(unitsAt(w, 8, null, { now: 0, motion: 'full' })[0].id).toBe(UNIT_ID_BASE + 1);
   });
