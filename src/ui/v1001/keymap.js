@@ -40,6 +40,14 @@ export function effectiveKeys(overrides) {
     }
   }
   for (const a of KEEPS_ESCAPE) if (!out[a].includes('Escape')) out[a].push('Escape');
+  // Version 10.0.1 (Track U, ruling 2358): Back's keys (Esc, and any key it was given) belong to Back alone, so a hand-edited { pause: ['Escape'] } cannot take Esc away.
+  const backKeys = out.back;
+  for (const a of ACTIONS) {
+    if (a === 'back') continue;
+    const kept = out[a].filter((k) => !holds(backKeys, k));
+    out[a] = kept.length ? kept : KEYS[a].filter((k) => !holds(backKeys, k));   // an action left with nothing keeps its own defaults (minus Back's keys)
+    if ((a === 'category' || a === 'card') && out[a].length !== KEYS[a].length) out[a] = KEYS[a].slice();
+  }
   return out;
 }
 
@@ -83,6 +91,8 @@ export function rebind(overrides, action, key, slot = null) {
 // A key as a player reads it.
 const NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
 export const keyName = (k) => NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
+// aria-keyshortcuts for a key list: "r R", "Space" (the attribute's own names).
+export const ariaKeys = (list) => list.map((k) => (k === ' ' ? 'Space' : k)).join(' ');
 export function keysText(list) {
   const seen = [];
   for (const k of list) { const n = keyName(k); if (!seen.includes(n)) seen.push(n); }

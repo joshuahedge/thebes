@@ -32,6 +32,8 @@ export function keysRows({ settings }) {
     const owner = (list.ownerDocument || doc);
     const onKey = (ev) => {
       if (!list.isConnected) { if (off) { off(); off = null; } listening = null; return; }   // the sheet has closed under a listen: never keep swallowing the game's keys
+      // Version 10.0.1 (Track U, ruling 2358): Tab is never swallowed: it ends the listen and moves focus as it always does (the rows are drawn again once focus has moved, keeping it on whatever it reached).
+      if (ev.key === 'Tab') { if (off) { off(); off = null; } listening = null; setTimeout(render, 0); return; }
       if (ev.key === 'Shift' || ev.key === 'Control' || ev.key === 'Alt' || ev.key === 'Meta') return;   // a modifier alone is not a key
       ev.preventDefault(); ev.stopPropagation(); if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
       if (ev.repeat) return;
@@ -74,8 +76,10 @@ export function keysRows({ settings }) {
       }
       return el('div', { class: `row key-row key-row-${action}` }, [el('span', { class: 'key-action', text: K.actions[action] }), el('span', { class: 'key-now', text: keysText(map[action]) || K.unbound }), changer(action, null, K.change)]);
     });
+    const active = (list.ownerDocument || doc).activeElement, keep = active && list.contains(active) ? active.dataset.keyId : null;   // focus stays on the same button across a redraw
     while (list.firstChild) list.removeChild(list.firstChild);
     list.append(...rows);
+    if (keep) { const again = list.querySelector(`[data-key-id="${keep}"]`); if (again && typeof again.focus === 'function') again.focus(); }
     reset.disabled = isEmpty(settings.get().keyBindings);
   }
   render();

@@ -2,6 +2,7 @@
 // The page pauses when hidden and reopens paused; the UI says so when it comes back.
 import { setSpeed } from '../sim/commands.js';
 import { KEYS } from '../data/ui.js';
+import { ariaKeys } from './v1001/keymap.js';
 import { el, button, iconButton, setText, clear } from './components.js';
 import { SPEED_LABELS, T, pauseSpeedText, S46_UX_TEXT } from './text.js';
 
@@ -95,7 +96,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
-        if (keys()) main.setAttribute('aria-keyshortcuts', 'Space'); else main.removeAttribute('aria-keyshortcuts');   // Version 7.0 (Track P)
+        if (keys()) main.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else main.removeAttribute('aria-keyshortcuts');   // Version 10.0.1 (Track U, ruling 2359): the player's own pause key   // Version 7.0 (Track P)
       };
       paint();
       mounted.push(paint);
@@ -119,7 +120,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         buttons.forEach((b, s) => {
           b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys(), keyMap());
           // Version 7.0 (Track P): Space pauses and resumes (keyboard.js), so the pause step says so to assistive technology; the speeds are ] and [ (their title says so).
-          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', 'Space'); else b.removeAttribute('aria-keyshortcuts'); }
+          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else b.removeAttribute('aria-keyshortcuts'); }
         });
       };
       paint();

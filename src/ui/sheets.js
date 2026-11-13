@@ -42,6 +42,8 @@ import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD
 import { ANOTHER_TEXT } from './areaText.js';
 import { aimKeepStocked } from './s47/carts.js';   // Version 8.3 (Track K): a Keep stocked fix opens the store at that good's row
 import { canCopy } from './another.js';
+import { KEYS } from '../data/ui.js';
+import { keyName } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2359)
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -88,7 +90,7 @@ if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
   document.addEventListener('pointerdown', () => { mark(false); if (behindInert) letGo(); }, true);
 }
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onFrame = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], getRows = () => rollUpAlerts(getAlerts()), adviceTop = () => [], onAdviceFix = () => {}, onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onFrame = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true, keyMap = () => KEYS }) {
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
   const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
@@ -464,11 +466,11 @@ export function createSheets({ container, store, world, placement, cameraControl
     const body = el('div', { class: 'body' });
     const canvas = minimap.canvas;
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
-    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? '+' : null, onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
-    const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
+    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? keyName(keyMap().zoomIn[0]) : null,   /* Version 10.0.1 (Track U, ruling 2359): the player's own keys */ onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
+    const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? keyName(keyMap().zoomOut[0]) : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     // Version 9.2 (fix wave, Track A, rulings 1876 and 1877): "Fit the city" sits beside + and − in both layouts (Track V's frame, the F key's own), where a phone can
     // find it; on the wide layout the side panel already draws the minimap, so the sheet leaves its own out and keeps the buttons.
-    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? 'F' : null, onClick: () => { if (store.get().layout !== 'wide') close(); onFrame(); } });   // Version 9.3.1 (Track N, ruling 2023): on a phone the sheet is out of the way before the camera frames the city
+    const fit = button(A92_TEXT.fitCity, { class: 'fit-city', 'aria-keyshortcuts': keys() ? keyName(keyMap().frame[0]) : null, onClick: () => { if (store.get().layout !== 'wide') close(); onFrame(); } });   // Version 9.3.1 (Track N, ruling 2023): on a phone the sheet is out of the way before the camera frames the city
     const phone = store.get().layout !== 'wide';
     const map = [...(phone ? [el('div', { class: 'minimap-wrap' }, [canvas])] : []), el('div', { class: 'actions' }, [zoomIn, zoomOut, fit])];
     const rows = getRows();   // Version 9.2 (Track Q, ruling 1775): one row per cause

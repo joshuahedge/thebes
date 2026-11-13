@@ -16,6 +16,7 @@ import { AREA_TEXT } from './areaText.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { ROUTE_TEXT } from './routeText.js';
 import { el, button, iconButton, clear } from './components.js';
+import { keyName, ariaKeys } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2359)
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' || tool.kind === 'ferry' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : tool.kind === 'areas' ? AREA_TEXT.title(tool.type) : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
@@ -26,7 +27,7 @@ export const FLASH_MS = 900;
 const toolKeyOf = (tool) => `${tool.kind}|${tool.type || ''}|${tool.gate ? 'gate' : ''}`;
 const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
-export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, deleteUndoes = keys, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
+export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, keyMap = null, deleteUndoes = keys, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
   container.append(element);
 
@@ -131,7 +132,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       const on = s.tool.kind === 'areas';
       controls.push(iconButton(on ? AREA_TEXT.oneLabel(areaType) : AREA_TEXT.areaLabel(areaType), on ? '▢' : '▦', { class: 'area-toggle', 'aria-pressed': String(on), title: on ? AREA_TEXT.one : AREA_TEXT.area, onClick: () => onArea(areaType, !on) }));
     }
-    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', title: keys() ? `${T.rotate} (R)` : T.rotate, 'aria-keyshortcuts': keys() ? 'r R' : null, onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
+    const rk = keyMap ? keyMap().rotate : ['r', 'R'];   // Version 10.0.1 (Track U, ruling 2359): the player's own key for Rotate
+    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', title: keys() ? `${T.rotate} (${keyName(rk[0])})` : T.rotate, 'aria-keyshortcuts': keys() ? ariaKeys(rk) : null, onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
     // Version 8.0 (ruling 1163): Flip is a neutral icon, never heavier than the tick (the friend found the road bar's Straight and Flip outweighed it).
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(iconButton(T.flip, '⇄', { class: 'flip', onClick: () => placement.flip() }));
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);

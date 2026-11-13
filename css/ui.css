@@ -100,6 +100,11 @@ body[data-hand="left"] .confirm { flex-direction: row-reverse; }
 /* The Layers button keeps one width whatever layer is on (its word is the layer's name, up to "Entertainment"), so the Map button beside it never moves; a longer name is cut with "…" (its accessible name is whole). */
 body[data-layout="portrait"] #corners .overlay-button { box-sizing: border-box; width: calc(76px * var(--ui-scale)); min-width: 0; }
 body[data-layout="portrait"] #corners .overlay-button .label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Version 10.0.1 (Track U, ruling 2355, review fix 1): a phone too short for the steady stack (createUI updateStackTight) gets 10.0's: the bar at the foot, the corners riding it, the dock gone. */
+body.stack-tight[data-layout="portrait"] #confirm { bottom: 0; }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #dock { display: none; }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--toast-lift)); }
 /* Version 10.0.1 (Track U, ruling 2352, U.5): on a portrait phone the corner buttons keep ONE place in every state (idle, a tray open, a card picked, tucked): the tray and the placing bar open above them. */
 body:where(:not([data-layout="portrait"]))[data-dock="tray"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
 body:where(:not([data-layout="portrait"]))[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 8px); }

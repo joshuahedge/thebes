@@ -35,7 +35,7 @@ import { createCameraControl, FRAME_MARGIN_PX, cityBounds, boundsOutside } from 
 import { ART } from '../render/art/registry.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
-import { effectiveKeys } from './v1001/keymap.js';
+import { effectiveKeys, keyName } from './v1001/keymap.js';
 import { createKeyBadges, pickCard, trayOpenOf } from './v1001/cardKeys.js';   // Version 10.0.1 (Track U, rulings 2343-2346): keys you can see; a card key picks a card
 import { pickBuilding } from './pick.js';
 import { createPlacement, snapGhost } from './placement.js';
@@ -280,7 +280,7 @@ export function createUI({
     speaking: () => !hooks.lessonRun && !guideActive(world) && !root.classList.contains('lesson-card-up') && store.get().mode === 'browse',
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick, layers: trayLayers });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, keyMap: () => effectiveKeys(settings.get().keyBindings), deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
   // back to the Layers button that opened it.
@@ -294,7 +294,7 @@ export function createUI({
   const legend = createOverlayLegend({ container: $('legend'), store, world });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, onFrame: () => frameCity(), pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
   // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
-  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', 'M'); else b.removeAttribute('aria-keyshortcuts'); } };
+  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', keyName(effectiveKeys(settings.get().keyBindings).minimap[0])); else b.removeAttribute('aria-keyshortcuts'); } };   // Version 10.0.1 (Track U, ruling 2359): the player's own Map key
   mapKeyHint();
   // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
   // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
@@ -377,9 +377,11 @@ export function createUI({
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
   // side panel's tabs to more rows, so the panel measures them again.
   let lastHelp = settings.get().help;
-  let keyBadges = null;                                  // Version 10.0.1 (Track U, ruling 2344): made with the keyboard below; this watch repaints it when the keys or Single keys change
+  let stopStackTight = null;                             // Version 10.0.1 (Track U, ruling 2355): set where the stack-tight watch is made, below
+  let keyBadges = null;                                 // Version 10.0.1 (Track U, ruling 2344): made with the keyboard below; this watch repaints it when the keys or Single keys change
   const stopSettingsWatch = settings.subscribe((v) => {
     if (keyBadges) keyBadges.decorate();
+    if (typeof updateStackTight === 'function' && stopStackTight) updateStackTight(store.get());   // a new text size changes the bar's room
     sidePanel.render();
     speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
     mapKeyHint();
@@ -411,7 +413,7 @@ export function createUI({
     if (topAdvice.day !== world.day) topAdvice = { day: world.day, list: cityAdvice(world).slice(0, 3) };
     return topAdvice.list;
   };
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onFrame: () => { frameCity(); }, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), getRows: () => alerts.rows(), adviceTop, onAdviceFix: (a) => advice.fix(a), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onFrame: () => { frameCity(); }, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false, keyMap: () => effectiveKeys(settings.get().keyBindings) });
   const dialog = createDialog({ container: $('dialog'), store });
   // Version 8.0 (ruling 1160): the number on the scroll button follows the tray, and an open tray sheet shows a message the moment it arrives (unless focus is inside it: a rebuild would drop it).
   const stopTray = tray.subscribe((why) => {
@@ -451,6 +453,7 @@ export function createUI({
     const c = screenToTile(cam, v, at.x, at.y);
     const tool = toolForItem(item);
     placement.start(tool, { x: c.x, y: c.y });
+    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2355): the bar is up now, so decide the steady stack or the tight one before the ghost is framed
     const g = store.get().ghost;
     if (g && tool.kind === 'building') {
       const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
@@ -479,6 +482,7 @@ export function createUI({
     const open = store.get().tool;
     const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
     if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : tool.kind === 'ferry' ? { x, y } : null);   // road, plot and demolish tools ignore the point; the Ferry tool ranks its crossings from it (Version 8.2.1)
+    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2355): as in pick()
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
@@ -1052,6 +1056,22 @@ export function createUI({
   keyBadges = createKeyBadges({ root, store, settings, win });
   // Version 10.0.1 (Track U, ruling 2343): once a picked card's tool has ended (placed or put away) the wide panel's card keys let go, so the digits open tabs again without an Esc.
   let wasTool = false;
+  // Version 10.0.1 (Track U, ruling 2355, review fix 1): the bar and the corner row stand steady, with the bar above the corners. On a phone too short for that (the band left between the rows and the
+  // bar is less than a ghost needs: about 700 px tall at 125% text and more) the 10.0 stacking comes back under the class stack-tight: the bar at the foot, the corners riding it, the dock gone.
+  // Decided from the steady geometry every time (the class is taken off, measured, and put back), so it never flaps. Josh's 390x844-class phone is never tight.
+  function updateStackTight(s) {
+    root.classList.remove('stack-tight');
+    if (s.layout !== 'portrait' || !isToolMode(s.mode)) return;
+    const barEl = root.querySelector('#confirm .confirm'), wrap = $('confirm');
+    if (!barEl || !wrap || wrap.hidden || !barEl.getClientRects().length) return;
+    const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
+    const reach = s.tool && s.tool.kind === 'building' && !BUILDINGS[s.tool.type].monument && s.ghost ? ghostReach(dimsOf(s.tool.type, s.tool.rot || 0)) : null;
+    const need = (reach ? Math.min(MIN_FREE_MAP_PX, Math.ceil(2 * reach.down * pxPerArt(cam))) : MIN_FREE_MAP_PX) + 24;
+    const band = barEl.getBoundingClientRect().top - canvas.getBoundingClientRect().top - top;
+    if (band < need) root.classList.add('stack-tight');
+  }
+  stopStackTight = store.subscribe(updateStackTight);
+  updateStackTight(store.get());
   const stopCardKeys = store.subscribe((s) => { const tool = isToolMode(s.mode); if (wasTool && !tool && s.cardKeys) store.set({ cardKeys: false }); wasTool = tool; });   // Version 10.0.1 (Track U, ruling 2344)
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
@@ -1074,7 +1094,7 @@ export function createUI({
     const h = view().height;
     // Version 10.0.1 (Track U, ruling 2352): the bar and the corner row stand above the dock's strip now (they used to cover it), so that strip's height is added to the guess made before the bar is up.
     const cornerBox = $('corners') ? $('corners').getBoundingClientRect() : null;
-    const strip = cornerBox && cornerBox.height > 0 ? Math.max(0, mapFoot() - cornerBox.bottom - 8) : 0;
+    const strip = cornerBox && cornerBox.height > 0 && !root.classList.contains('stack-tight') ? Math.max(0, mapFoot() - cornerBox.bottom - 8) : 0;
     const estimate = Math.min(h * 0.3, 240) + strip;
     // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corner row, so what it covers from the foot is its measured top edge (its own height no longer reaches the foot).
     const barBox = root.querySelector('#confirm .confirm'), mapBottom = mapFoot();
@@ -1409,7 +1429,7 @@ export function createUI({
       root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
       cardDrag.detach(); noZoom.detach();
-      mapInput.detach(); keyboard.detach(); keyBadges.destroy(); stopCardKeys(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
+      mapInput.detach(); keyboard.detach(); keyBadges.destroy(); stopCardKeys(); if (stopStackTight) stopStackTight(); root.classList.remove('stack-tight'); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       stopGoalsPlace(); stopScreenshotFocus(); dialog.destroy();   // Version 9.2 (fix wave, rulings 1878, 1879)
       if ($('goals').parentNode === $('panel')) $('under-bar').insertBefore($('goals'), $('tip'));   // Version 9.2 (Track Q): home again for the next UI

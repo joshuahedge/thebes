@@ -43,6 +43,8 @@ import { tileToScreen, zoomFloor } from '../../render/camera.js';
 import { UI, TEAL_DARK } from '../../render/art/palette.js';
 import { openSheet, isToolMode } from '../modes.js';
 import { TOPBAR_PX, freeTop } from '../layout.js';
+import { effectiveKeys } from '../v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2356)
+import { trayOpenOf } from '../v1001/cardKeys.js';
 
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
 // (w + d) x 16 tall, and the ring's half-axes are half of that) with this much to spare, in px.
@@ -391,7 +393,7 @@ export function createLessonUi(ctx) {
   }
   function applyLock() {
     if (finished || destroyed || !step) { unlock(); return; }
-    lockTo(lockFor(facts && facts.missing === 'bazaar' ? { ...step, show: { category: 'services', item: 'bazaar' } } : step), { root, onRefused });
+    lockTo(lockFor(facts && facts.missing === 'bazaar' ? { ...step, show: { category: 'services', item: 'bazaar' } } : step), { root, onRefused, keys: () => effectiveKeys(settings.get().keyBindings), cardsOpen: () => trayOpenOf(store.get()) });   // Version 10.0.1 (Track U, ruling 2356): the player's own keys, and the card keys while a tab's cards are open
   }
 
   // The dock's cards and categories, as the guided start marks them (src/ui/guide.js): the step's card ringed and tagged. Version 8.1: the dimming is the lock's (ruling 1200).
