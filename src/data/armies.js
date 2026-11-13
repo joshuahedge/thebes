@@ -123,7 +123,9 @@ export const ARMY = { wallNear: 3, towerHp: 40, hungry: 0.5 };
 // reach the target no sooner than `lead` days before the band does; every unit goes to the band that threatens most
 // (striking first, then the nearest its target), anywhere on the map, and waits at home while none does. A band falling back or leaving after its strikes
 // is let go; a raider beside a unit is always fought.
-export const SORTIE = { cityReach: 3, lead: 2 };
+// Ruling 2420 (final review, D1-B): and a unit also goes out at once to any band with a live raider within `home[kind]` tiles of its own building's centre
+// (10.0's patrols: 8, 10, 12), so no unit is ever lazier than in 10.0. Beyond that reach the rules above still decide.
+export const SORTIE = { cityReach: 3, lead: 2, home: { soldier: 8, archer: 10, chariot: 12 } };
 
 // world.army: away: units sent to the capital by a soldiers request (src/sim/armies.js sendUnits), each { id, kind, barracks, back }
 // (back: the day it returns); fed: whether the chariots' horses had their grain at the last month's end (true until a month finds

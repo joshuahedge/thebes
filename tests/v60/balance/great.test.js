@@ -50,8 +50,8 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
     expect(r.ranks.seat).toBe(3690);   // 9.2 Track S (kept by the balance check, ruling 1855) (rulings 1795-1808): was 3720
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
-    expect(r.won.day).toBe(6252);                                                // 10.0.1 (rulings 2374, 2397): 6,252. 8.4 (ruling 1551): was won on day 6,927. 9.2 balance (ruling 1866): 5,850 (Track S alone 7,008)
-    expect(Math.round(r.lowestGold)).toBe(12360);                               // 10.0.1 (rulings 2396, 2397): 12,360, under the 8.3 pin's 20,000 (NOT MET; 23,485 in 10.0); before the review fixes -2,181, briefly in debt (-7,959 before the fix; 23,485 in 10.0). 8.4 (ruling 1551): was 7,732 the lowest. 9.2 balance (ruling 1866): 23,485 (Track S alone 18,870)
+    expect(r.won.day).toBe(6320);                                                // 10.0.1 (ruling 2420): 6,320 with the home reach (6,252 before it; 5,850 in 10.0). Rulings 2374, 2397: 6,252. 8.4 (ruling 1551): was won on day 6,927. 9.2 balance (ruling 1866): 5,850 (Track S alone 7,008)
+    expect(Math.round(r.lowestGold)).toBe(-14480);                              // 10.0.1 (ruling 2420): -14,480 with the home reach (12,360 before it, 23,485 in 10.0; the half-hit-points fall-back measured -3,622 but lost 3 of seed 10's raids, so it is not kept): NOT MET. Rulings 2396, 2397: 12,360, under the 8.3 pin's 20,000 (NOT MET; 23,485 in 10.0); before the review fixes -2,181, briefly in debt (-7,959 before the fix; 23,485 in 10.0). 8.4 (ruling 1551): was 7,732 the lowest. 9.2 balance (ruling 1866): 23,485 (Track S alone 18,870)
     expect([raids, raidsLost]).toEqual([13, 0]);                                 // 10.0.1 (ruling 2374): B7 MET again, every raid beaten (one of 13 lost before the fix). 9.2 balance (ruling 1866): every raid beaten again (B7 met); before ruling 1865 the second was lost
     expect(r.insane).toEqual([]);
   });
@@ -70,7 +70,7 @@ describe('v60 balance great work with the dangers on (6.0.1)', () => {
     // never founded and the court's due stays a share of the treasury; it is in debt (-40,316) and loses 1 of its 11 raids (5 lost before the fix; 10.0: Seat on day
     // 3,690, 23,055 the lowest, none lost).
     expect([r.won, r.ranks.great_capital, r.ranks.seat]).toEqual([null, 3660, undefined]);   // 8.4 (ruling 1551): was Great Capital on day 3,660 (in the great-work years). 9.2 balance (ruling 1866): Great Capital in the grand years and the Seat on day 3,690, not won
-    expect(Math.round(r.lowestGold)).toBe(-16818);   // ruling 2397: -16,818 and 2 of 11 raids lost after the review fixes (-40,316 and 1 before)                                                 // 8.4 (ruling 1551): was -36,172. 9.2 balance (ruling 1866): 23,055, never in debt
-    expect([raids, raidsLost]).toEqual([11, 2]);                                                   // 9.2 balance (ruling 1866): every raid beaten (before ruling 1865 raid 8 was lost)
+    expect(Math.round(r.lowestGold)).toBe(-20291);   // ruling 2420: -20,291 and no raid lost with the home reach (-16,818 and 2 of 11 lost before it; 10.0: none lost, 23,055 the lowest). Ruling 2397: -16,818 and 2 of 11 lost (-40,316 and 1 before)                                               // 8.4 (ruling 1551): was -36,172. 9.2 balance (ruling 1866): 23,055, never in debt
+    expect([raids, raidsLost]).toEqual([11, 0]);                                                  // 9.2 balance (ruling 1866): every raid beaten (before ruling 1865 raid 8 was lost)
   });
 });

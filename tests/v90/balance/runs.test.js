@@ -32,10 +32,12 @@ describe('v90 balance T1 the Builder\'s great-work run', () => {
     // worth twice the favour (ruling 1865) the run is not won by day 7,200 (T1 NOT MET; the Steady's 6,388), its treasury never below 1,587, High 1 and Normal 1 (ruling 1867).
     // 10.0.1 (rulings 2369, 2374): T1 MET: won on day 5,942, never under 539, every raid beaten, High 3 and Normal 3 (before the balance fix: 5,918 and 812).
     // 10.0.1 (ruling 2396): after the review fixes won on day 6,094 with every raid beaten, but -2,454 at its lowest: "never in debt" NOT MET (the 9.2 pin 1,587).
-    expect(r.won && r.won.day).toBe(6094);
-    expect(Math.round(r.lowestGold)).toBe(-2454);
+    // 10.0.1 (ruling 2420): with the home reach the Builder is won on day 6,043 (6,094 before it).
+    expect(r.won && r.won.day).toBe(6043);
+    // 10.0.1 (ruling 2420): and the treasury never under 1,700 with the home reach (-2,454 before it): "never in debt" met again.
+    expect(Math.round(r.lowestGold)).toBe(1700);
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
-    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([3, 2]);
+    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([1, 1]);   // ruling 2420: High 1 and Normal 1 with the home reach (3 and 2 before it)
   });
 });
 
@@ -62,6 +64,6 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
     // 10.0.1 (rulings 2370, 2374): T3 NOT MET: the Unconquered loses the last two of its 13 raids (indexes 11 and 12) where the Steady beats all 13 (before the
     // balance fix it beat all 13 and the Steady lost one).
     expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);   // ruling 2397: T3 MET again after the review fixes (before them it lost raids 11 and 12)    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
-    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -25036]);   // 10.0.1 (rulings 2369, 2374, 2397): -25,036 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
+    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -14455]);   // 10.0.1 (ruling 2420): -14,455 with the home reach (-25,036 before it). Rulings 2369, 2374, 2397: -25,036 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
   });
 });
