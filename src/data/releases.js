@@ -13,7 +13,7 @@ export const RELEASES = [
     new: [
       'Soldiers, archers and chariots go out at once to any raid within their old reach of home (8, 10 and 12 tiles), and beyond that to any raid that threatens the city, wherever it is on the map. They walk home when it falls back. Towers still shoot raiders within 4 tiles.',
       'Raiders and enemies move a bit faster, 1.5 times as fast as before, and so do your soldiers, archers and chariots. They walk at an even pace.',
-      'A storehouse or granary with no orders of its own now fetches what nearby workshops and bazaars need from stores further away. Its sheet says so, for example "Fetching for nearby workshops: clay", and those goods read "For neighbours". An order of your own replaces this.',
+      'A storehouse or granary with no orders of its own now brings in what nearby workshops and bazaars need from stores further away. Its sheet says so, for example "Bringing in for nearby workshops: clay", and those goods read "For neighbours". An order of your own replaces this.',
       'Keys on a computer: each build tab shows its number. Press it, and the cards of that tab show 1 to 9, so a second number picks a card. Esc lets go. Tooltips name the keys.',
       'Options, Controls, Keys: change any key. A key that is already in use is refused and its action is named. Reset to defaults puts them all back.',
       'Animals: gazelles and ostriches walk and stop to graze, herons and ibises take off, flap and fold their wings, hippos bob, and crocodiles sway their tails and slide into the river. Flying birds flap. Gentle keeps them calm and Still keeps them still.',

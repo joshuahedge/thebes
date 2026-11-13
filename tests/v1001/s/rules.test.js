@@ -198,7 +198,7 @@ describe('v1001 s S.4 storehouses fetch for their neighbours', () => {
     expect(autoOrdersOf(w, near)).toEqual([{ good: 'clay', fetch: AUTO_FETCH.amount, auto: true }]);
     expect(autoOrdersOf(w, far)).toEqual([]);                                        // beyond the potter's reach
     expect(autoFetchFor(w, near)).toEqual({ who: 'workshops', goods: ['clay'], fetching: true });
-    expect(V1001S_TEXT.fetchingFor('workshops', ['barley', 'clay'])).toBe('Fetching for nearby workshops: barley, clay');
+    expect(V1001S_TEXT.fetchingFor('workshops', ['barley', 'clay'])).toBe('Bringing in for nearby workshops: barley, clay');
     days(w, 20);
     expect(far.store.clay).toBeLessThan(100);
     expect(w.tally.made.pottery).toBeGreaterThan(0);

@@ -4931,7 +4931,8 @@ export const V1001S_TEXT = {
   autoState: 'For neighbours',
   // S.4 (ruling 2362): a storehouse or granary with no orders of its own that keeps nearby workshops and bazaars stocked (src/sim/carts.js autoOrdersOf).
   // for: 'workshops' | 'bazaars' | 'both'; goods: the goods' ids in the store's own order.
-  fetchingFor: (who, goods) => `Fetching for nearby ${{ workshops: 'workshops', bazaars: 'bazaars', both: 'workshops and bazaars' }[who]}: ${goods.map(goodWord).join(', ')}`,
+  // Ruling 2426: "Bringing in", not "Fetching": Fetch was renamed Keep stocked in 8.3 (ruling 1383), and v92 w words keeps the word out of the game.
+  fetchingFor: (who, goods) => `Bringing in for nearby ${{ workshops: 'workshops', bazaars: 'bazaars', both: 'workshops and bazaars' }[who]}: ${goods.map(goodWord).join(', ')}`,
   // Ruling 2391: the goods it already holds enough of for them (its cart is not out for them).
   keepsFor: (who, goods) => `Keeps stocked for nearby ${{ workshops: 'workshops', bazaars: 'bazaars', both: 'workshops and bazaars' }[who]}: ${goods.map(goodWord).join(', ')}`,
 };

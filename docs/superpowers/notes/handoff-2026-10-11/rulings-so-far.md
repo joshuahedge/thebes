@@ -2430,7 +2430,7 @@ A patch from Josh's nine play notes: the desktop tip card, the Rushed label, key
 2416. U-2: the clash line reads "M is already used for Open the minimap."; the speed keys print through `keyName`.
 2417. U-3: How to play adds one line after the `V60_HELP` paragraphs when any key is changed.
 
-*Track S, the rules (2355 to 2374, 2390 to 2397, 2420 to 2425)*
+*Track S, the rules (2355 to 2374, 2390 to 2397, 2420 to 2426)*
 2355. Defenders go anywhere: each unit picks the nearest raider, the lower id on a tie; no patrol is kept (D1 = B restores the near-home reach, 2420).
 2356. The words say "wherever raiders threaten", not "within N tiles", and the banner budget holds.
 2357. Raiders and every enemy kind move 1.5 times as fast, and so do the player's units; a band takes fractional steps (`stride`). — Cost if wrong: one speed table.
@@ -2465,6 +2465,7 @@ A patch from Josh's nine play notes: the desktop tip card, the Rushed label, key
 2423. The balance, 10.0 to before 2420 to after: grand run 5.3 defenders per raid (target 3.33, NOT MET); seed 5 lowest -14,480; raids lost no worse on any seed.
 2424. Moved pins, each stating both numbers in its test.
 2425. The golden six-year Capital re-recorded again.
+2426. The store sheet says "Bringing in for nearby ...", not "Fetching": Fetch was renamed Keep stocked in 8.3 (1383), and v92 w words keeps the word out of the game.
 
 *Track A, the motion (2375 to 2389, 2430 to 2433)*
 2375. The glide takes the whole day (`GLIDE_DAYS` 1, was 0.6). — Cost if wrong: units stand between steps. (Refined by 2430.)
