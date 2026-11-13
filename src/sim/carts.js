@@ -14,8 +14,8 @@
 // A chosen source never falls back by itself (ruling 1384): while it cannot spare the good the order is 'dry' and its cart waits.
 import { capacityOf, decreeEnded, endedFail } from './rules.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { HOUSEHOLD_GOODS } from '../data/goods.js';
-import { CARTS } from '../data/s47.js';
+import { HOUSEHOLD_GOODS, FOOD_GOODS } from '../data/goods.js';
+import { CARTS, AUTO_FETCH } from '../data/s47.js';
 import { MAX_TIER } from '../data/housing.js';
 import { allBuildings, housesOf } from './world.js';
 import { roadReach, reachDistance, touchesRoad, adjacentRoadTiles } from './reach.js';
@@ -86,17 +86,22 @@ const burning = (b) => Boolean(b.fire && b.fire.stage === 'fire');
 // stores: the world's stores, when the caller has them. Returns { b, len, surplus } or null.
 // Version 8.3 (ruling 1411): an order that names its source draws on that store only: null while it cannot spare one (burning, linked by no road, or
 // nothing above its own order), never the next nearest. chosen: true marks such a find.
-export function findSource(world, home, good, stores = storesOf(world)) {
+// Version 10.0.1, Track S (S.4, ruling 2362): auto, the day's automatic orders (autoFetchMap; worked out here when not given). A store fetching a good
+// for its neighbours keeps AUTO_FETCH.amount of it as an order of its own would (it is no source below that), and two such stores never draw the good on
+// each other.
+export function findSource(world, home, good, stores = storesOf(world), auto = autoFetchMap(world, stores)) {
   const rm = roadReach(world, home, Infinity);
   const chosen = chosenStore(world, home, good);
   if (chosen) {
-    const surplus = surplusOf(chosen, good), len = reachDistance(rm, world, chosen);
+    const surplus = spareOf(auto, chosen, good), len = reachDistance(rm, world, chosen);
     return burning(chosen) || surplus < 1 || !Number.isFinite(len) ? null : { b: chosen, len, surplus, chosen: true };
   }
   let best = null;
   for (const o of stores) {
     if (o.id === home.id || burning(o) || !BUILDINGS[o.type].stores.includes(good)) continue;
-    const surplus = surplusOf(o, good);
+    // Version 10.0.1 (ruling 2392): a store fetching the good for its neighbours too is drawn on only above the AUTO_FETCH.amount it keeps (spareOf), so
+    // two such stores never pass the good back and forth, and one holding plenty (the sole store by its workshop) can still spare what is above it.
+    const surplus = spareOf(auto, o, good);
     if (surplus < 1) continue;
     const len = reachDistance(rm, world, o);
     if (!Number.isFinite(len)) continue;
@@ -111,6 +116,100 @@ export const roomOf = (b, world) => Math.max(0, capacityOf(world, b.type) - stor
 
 // A store can send a cart when it works (not paused, not burning, enough of its staff) and a road touches it.
 export const canStaff = (world, b) => isWorking(world, b) && touchesRoad(world, b);
+
+// ── Version 10.0.1, Track S (S.4, rulings 2362-2365): storehouses fetch for their neighbours ──
+// A store with no orders of its own (b.orders empty) keeps stocked, as if it had a Keep stocked order of AUTO_FETCH.amount, each good that:
+//   - a working workshop (it consumes the good: its input) reaches it with (the store lies within the workshop's producerReach), or a working bazaar
+//     (it sells the good, one of the foods or household goods, and its stall has none left) reaches it with (within its supplyReach);
+//   - no other store within that workshop's or bazaar's reach holds (so it would go without), while some store beyond that reach does (the good is
+//     held further away: what auto-fetch is for);
+//   - the store is built to hold and takes in (storeAccepts), and is not today the source of a cart carrying it (a store never fetches a good it is the
+//     source of).
+// Nothing is kept: the map is worked out from the world each time it is asked (the day's work asks once, cartDay), so a save holds no new state and a
+// load reads as before (ruling 2363). A player's order on the store, of any good, ends every automatic one there (ruling 2364).
+// Returns Map(store id -> Map(good -> { workshop: bool, bazaar: bool })), stores and goods in the order found.
+const hasOrders = (b) => Boolean(b.orders) && Object.keys(b.orders).length > 0;
+const AUTO_BAZAAR_GOODS = [...FOOD_GOODS, ...HOUSEHOLD_GOODS];
+// Version 10.0.1, Track S (ruling 2393): kept per world while nothing it reads has changed (autoFetchKey: the day, the roads, and every store's, workshop's,
+// bazaar's and cart's part in the rule), so the sheets and Advice, which ask for every row, do not work it out again; the answer is the same either way.
+const autoMemo = new WeakMap();   // world -> { key, map }
+function autoFetchKey(world, stores) {
+  const parts = [world.day, world.roadVersion];
+  for (const s of stores) {
+    const def = BUILDINGS[s.type];
+    parts.push(`s${s.id}${hasOrders(s) ? 'o' : ''}:${def.stores.map((g) => (heldOf(s, g) > 0 ? 1 : 0) + (storeAccepts(s, g) ? 0 : 2)).join('')}`);
+  }
+  for (const b of allBuildings(world)) {
+    const def = BUILDINGS[b.type];
+    if (def.consumes && def.produces) parts.push(`w${b.id}${isWorking(world, b) ? 1 : 0}${b.blocked === 'idle' ? 'i' : ''}`);
+    if (def.sells) parts.push(`b${b.id}${isWorking(world, b) ? 1 : 0}:${AUTO_BAZAAR_GOODS.map((g) => ((b.store[g] || 0) > 0 ? 1 : 0)).join('')}`);
+  }
+  for (const c of world.carts) if (holdsGoods(c)) parts.push(`c${c.from}:${c.good}`);
+  return parts.join('|');
+}
+export function autoFetchMap(world, stores = storesOf(world)) {
+  const key = autoFetchKey(world, stores), memo = autoMemo.get(world);
+  if (memo && memo.key === key) return memo.map;
+  const map = workAutoFetch(world, stores);
+  autoMemo.set(world, { key, map });
+  return map;
+}
+// The map worked out afresh, never kept (tests hold the kept one to it).
+export const autoFetchMapUncached = (world, stores = storesOf(world)) => workAutoFetch(world, stores);
+function workAutoFetch(world, stores) {
+  const out = new Map();
+  if (!stores.some((s) => !hasOrders(s))) return out;
+  const sourcing = new Set(world.carts.filter(holdsGoods).map((c) => `${c.from}:${c.good}`));
+  const consider = (consumer, reach, goods, who) => {
+    if (!goods.length) return;
+    const rm = roadReach(world, consumer, reach);   // the stores alone, as buildingsInReach would find them (cheaper than every building, every day)
+    const near = stores.filter((s) => reachDistance(rm, world, s) <= reach);
+    if (!near.length) return;
+    const inReach = new Set(near.map((s) => s.id));
+    for (const good of goods) {
+      if (!stores.some((o) => !inReach.has(o.id) && heldOf(o, good) > 0)) continue;   // held nowhere further away: nothing to fetch
+      for (const s of near) {
+        if (hasOrders(s) || !BUILDINGS[s.type].stores.includes(good) || !storeAccepts(s, good) || sourcing.has(`${s.id}:${good}`)) continue;
+        if (near.some((o) => o.id !== s.id && heldOf(o, good) > 0)) continue;           // another store in its reach has some: it is not going without
+        if (!out.has(s.id)) out.set(s.id, new Map());
+        const m = out.get(s.id);
+        if (!m.has(good)) m.set(good, { workshop: false, bazaar: false });
+        m.get(good)[who] = true;
+      }
+    }
+  };
+  for (const b of allBuildings(world)) {
+    const def = BUILDINGS[b.type];
+    if (!isWorking(world, b)) continue;
+    if (def.consumes && def.produces && b.blocked !== 'idle') consider(b, def.producerReach, [def.consumes], 'workshop');
+    if (def.sells) consider(b, def.supplyReach, def.sells.filter((g) => AUTO_BAZAAR_GOODS.includes(g) && !((b.store[g] || 0) > 0)), 'bazaar');
+  }
+  return out;
+}
+// Whether a store fetches a good for its neighbours in the map given.
+const autoFetches = (auto, b, good) => Boolean(auto && auto.has(b.id) && auto.get(b.id).has(good));
+// What a store can spare of a good for another store: above its own order, or above AUTO_FETCH.amount of a good it fetches for its neighbours.
+const spareOf = (auto, b, good) => (autoFetches(auto, b, good) ? Math.max(0, heldOf(b, good) - AUTO_FETCH.amount) : surplusOf(b, good));
+// The automatic orders of a store, in its own order of goods, as ordersOf gives a player's: [{ good, fetch, auto: true }] ([] for a store with orders).
+export function autoOrdersOf(world, b, auto = autoFetchMap(world)) {
+  if (!isStore(b) || !auto.has(b.id)) return [];
+  const m = auto.get(b.id);
+  return BUILDINGS[b.type].stores.filter((g) => m.has(g)).map((g) => ({ good: g, fetch: AUTO_FETCH.amount, auto: true }));
+}
+// For the store's sheet (rulings 2365, 2391): { who: 'workshops' | 'bazaars' | 'both', goods: [ids], fetching }, or null. fetching true: goods it holds less
+// than AUTO_FETCH.amount of, with a cart it can staff and a store that can spare each (its cart goes for them); else false: the goods it already holds
+// AUTO_FETCH.amount of or more (it keeps them for its neighbours). A good it is short of but cannot fetch (no cart, no source) is not named; null when none is.
+export function autoFetchFor(world, b, auto = autoFetchMap(world)) {
+  const all = autoOrdersOf(world, b, auto).map((o) => o.good);
+  if (!all.length) return null;
+  const staffed = canStaff(world, b), stores = storesOf(world);
+  const fetching = all.filter((g) => heldOf(b, g) < AUTO_FETCH.amount && staffed && findSource(world, b, g, stores, auto));
+  const kept = all.filter((g) => heldOf(b, g) >= AUTO_FETCH.amount);
+  const goods = fetching.length ? fetching : kept;
+  if (!goods.length) return null;
+  const m = auto.get(b.id), w = goods.some((g) => m.get(g).workshop), z = goods.some((g) => m.get(g).bazaar);
+  return { who: w && z ? 'both' : w ? 'workshops' : 'bazaars', goods, fetching: fetching.length > 0 };
+}
 
 // ── Commands ──
 
@@ -445,16 +544,18 @@ function advance(world, c, events) {
 // trip carries what is wanted, what the source can spare and what fits at home, up to CARTS.perTrip.
 // The order a free, staffed cart would serve now: { good, found, amount } or null. The day's dispatch and the order's status line both use it, so
 // the words name the order that really goes first.
-export function nextTrip(world, home, stores = storesOf(world)) {
+// Version 10.0.1, Track S (S.4, ruling 2362): a store with no orders of its own serves its automatic ones (autoOrdersOf) the same way.
+export function nextTrip(world, home, stores = storesOf(world), auto = autoFetchMap(world, stores)) {
   if (cartOf(world, home.id) || !canStaff(world, home)) return null;
   const room = roomOf(home, world);
   if (room < 1) return null;
-  const wanting = ordersOf(home)
+  const orders = ordersOf(home);
+  const wanting = (orders.length ? orders : autoOrdersOf(world, home, auto))
     .map((o) => ({ ...o, gap: o.fetch - heldOf(home, o.good) }))
     .filter((o) => o.gap > 0 && storeAccepts(home, o.good))
     .sort((p, q) => q.gap / q.fetch - p.gap / p.fetch);   // stable: ties keep the store's own order of goods
   for (const o of wanting) {
-    const found = findSource(world, home, o.good, stores);
+    const found = findSource(world, home, o.good, stores, auto);
     if (!found) continue;
     const amount = Math.min(CARTS.perTrip, o.gap, found.surplus, room);
     if (amount < 1) continue;
@@ -462,8 +563,8 @@ export function nextTrip(world, home, stores = storesOf(world)) {
   }
   return null;
 }
-function dispatch(world, home, stores) {
-  const trip = nextTrip(world, home, stores);
+function dispatch(world, home, stores, auto) {
+  const trip = nextTrip(world, home, stores, auto);
   if (!trip) return;
   const { good, found, amount } = trip;
   found.b.store[good] -= amount;
@@ -512,8 +613,11 @@ export function cartDay(world, events = null) {
     world.carts.push(...keep);
   }
   const stores = all;   // the carts' day adds or removes no building
-  if (!stores.some((b) => b.orders && Object.keys(b.orders).length)) return;
-  for (const home of stores) if (home.orders && Object.keys(home.orders).length) dispatch(world, home, stores);
+  // Version 10.0.1, Track S (S.4, ruling 2362): the day's automatic orders, worked out once (autoFetchMap), before any cart sets out today. Stores send
+  // their carts in the stores' order as before, the automatic ones among them; a cart that sets out drains its source for the stores after it.
+  const auto = autoFetchMap(world, stores);
+  if (!auto.size && !stores.some(hasOrders)) return;
+  for (const home of stores) if (hasOrders(home) || auto.has(home.id)) dispatch(world, home, stores, auto);
 }
 
 // ── Homes waiting on a good a far store holds ──
@@ -524,6 +628,8 @@ export function cartDay(world, events = null) {
 // { good, homes: [ids], count, far: the store holding it nearest to a bazaar that reaches them, len: road tiles from that bazaar, bazaar: its id }.
 // Only the household goods are looked at (pottery, beer, linen, jewellery): the foods are eaten from grain and figs the farms put in granaries
 // beside the homes' bazaars, and a missing food is a farm's problem, not a cart's.
+// Version 10.0.1, Track S (S.4, ruling 2365): a bazaar with a store in its supply reach that fetches the good for its neighbours (autoFetchMap) counts
+// as supplied: the cart is already on it, so the tip does not ask for an order the store fills by itself.
 export function farGoodTip(world) {
   const waiting = new Map();   // good -> homes
   for (const h of housesOf(world)) {
@@ -540,13 +646,14 @@ export function farGoodTip(world) {
   if (!waiting.size) return null;
   const bazaars = bazaarsByHouse(world);
   const stores = storesOf(world);
+  const auto = autoFetchMap(world, stores);   // Version 10.0.1, Track S (S.4, ruling 2365): a store in the bazaar's reach fetching the good covers it
   const reachOf = new Map();   // bazaar id -> its supply reach map
   const supplied = (bz, g) => {
     if (heldOf(bz, g) > 0) return true;
     const def = BUILDINGS[bz.type];
     if (!reachOf.has(bz.id)) reachOf.set(bz.id, roadReach(world, bz, def.supplyReach));
     const rm = reachOf.get(bz.id);
-    return stores.some((s) => BUILDINGS[s.type].stores.includes(g) && heldOf(s, g) > 0 && reachDistance(rm, world, s) <= def.supplyReach);
+    return stores.some((s) => BUILDINGS[s.type].stores.includes(g) && (heldOf(s, g) > 0 || autoFetches(auto, s, g)) && reachDistance(rm, world, s) <= def.supplyReach);
   };
   let best = null;
   for (const g of HOUSEHOLD_GOODS) {

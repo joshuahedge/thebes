@@ -14,7 +14,7 @@ import { isWorking } from '../../sim/labour.js';
 import { horseGrainOf, grainHeld, isMixed } from '../../sim/armies.js';
 import { ruleFactor, ruleUnitPay } from '../../sim/rules.js';   // Version 9.3 (Track U): the heir's factor with the decree's
 import { el } from '../components.js';
-import { S46_ARMY_TEXT as A, DANGER_UI_TEXT as D } from '../text.js';
+import { S46_ARMY_TEXT as A, DANGER_UI_TEXT as D, V1001S_TEXT } from '../text.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
@@ -46,7 +46,7 @@ function unitRows(world, b) {
   const out = [];
   if (b.type !== 'barracks') {            // the barracks' own rows are Stage 3's (dangerSheets.js); it gets the away line only
     const awayN = m.away.reduce((s, g) => s + g.n, 0);
-    out.push(row(A.unitsLabel[m.kind], A.ofCap(m.n, m.cap, awayN)), row(D.patrol, D.tiles(UNIT_TYPES[m.kind].patrol)));
+    out.push(row(A.unitsLabel[m.kind], A.ofCap(m.n, m.cap, awayN)), row(D.patrol, V1001S_TEXT.anywhere));   // Version 10.0.1, Track S (ruling 2355): no patrol radius
     if (m.status === 'full') out.push(line(A.full(m.kind, m.n, m.cap, awayN)));
     else if (m.status === 'burning') out.push(line(D.notTrainingBurning));
     else if (m.status === 'paused') out.push(line(D.notTrainingPaused));

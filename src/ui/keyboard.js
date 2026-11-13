@@ -2,6 +2,7 @@
 // settings (WCAG 2.1.4); Esc, Enter and Ctrl/Cmd+Z always work.
 import { KEYS, PAN_STEP_PX, ZOOM_STEP } from '../data/ui.js';
 import { panBy } from '../render/camera.js';
+import { effectiveKeys, holds, slotOf } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2347): the keys as the player set them
 
 const ALWAYS = new Set(['back', 'confirm', 'undo']);
 
@@ -20,15 +21,22 @@ const inScrollingPanel = (node) => Boolean(node && typeof node.closest === 'func
 const isActivatable = (node) => Boolean(node && (node.tagName === 'BUTTON' || node.tagName === 'SUMMARY' || (node.tagName === 'A' && node.hasAttribute('href'))
   || (node.getAttribute && node.getAttribute('role') === 'button')));
 
-export function matchKey(ev, names = Object.keys(KEYS)) {
-  if (ev.altKey) return null;
+// Version 10.0.1 (Track U, ruling 2347): `keys` is the map in effect (the defaults when none is given). matchKeys lists every action the key could be (the tab keys and the card keys
+// share digits), matchKey the first.
+export function matchKeys(ev, names = null, keys = KEYS) {
+  if (ev.altKey) return [];
   const mod = Boolean(ev.ctrlKey || ev.metaKey);
-  for (const name of names) {
-    if (!KEYS[name].includes(ev.key)) continue;
-    if (name === 'undo') { if (mod && !ev.shiftKey) return name; continue; }   // Ctrl+Shift+Z is redo, not undo
-    return mod ? null : name;          // Ctrl+R, Cmd+M and friends stay the browser's
+  const out = [];
+  for (const name of names || Object.keys(keys)) {
+    if (!keys[name] || !holds(keys[name], ev.key)) continue;
+    if (name === 'undo') { if (mod && !ev.shiftKey) out.push(name); continue; }   // Ctrl+Shift+Z is redo, not undo
+    if (!mod) out.push(name);          // Ctrl+R, Cmd+M and friends stay the browser's
   }
-  return null;
+  return out;
+}
+export function matchKey(ev, names = null, keys = KEYS) {
+  const all = matchKeys(ev, names, keys);
+  return all.length ? all[0] : null;
 }
 
 // hidden(): true while the interface is hidden (screenshot mode, spec 6.4); then only Esc (which brings it back) and the
@@ -49,7 +57,8 @@ function noteKeyboard(doc, win) {
 // pending(target) (ruling 400): true while a placement waits for its Enter and the focused element should not keep that Enter. A
 // focused card or corner button used to keep it (a click on the map leaves the card that started the tool focused), so Enter ran the
 // card again and wiped the road just drawn instead of laying it.
-export function createKeyboard({ target = window, settings = null, cam, cameraControl, actions = {}, hidden = () => false, pending = () => false }) {
+// cardsOpen() (Version 10.0.1, Track U, ruling 2343): true while a tab's cards are open, so a card key picks that card instead of opening a tab.
+export function createKeyboard({ target = window, settings = null, cam, cameraControl, actions = {}, hidden = () => false, pending = () => false, cardsOpen = () => false }) {
   const run = (fn, ...args) => { if (typeof fn === 'function') fn(...args); };
   // Version 10.0 (Track F, ruling 2110): the pan holds the map in view; the view is twice the camera control's centre (a test's bare control gives none: the old clamp).
   const viewOf = () => { const c = cameraControl && typeof cameraControl.centre === 'function' ? cameraControl.centre() : null; return c ? { width: 2 * c.x, height: 2 * c.y } : null; };
@@ -60,7 +69,10 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
   const markedFine = noteKeyboard(doc, doc && doc.defaultView);
   const onKey = (ev) => {
     if (isTyping(ev.target)) return;
-    const name = matchKey(ev);
+    const keys = effectiveKeys(settings && typeof settings.get === 'function' ? settings.get().keyBindings : null);
+    const all = matchKeys(ev, null, keys);
+    // Version 10.0.1 (Track U, ruling 2343): with a tab's cards open a card key picks its card; otherwise the tab key opens its tab. A key that is only a card key does nothing without cards.
+    const name = all.includes('card') && cardsOpen() ? 'card' : (all.find((n) => n !== 'card') || null);
     if (!name) return;
     if (ev.isTrusted && doc && doc.body && doc.body.dataset.keyboard !== 'used') doc.body.dataset.keyboard = 'used';
     if (hidden() && !WHILE_HIDDEN.has(name)) return;
@@ -71,7 +83,7 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
     if (name === 'remove' && hasOwnKeys(ev.target)) return;                              // Version 7.0 (Track P): a list or a slider may use Delete for itself
     if (ev.repeat && !viewKey) return;                                                  // held keys fire toggles once; the view keeps moving
     const placing = name === 'confirm' && pending(ev.target);                             // a placement waits: Enter lays it, whatever has focus
-    if (isActivatable(ev.target) && (name === 'confirm' || name === 'pause') && !placing) return;   // leave the button its Enter and Space
+    if (isActivatable(ev.target) && (ev.key === ' ' || ev.key === 'Enter') && (name === 'confirm' || name === 'pause') && !placing) return;   // leave the button its Enter and Space (Version 10.0.1, ruling 2415: by the key, so a rebound P or C still works with a button focused)
     if (!ALWAYS.has(name) && settings && settings.get().keyboardShortcuts === false) return;
     switch (name) {
       case 'panLeft': pan(PAN_STEP_PX, 0); break;
@@ -80,7 +92,8 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
       case 'panDown': pan(0, -PAN_STEP_PX); break;
       case 'zoomIn': zoom(ZOOM_STEP); break;
       case 'zoomOut': zoom(1 / ZOOM_STEP); break;
-      case 'category': run(actions.category, KEYS.category.indexOf(ev.key)); break;
+      case 'category': run(actions.category, slotOf(keys.category, ev.key)); break;
+      case 'card': run(actions.card, slotOf(keys.card, ev.key)); break;
       default: run(actions[name]); break;
     }
     ev.preventDefault();

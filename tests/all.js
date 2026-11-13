@@ -187,3 +187,5 @@ import './v93/all.js';
 import './v931/all.js';
 // Version 10.0 ("A living Nile"): one aggregator (tests/v100/all.js); nothing is added here.
 import './v100/all.js';
+// Version 10.0.1 ("Your feedback"): one aggregator (tests/v1001/all.js); nothing is added here.
+import './v1001/all.js';

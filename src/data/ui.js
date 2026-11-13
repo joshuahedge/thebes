@@ -72,6 +72,8 @@ export const KEYS = {
   zoomIn: ['+', '='],
   zoomOut: ['-', '_'],
   category: ['1', '2', '3', '4', '5', '6', '7'],
+  // Version 10.0.1 (Track U, ruling 2343): while a tab's cards are open, these pick its cards in order (the same digits by default; the tab keys win while no cards are open).
+  card: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
   panLeft: ['ArrowLeft', 'a', 'A'],
   panRight: ['ArrowRight', 'd', 'D'],
   panUp: ['ArrowUp', 'w', 'W'],
@@ -119,7 +121,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '10.0';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '10.0.1';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

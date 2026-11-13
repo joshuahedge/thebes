@@ -25,7 +25,7 @@ import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
 import { armyRowsModel, unitPayNow } from './s46/armies.js';
-import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT, S47_PRESSURE_TEXT, B1_TEXT } from './text.js';
+import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT, S47_PRESSURE_TEXT, B1_TEXT, V1001S_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -158,7 +158,7 @@ function towerRows(world, b) {
 function barracksRows(world, b) {
   const m = armyRowsModel(world, b);
   const awayN = m.away.reduce((s, g) => s + g.n, 0);
-  const out = [row(D.soldiers, S46_ARMY_TEXT.ofCap(m.n, m.cap, awayN)), row(D.patrol, D.tiles(DEFENCE.patrol))];
+  const out = [row(D.soldiers, S46_ARMY_TEXT.ofCap(m.n, m.cap, awayN)), row(D.patrol, V1001S_TEXT.anywhere)];   // Version 10.0.1, Track S (ruling 2355): no patrol radius
   if (m.status === 'full') out.push(line(S46_ARMY_TEXT.full('soldier', m.n, m.cap, awayN)));   // a full barracks trains none
   else if (m.status === 'burning') out.push(line(D.notTrainingBurning));
   else if (m.status === 'paused') out.push(line(D.notTrainingPaused));

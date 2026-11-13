@@ -25,7 +25,7 @@
 import { decreeEnded, endedFail } from './rules.js';
 import { DEFENCE } from '../data/raids.js';
 import { CHIEFTAIN } from '../data/hazards.js';
-import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, SHUNS, matchup, towerVs } from '../data/armies.js';
+import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, SHUNS, SORTIE, matchup, towerVs } from '../data/armies.js';
 import { panicDay, elephantFell } from './elephants.js';
 import { allBuildings, removeBuilding } from './world.js';
 import { isWorking, staffRatio } from './labour.js';
@@ -48,6 +48,59 @@ function nearest(from, list) {
   for (const u of list) {
     const d = dist(from, u);
     if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
+
+// Version 10.0.1, Track S (rulings 2372-2374): the bands of the raid under way that threaten the city, most threatening first: a band striking, then one
+// attacking within SORTIE.cityReach tiles of the footprint of the building it is after (of any building while it has none in view), the nearer first,
+// ties to band 0. A band falling back (retreat) or leaving after its strikes threatens nothing more; with none, units walk home and regroup there.
+const toFootprint = (p, b) => Math.hypot(Math.max(b.x - p.x, 0, p.x - (b.x + b.w)), Math.max(b.y - p.y, 0, p.y - (b.y + b.d)));
+// With a unit (`unit`), a band attacking a target also threatens once the unit, setting out now, would reach that target no sooner than SORTIE.lead days
+// before the band does (the band at its slowest raider's pace, straight lines): so a unit far from home leaves in time to meet the band at the target, and none
+// marches to the map's edge to meet a whole band alone.
+export function threatBands(world, a, unit = null) {
+  const live = [0, 1].filter((k) => (k === 0 || a.second) && a.raiders.some((r) => alive(r) && (r.band ? 1 : 0) === k));
+  const near = [];
+  let blds = null;
+  for (const k of live) {
+    const rec = k ? a.second : a;
+    if (rec.phase === 'retreat' || rec.phase === 'leave') continue;
+    // Version 10.0.1, Track S (ruling 2394): a unit already out keeps the band it went for while that band is still attacking or striking (unit.chase), so
+    // a bend in the band's way or a second band about as near does not turn it about.
+    if (unit && unit.task === 'out' && unit.chase === k) { near.push({ k, d: -2 }); continue; }
+    if (rec.phase === 'strike') { near.push({ k, d: -1 }); continue; }
+    // Ruling 2420 (D1-B): a live raider of the band within 10.0's old reach of the unit's own building threatens it at once, the nearer to home first.
+    if (unit) {
+      const hb = world.buildings[unit.barracks], reachHome = SORTIE.home[kindOf(unit)] || SORTIE.home.soldier;
+      if (hb) {
+        const hc = centre(hb);
+        let hd = Infinity;
+        for (const r of a.raiders) if (alive(r) && (r.band ? 1 : 0) === k) hd = Math.min(hd, dist(hc, r));
+        if (hd <= reachHome) { near.push({ k, d: -1 + hd / 1000 }); continue; }
+      }
+    }
+    const target = rec.targetId ? world.buildings[rec.targetId] : null;
+    if (!target && !blds) blds = allBuildings(world).filter((b) => b.type !== 'rubble');
+    const goals = target ? [target] : blds;
+    let d = Infinity, pace = Infinity;
+    for (const r of a.raiders) {
+      if (!alive(r) || (r.band ? 1 : 0) !== k) continue;
+      pace = Math.min(pace, enemyDef(r).speed);
+      for (const b of goals) { const e = toFootprint(r, b); if (e < d) d = e; }
+    }
+    const due = target && unit ? toFootprint(unit, target) / unitDef(unit).speed - d / pace : -Infinity;
+    if (d <= SORTIE.cityReach || due >= -SORTIE.lead) near.push({ k, d });
+  }
+  return near.sort((p, q) => p.d - q.d || p.k - q.k).map((t) => t.k);
+}
+
+// Version 10.0.1, Track S (S.1, ruling 2355): the raider a unit goes out to: the nearest to the unit anywhere on the map, ties to the lower id.
+function nearestRaider(from, list) {
+  let best = null, bd = Infinity;
+  for (const r of list) {
+    const d = dist(from, r);
+    if (d < bd || (d === bd && best && r.id < best.id)) { bd = d; best = r; }
   }
   return best;
 }
@@ -157,6 +210,7 @@ function homeOf(world, s) {
 }
 
 function walkHome(world, s) {
+  delete s.chase;   // Version 10.0.1 (ruling 2394): going home, it keeps no band
   const home = homeOf(world, s);
   const speed = unitDef(s).speed;
   if (kindOf(s) === 'chariot') driveTowards(world, s, home, speed);
@@ -210,10 +264,10 @@ function breakTile(world, i) {
   if (id && world.buildings[id] && world.buildings[id].type === 'tower') removeBuilding(world, id);
 }
 
-// An archer's post (ruling 380): the standing wall tile (or a tower's tile) nearest the archer, within its patrol of its building,
-// from which the foe is in range but not beside; posts other archers took today are passed over while another is free. null when
-// none (the archer then closes to its range in the open).
-function archerPost(world, u, foe, home, taken) {
+// An archer's post (ruling 380): the standing wall tile (or a tower's tile) nearest the archer from which the foe is in range but not
+// beside; posts other archers took today are passed over while another is free. null when none (the archer then closes to its range in
+// the open). Version 10.0.1, Track S (S.1, ruling 2355): any such post, not only one within a patrol of its building (units have none now).
+function archerPost(world, u, foe, taken) {
   const def = UNIT_TYPES.archer, n = world.size, r = Math.ceil(def.range);
   let best = null, bd = Infinity, free = null, fd = Infinity;
   for (let y = Math.floor(foe.y) - r; y <= Math.floor(foe.y) + r; y++) for (let x = Math.floor(foe.x) - r; x <= Math.floor(foe.x) + r; x++) {
@@ -222,7 +276,7 @@ function archerPost(world, u, foe, home, taken) {
     const tower = world.occ[i] && world.buildings[world.occ[i]] && world.buildings[world.occ[i]].type === 'tower';
     if (!(world.wall[i] > 0) && !tower) continue;
     const pt = { x: x + 0.5, y: y + 0.5 }, df = dist(pt, foe);
-    if (df > def.range || df <= BESIDE + 0.25 || dist(pt, home) > def.patrol) continue;
+    if (df > def.range || df <= BESIDE + 0.25) continue;
     const d = dist(pt, u);
     if (d < bd) { bd = d; best = pt; }
     if (!taken.has(i) && d < fd) { fd = d; free = { ...pt, i }; }
@@ -234,8 +288,8 @@ function archerPost(world, u, foe, home, taken) {
 // One day of fighting while a raid is under way (spec 4.13, rulings 340-341, 380-389), in this order:
 //   towers: each working tower deals DEFENCE.towerDamage x its staffing ratio to the nearest raider within
 //     DEFENCE.towerRange of its centre, and the shot is kept in raid.active.shots ({ from, to, by: 'tower' } points) for the arrows;
-//   units: each unit with a raider within its kind's patrol of its building goes out ('out') to the nearest one; with none in its
-//     patrol it walks home. A soldier beside it deals its damage, else walks up to its speed towards it. An archer makes for its post
+//   units: each unit goes out ('out') to a raider beside it, else to the nearest raider of the band that threatens the city most, anywhere on the map
+//     (Version 10.0.1, Track S, rulings 2355, 2372: threatBands; it was the nearest within its kind's patrol of its building); with none, it walks home. A soldier beside it deals its damage, else walks up to its speed towards it. An archer makes for its post
 //     (archerPost) or, with none, for a spot at its range, then shoots the foe if it is within range (a shot by 'archer'). A chariot
 //     beside it deals its damage, else drives towards it (it cannot pass a wall, gate or water);
 //   raiders: each raider beside a unit deals its kind's damage to the nearest. Otherwise an enemy archer shoots the nearest tower
@@ -278,14 +332,38 @@ export function combatDay(world, events = null) {
   let fighting = false;
   const fought = new Set();
   const posts = new Set();
+  // Version 10.0.1, Track S (ruling 2395): a soldier or archer goes only to a band it can walk to (stepFoot's own rule: a straight line over passable ground,
+  // else walkPath round the water and hills); one it cannot reach is passed over for the next, and with none it goes home. Each unit's answer for a band is
+  // worked out once a day (reach). Chariots drive straight and stop at what bars them, as before. unit.chase keeps the band it went for (ruling 2394).
+  const reach = new Map();
+  const reachable = (s, r, k) => {
+    if (kindOf(s) === 'chariot') return true;
+    const key = `${s.id}:${k}`;
+    if (!reach.has(key)) {
+      const here = tileOf(world, s), there = tileOf(world, r);
+      reach.set(key, here < 0 || there < 0 || !passable(world, here) || clearLine(world, s, r, (i) => passable(world, i)) || walkPath(world, s, r) !== null);
+    }
+    return reach.get(key);
+  };
+  const threatFoe = (s, mine) => {
+    for (const k of threatBands(world, a, s)) {
+      const r = nearestRaider(s, a.raiders.filter((u) => (u.band ? 1 : 0) === k && mine(u)));
+      if (r && reachable(s, r, k)) { s.chase = k; return r; }
+    }
+    delete s.chase;
+    return null;
+  };
   for (const s of world.soldiers) {
-    const home = homeOf(world, s), def = unitDef(s), kind = kindOf(s), shuns = SHUNS[kind] || [];
+    const def = unitDef(s), kind = kindOf(s), shuns = SHUNS[kind] || [];
     // Version 8.4, Track E (ruling 1501): a kind never goes out to the enemies it shuns (your chariots to a war elephant): the nearest other one, or none.
-    const foe = nearest(s, a.raiders.filter((r) => alive(r) && dist(home, r) <= def.patrol && !shuns.includes(enemyOf(r))));
+    // Version 10.0.1, Track S (S.1, ruling 2355): the nearest raider anywhere on the map (no patrol of home any more); with none left, home.
+    // Version 10.0.1, Track S (rulings 2372-2374): a raider beside the unit first; else the nearest raider of the band that threatens the city most (threatBands).
+    const mine = (r) => alive(r) && !shuns.includes(enemyOf(r));
+    const foe = nearestRaider(s, a.raiders.filter((r) => mine(r) && dist(s, r) <= BESIDE)) || threatFoe(s, mine);
     if (!foe) { if (s.task !== 'wait') walkHome(world, s); continue; }
     s.task = 'out';
     if (kind === 'archer') {
-      const post = archerPost(world, s, foe, home, posts);
+      const post = archerPost(world, s, foe, posts);
       if (post) stepFoot(world, s, post, def.speed);
       else if (dist(s, foe) > def.range) stepFoot(world, s, foe, def.speed, def.range - 0.2);
       if (dist(s, foe) <= def.range) {

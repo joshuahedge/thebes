@@ -49,9 +49,13 @@ export const DEFAULT_SETTINGS = {
   motionRig: false,
   // Version 10.0 (final review D-2, ruling 2322): true once a stored 9.x textSize of 100 has been turned into Auto (and from the first time the player picks a size), so a later pick of 100 is kept.
   textSizeAutoOffered: false,
+  // Version 10.0.1 (Track U, ruling 2347): the player's key overrides, { action: [keys] }; only what differs from KEYS (src/data/ui.js) is stored, and an older save with none loads the defaults.
+  keyBindings: {},
 };
 
 const isBool = (v) => typeof v === 'boolean';
+const isKeyBindings = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v)
+  && Object.values(v).every((list) => Array.isArray(list) && list.length <= 9 && list.every((k) => typeof k === 'string' && k.length > 0 && k.length <= 16));
 const VALID = {
   sound: isBool, vibration: isBool, leftHanded: isBool, keyboardShortcuts: isBool,
   textSize: (v) => v === null || [100, 125, 150, 200].includes(v),   // Version 9.2 (Track A, ruling 1828): 200% is the fourth step; Version 10.0: null is Auto
@@ -72,9 +76,10 @@ const VALID = {
   effectsVolume: (v) => MUSIC_VOLUMES.includes(v),
   motionRig: isBool,
   textSizeAutoOffered: isBool,
+  keyBindings: isKeyBindings,
 };
-// Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
-const copy = (v) => (Array.isArray(v) ? v.slice() : v);
+// Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy (keyBindings: each list too).
+const copy = (v) => (Array.isArray(v) ? v.slice() : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, list]) => [k, Array.isArray(list) ? list.slice() : list])) : v);
 
 // Version 10.0 (Track D, ruling 2120): the text size a desktop gets when its player has made no choice. Only a pointer-primary device (a fine pointer and no coarse one
 // anywhere) is scaled: 1.25 from 1600 px wide, 1.5 from 2200; a phone or tablet (any coarse pointer) and a narrower window stay at 1, so the phone layouts never change.
@@ -164,7 +169,7 @@ export function createSettings({
   }
 
   let migratedTextSize = false;
-  let value = { ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), adviceSeen: DEFAULT_SETTINGS.adviceSeen.slice(), ...load() };
+  let value = { ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), adviceSeen: DEFAULT_SETTINGS.adviceSeen.slice(), keyBindings: {}, ...load() };
 
   function save() {
     try { if (storage) storage.setItem(key, JSON.stringify(value)); } catch (e) { /* full or blocked storage: the setting still applies this session */ }

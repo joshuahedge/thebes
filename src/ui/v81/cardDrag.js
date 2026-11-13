@@ -13,7 +13,7 @@ export const CARD_DRAG_MOUSE_PX = 6;     // a mouse has no scroll to tell apart,
 // (the dock, the panel, the rail) is read once as the drag starts, because the phone's tray gives way to the confirm bar at once and the place it was is where "put it back" lies. The confirm bar is not a
 // cancel place, and neither are the corner buttons: both move under the finger as the ghost's state changes.
 const CHROME = ['#topbar', '#under-bar', '#sheet:not([hidden])', '#dialog:not([hidden])'];
-const TRAY = ['#dock', '#panel', '#rail'];
+const TRAY = ['#dock', '#dock .tray', '#panel', '#rail'];   // Version 10.0.1 (Track U, ruling 2353): the phone's open tray stands above the dock's strip now, so its own box counts too
 
 const pointerKind = (ev) => (ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse');
 

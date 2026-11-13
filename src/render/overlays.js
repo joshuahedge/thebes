@@ -534,9 +534,10 @@ export function drawDesirabilityTint(g, tiles) {
   hatchTiles(g, worse, UI.warn, { fill: 0.1, line: 0.85 });   // Version 8.0 (ruling 1136): amber hatching, not coral. The friend read a granary's coral hatching (the homes it would make less pleasant) as "should not be here"; the building is allowed, so it is a caution
 }
 
-// Stage 3 (Track D, spec 4.5, 6.3): a tower's range and a barracks' patrol are straight-line tiles from its centre, not road
-// reach: the tiles whose centres lie within that distance, highlighted when the building is selected.
-export const RANGE_OF = { tower: DEFENCE.towerRange, barracks: DEFENCE.patrol };
+// Stage 3 (Track D, spec 4.5, 6.3): a tower's range is straight-line tiles from its centre, not road reach: the tiles whose centres
+// lie within that distance, highlighted when the building is selected. Version 10.0.1, Track S (ruling 2355): the barracks has no patrol
+// to draw any more (its soldiers go to the nearest raider anywhere), so it is not here: it tints as any other building does.
+export const RANGE_OF = { tower: DEFENCE.towerRange };
 export function rangeTiles(world, b) {
   const r = RANGE_OF[b.type];
   if (!r) return [];

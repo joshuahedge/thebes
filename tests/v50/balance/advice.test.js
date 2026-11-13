@@ -109,6 +109,8 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['workers_short', null, 49, 24.5], ['home_need', 'pottery', 2, 13], ['crime', null, 6, 12], ['home_need', 'water', 6, 12]]);   // 9.2 balance (ruling 1855): 49 unfilled jobs (Track S alone 39; the court's gate, Track Q). Was water 6 (12), workers_short 22 (11), raid_towers 1 (10), crime 3 (6)
+    // 10.0.1 (ruling 2369): 48 unfilled jobs, water for 6 homes, the 1 tower the next raid lacks and illness in 3 homes (9.2: 49 jobs, pottery 2, crime 6, water 6): the
+    // raids go differently (units go out anywhere, 1.5x pace) and the stores fetch for their neighbours, so the pottery reaches its homes.
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['crime', null, 6, 12], ['home_need', 'water', 6, 12], ['workers_short', null, 23, 11.5], ['raid_towers', null, 1, 10]]);   // ruling 2397: after the review fixes (before: 48 jobs first, illness 3 fourth)   // 9.2 balance (ruling 1855): 49 unfilled jobs (Track S alone 39; the court's gate, Track Q). Was water 6 (12), workers_short 22 (11), raid_towers 1 (10), crime 3 (6)
   });
 });

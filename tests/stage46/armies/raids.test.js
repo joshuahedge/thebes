@@ -118,9 +118,9 @@ describe('s46 armies a band\'s pace and the walls', () => {
     const fast = city(), slow = city();
     const a = arriveWith(fast, { foot: 0, archer: 0, chariot: 2, boat: 0 });
     const b = arriveWith(slow, { foot: 1, archer: 0, chariot: 1, boat: 0 });
-    fast.day += 1; raidDay(fast, []);
-    slow.day += 1; raidDay(slow, []);
-    expect([EAST.x - a.x, EAST.x - b.x]).toEqual([ENEMY_TYPES.chariot.speed, ENEMY_TYPES.foot.speed]);
+    // Version 10.0.1 (ruling 2357): two days, so a pace of 1.5 shows as 3 tiles (one step, then two).
+    for (let d = 0; d < 2; d++) { fast.day += 1; raidDay(fast, []); slow.day += 1; raidDay(slow, []); }
+    expect([EAST.x - a.x, EAST.x - b.x]).toEqual([2 * ENEMY_TYPES.chariot.speed, 2 * ENEMY_TYPES.foot.speed]);
   });
   it('turns back a band that cannot break the wall in its way, and has one that can stop and hit it', () => {
     const wallUp = (w) => { for (let y = 0; y < w.size; y++) w.wall[idx(w.size, 25, y)] = 40; w.wallVersion++; };

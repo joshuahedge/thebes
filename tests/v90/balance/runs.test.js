@@ -30,10 +30,13 @@ describe('v90 balance T1 the Builder\'s great-work run', () => {
     // 9.2 balance (rulings 1857, 1861): T1 was MET on 9.1 (won on day 6,235, 713 the lowest, High 3 and Normal 3). Track S's branch measured it not won (-51,278): the grand
     // years' advice had put a jeweller on the temple's footprint, so the temple was never founded (fixed in greatWorkRun.js foundTemple, ruling 1857). With the court's letters
     // worth twice the favour (ruling 1865) the run is not won by day 7,200 (T1 NOT MET; the Steady's 6,388), its treasury never below 1,587, High 1 and Normal 1 (ruling 1867).
-    expect(r.won).toBe(null);
-    expect(Math.round(r.lowestGold)).toBe(1587);
+    // 10.0.1 (rulings 2369, 2374, 2396, 2420): the history of T1's pins: won on day 5,942 (never under 539) after 2374; on day 6,094 with -2,454 at its lowest after the review
+    // fixes (2396); and now, with the home reach, T1 is MET: won on day 6,043, never under 1,700, every raid beaten, High 1 and Normal 1 (the 9.2 pin was 1,587).
+    expect(r.won && r.won.day).toBe(6043);
+    // 10.0.1 (ruling 2420): and the treasury never under 1,700 with the home reach (-2,454 before it): "never in debt" met again.
+    expect(Math.round(r.lowestGold)).toBe(1700);
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
-    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([1, 1]);
+    expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([1, 1]);   // ruling 2420: High 1 and Normal 1 with the home reach (3 and 2 before it)
   });
 });
 
@@ -50,14 +53,16 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
     const late = lateDangerRun({ heir: 'unconquered', adapt: true });
     expect([late.rec.raids.length, lostOf(late.rec)]).toEqual([10, []]);
     const s10 = greatDangerRun(10, { habits: false, heir: 'unconquered', adapt: true });
-    expect([s10.raids, s10.raidsLost, s10.r.won]).toEqual([11, 0, null]);   // the Steady's: 11, 0, not won (9.2 balance, ruling 1866). 9.2 balance (ruling 1858): 11 raids, none lost (Track S's 30 days made it 12)
+    expect([s10.raids, s10.raidsLost, s10.r.won && s10.r.won.day]).toEqual([11, 0, 6004]);   // ruling 2397: the Unconquered's seed-10 run is won on day 6,004 now (was not won)   // the Steady's: 11, 0, not won (9.2 balance, ruling 1866). 9.2 balance (ruling 1858): 11 raids, none lost (Track S's 30 days made it 12)
   });
   // T3 asks that no heir lose a raid the Steady beats. On seed 5 the Steady beats all 13 and wins on day 6,927. 9.0 (ruling 1626): the Unconquered lost the
   // last seven (indexes 6-12), its treasury gone (-28,072). 9.1 (ruling 1715): its player meets each warned raid with towers where each band strikes first
   // from the capital years on (the late run's rule), and beats all 13 (MET); the run is not won and its treasury still goes below 0 in the great-work years.
   it('on seed 5 with the player\'s habits: beats all 13 raids, as the Steady does (T3 met)', () => {
     const s5 = greatDangerRun(5, { habits: true, heir: 'unconquered', adapt: true });
-    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
-    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -4735]);   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
+    // 10.0.1 (rulings 2370, 2374, 2397): T3 is MET: the Unconquered beats all 13 raids as the Steady does (after 2374 it lost the last two, indexes 11 and 12, and before the
+    // balance fix it beat all 13 and the Steady lost one).
+    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);   // ruling 2397: T3 MET again after the review fixes (before them it lost raids 11 and 12)    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
+    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -14455]);   // 10.0.1 (ruling 2420): -14,455 with the home reach (-25,036 before it). Rulings 2369, 2374, 2397: -25,036 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
   });
 });

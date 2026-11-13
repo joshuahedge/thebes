@@ -24,7 +24,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     shownKey = key;
     shown = next;
     tabButtons = shown.map((c) => {
-      const b = button(CATEGORY_NAMES[c.id], { class: 'tab', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false', onClick: () => store.set({ category: c.id }) });
+      const b = button(CATEGORY_NAMES[c.id], { class: 'tab', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false', onClick: () => store.set({ category: c.id, cardKeys: true }) });   // Version 10.0.1 (Track U, ruling 2343): choosing a tab opens its cards for the card keys (Esc lets go)
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
       b.prepend(categoryIcon(CATEGORY_ICONS[c.id]));   // Version 10.0 (Track Q, ruling 2141): the drawn icon beside the tab's word
       return b;

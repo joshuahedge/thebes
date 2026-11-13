@@ -15,11 +15,11 @@ import { BUILDINGS } from '../../data/buildings.js';
 import { capacityOf } from '../../sim/rules.js';   // Version 9.3 (Track U): a store's room as the sim counts it (Low Nile's granary holds double)
 import { CARTS } from '../../data/s47.js';
 import { FOOD_GOODS } from '../../data/goods.js';
-import { cartsUnlocked, isStore, ordersOf, setFetch, clearFetch, setSource, fetchPreview, fetchStatus, fetchSourceId, holderOf, orderSource, storesOf } from '../../sim/carts.js';
+import { cartsUnlocked, isStore, ordersOf, setFetch, clearFetch, setSource, fetchPreview, fetchStatus, fetchSourceId, holderOf, orderSource, storesOf, autoFetchFor, autoOrdersOf } from '../../sim/carts.js';
 import { NEED_ICONS } from '../../render/layers.js';
 import { iconPath } from '../../render/spots.js';
 import { el, button } from '../components.js';
-import { S47_CARTS_TEXT as W, KEEP_TEXT as K, goodName } from '../text.js';
+import { S47_CARTS_TEXT as W, KEEP_TEXT as K, goodName, V1001S_TEXT } from '../text.js';
 
 const stepOf = CARTS.perTrip;
 // The stepper's moves: one cart load (20) at a time up to 200, then 100 at a time up to the store's capacity (a store holds hundreds); never below one load.
@@ -88,9 +88,10 @@ export function createCartsUi(ctx) {
     const amount = order ? order.fetch : draftOf(b, good);
     const name = goodName(good);
     const on = Boolean(order);
-    const sw = el('button', { type: 'button', role: 'switch', class: 'switch fetch-switch', 'aria-checked': String(on), 'aria-label': W.setLabel(good), dataset: { good } }, [
+    const neighbours = !on && !ordersOf(b).length && autoOrdersOf(world, b).some((o) => o.good === good);
+    const sw =el('button', { type: 'button', role: 'switch', class: 'switch fetch-switch', 'aria-checked': String(on), 'aria-label': W.setLabel(good), dataset: { good } }, [
       el('span', { class: 'good' }, [goodIcon(good), el('span', { class: 'name', text: name })]),
-      el('span', { class: 'state small' }, [el('span', { class: 'word', text: W.switchWord }), ' ', el('span', { class: 'onoff', text: on ? W.on : W.off })]),
+      el('span', { class: 'state small' }, [el('span', { class: 'word', text: W.switchWord }), ' ', el('span', { class: 'onoff', text: on ? W.on : (neighbours ? V1001S_TEXT.autoState : W.off) })]),   // ruling 2421: a good the store fetches for its neighbours is not "Off"
     ]);
     sw.addEventListener('click', () => {
       if (on) {
@@ -172,6 +173,9 @@ export function createCartsUi(ctx) {
     const orders = ordersOf(b);
     const others = BUILDINGS[b.type].stores.filter((g) => !orders.some((o) => o.good === g));
     const out = [el('h3', { class: 'keeps-head' }, [el('span', { class: 'label', text: W.head }), ' ', el('span', { class: 'small muted summary', text: orders.length ? W.count(orders.length) : W.none })])];
+    // Version 10.0.1, Track S (S.4, ruling 2365): a store with no orders that fetches for its neighbours says so in one line (src/sim/carts.js autoFetchFor).
+    const auto = orders.length ? null : autoFetchFor(world, b);
+    if (auto) out.push(el('p', { class: 'small fetch-auto', role: 'status', text: (auto.fetching ? V1001S_TEXT.fetchingFor : V1001S_TEXT.keepsFor)(auto.who, auto.goods) }));   // ruling 2391
     if (!orders.length) out.push(el('p', { class: 'small muted fetch-help', text: W.help }));   // once a store has an order the help is spent (How to play keeps it)
     if (orders.length) out.push(el('ul', { class: 'fetch-goods orders' }, orders.map((o) => goodRow(b, o.good))));
     if (!others.length) return out;

@@ -141,7 +141,8 @@ describe('ui placement fit', () => {
   });
   // Where a picked card's ghost starts on a phone: the middle of the map left free between the rows under the top bar
   // (measured) and the confirm bar with the corners on it (ruling 168).
-  const freeMiddle = (r, v) => ({ x: v.width / 2, y: (measureRows(r.root).rowsEnd + v.height - Math.min(v.height * 0.3, 240)) / 2 });
+  // Version 10.0.1 (Track U, ruling 2352): the guess made before the bar is up allows for the dock's strip under the corner row.
+  const freeMiddle = (r, v) => ({ x: v.width / 2, y: (measureRows(r.root).rowsEnd + v.height - Math.min(v.height * 0.3, 240) - Math.max(0, v.height - r.root.querySelector('#corners').getBoundingClientRect().bottom - 8)) / 2 });
   it('brings a ghost that landed off screen into view', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
@@ -168,7 +169,8 @@ describe('ui placement fit', () => {
         r.ui.alerts.refresh();
         r.ui.celebrations.show({ tier: 'info', text: 'The blaze at the potter\'s yard is out. Your firehouse crew reached it in time.' });
         const v = { width, height }, m = freeMiddle(r, v);
-        expect([text, m.y - height * 0.4 > 32]).toEqual([text, true]);         // more than a tile row below where a fixed 40% would start it
+        const strip = Math.max(0, height - r.root.querySelector('#corners').getBoundingClientRect().bottom - 8);   // Version 10.0.1 (Track U, ruling 2414): the free middle moved up by half the dock's strip, so the old 32 px bound loses exactly that
+        expect([text, m.y - height * 0.4 > 32 - strip / 2]).toEqual([text, true]);         // more than a tile row below where a fixed 40% would start it
         const c = screenToTile(r.cam, v, m.x, m.y);
         r.cam.x += 20.2 - c.x; r.cam.y += 9.2 - c.y;                            // aim the free middle at tile (20, 9), beside the road: a clean fit
         r.store.set({ category: 'services', dock: 'tray' });
@@ -207,7 +209,7 @@ describe('ui placement fit', () => {
         const bar = r.root.querySelector('#confirm').getBoundingClientRect();
         const corners = r.root.querySelector('#corners').getBoundingClientRect();
         expect(corners.height).toBeGreaterThan(0);
-        expect([size, corners.bottom <= bar.top + 0.5]).toEqual([size, true]);
+        expect([size, bar.bottom <= corners.top + 0.5]).toEqual([size, true]);   // Version 10.0.1 (Track U, ruling 2352): the bar stands above the corner row (it was the other way round)
       } finally { r.cleanup(); }
     }
   });
@@ -225,7 +227,9 @@ describe('ui placement fit', () => {
           const read = () => {
             const bar = r.root.querySelector('#confirm').getBoundingClientRect();
             const corner = r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom;
-            expect([at, corner <= bar.top + 0.5]).toEqual([at, true]);                 // the corners sit on the bar
+            const mapTop = r.root.querySelector('#corners .minimap-button').getBoundingClientRect().top;
+            // Version 10.0.1 (Track U, rulings 2352, 2410): the bar stands above the corners, which stay put; on a phone too short for that (body.stack-tight) the corners ride the bar as in 10.0.
+            expect([at, document.body.classList.contains('stack-tight') ? corner <= bar.top + 0.5 : bar.bottom <= mapTop + 0.5]).toEqual([at, true]);
             return { height: bar.height, corner };
           };
           const stateOf = () => r.ui.placement.preview().state;

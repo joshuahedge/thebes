@@ -16,7 +16,7 @@ import { idx, inBounds } from '../sim/grid.js';
 import { T, buildable, passable } from '../sim/terrain.js';
 import { crocSpots, herdsInReach, wildlifeOn } from '../sim/wildlife.js';
 import { walkPath, pathLengths, pointAlong } from '../sim/walk.js';
-import { wharfSide } from './art/river.js';
+import { wharfSide, WALK_CYCLE } from './art/river.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 
 export const WILDLIFE_ID_BASE = 1400000;
@@ -70,9 +70,16 @@ const viewMid = (range) => ({ x: (range.x0 + range.x1) / 2, y: (range.y0 + range
 // ── Herds ──
 // The animals of one herd: [{ x, y, kind }] positions in tiles; the herd walks from where it stood to where it stands over moveEvery days
 // (px, py, moved), and each animal keeps its own place about the centre and drifts a little about it.
+// Version 10.0.1 (Track A, A.2, ruling 2377): each animal also carries `pose`, a suffix of its figure slot: '' standing, '_g' grazing, and (Full only, while the
+// herd is on the move) '_w0' ... '_w3', the walk's four frames, stepped by the ground the herd has covered (a cycle is WALK_CYCLE tiles, so the feet keep
+// pace with the ground), each animal a little out of step with its neighbour. A walking herd all faces the way it is heading. At rest the animals swap slowly
+// between standing and grazing (Full and Gentle); Gentle's walking herd glides standing, and Still stands.
+export const GRAZE = { pace: 0.13, share: 0.6 };   // a graze/stand swap cycle takes 1 / pace days; an animal grazes for `share` of it
 export function herdAnimals(world, h, timeDays, motion) {
   const m = moveOf(motion);
   const f = motion === 'still' ? 1 : clamp((timeDays - (h.moved ?? -1e9)) / WILDLIFE.moveEvery, 0, 1);
+  const step = Math.hypot(h.x - (h.px ?? h.x), h.y - (h.py ?? h.y));
+  const walking = f < 1 && step > 0.01, along = f * step, cycle = WALK_CYCLE[h.kind] || 0.5;
   const cx = (h.px ?? h.x) + (h.x - (h.px ?? h.x)) * f + 0.5, cy = (h.py ?? h.y) + (h.y - (h.py ?? h.y)) * f + 0.5;
   const out = [];
   for (let i = 0; i < h.size; i++) {
@@ -82,7 +89,12 @@ export function herdAnimals(world, h, timeDays, motion) {
     const tx = Math.floor(x), ty = Math.floor(y);
     if (!inBounds(world.size, tx, ty) || !buildable(world, idx(world.size, tx, ty)) || world.occ[idx(world.size, tx, ty)]) { x = cx; y = cy; }   // Stage 4.7: dry open land (no bridge, no hills)
     const flip = hash2(h.id, i + 120, (world.seed + SALT + 13) | 0) > 0.8;
-    out.push({ x, y, kind: h.kind, left: (h.dir === -1) !== flip, i });
+    let pose = '', left = (h.dir === -1) !== flip;
+    if (walking && motion === 'full') {
+      pose = `_w${Math.floor((along / cycle + hash2(h.id, i + 160, (world.seed + SALT + 14) | 0)) * 4) & 3}`;
+      left = h.dir === -1;
+    } else if (!walking && motion !== 'still' && ((timeDays * GRAZE.pace + hash2(h.id, i + 200, (world.seed + SALT + 15) | 0)) % 1) < GRAZE.share) pose = '_g';
+    out.push({ x, y, kind: h.kind, left, i, pose });
   }
   return out;
 }
@@ -166,6 +178,21 @@ export function pierFisherOf(world, b, timeDays, motion) {
   return { id: wildlifeIds.pier(b.id), kind: held ? 'fisher_cast' : 'fisher', x, y, dir: 1 };
 }
 
+// Version 10.0.1 (A.2, ruling 2378): a bank bird's hop, from the game day and the bird's hash: null while it stands, else { mode, lift }. Every HOP.every days
+// (about, by hash) it takes HOP.days: the wings open on the ground, two flap frames (swapping HOP.flapHz times a day) as it rises to HOP.lift art px and comes
+// down, then open and folded again. Pure: the same day shows the same frame.
+export const HOP = { every: 11, spread: 8, days: 2.4, lift: 11, flapPerDay: 5 };
+export function hopAt(timeDays, h) {
+  const period = HOP.every + h * HOP.spread, t = (timeDays + h * 97) % period;
+  if (t >= HOP.days) return null;
+  const u = t / HOP.days;
+  if (u < 0.12) return { mode: 'o', lift: 0 };
+  if (u >= 0.96) return { mode: 'f', lift: 0 };
+  if (u >= 0.88) return { mode: 'o', lift: 0.6 };
+  const k = (u - 0.12) / 0.76, flap = Math.floor(t * HOP.flapPerDay) % 2 ? 'fu' : 'fd';   // Version 10.0.1 (ruling 2384): 'fu'/'fd', so a flap frame never shares a name with the feeding ibis_d
+  return { mode: flap, lift: HOP.lift * Math.sin(Math.PI * k) };
+}
+
 // ── The animals in range ──
 // Walker entries [{ id, kind, x, y, dir }]; kind names the art slot fig.<kind> (render/art/river.js).
 export function animalsAt(world, timeDays, range, motion) {
@@ -180,7 +207,7 @@ export function animalsAt(world, timeDays, range, motion) {
   for (const h of herds) {
     for (const a of herdAnimals(world, h, timeDays, motion)) {
       if (drawn >= cap) break;
-      out.push({ id: wildlifeIds.herd(h.id, a.i), kind: a.left ? `${a.kind}_l` : a.kind, x: a.x, y: a.y, dir: a.left ? 3 : 1 });
+      out.push({ id: wildlifeIds.herd(h.id, a.i), kind: `${a.kind}${a.pose}${a.left ? '_l' : ''}`, x: a.x, y: a.y, dir: a.left ? 3 : 1 });
       drawn += 1;
     }
   }
@@ -197,18 +224,30 @@ export function animalsAt(world, timeDays, range, motion) {
     }
   };
   pick(sp.birds, 14, (s) => {
-    const heron = s.h < 0.3, left = s.h > 0.5;
+    const heron = s.h < 0.3, left = s.h > 0.5, base = heron ? 'heron' : 'ibis';
     const down = !heron && motion === 'full' && (Math.floor(timeDays / 5 + s.h * 7) % 3 === 0);
-    return { id: wildlifeIds.tile('bird', s.i), kind: `${heron ? 'heron' : down ? 'ibis_d' : 'ibis'}${left ? '_l' : ''}`.replace('ibis_d_l', 'ibis_dl'), x: s.x + 0.5, y: s.y + 0.5, dir: left ? 3 : 1 };
+    // Version 10.0.1 (A.2, ruling 2378): under Full a bird now and then hops up from the bank and comes back down: the wings open, two flap frames while it is up,
+    // the wings open again and fold as it lands (src/render/art/river.js heronFly, ibisFly).
+    const hop = motion === 'full' ? hopAt(timeDays, s.h) : null;
+    const kind = hop ? `${base}_${hop.mode}` : down ? 'ibis_d' : base;
+    const e = { id: wildlifeIds.tile('bird', s.i), kind: kind === 'ibis_d' ? (left ? 'ibis_dl' : 'ibis_d') : left ? `${kind}_l` : kind, x: s.x + 0.5, y: s.y + 0.5, dir: left ? 3 : 1 };
+    if (hop && hop.lift) e.lift = hop.lift;
+    return e;
   });
   pick(sp.hippos, 4, (s) => {
     const under = motion === 'full' && ((timeDays / 4 + s.h * 9) % 3) > 2.2;                      // dives for a few days of every twelve
-    return { id: wildlifeIds.tile('hippo', s.i), kind: under ? 'splash0' : s.h > 0.5 ? 'hippo_l' : 'hippo', x: s.x + 0.5, y: s.y + 0.5, dir: 1 };
+    // Version 10.0.1 (A.2, ruling 2379): surfaced, under Full it bobs a touch and now and then flicks its ears and puffs at the nostrils.
+    const flick = motion === 'full' && !under && ((timeDays * 0.5 + s.h * 13) % 4) < 0.5;
+    const e = { id: wildlifeIds.tile('hippo', s.i), kind: under ? 'splash0' : `${flick ? 'hippo_e' : 'hippo'}${s.h > 0.5 ? '_l' : ''}`, x: s.x + 0.5, y: s.y + 0.5, dir: 1 };
+    if (motion === 'full' && !under) e.lift = Math.sin(timeDays * 1.3 + s.h * 6) * 0.6;
+    return e;
   });
   const crocs = crocSpots(world).map(([x, y]) => ({ i: idx(world.size, x, y), x, y, h: hash2(x, y, (world.seed + SALT + 4) | 0) }));
   pick(crocs, 4, (s) => {
     const sx = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => inBounds(world.size, s.x + dx, s.y + dy) && buildable(world, idx(world.size, s.x + dx, s.y + dy))) || [0, 0];   // Stage 4.7: the bank it lies by is open land (src/sim/terrain.js)
-    return { id: wildlifeIds.tile('croc', s.i), kind: s.h > 0.5 ? 'croc_l' : 'croc', x: s.x + 0.5 + sx[0] * 0.3, y: s.y + 0.5 + sx[1] * 0.3, dir: 1 };
+    // Version 10.0.1 (A.2, ruling 2379): basking, under Full the tail sways slowly (along, up, along, down); Gentle and Still hold it straight.
+    const sway = motion === 'full' ? [0, 1, 0, -1][Math.floor(timeDays * 0.5 + s.h * 8) & 3] : 0;
+    return { id: wildlifeIds.tile('croc', s.i), kind: `croc${sway ? `_t${sway > 0 ? 1 : 2}` : ''}${s.h > 0.5 ? '_l' : ''}`, x: s.x + 0.5 + sx[0] * 0.3, y: s.y + 0.5 + sx[1] * 0.3, dir: 1 };
   });
   if (!still) {
     pick(sp.leaps, 3, (s) => {

@@ -26,6 +26,12 @@ export const RIVER = {
   hippoUpMs: 7000,         // ... for this long, a splash its first and last second
   minWidth: 3,             // a crossing needs at least this much river (tiles)
 };
+// Version 10.0.1 (Track A, A.2, rulings 2378-2380): the real-ms pacing of river life's new frames.
+export const HERON_FLAP_MS = 150;       // a rising or landing heron swaps its two flap frames this often
+const HERON_LOOK_MS = 400;              // the boat's place this long ago: nearer then than now means the heron is landing
+export const CROC_SWAY_MS = 1800;       // a basking crocodile's tail takes this long to pass from one of its four poses to the next
+export const HIPPO_FLICK_MS = 2400;     // a surfaced hippo flicks its ears once in this long, for HIPPO_FLICK_HOLD_MS
+export const HIPPO_FLICK_HOLD_MS = 350;
 const FROM_CITY = milestoneIndex('city'), FROM_CAPITAL = milestoneIndex('capital');
 const rankOf = (world) => milestoneIndex(world.milestone || 'village');
 
@@ -57,7 +63,7 @@ export function riverLifeAt(world, timeDays, nowMs, range, motion, { day = null 
     const row = near[Math.min(near.length - 1, k * 4 + Math.floor(unit(k, Math.floor(midY / 8), seed, S.felucca) * 2))];
     const f = feluccaAt(row, k, seed, nowMs, motion);
     if (!inRange(f.x, f.y, range)) continue;
-    boats.push(f);
+    boats.push({ ...f, row, k });
     out.push({ id: base + k, kind: f.left ? 'trade_boat_l' : 'trade_boat', x: f.x, y: f.y, dir: f.left ? 3 : 1, stand: true });
   }
   // herons: in the shallows at each bank of the nearest row's crossing
@@ -65,13 +71,20 @@ export function riverLifeAt(world, timeDays, nowMs, range, motion, { day = null 
   for (let k = 0; k < 2 && hr; k++) {
     const x = k ? hr.right - 0.3 : hr.left + 0.3, y = hr.y + 0.3 + unit(k, hr.y, seed, S.heron) * 0.4;
     if (!inRange(x, y, range)) continue;
-    let lift = 0;
+    let lift = 0, pose = '';
     if (motion === 'full') {
       const dist = boats.reduce((m, f) => Math.min(m, Math.hypot(f.x - x, f.y - y)), Infinity);
       if (dist < RIVER.startle * 0.45) continue;                                  // flown: back once the boat has gone by
-      if (dist < RIVER.startle) lift = dist < RIVER.startle * 0.75 ? 9 : 4;       // the two-frame rise
+      // Version 10.0.1 (A.2, ruling 2378): the take-off as a boat nears (wings open, then two flap frames while it is up) and the landing as it draws off
+      // (the flap, the wings open, the wings folding in). The boat a short while ago says which way it is going.
+      const before = boats.reduce((m, f) => Math.min(m, Math.hypot(feluccaAt(f.row, f.k, seed, nowMs - HERON_LOOK_MS, motion).x - x, f.y - y)), Infinity);
+      const leaving = dist > before;
+      if (dist < RIVER.startle) lift = dist < RIVER.startle * 0.75 ? 9 : 4;
+      if (lift === 9) pose = Math.floor(nowMs / HERON_FLAP_MS) % 2 ? '_fu' : '_fd';
+      else if (lift === 4) pose = '_o';
+      else if (leaving && dist < RIVER.startle * 1.25) pose = '_f';              // down again, the wings folding in
     }
-    out.push({ id: base + 10 + k, kind: k ? 'heron_l' : 'heron', x, y, dir: k ? 3 : 1, stand: true, lift });
+    out.push({ id: base + 10 + k, kind: `heron${pose}${k ? '_l' : ''}`, x, y, dir: k ? 3 : 1, stand: true, lift });
   }
   // the crocodile: Shemu, on the bank nearest the middle; it basks through the day, slides in at dusk, and is gone at night until the next day
   if (seasonAt(world).season === 'shemu' && near.length && (d.phase === 'day' || d.phase === 'dusk')) {
@@ -79,7 +92,13 @@ export function riverLifeAt(world, timeDays, nowMs, range, motion, { day = null 
     const sliding = d.phase === 'dusk', slide = sliding && motion === 'full' ? clamp01(d.dark) * 0.5 : 0;
     const x = k ? row.right + 0.55 - slide : row.left - 0.55 + slide, y = row.y + 0.5;
     const alpha = sliding ? 1 - clamp01(d.dark) : 1;
-    if (inRange(x, y, range) && alpha > 0.02) out.push({ id: base + 20, kind: sliding ? 'crocodile_slide' : 'crocodile', x, y, dir: k ? 3 : 1, stand: true, alpha });
+    // Version 10.0.1 (A.2, ruling 2380): basking, under Full the tail sways (along, up, along, down); sliding in, it goes through three stages (the snout in the
+    // water, the forebody sinking, only the back and the eye above it). Gentle keeps the one slide frame and no sway. The new frames face left by name.
+    const sway = !sliding && motion === 'full' ? [0, 1, 0, -1][Math.floor(nowMs / CROC_SWAY_MS + unit(row.y, 4, seed, S.croc) * 4) & 3] : 0;
+    const stage = sliding ? (motion === 'full' ? (d.dark < 0.34 ? 1 : d.dark < 0.67 ? 2 : 3) : 1) : 0;
+    const name = stage === 1 ? 'crocodile_slide' : stage ? `crocodile_slide${stage}` : sway ? `crocodile_t${sway > 0 ? 1 : 2}` : 'crocodile';
+    const own = name !== 'crocodile' && name !== 'crocodile_slide';                    // the old two are mirrored by dir; the new frames carry a left copy
+    if (inRange(x, y, range) && alpha > 0.02) out.push({ id: base + 20, kind: own && k ? `${name}_l` : name, x, y, dir: k ? 3 : 1, stand: true, alpha });
   }
   // the hippo: once a minute in the deep channel of a row near the middle
   if (near.length) {
@@ -87,7 +106,11 @@ export function riverLifeAt(world, timeDays, nowMs, range, motion, { day = null 
     if (at < RIVER.hippoUpMs) {
       const x = row.centre + (unit(row.y, 6, seed, S.hippo) - 0.5) * 0.6, y = row.y + 0.5;
       const splash = at < 1000 || at > RIVER.hippoUpMs - 1000;
-      if (inRange(x, y, range)) out.push({ id: base + 30, kind: splash ? 'splash0' : 'hippo', x, y, dir: 1, stand: true, alpha: motion === 'full' ? 1 : clamp01(Math.min(at, RIVER.hippoUpMs - at) / LIFE.fadeMs) });
+      // Version 10.0.1 (A.2, ruling 2379): surfaced, under Full it bobs a touch and flicks its ears (a puff at the nostrils) every HIPPO_FLICK_MS.
+      const flick = motion === 'full' && !splash && at % HIPPO_FLICK_MS < HIPPO_FLICK_HOLD_MS;
+      const e = { id: base + 30, kind: splash ? 'splash0' : flick ? 'hippo_e' : 'hippo', x, y, dir: 1, stand: true, alpha: motion === 'full' ? 1 : clamp01(Math.min(at, RIVER.hippoUpMs - at) / LIFE.fadeMs) };
+      if (motion === 'full' && !splash) e.lift = Math.sin(nowMs / 900) * 0.6;
+      if (inRange(x, y, range)) out.push(e);
     }
   }
   return out.slice(0, LIFE.riverCap);

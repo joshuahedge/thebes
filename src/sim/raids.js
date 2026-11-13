@@ -38,6 +38,7 @@
 // and the report (raid.last) carries dirs. active.foodStolen and active.fled (and the report's) count what granary
 // strikes took and how many residents fled home strikes. A single-band raid has none of these (the old shapes).
 // Track B's fields (the contract lets the owner add them inside its records):
+//   active.stride        Version 10.0.1 (ruling 2357): the part of a tile the band has yet to walk (absent: 0); active.second has its own
 //   active.x, active.y   the band's tile: the band moves as one, UNITS.raider.speed tiles a day, along flowField; each
 //                        raider stands at the tile's centre plus a small offset by its id (SLOTS), so they read as a group
 //   active.blocked       the tile index of the standing wall tile in the band's way (its raiders hit it), or null
@@ -727,8 +728,13 @@ function bandDay(world, a, k, events) {
     rec.phase = rec.struck.length >= RAIDS.strikes ? 'leave' : 'attack';
     rec.targetId = null;
   }
-  const speed = bandSpeed(a, k);
-  for (let step = 0; step < speed; step++) {
+  // Version 10.0.1, Track S (S.2, ruling 2357): a band moves a fraction of a tile a day by carrying it over: rec.stride (absent: 0) keeps the part of a tile
+  // not yet walked, so a pace of 1.5 takes one step, then two (three tiles every two days). Steps a wall or the goal cut short are not kept. A whole pace
+  // walks its tiles every day as before.
+  const pace = (rec.stride || 0) + bandSpeed(a, k), steps = Math.floor(pace + 1e-9);
+  if (pace - steps > 1e-9) rec.stride = pace - steps;
+  else delete rec.stride;   // kept only while a part is left, so a whole pace leaves the record as it was
+  for (let step = 0; step < steps; step++) {
     let goals;
     if (rec.phase === 'attack') {
       let t = rec.targetId ? world.buildings[rec.targetId] : null;

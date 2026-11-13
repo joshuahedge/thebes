@@ -44,8 +44,11 @@ describe('v90 balance T6 the titles spread', () => {
     const ids = Object.fromEntries(Object.entries(runs).map(([k, w]) => [k, titleOf(w).id]));
     // Track S (ruling 1804): was great 'builder' and lateDangers 'builder' (9.1); at the Builder's 8,000 the great-work run's fit is 1.71 against the Unconquered's 2.60.
     // 9.2 balance (ruling 1866): as Track S measured, every raid of the four dangers and great-work runs beaten again with the court's letters worth twice the favour.
+    // 10.0.1 (rulings 2369, 2374): the seed-10 great-work run earns the Builder again (its raids go differently with units that go anywhere at 1.5x pace), so three
+    // titles as the test's name says (9.2: two, the Unconquered on both; seed 5 had the Builder too before the fix).
+    // 10.0.1 (ruling 2420): with the home reach seed 10 loses no raid and earns the Unconquered again (the Builder before it): two titles.
     expect(ids).toEqual({ great: 'unconquered', seed5: 'unconquered', seed10: 'unconquered', capital: 'bountiful', lateDangers: 'unconquered' });   // T6 asks the Unconquered of the late dangers run (ruling 1624)
-    expect(new Set(Object.values(ids)).size).toBe(2);   // Track S (ruling 1804): was 3; no scripted run earns the Builder now (a fixture does), the Merchant and the Generous stay fixtures'
+    expect(new Set(Object.values(ids)).size).toBe(2);   // 10.0.1 (ruling 2420): 2 with the home reach (3 before it, ruling 2369). Track S (ruling 1804): was 3; no scripted run earns the Builder now (a fixture does), the Merchant and the Generous stay fixtures'
     expect(titleOf(runs.great).runnerUp).toBe('builder');   // Track S (ruling 1804): was 'unconquered' (the Builder's fit 1.71 now trails)
   });
   it('lets a seeded fixture earn each title no run earns: the Merchant and the Generous', () => {

@@ -8,7 +8,8 @@
 //
 // Every control in the contract carries its own data-lock since the three tracks were merged (the integration's ruling 1260), so ruling 1215's bridge, which gave the 8.0
 // controls their ids from their classes, is gone.
-import { matchKey } from '../keyboard.js';
+import { matchKeys } from '../keyboard.js';
+import { slotOf } from '../v1001/keymap.js';
 import { CATEGORIES, KEYS } from '../../data/ui.js';
 
 let state = null;   // { root, doc, allowed: Set, onRefused, observer, onEvent }
@@ -43,8 +44,12 @@ function keyLockId(ev) {
   const t = ev.target;
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''))) return null;
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return null;
-  const name = matchKey(ev);
-  if (name === 'category') { const c = CATEGORIES[KEYS.category.indexOf(ev.key)]; return c ? `tray-cat-${c.id}` : null; }
+  // Version 10.0.1 (Track U, ruling 2411): the keys in effect (the player's own), and digits that pick a card while a tab's cards are open are the cards' (a locked card refuses its own click).
+  const keys = state && typeof state.keys === 'function' ? state.keys() : KEYS;
+  const all = matchKeys(ev, null, keys);
+  if (all.includes('card') && state && typeof state.cardsOpen === 'function' && state.cardsOpen()) return null;
+  const name = all.find((n) => n !== 'card') || null;
+  if (name === 'category') { const c = CATEGORIES[slotOf(keys.category, ev.key)]; return c ? `tray-cat-${c.id}` : null; }
   if (name === 'pause' || name === 'speedUp' || name === 'speedDown') return 'speed';
   if (name === 'minimap') return 'minimap';
   if (name === 'overlay') return 'layers';
@@ -81,17 +86,20 @@ function onEvent(ev) {
 const EVENTS = ['pointerdown', 'mousedown', 'touchstart', 'click', 'keydown'];
 
 // Locks the interface to `allowed` (control ids). Called again it changes what is allowed, keeping one listener.
-export function lockTo(allowed = [], { root = document.body, onRefused = null } = {}) {
+// keys() (Version 10.0.1, Track U, ruling 2411) gives the keys in effect, cardsOpen() whether a tab's cards are open for the card keys; each is read at every key press.
+export function lockTo(allowed = [], { root = document.body, onRefused = null, keys = null, cardsOpen = null } = {}) {
   if (state && state.root !== root) unlock();
   if (!state) {
     const doc = root.ownerDocument || document;
-    state = { root, doc, allowed: new Set(), onRefused, observer: null, lastRefused: null, lastAt: 0 };
+    state = { root, doc, allowed: new Set(), onRefused, keys, cardsOpen, observer: null, lastRefused: null, lastAt: 0 };
     const MO = (doc.defaultView || window).MutationObserver;
     if (typeof MO === 'function') state.observer = new MO(() => apply());
     for (const t of EVENTS) doc.addEventListener(t, onEvent, true);
   }
   state.allowed = new Set(allowed);
   if (onRefused) state.onRefused = onRefused;
+  if (keys) state.keys = keys;
+  if (cardsOpen) state.cardsOpen = cardsOpen;
   apply();
 }
 

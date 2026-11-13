@@ -74,13 +74,13 @@ describe('v100 l river: boats with somewhere to go', () => {
     const { w, range } = river(), c = copyWorld(w);
     c.day = 30 * 9 + 5;                                                          // a Shemu month (SEASONS), as the storm scene finds one
     const kinds = (day, t = 3000) => fn(day)(c, 40, t, range, 'full').map((e) => e.kind);
-    const shemu = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((m) => { c.day = m * 30 + 5; return kinds(DAY).includes('crocodile'); });
+    const shemu = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((m) => { c.day = m * 30 + 5; return kinds(DAY).some((k) => /^crocodile(_t[12])?(_l)?$/.test(k)); });   // Version 10.0.1 (ruling 2380): a basking crocodile sways, in frames
     expect(shemu.some(Boolean)).toBe(true);
     c.day = shemu.indexOf(true) * 30 + 5;
-    expect(kinds({ phase: 'dusk', u: 0.6, dark: 0.5, warm: 0.5, lamps: 0.4 }).includes('crocodile_slide')).toBe(true);
+    expect(kinds({ phase: 'dusk', u: 0.6, dark: 0.5, warm: 0.5, lamps: 0.4 }).some((k) => /^crocodile_slide/.test(k))).toBe(true);   // Version 10.0.1 (ruling 2380): the slide has three stages
     expect(kinds({ phase: 'night', u: 0.75, dark: 1, warm: 0, lamps: 1 }).some((k) => /^crocodile/.test(k))).toBe(false);
     const up = [];
-    for (let t = 0; t < RIVER.hippoEveryMs; t += 500) up.push(kinds(DAY, t).includes('hippo'));
+    for (let t = 0; t < RIVER.hippoEveryMs; t += 500) up.push(kinds(DAY, t).some((k) => /^hippo(_e)?$/.test(k)));   // Version 10.0.1 (ruling 2379): a surfaced hippo flicks its ears now and then
     const share = up.filter(Boolean).length / up.length;
     expect(share > 0.05 && share < 0.15).toBe(true);
     c.lesson = true;

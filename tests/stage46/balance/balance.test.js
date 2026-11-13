@@ -52,18 +52,20 @@ describe('s46 balance village', () => {
 
   it('asks for amounts the village can meet: every request is met before its deadline, at most the top of its range of output or taxes (ruling 436)', () => {
     const { log } = villageRun46(VILLAGE);
-    expect(log.requests.length).toBeGreaterThanOrEqual(7);   // 9.2 balance (ruling 1855): was 8; the court's one gate (Track Q, ruling 1777) shares the letters, 7 requests in the run
+    expect(log.requests.length).toBeGreaterThanOrEqual(6);   // 10.0.1 (ruling 2369): was 7 (9.2 balance, ruling 1855: was 8); the archers now go out to every raid and the court's letters fall a little differently, 6 requests in the run
     // 9.2 balance (ruling 1855): the log reads the output at the month's end, after the request's own day. With the court's one gate the 7th request (120 fish) comes on
     // day 2,010, and the month's end reads no fish made, so its bound is unreadable there; it is met in time like every other.
-    const unread = [];
+    const unread = [], over = [];
     for (const r of log.requests) {
       expect([r.id, r.result, r.metDay !== null && r.metDay <= r.due]).toEqual([r.id, 'met', true]);
       if (r.guided || r.kind === 'soldiers') continue;
       const A = REQUESTS.amounts[r.kind];
       const base = r.kind === 'gold' ? r.taxes : r.perMonth;
       if (base === 0) { unread.push(r.id); continue; }
-      expect([r.id, r.amount <= Math.max(A.min, Math.ceil((base * A.months[1]) / A.step) * A.step)]).toEqual([r.id, true]);
+      const top = Math.max(A.min, Math.ceil((base * A.months[1]) / A.step) * A.step);
+      if (r.amount > top) over.push([r.id, r.kind, r.amount, top]);
     }
+    expect(over).toEqual([]);   // 10.0.1 (ruling 2374): every request within its bound again (before the fix the 11th asked 100 food where the village made 80's worth)
     expect(unread).toEqual([7]);
   });
 

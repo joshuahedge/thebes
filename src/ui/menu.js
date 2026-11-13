@@ -13,6 +13,10 @@ import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How t
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
 import { renderNewCityCard } from './titleCard.js';   // Version 8.2 (Track G): the new-city card in the game's menu
 import { MAP_WORDS_AS_WRITTEN } from './v82/mapWords.js';
+import { effectiveKeys } from './v1001/keymap.js';   // Version 10.0.1 (Track U): the keys in effect
+import { keysRows } from './v1001/keysOptions.js';   // Version 10.0.1 (Track U, ruling 2347): Options > Keys
+import { V1001U_TEXT } from './text.js';
+const isEmptyBindings = (o) => !o || Object.keys(o).length === 0;
 
 // The game's new-city card's picture: 120 px on a short screen, else 160 (ruling 1311).
 const newCityPreviewPx = () => (typeof window !== 'undefined' && window.innerHeight < 700 ? 120 : 160);
@@ -20,9 +24,9 @@ const newCityPreviewPx = () => (typeof window !== 'undefined' && window.innerHei
 const SILENCED = 'silenced';   // Version 7.1: what Sound Off does to the Music and Effects rows, in a word
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
 
-export function keyLabel(name) {
+export function keyLabel(name, map = KEYS) {   // Version 10.0.1 (Track U): `map` is the keys in effect (effectiveKeys), the defaults when none is given
   const seen = [];
-  for (const k of KEYS[name] || []) {
+  for (const k of map[name] || []) {
     const label = KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
     if (!seen.includes(label)) seen.push(label);
   }
@@ -190,7 +194,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       group('controls', G.controls, switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'), switchRow(T.vibration, 'vibration'),
         // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
         choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
-        el('p', { class: 'fire-note small muted', text: D.onAFireNote })),
+        el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
+        // Version 10.0.1 (Track U, ruling 2347): the Keys section, closed to begin with (it is long), inside Controls so Options keeps its five groups.
+        el('details', { class: 'keys-section' }, [el('summary', { class: 'keys-heading', text: V1001U_TEXT.keysGroup }), ...keysRows({ settings })])),
       group('help', G.help, choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]])),
       group('saves', G.saves, ...saves),
       el('details', { class: 'help-section options-about' }, [el('summary', {}, [el('h3', { text: V91_A_TEXT.about })]), ...aboutLines()]),   // Version 9.1 (Track A): shares the closed sections' 44 px summary
@@ -215,7 +221,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(section(T.shortcuts,
       el('table', { class: 'shortcuts' }, [
         el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
-        el('tbody', {}, HELP_ROWS.map(([name, text, keys]) => el('tr', {}, [el('td', {}, [el('kbd', { text: keys || keyLabel(name) })]), el('td', { text })]))),
+        // Version 10.0.1 (Track U, ruling 2349): once the player has changed a key the table says the keys in effect (the written "1 to 7" and "Arrows or WASD" are the defaults').
+        el('tbody', {}, HELP_ROWS.map(([name, text, keys]) => { const custom = !isEmptyBindings(settings.get().keyBindings), map = effectiveKeys(settings.get().keyBindings); return el('tr', {}, [el('td', {}, [el('kbd', { text: (!custom && keys) || keyLabel(name, map) })]), el('td', { text })]); })),
       ]),
       el('p', { class: 'small muted', text: T.shortcutsOff })));
     body.append(section(T.gestures, el('p', { text: T.gesturesHelp })));
@@ -224,6 +231,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const riverOnly = mapHelp ? new Set([V70_HELP.t[0], V70_HELP.a[0], ...V71_HELP.f].filter(Boolean).map((p) => p.head)) : new Set();
     const paragraph = (p) => { if (!riverOnly.has(p.head)) body.append(section(p.head, el('p', { text: words(p.text) }))); };
     for (const p of Object.values(V60_HELP).flat()) paragraph(p);
+    // Version 10.0.1 (Track U, ruling 2417): the paragraphs above name the default keys; once any is changed, say where the player's own are.
+    if (!isEmptyBindings(settings.get().keyBindings)) body.append(el('p', { class: 'keys-changed-help muted', text: V1001U_TEXT.keysChangedHelp }));
     for (const p of Object.values(V70_HELP).flat()) paragraph(p);   // Version 7.0: the same, from V70_HELP
     for (const p of MAPS_HELP) { const s = section(p.head, el('p', { text: p.text })); s.setAttribute(MAP_WORDS_AS_WRITTEN, ''); body.append(s); }   // Version 7.1 (Track M); 8.2 (ruling 1335): it names every map's river, as written
     for (const p of Object.values(V71_HELP).flat()) paragraph(p);   // Version 7.1 (Track F): the same, from V71_HELP

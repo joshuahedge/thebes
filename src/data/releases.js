@@ -9,7 +9,24 @@
 
 export const RELEASES = [
   {
-    version: '10.0', date: '2026-11-12', title: 'A living Nile', build: 'live',
+    version: '10.0.1', date: '2026-11-13', title: 'Your feedback', build: 'live',
+    new: [
+      'Soldiers, archers and chariots go out at once to any raid within their old reach of home (8, 10 and 12 tiles), and beyond that to any raid that threatens the city, wherever it is on the map. They walk home when it falls back. Towers still shoot raiders within 4 tiles.',
+      'Raiders and enemies move a bit faster, 1.5 times as fast as before, and so do your soldiers, archers and chariots. They walk at an even pace.',
+      'A storehouse or granary with no orders of its own now brings in what nearby workshops and bazaars need from stores further away. Its sheet says so, for example "Bringing in for nearby workshops: clay", and those goods read "For neighbours". An order of your own replaces this.',
+      'Keys on a computer: each build tab shows its number. Press it, and the cards of that tab show 1 to 9, so a second number picks a card. Esc lets go. Tooltips name the keys.',
+      'Options, Controls, Keys: change any key. A key that is already in use is refused and its action is named. Reset to defaults puts them all back.',
+      'Animals: gazelles and ostriches walk and stop to graze, herons and ibises take off, flap and fold their wings, hippos bob, and crocodiles sway their tails and slide into the river. Flying birds flap. Gentle keeps them calm and Still keeps them still.',
+      'On phones the bottom bar and its Play, Speed, Map and Layers buttons stay in one place whether the tray is open, you are placing, or neither. On a short phone at large text, the placing bar still sits at the foot.',
+    ],
+    fixed: [
+      'On a wide screen the tip card\'s words take its full width, with the buttons beneath.',
+      'The "Rushed" label is smaller and sits at the back of a site, so it no longer covers the building in front.',
+      'A selected barracks no longer draws a patrol ring.',
+    ],
+  },
+  {
+    version: '10.0', date: '2026-11-12', title: 'A living Nile', build: '83a51a7',
     new: [
       'A city that lives: people sit, grind grain and play in their yards, goats and dogs lie by the doors, and near the river women wash and carry water. A stocked bazaar draws a crowd, busiest in the morning and gone at night; a bazaar short of food has one hopeful shopper.',
       'On the river, feluccas cross between the banks once your city is a City (two at Capital). Herons lift as boats pass, a hippo surfaces now and then, and in Shemu a crocodile basks on the bank and slides in at dusk.',

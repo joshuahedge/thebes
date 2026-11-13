@@ -2400,3 +2400,95 @@ Visuals and play first, no new sound. The city is drawn alive (townsfolk, bazaar
 2333. Fix wave (M-2): `noZoom.js`'s comment names `css/v93.css`.
 
 Rulings 2050 to 2065, 2100 to 2105, 2110 to 2121, 2200 to 2254, 2280 to 2297, 2300 to 2311, 2320 to 2324, 2326 to 2329 and 2332 to 2333 are used (2120 to 2127 are Track D's, 2140 to 2148 Track Q's); 2325 and 2330 to 2331 were not used, and 2334 is the next free number in the wave 4 range.
+
+## Part 32: Version 10.0.1 "Your feedback" (13 Nov 2026)
+
+A patch from Josh's nine play notes: the desktop tip card, the Rushed label, keys shown and rebindable, defenders that go anywhere, faster and steadier raiders, livelier animals, storehouses that fetch for their neighbours, and a bottom bar that stays put. The sim changed only where Track S ruled (raid pace, who goes out, the storehouse fetch); `WORLD_VERSION` stays 12. The version saves two optional fields, `raid.active.stride` and `unit.chase` (ruling 2394), both in free records and absent in 10.0 saves. Plan: plans/2026-11-12-thebes-version-10-0-1-feedback.md; each track's rulings are in notes/2026-11-12-version-10-0-1-rulings-<track>.md. Josh's calls at the final review: D1 = B (a unit goes out at once to any band within its 10.0 reach of home, 8, 10 and 12 tiles, and beyond that to any band that threatens the city; ruling 2420) and D2 = yes (ship with the long-run balance misses and carry them to 10.1 "A fair reign"). What is left is in notes/2026-11-12-version-10-0-1-followups.md.
+
+*Track U, the screen (2340 to 2354, 2410 to 2417)*
+2340. The wide tip card is a grid: the words take the card's full width, Show me and Got it sit on a line beneath. — Cost if wrong: a squeezed card, as in 10.0.
+2341. The Rushed label sits at the middle of the footprint's back-right edge, 6 art px, no outline, softer ink. — Cost if wrong: it covers the building in front again.
+2342. On the wide layout the cards are open for the card keys from the moment a tab is chosen; Esc lets go. — Cost if wrong: digits open tabs when a card was meant.
+2343. New `KEYS` entry `card` ('1' to '9'): with a tab's cards open a digit picks its card, otherwise the tab key opens its tab. — Cost if wrong: one entry removed.
+2344. `createKeyBadges` puts a small number on each tab and, while the cards are open, on each pickable card; only with a fine pointer and hover. — Cost if wrong: badges on a phone.
+2345. The speed and pause tooltips follow the player's keys. — Cost if wrong: a tooltip names a key that no longer works.
+2346. How to play's key table gains the card row and shows the keys in effect once any is changed. — Cost if wrong: the table names old keys.
+2347. `settings.keyBindings` stores only what differs from `KEYS`; `effectiveKeys` lays valid lists over the defaults; junk loads `{}`. — Cost if wrong: an old save loses a key.
+2348. A key another action holds is refused, the holder is named, and the listen stays open. — Cost if wrong: two actions on one key.
+2349. Options, Controls gets a closed Keys section: one row per action, Change, and Reset to defaults. — Cost if wrong: a fifth group in Options moves pinned tests.
+2350. Two pinned tests changed (`cardThumbs`, `v71 fb ui`): a left-open tray now takes digits as card picks, so each presses Esc between tab keys.
+2351. Files outside U's list that it touched, each named: `createUI.js`, `sidePanel.js`, `menu.js`, `speed.js`, `text.js` and the keyboard module.
+2352. On a portrait phone the dock keeps its slim strip in every state and the corner row sits at one fixed place; the tray and the placing bar open above it. — Cost if wrong: buttons move again.
+2353. `placingInsets` and `leavePlan` measure the bar's and the tray's top edges, not their heights.
+2354. `tests/v1001/u/bar.test.js`: the dock, Play, Map and Layers rects hold to within 1 px idle, with each of four trays open, and placing, at 390x844 and 375x667, 100% and 150% text.
+2410. On a short phone at large text (375x667, 125% and up) the 10.0 stacking returns while placing (`updateStackTight`), so the farm ghost stays visible. — Cost if wrong: the ghost hides.
+2411. The lesson lock reads the player's effective keys, so a rebound tab key is locked and a card digit is not a tab key while cards are open.
+2412. A card key picks nothing behind a modal.
+2413. `effectiveKeys` strips Back's keys from every other action; in Options, Tab ends a listen and is not swallowed.
+2414. Key hints (Rotate, Map, Pause, zoom, Fit the city) follow the player's keys; the long `V60_HELP` paragraph still names the defaults (closed by 2417).
+2415. U-1: a focused button keeps only its own Space and Enter; a rebound P or C works with the Menu button focused. — Cost if wrong: the first press of a new Pause key fails.
+2416. U-2: the clash line reads "M is already used for Open the minimap."; the speed keys print through `keyName`.
+2417. U-3: How to play adds one line after the `V60_HELP` paragraphs when any key is changed.
+
+*Track S, the rules (2355 to 2374, 2390 to 2397, 2420 to 2426)*
+2355. Defenders go anywhere: each unit picks the nearest raider, the lower id on a tie; no patrol is kept (D1 = B restores the near-home reach, 2420).
+2356. The words say "wherever raiders threaten", not "within N tiles", and the banner budget holds.
+2357. Raiders and every enemy kind move 1.5 times as fast, and so do the player's units; a band takes fractional steps (`stride`). — Cost if wrong: one speed table.
+2358. The raid tests pin the pace moves (two days for 3 tiles).
+2359. The enemy chariot's charge is tested on an archer that holds its ground.
+2360. City advice reads no patrol.
+2361. The lesson's raid does not move.
+2362. A store with no orders of its own keeps stocked, as a Keep stocked order of 40 would, each good a nearby workshop or bazaar needs (`autoFetchMap`). — Cost if wrong: a bazaar starves beside a full store.
+2363. Nothing new is saved by the fetch.
+2364. Any order of the player's on a store replaces every automatic one on it; taking the last off gives them back.
+2365. What the player sees: the store's line and the tips that stop.
+2366. S.3's measures, before and after: the lesson, the raid bench, the scripted danger runs.
+2367. No band was toughened: losses per raid did not fall by a third.
+2368. Tests whose fixture had a starved bazaar by an order-less store now say which store the player runs.
+2369. The long-run pins that moved, each to what was measured.
+2370. The targets now NOT MET, each pinned where it fell so a further fall shows.
+2371. The golden six-year Capital re-recorded (first differs at month 29: a raid's theft).
+2372. Raids back to 10.0's difficulty: units go to a band that threatens and wait while none does (replaced in part by 2420).
+2373. The measures, 10.0 to 10.0.1 before the fix to after.
+2374. The 2370 targets after 2372, and the pins.
+2390. `tests/v1001/s/all.js` ends with a newline.
+2391. The store sheet says what the store really does ("Fetching for nearby workshops: clay", or "Keeps stocked for nearby ...").
+2392. `findSource` no longer skips a store that fetches the same good for its neighbours.
+2393. `autoFetchMap` is kept per world while its key holds.
+2394. A unit out keeps its band (`unit.chase`, 0 or 1, in `world.soldiers`) while that band attacks or strikes. — Cost if wrong: a unit turns about at a bend.
+2395. A soldier or archer goes only to a band it can walk to; one it cannot reach is passed over.
+2396. B7's and T1's treasury: the cause (more units wounded, so a different court favour), and a miss.
+2397. The balance table after the review fixes, and the tests the review asked for.
+2420. D1 = B: a unit goes out at once to any band within its 10.0 reach of home (`SORTIE.home`: soldier 8, archer 10, chariot 12). — Cost if wrong: defenders wait while a band walks up to the barracks.
+2421. The words (S-2) and the store sheet (S-3): goods an order-less store fetches read "For neighbours".
+2422. The reviewer's lever, units below half their hit points do not go out, was tried and not kept (seed 10 lost 3 of 11).
+2423. The balance, 10.0 to before 2420 to after: grand run 5.3 defenders per raid (target 3.33, NOT MET); seed 5 lowest -14,480; raids lost no worse on any seed.
+2424. Moved pins, each stating both numbers in its test.
+2425. The golden six-year Capital re-recorded again.
+2426. The store sheet says "Bringing in for nearby ...", not "Fetching": Fetch was renamed Keep stocked in 8.3 (1383), and v92 w words keeps the word out of the game.
+
+*Track A, the motion (2375 to 2389, 2430 to 2433)*
+2375. The glide takes the whole day (`GLIDE_DAYS` 1, was 0.6). — Cost if wrong: units stand between steps. (Refined by 2430.)
+2376. Each animal pose is its own figure slot named in the walker entry's `kind`, baked once on first sight.
+2377. Herds walk (four frames, stepped by the ground covered) and graze at rest.
+2378. Herons and ibises have four take-off and landing frames each.
+2379. A surfaced hippo bobs and flicks its ears; the bank crocodile's tail sways.
+2380. River life's crocodile sways and slides into the river in three stages.
+2381. Flying birds flap; the bird is not baked (accepted: one bird, a few strokes, off under Gentle).
+2382. A.3's numbers: 50 new slots bake once; the draw count is unchanged.
+2383. The gazelle is redrawn on longer legs.
+2384. Review fix: the flap frames no longer overwrite the feeding ibis.
+2385. Review fix: test gaps closed; a lost space in `FROM_CITY` restored.
+2386. Review fix: the gazelle's torso, a deep chest tapering to a slim waist.
+2387. Known, left as it is: a raider leaving at a gate is judged from its lagged drawn spot, so its fall can be called a step late.
+2388. The gazelle in profile (the 2386 torso still read as a stool).
+2389. Final review: A-1 (raiders surge) and A-2 (soldiers pop) fixed in 2430 to 2433; 2381 and 2387 stand as accepted.
+2430. A unit glides at its own pace (`min` speed of its band, or its unit speed), so a band at 1.5 walks a constant 1.5 tiles a day. — Cost if wrong: raiders surge, 1 then 2 tiles a day.
+2431. The 9.0 scrum offset eases in on leaving the yard and out on coming home, so no soldier jumps 0.4 to 0.9 tile in a frame.
+2432. Pins moved: `unitsArt` (a one-tile step at 1.5 a day) and `v90 v effects`.
+2433. The lag is bounded: a pace of at least length over 2 days, so a long jump is crossed in at most two days.
+
+*Track G, the ground (2400 to 2409)*
+G 2400 to 2404 is recorded on the unmerged branch `v1001-g` (`git show v1001-g:docs/superpowers/notes/2026-11-12-version-10-0-1-rulings-g.md`); sharper phone ground was set aside, and Josh asked for a full-iPhone-resolution trial after this push (see the follow-ups note).
+
+Rulings 2340 to 2433 are used where listed above (2418 and 2419 were not used; 2400 to 2409 are G's, unmerged), and 2434 is the next free number in the 10.0.1 range.
