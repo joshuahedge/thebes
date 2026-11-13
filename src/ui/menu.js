@@ -231,6 +231,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const riverOnly = mapHelp ? new Set([V70_HELP.t[0], V70_HELP.a[0], ...V71_HELP.f].filter(Boolean).map((p) => p.head)) : new Set();
     const paragraph = (p) => { if (!riverOnly.has(p.head)) body.append(section(p.head, el('p', { text: words(p.text) }))); };
     for (const p of Object.values(V60_HELP).flat()) paragraph(p);
+    // Version 10.0.1 (Track U, ruling 2417): the paragraphs above name the default keys; once any is changed, say where the player's own are.
+    if (!isEmptyBindings(settings.get().keyBindings)) body.append(el('p', { class: 'keys-changed-help muted', text: V1001U_TEXT.keysChangedHelp }));
     for (const p of Object.values(V70_HELP).flat()) paragraph(p);   // Version 7.0: the same, from V70_HELP
     for (const p of MAPS_HELP) { const s = section(p.head, el('p', { text: p.text })); s.setAttribute(MAP_WORDS_AS_WRITTEN, ''); body.append(s); }   // Version 7.1 (Track M); 8.2 (ruling 1335): it names every map's river, as written
     for (const p of Object.values(V71_HELP).flat()) paragraph(p);   // Version 7.1 (Track F): the same, from V71_HELP

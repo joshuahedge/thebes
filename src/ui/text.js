@@ -8,6 +8,7 @@ import { FIRSTS } from '../data/firsts.js';
 import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS, KEYS } from '../data/ui.js';
+import { keyName as speedKeyName } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2416): a rebound letter reads upper case in the speed steps' title
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { MAP } from '../data/map.js';
@@ -2448,7 +2449,7 @@ export const S46_UX_TEXT = {
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
   // keys: whether Keyboard shortcuts is on (Space, ] and [ only work then: src/ui/keyboard.js); off, the title names no key (final review). The keys are
   // read from KEYS (Version 6.0, Track D1, ruling 744: + and - zoom now, the speed steps are ] and [), so the words cannot drift from the keys.
-  speedStepTitle: (s, keys = true, map = KEYS) => (s === 0 ? (keys ? `Pause (${map.pause[0] === ' ' ? 'Space' : map.pause[0].length === 1 ? map.pause[0].toUpperCase() : map.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${map.speedUp[0]} and ${map.speedDown[0]} change it)` : ''}`),   // Version 10.0.1 (Track U): `map` is the keys in effect
+  speedStepTitle: (s, keys = true, map = KEYS) => (s === 0 ? (keys ? `Pause (${map.pause[0] === ' ' ? 'Space' : map.pause[0].length === 1 ? map.pause[0].toUpperCase() : map.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${speedKeyName(map.speedUp[0])} and ${speedKeyName(map.speedDown[0])} change it)` : ''}`),   // Version 10.0.1 (Track U): `map` is the keys in effect
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
@@ -4941,7 +4942,8 @@ export const V1001U_TEXT = {
   changeLabel: (action) => `Change the key for ${action}`,
   listening: 'Press a key…',
   reset: 'Reset to defaults',
-  clash: (key, action) => `${key} is already ${action}. Press another key, or Esc to cancel.`,
+  keysChangedHelp: 'You have changed some keys in Options → Keys: the table above shows the keys you use now.',
+  clash: (key, action) => `${key} is already used for ${action}. Press another key, or Esc to cancel.`,
   refused: (key) => `${key} cannot be used.`,
   unbound: 'None',
   actions: {
