@@ -2492,3 +2492,25 @@ A patch from Josh's nine play notes: the desktop tip card, the Rushed label, key
 G 2400 to 2404 is recorded on the unmerged branch `v1001-g` (`git show v1001-g:docs/superpowers/notes/2026-11-12-version-10-0-1-rulings-g.md`); sharper phone ground was set aside, and Josh asked for a full-iPhone-resolution trial after this push (see the follow-ups note).
 
 Rulings 2340 to 2433 are used where listed above (2418 and 2419 were not used; 2400 to 2409 are G's, unmerged), and 2434 is the next free number in the 10.0.1 range.
+
+## Part 33: Version 10.0.2 "A clearer phone" (13 Nov 2026)
+
+A patch from Josh's play of 10.0.1 on his phone: the steady bottom bar (the tray or placing card, a full-width row only for Play, Speed, Map and Layers, then the tab row) covered about 37% of a 390x844 screen, and placing left the tab row's space as an empty band. He chose a side rail from mock-ups. Portrait phone only; landscape, tablet and wide are as in 10.0.1 (their corner rects pinned in tests/v1002/layouts.test.js); `WORLD_VERSION` stays 12 and nothing in the sim or the renderer changed. Rulings: notes/2026-11-13-version-10-0-2-rulings.md (2440 to 2453), with the before and after coverage table.
+
+*The screen (2440 to 2453)*
+2440. On a portrait phone Play, Speed, Map and Layers are four round 44 px buttons stacked down the right edge (block at the end of css/v93.css; the markup is unchanged). — Cost if wrong: buttons out of place.
+2441. The rail has one place in every state (its foot is `--dock-tray + 8` px above the screen's foot), does not grow with `--ui-scale`, and shows: Play's picture and a small Paused tag, Speed's speed, Map's count, Layers tinted while a layer is on; titles, aria labels, key hints, click and double tap, the Speed popup and the Layers picker (beside the rail) are as before.
+2442. The rail never covers the rows under the top bar (`body.rail-clear`, `updateRailClear`) or a toast (a gutter while a tray or a tool is up); a toast stands 8 px above the dock (`--dock-h`) or the panel. Cost: at 375x667 and 150% text the Ground legend wraps a line more (41.8% of the height).
+2443. The ghost is kept clear of the rail (`railInsets`) and above the panel's measured top edge; the 30% floor, the dock-strip estimate and U.5's steps 2 and 3 of `leavePlan` are gone. The 375x667 at 150% goal-row farm case that broke in 10.0.1 (2410) holds, More open too.
+2444. The placing panel folds on a phone: the picture and name with Undo, Cancel and Confirm, the cost line, and one row of pills; the balance, the effect and the rest wait for More.
+2445. The pills are one scrolling row, the ones that say no first; Show me joins the row, so a refused spot does not make the panel taller.
+2446. Coverage at 390x844, 100% text, before to after (area): idle 12.5 to 10.9; Roads tray 32.6 to 30.1 (target 25: NOT MET; Homes 23.7 meets it); folded 31.7 to 18.5; More 21.3; drag 33.6 to 18.5.
+2447. More is `store.placingMore` (ui state, kept for the session); toggling it frames the ghost again above the panel.
+2448. The panel takes the tab row's place (the dock is `display: none` while a tool is on); a More-open panel is capped at the tray's height.
+2449. Removed as dead: `stack-tight`, `updateStackTight`, `--corner-h`, `--stack-b`, the fixed tray, the dock strip offsets, U.5's hidden dock; the tray is back in the dock (one box).
+2450. Moved pins, each named in the rulings note: v1001 u bar, ghost and review; v70 p review; ui placementFit, cornerWords, createUI, houseSheetWhy, toasts; v60 d2 trap; v100 m placingFold, menuAndToast, groundLegend.
+2451. New tests in tests/v1002 (rail, panel, layouts, coverage).
+2452. The What's new entry, `APP_VERSION` 10.0.2, README and this Part.
+2453. Left: the Roads tray's 25% target; the rail narrowing the top rows at 375x667 and 150% text; the picture beside the name hidden at 125% text and more while folded.
+
+Rulings 2454 to 2459 are unused; 2460 is the next free number.

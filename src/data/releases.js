@@ -9,7 +9,19 @@
 
 export const RELEASES = [
   {
-    version: '10.0.1', date: '2026-11-13', title: 'Your feedback', build: 'live',
+    version: '10.0.2', date: '2026-11-13', title: 'A clearer phone', build: 'live',
+    new: [
+      'On a phone held upright, Play, Speed, Map and Layers are four round buttons in a column at the right edge of the map. They stay in the same place whatever is open. Play shows Paused when the game is stopped, Speed shows the speed, Map shows its count, and Layers is tinted while a layer is on.',
+      'The bottom of the screen is smaller: the row of buttons between the cards and the tabs is gone, and the tabs stay in view while the cards are open.',
+      'When you place something on a phone, the panel is short. It shows the name, the cost, one row of conditions and Undo, Cancel and Confirm, and it takes the place of the tabs. Tap More for the rest, such as what it feeds and the monthly balance. The game remembers whether you left More open.',
+      'The building you are placing always stays above the panel and clear of the buttons.',
+    ],
+    fixed: [
+      'On a short phone at large text, the panel no longer leaves too little map to see the building you are placing.',
+    ],
+  },
+  {
+    version: '10.0.1', date: '2026-11-13', title: 'Your feedback', build: '635abaa',
     new: [
       'Soldiers, archers and chariots go out at once to any raid within their old reach of home (8, 10 and 12 tiles), and beyond that to any raid that threatens the city, wherever it is on the map. They walk home when it falls back. Towers still shoot raiders within 4 tiles.',
       'Raiders and enemies move a bit faster, 1.5 times as fast as before, and so do your soldiers, archers and chariots. They walk at an even pace.',
