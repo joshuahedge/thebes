@@ -36,7 +36,9 @@ function dragger(r, type = 'touch') {
   };
 }
 const card = (r, item) => r.root.querySelector(`#dock .tray .card[data-item="${item}"]`);
-const open = (r, category) => fire(r.root.querySelector(`#dock .cat[data-category="${category}"]`), 'click');
+// Version 10.0.1 (Track U, ruling 2353): the phone's open tray stands above the corner row now (about 76 px higher than it did), so the camera moves the test's tiles up out from under it.
+const open = (r, category) => { r.cam.x += SHIFT; r.cam.y += SHIFT; fire(r.root.querySelector(`#dock .cat[data-category="${category}"]`), 'click'); };
+const SHIFT = 3;
 const surfaces = () => document.querySelectorAll('.card-drag-surface').length;
 const wellAt = (r, x, y) => { const b = buildingAt(r.world, x, y); return b ? b.type : null; };
 

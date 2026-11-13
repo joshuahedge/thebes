@@ -42,6 +42,8 @@ export function createCorners({ container, store, speedControl, onMinimap, onOve
   container.append(left, right);
 
   function overHalf() {
+    // Version 10.0.1 (Track U, ruling 2352): the corners no longer ride the tray's edge (they keep one place), so a tall tray never puts them in the middle of the map: never hidden this way on a phone.
+    if (document.body.dataset.layout === 'portrait') return false;
     const s = store.get(), h = viewHeight();
     if (!h || s.layout !== 'portrait' || s.dock !== 'tray' || isToolMode(s.mode)) return false;
     const bottom = parseFloat(getComputedStyle(container).bottom);              // px from the screen's foot (css/ui.css, by the dock height)

@@ -129,12 +129,16 @@ describe('ui card pictures', () => {
       key(r.root, '5');
       expect(r.store.get().category).toBe('services');
       expect(r.store.get().dock).toBe('tray');
+      key(r.root, 'Escape');                                                      // Version 10.0.1 (Track U, ruling 2343): with a tray open the digits pick its cards, so Esc closes the tray first and the tab keys open tabs again
       key(r.root, '3');
       expect(r.store.get().category).toBe('food');
+      key(r.root, 'Escape');
       key(r.root, '4');                                                           // Industry has only Town cards, locked, at Village: hidden (Version 8.1, ruling 1248), so ignored
       expect(r.store.get().category).toBe('food');
+      key(r.root, 'Escape');
       key(r.root, '6');                                                           // Defence has nothing to show in Stage 2: ignored
       expect(r.store.get().category).toBe('food');
+      key(r.root, 'Escape');
       key(r.root, '7');                                                           // Monuments too
       expect(r.store.get().category).toBe('food');
     } finally { r.cleanup(); }

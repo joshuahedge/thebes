@@ -1,6 +1,8 @@
 // Pause and speed (spec 4.3, 6.3): a corner button in portrait and compact, buttons in the wide top bar.
 // The page pauses when hidden and reopens paused; the UI says so when it comes back.
 import { setSpeed } from '../sim/commands.js';
+import { KEYS } from '../data/ui.js';
+import { ariaKeys } from './v1001/keymap.js';
 import { el, button, iconButton, setText, clear } from './components.js';
 import { SPEED_LABELS, T, pauseSpeedText, S46_UX_TEXT } from './text.js';
 
@@ -33,7 +35,7 @@ let cornerCount = 0;                                                          //
 const cornerPicture = (running) => speedPicture(running ? 0 : 1);           // the corner button shows what a tap does: pause while running, play while paused
 
 // keys(): whether Keyboard shortcuts is on, so a step's title names Space, ] and [ only when they work (final review).
-export function createSpeedControl({ world, store, afterCommand = () => {}, onPausedHidden = () => {}, doc = document, keys = () => true }) {
+export function createSpeedControl({ world, store, afterCommand = () => {}, onPausedHidden = () => {}, doc = document, keys = () => true, keyMap = () => KEYS }) {   // Version 10.0.1 (Track U): keyMap() is the keys in effect, so a title names the player's own keys
   const mounted = [];     // render callbacks
   const api = {
     set(speed) {
@@ -94,7 +96,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
-        if (keys()) main.setAttribute('aria-keyshortcuts', 'Space'); else main.removeAttribute('aria-keyshortcuts');   // Version 7.0 (Track P)
+        if (keys()) main.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else main.removeAttribute('aria-keyshortcuts');   // Version 10.0.1 (Track U, ruling 2414): the player's own pause key   // Version 7.0 (Track P)
       };
       paint();
       mounted.push(paint);
@@ -104,7 +106,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
     // speed "2×"), where the others are a picture alone, which keeps the whole row about as wide as the old four words were. data-state on the
     // bar says playing or paused, which the stylesheet uses to tell the two apart by more than the one step.
     mountBar(container) {
-      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: (ev) => { api.set(s); if (ev && ev.detail > 0) ev.currentTarget.blur(); } },   // ruling 991: a pointer click lets go of the step, so Space pauses afterwards (a keyboard press has detail 0 and keeps its focus)
+      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys(), keyMap()), 'aria-pressed': String(world.speed === s), onClick: (ev) => { api.set(s); if (ev && ev.detail > 0) ev.currentTarget.blur(); } },   // ruling 991: a pointer click lets go of the step, so Space pauses afterwards (a keyboard press has detail 0 and keeps its focus)
         [speedPicture(s), el('span', { class: 'word', 'aria-hidden': 'true', text: s === 0 ? S46_UX_TEXT.pausedWord : SPEED_LABELS[s] })]));
       clear(container);
       for (const b of buttons) b.dataset.lock = 'speed';    // Version 8.1 (ruling 1220): the lesson's lock id
@@ -116,9 +118,9 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         container.dataset.state = world.speed === 0 ? 'paused' : 'playing';
         container.setAttribute('aria-description', world.speed === 0 ? S46_UX_TEXT.pausedWord : S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]));   // ruling 419: the state, for a screen reader
         buttons.forEach((b, s) => {
-          b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys());
+          b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys(), keyMap());
           // Version 7.0 (Track P): Space pauses and resumes (keyboard.js), so the pause step says so to assistive technology; the speeds are ] and [ (their title says so).
-          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', 'Space'); else b.removeAttribute('aria-keyshortcuts'); }
+          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else b.removeAttribute('aria-keyshortcuts'); }
         });
       };
       paint();

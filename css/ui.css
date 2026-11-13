@@ -97,8 +97,20 @@ body[data-hand="left"] .confirm { flex-direction: row-reverse; }
 #corners { position: fixed; left: var(--safe-left); right: var(--safe-right); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 8px); display: flex; justify-content: space-between; padding: 0 8px; pointer-events: none; }
 #corners > * { pointer-events: auto; }
 #corners .group { display: flex; gap: 8px; }
-body[data-dock="tray"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
-body[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 8px); }
+/* The Layers button keeps one width whatever layer is on (its word is the layer's name, up to "Entertainment"), so the Map button beside it never moves; a longer name is cut with "…" (its accessible name is whole). */
+body[data-layout="portrait"] #corners .overlay-button { box-sizing: border-box; width: calc(76px * var(--ui-scale)); min-width: 0; }
+body[data-layout="portrait"] #corners .overlay-button .label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Version 10.0.1 (Track U, ruling 2410, review fix 1): a phone too short for the steady stack (createUI updateStackTight) gets 10.0's: the bar at the foot, the corners riding it, the dock gone. */
+body.stack-tight[data-layout="portrait"] #confirm { bottom: 0; }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #dock { display: none; }
+body.stack-tight[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--toast-lift)); }
+/* Version 10.0.1 (Track U, ruling 2352, U.5): on a portrait phone the corner buttons keep ONE place in every state (idle, a tray open, a card picked, tucked): the tray and the placing bar open above them. */
+body:where(:not([data-layout="portrait"]))[data-dock="tray"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
+body:where(:not([data-layout="portrait"]))[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 8px); }
+body { --corner-h: calc(52px + 20px * (var(--ui-scale) - 1)); --stack-b: calc(var(--safe-bottom) + var(--dock-slim) + 8px + var(--corner-h) + 8px); }   /* the corner row's height, and where the tray and the placing bar start: above it */
+body[data-layout="portrait"] #dock .tray { position: fixed; left: 0; right: 0; bottom: var(--stack-b); background: var(--parchment); background-image: var(--look-fibre); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); padding-top: 8px; z-index: 2; }
+body[data-layout="portrait"] #dock .tray-more { position: fixed; bottom: var(--stack-b); top: auto !important; z-index: 3; }
 body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #corners.over-half { visibility: hidden; }   /* the portrait tray is open and tall: the corners would sit in the middle of the map (corners.js) */
 .has-badge { position: relative; }
@@ -186,7 +198,8 @@ body[data-layout="compact"] #corners { right: calc(var(--rail-w) + var(--safe-ri
 body { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1)); }
 #toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + var(--toast-lift)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + var(--toast-lift)); }
-body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
+body[data-layout="portrait"][data-dock="tray"] #toasts { bottom: calc(var(--stack-b) + var(--dock-tray) - var(--dock-slim) + 8px); }   /* U.5: the tray starts above the corner row; its visible part is about the old dock's growth */
+body:where(:not([data-layout="portrait"]))[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
 /* After a touch tick at large text the toast can drop into the free map between the corner buttons and the tray, so the new
    building fits above the corner buttons (createUI leavePlan); --toast-low is its bottom, set while that toast shows. */
 body[data-layout="portrait"].toast-low #toasts { bottom: var(--toast-low); }
@@ -217,15 +230,16 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-even
 @media (prefers-reduced-motion: reduce) { body:not([data-motion]) * { transition: none !important; animation: none !important; } }
 /* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
 #confirm { position: fixed; z-index: 3; }
-body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
+body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: var(--stack-b); }   /* Version 10.0.1 (Track U, ruling 2352): above the corner row, which does not move */
 body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
 body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
 body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
 /* While a tool is on, the confirm bar covers the dock, so a toast (Well placed, Undo) sits above the bar and the corner row on it, not
    out in the middle of the map above a tray that is hidden behind the bar. The compact toast already rides the bar's column. */
-body[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--toast-lift)); }
+body[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--stack-b) + 8px); }   /* U.5: above the bar, which stands above the corner row */
 /* The corners sit on the confirm bar by its measured height (--confirm-h, set by confirmBar.js), whatever the text size. */
-body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
+/* Version 10.0.1 (Track U, ruling 2352): the corners no longer ride the bar (it was their rule here); in portrait the dock stays in place, only hidden, so nothing below the corners moves either. */
+body[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #dock { display: flex; visibility: hidden; }
 .speed-corner { position: relative; }
 .speed-options { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; gap: 6px; }
 /* Legend keys and the banner's warning glyph. */
@@ -401,7 +415,32 @@ body.reduce-motion #cheer .cheer { animation: none; }
 #tip .tip-row .body { position: relative; display: flex; align-items: center; gap: inherit; min-width: 0; }   /* the label and the words: the one place a tap opens a cut tip, and the box "More ▾" sits in */
 #tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
 #tip .tip-row .got-it { white-space: nowrap; }
-body[data-layout="wide"] #tip { max-width: 440px; }
+body[data-layout="wide"] #tip { max-width: calc(440px * var(--ui-scale)); }   /* Version 10.0.1 (Track U, ruling 2340): the cap grows with the text setting */
+/* Version 10.0.1 (Track U, ruling 2340): on the wide layout the tip is a card, not one squeezed row: the portrait and the words share the top line (the words take
+   all the rest of its width), and Show me and Got it sit on a line of their own beneath, right-aligned. A phone keeps its one row. */
+body[data-layout="wide"] #tip .tip-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: start; column-gap: 8px; row-gap: 2px; padding: 6px 8px 4px 12px; width: 100%; }
+body[data-layout="wide"] #tip .tip-row > :first-child { grid-column: 1; grid-row: 1; }
+body[data-layout="wide"] #tip .tip-row .body { grid-column: 2 / 5; grid-row: 1; align-items: flex-start; }
+body[data-layout="wide"] #tip .tip-row .tip-show-me { grid-column: 3; grid-row: 2; }
+body[data-layout="wide"] #tip .tip-row .got-it { grid-column: 4; grid-row: 2; }
+
+/* Version 10.0.1 (Track U, rulings 2344-2345): the key badges. Each build tab shows its key; while a tab's cards are open each card shows the key that picks it. createKeyBadges (src/ui/v1001/cardKeys.js)
+   adds them only where there is a fine pointer and Single keys is on, so a phone never has one; they are decoration (aria-hidden), the keys are said by aria-keyshortcuts and the tooltip. */
+.key-badge { position: absolute; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: calc(16px * var(--ui-scale)); height: calc(16px * var(--ui-scale)); padding: 0 3px; border-radius: 4px; background: var(--ink); color: var(--parchment); font-size: calc(11px * var(--ui-scale)); font-weight: 700; line-height: 1; pointer-events: none; opacity: 0.82; }
+.key-badge.tab-key { top: -5px; left: -3px; }   /* half over the button's corner, clear of its icon and word */
+.key-badge.card-key { bottom: 4px; right: 4px; }
+body.reduce-motion .key-badge { opacity: 0.82; }
+
+/* Options > Keys (Version 10.0.1, Track U, ruling 2347): one row to an action; the tab and card rows hold a button a slot. */
+.key-rows .key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.key-rows .key-action { flex: 1 1 10em; min-width: 0; }
+.key-rows .key-now { color: var(--ink-soft); min-width: 3em; }
+.key-rows .key-slots { display: flex; flex-wrap: wrap; gap: 4px; }
+.key-rows .key-change { min-width: var(--tap); min-height: var(--tap); padding: 0 10px; }
+.key-rows .key-change.listening { outline: 2px solid var(--teal); outline-offset: 1px; }
+.keys-section .key-warning { min-height: 1.4em; margin: 4px 0; color: var(--coral-text); }
+.keys-section .keys-reset { margin-top: 4px; }
+.keys-section > summary.keys-heading { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 600; }   /* a 44 px summary, as the Help sections' */
 /* A phone (portrait or compact) at 125% or 150% text has no room for a tip to stay up and cover the map: its words are 14 px
    scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
    why is. On every phone, at any text size, createUI also closes a tip after TIP_AUTO_CLOSE_MS of unpaused play with it on

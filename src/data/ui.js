@@ -72,6 +72,8 @@ export const KEYS = {
   zoomIn: ['+', '='],
   zoomOut: ['-', '_'],
   category: ['1', '2', '3', '4', '5', '6', '7'],
+  // Version 10.0.1 (Track U, ruling 2343): while a tab's cards are open, these pick its cards in order (the same digits by default; the tab keys win while no cards are open).
+  card: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
   panLeft: ['ArrowLeft', 'a', 'A'],
   panRight: ['ArrowRight', 'd', 'D'],
   panUp: ['ArrowUp', 'w', 'W'],

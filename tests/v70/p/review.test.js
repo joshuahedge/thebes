@@ -161,7 +161,7 @@ describe('v70 p review: a click on a speed step lets go of it (ruling 991)', () 
 
 describe('v70 p review: the ghost is framed above the bar and the corner buttons (ruling 993)', () => {
   // extra: px of row added under the legend a farm turns on: the goal's strip (about 67 px) the review's shots had at 375x667 and 150% text, where the rows ran to about 226 and the corner buttons began at 293.
-  for (const [width, height, text, extra] of [[375, 667, 150, 110], [375, 667, 100, 0], [390, 844, 150, 0]]) {
+  for (const [width, height, text, extra] of [[375, 667, 150, 110], [375, 667, 150, 67], [375, 667, 150, 0], [375, 667, 125, 67], [375, 667, 100, 0], [390, 844, 150, 0]]) {   // 10.0.1: the real 67 px goal row and 125% join the cases
     it(`a farm picked at ${width}x${height} and ${text}% text${extra ? ` under a tall goal row` : ''}: its footprint is above the top of the corner buttons and the bar, and clear of the rows`, async () => {
       const r = await rigUI({ width, height });
       try {
@@ -186,6 +186,8 @@ describe('v70 p review: the ghost is framed above the bar and the corner buttons
         const bar = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;
         expect(corners.length).toBeGreaterThan(0);
         const rowsEnd = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
+        // Version 10.0.1 (Track U, ruling 2410): the real assertion again for every case, the whole footprint above the corner buttons and above the bar. On a phone too short for the steady stack
+        // (375x667 at 125% text and more) the 10.0 stacking comes back (body.stack-tight), which is what keeps the farm above the bar there.
         expect([highest >= rowsEnd - 2, lowest <= Math.min(...corners), lowest <= bar]).toEqual([true, true, true]);
       } finally { r.cleanup(); }
     });
@@ -208,7 +210,8 @@ describe('v70 p review: the ghost is framed above the bar and the corner buttons
       const ys = [[0, 0], [w, 0], [0, d], [w, d]].map(([dx, dy]) => tileToScreen(r.cam, { width: 375, height: 667 }, s.ghost.x + dx, s.ghost.y + dy)[1]);
       const corners = Math.min(...[...r.root.querySelectorAll('#corners .group')].filter((n) => n.getBoundingClientRect().height > 0).map((n) => n.getBoundingClientRect().top));
       const rowsEnd = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
-      expect([Math.max(...ys) <= corners, Math.min(...ys) >= rowsEnd - 2]).toEqual([true, true]);
+      const barTop = r.root.querySelector('#confirm .confirm').getBoundingClientRect().top;   // Version 10.0.1 (Track U, ruling 2410): and above the bar, which is not always above the corners now
+      expect([Math.max(...ys) <= corners, Math.max(...ys) <= barTop, Math.min(...ys) >= rowsEnd - 2]).toEqual([true, true, true]);
     } finally { r.cleanup(); }
   });
 });

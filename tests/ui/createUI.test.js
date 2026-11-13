@@ -129,7 +129,9 @@ describe('ui createUI', () => {
       const k = 2 * r.cam.zoom, well = r.screenOf(g.x + 0.5, g.y + 0.5);
       const rect = (sel) => r.root.querySelector(sel).getBoundingClientRect();
       const corners = [...r.root.querySelectorAll('#corners .group')].map((e) => e.getBoundingClientRect()).filter((b) => b.height > 0);
-      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: rect('#dock').top, toast: rect('#toasts .toast'),
+      // Version 10.0.1 (Track U, ruling 2352): an open tray stands above the corner row, so `dock` is the top of what stands over the foot of the map: the tray's top edge when one is open, else the dock's.
+      const trayNode = r.root.querySelector('#dock .tray'), trayUp = trayNode && trayNode.getClientRects().length ? trayNode.getBoundingClientRect().top : Infinity;
+      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: Math.min(rect('#dock').top, trayUp), toast: rect('#toasts .toast'),
         cornersTop: Math.min(...corners.map((b) => b.top)), cornersBottom: Math.max(...corners.map((b) => b.bottom)), zoom: r.cam.zoom, low: document.body.classList.contains('toast-low') };
       r.cleanup();
       return out;
@@ -138,20 +140,16 @@ describe('ui createUI', () => {
       const o = await leaveNarrow(0);
       expect(o.legend.height > 0).toBe(true);                                    // the water legend stays on after the tool ends
       expect(o.roof >= o.legend.bottom).toBe(true);                             // the well's roof (height 18 plus its back half-footprint) is not behind the legend
-      expect([o.low, o.zoom]).toEqual([true, 1]);                               // the toast dropped into the free map under the corner buttons; no zoom
-      expect([o.ground <= o.cornersTop, o.ground <= o.toast.top]).toEqual([true, true]);
-      expect([o.toast.top >= o.cornersBottom, o.toast.bottom <= o.dock]).toEqual([true, true]);   // the toast between the corner buttons and the tray
+      // Version 10.0.1 (Track U, ruling 2352): the tray stands above the corner row (which never moves), so there is no free map between the buttons and the tray for the toast: it sits above the tray,
+      // and the building is framed above the toast (zoomed out a little where the band is short), never behind the toast, the tray or the buttons.
+      expect([o.low, o.zoom >= 0.5 && o.zoom <= 1]).toEqual([false, true]);
+      expect([o.ground <= o.toast.top, o.ground <= o.dock, o.ground <= o.cornersTop]).toEqual([true, true, true]);
+      expect(o.toast.bottom <= o.dock + 1).toBe(true);                           // the toast above the tray
     });
-    it('does the same when the tray is shorter, with the toast between the corner buttons and the tray', async () => {
+    it('does the same whatever height the dock is given (the tray no longer rides it)', async () => {
       const o = await leaveNarrow(200);
       expect(o.roof >= o.legend.bottom).toBe(true);
-      expect([o.ground <= o.cornersTop, o.ground <= o.toast.top, o.toast.top >= o.cornersBottom, o.toast.bottom <= o.dock]).toEqual([true, true, true, true]);
-    });
-    it('zooms the map out just enough when no free map is left under the corner buttons for the toast', async () => {
-      const o = await leaveNarrow(360);                                          // the tray reaches the corner buttons
-      expect(o.low).toBe(false);
-      expect(o.zoom < 1 && o.zoom >= 0.5).toBe(true);
-      expect([o.roof >= o.legend.bottom, o.ground <= o.toast.top, o.ground <= o.cornersTop]).toEqual([true, true, true]);
+      expect([o.ground <= o.toast.top, o.toast.bottom <= o.dock + 1, o.ground <= o.cornersTop]).toEqual([true, true, true]);
     });
     it('puts the toast just above the bar while a tool is on', async () => {
       const r = await rigUI();
