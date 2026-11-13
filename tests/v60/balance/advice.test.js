@@ -22,18 +22,18 @@ const TOP = {
   // Version 8.4 wave 2 (rulings 1521, 1528; settles Tracks R's and G's moved pins): with 8.4's raid clock the careless city meets twice the raids, so crime leads at year 8
   // and pottery's homes (a storehouse) at 12 and 15 (8.3: raid_towers at 8 and 12, home_need at 15; Track R had raid_towers at 15).
   // Escalation by years (ruling 1534): raid_towers at 8 again (8.3's top), illness at 15 (was crime at 8, home_need at 15).
-  careless: { 8: 'raid_towers', 12: 'home_need', 15: 'raid_towers' },   // 10.0.1 (rulings 2369, 2374): a home's need at 12, the towers a raid lacks at 15 (were crime, a home's need); 9.2 balance (ruling 1866): crime at 12 (was a home's need)
+  careless: { 8: 'raid_towers', 12: 'home_need', 15: 'illness' },   // ruling 2397: illness at 15 after the review fixes;   // 10.0.1 (rulings 2369, 2374): a home's need at 12, the towers a raid lacks at 15 (were crime, a home's need); 9.2 balance (ruling 1866): crime at 12 (was a home's need)
   // Version 8.4 (Track G): the luxuries the grand homes now buy moved two points, each to a far good to fetch (stranded), a kind the great-work run already tops with.
   // Wave 2 (rulings 1521, 1528): with 8.4's raid clock, home_need at 8 and 10 and 22 unfilled jobs at 9 (Track G measured 7 stranded, 8 illness, 9 raid_towers, 10 illness;
   // 8.3 had 7 illness).
   // Escalation by years (ruling 1534): crime at 9 (was workers_short).
-  grand: { 7: 'stranded', 8: 'home_need', 9: 'stranded', 10: 'workers_short' },   // 10.0.1 (ruling 2369): a far good to fetch at 9 (was a home's need)
+  grand: { 7: 'stranded', 8: 'workers_short', 9: 'crime', 10: 'crime' },   // ruling 2397: after the review fixes;   // 10.0.1 (ruling 2369): a far good to fetch at 9 (was a home's need)
   // Wave 2 (rulings 1521, 1525, 1528): the great-work run with 8.4's raid clock is not won (B7, tests/v60/a/balance.test.js); crime leads at 14 and a far good at 16
   // (Track G measured 14 stranded, 16 home_need; 8.3 had 14 home_need).
   // Escalation by years (ruling 1534): a far good at 14 and a home's need at 20 (was crime at 14, stranded at 20).
   // The retune (rulings 1540, 1542; the run is won on day 6,380): crime at 14 and a home's need at 16 (was a far good at both).
   // 9.2 balance (rulings 1855, 1866): a home's need at 16 and a far good at 18 and 20 (Track S alone: stranded at 16, a home's need at 18 and 20).
-  great: { 12: 'home_need', 14: 'home_need', 16: 'home_need', 18: 'stranded', 20: 'stranded' },   // 10.0.1 (ruling 2369): a home's need at 14 (was a far good)
+  great: { 12: 'home_need', 14: 'home_need', 16: 'home_need', 18: 'home_need', 20: 'stranded' },   // ruling 2397: a home's need at 18 after the review fixes;   // 10.0.1 (ruling 2369): a home's need at 14 (was a far good)
 };
 
 function sensible(label, rows) {

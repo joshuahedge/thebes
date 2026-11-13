@@ -66,6 +66,9 @@ export function threatBands(world, a, unit = null) {
   for (const k of live) {
     const rec = k ? a.second : a;
     if (rec.phase === 'retreat' || rec.phase === 'leave') continue;
+    // Version 10.0.1, Track S (ruling 2394): a unit already out keeps the band it went for while that band is still attacking or striking (unit.chase), so
+    // a bend in the band's way or a second band about as near does not turn it about.
+    if (unit && unit.task === 'out' && unit.chase === k) { near.push({ k, d: -2 }); continue; }
     if (rec.phase === 'strike') { near.push({ k, d: -1 }); continue; }
     const target = rec.targetId ? world.buildings[rec.targetId] : null;
     if (!target && !blds) blds = allBuildings(world).filter((b) => b.type !== 'rubble');
@@ -197,6 +200,7 @@ function homeOf(world, s) {
 }
 
 function walkHome(world, s) {
+  delete s.chase;   // Version 10.0.1 (ruling 2394): going home, it keeps no band
   const home = homeOf(world, s);
   const speed = unitDef(s).speed;
   if (kindOf(s) === 'chariot') driveTowards(world, s, home, speed);
@@ -318,11 +322,25 @@ export function combatDay(world, events = null) {
   let fighting = false;
   const fought = new Set();
   const posts = new Set();
+  // Version 10.0.1, Track S (ruling 2395): a soldier or archer goes only to a band it can walk to (stepFoot's own rule: a straight line over passable ground,
+  // else walkPath round the water and hills); one it cannot reach is passed over for the next, and with none it goes home. Each unit's answer for a band is
+  // worked out once a day (reach). Chariots drive straight and stop at what bars them, as before. unit.chase keeps the band it went for (ruling 2394).
+  const reach = new Map();
+  const reachable = (s, r, k) => {
+    if (kindOf(s) === 'chariot') return true;
+    const key = `${s.id}:${k}`;
+    if (!reach.has(key)) {
+      const here = tileOf(world, s), there = tileOf(world, r);
+      reach.set(key, here < 0 || there < 0 || !passable(world, here) || clearLine(world, s, r, (i) => passable(world, i)) || walkPath(world, s, r) !== null);
+    }
+    return reach.get(key);
+  };
   const threatFoe = (s, mine) => {
     for (const k of threatBands(world, a, s)) {
       const r = nearestRaider(s, a.raiders.filter((u) => (u.band ? 1 : 0) === k && mine(u)));
-      if (r) return r;
+      if (r && reachable(s, r, k)) { s.chase = k; return r; }
     }
+    delete s.chase;
     return null;
   };
   for (const s of world.soldiers) {

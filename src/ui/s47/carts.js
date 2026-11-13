@@ -174,7 +174,7 @@ export function createCartsUi(ctx) {
     const out = [el('h3', { class: 'keeps-head' }, [el('span', { class: 'label', text: W.head }), ' ', el('span', { class: 'small muted summary', text: orders.length ? W.count(orders.length) : W.none })])];
     // Version 10.0.1, Track S (S.4, ruling 2365): a store with no orders that fetches for its neighbours says so in one line (src/sim/carts.js autoFetchFor).
     const auto = orders.length ? null : autoFetchFor(world, b);
-    if (auto) out.push(el('p', { class: 'small fetch-auto', role: 'status', text: V1001S_TEXT.fetchingFor(auto.who, auto.goods) }));
+    if (auto) out.push(el('p', { class: 'small fetch-auto', role: 'status', text: (auto.fetching ? V1001S_TEXT.fetchingFor : V1001S_TEXT.keepsFor)(auto.who, auto.goods) }));   // ruling 2391
     if (!orders.length) out.push(el('p', { class: 'small muted fetch-help', text: W.help }));   // once a store has an order the help is spent (How to play keeps it)
     if (orders.length) out.push(el('ul', { class: 'fetch-goods orders' }, orders.map((o) => goodRow(b, o.good))));
     if (!others.length) return out;

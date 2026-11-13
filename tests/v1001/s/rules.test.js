@@ -136,12 +136,12 @@ describe('v1001 s S.2 raiders a bit faster, defenders to match', () => {
 describe('v1001 s S.3 the balance check', () => {
   // Ruling 2366: measured on 10.0 (the unchanged tree) and after S.1 + S.2. The bench: buildings struck 6 -> 6, gold stolen 1,309 -> 1,269 (-3%), defenders
   // lost 16 -> 30 (+88%), raids lost 2 of 5 -> 2 of 5. Losses per raid did not drop by a third, so no band was toughened (ruling 2367).
-  it('the bench\'s five raids: what they cost the town, after S.1, S.2 and the fix', () => {
+  it('the bench\'s five raids: what they cost the town, after S.1, S.2 and the fixes', () => {
     const { raids, total } = raidBench();
     // Ruling 2373: with the units going to the band that threatens (ruling 2372) 1 of 5 raids is lost, 3 struck, 744 gold, 20 defenders lost (10.0: 2 lost, 6,
     // 1,309, 16; S.1 + S.2 before the fix: 2 lost, 6, 1,269, 30).
     expect(raids.map((r) => r.won)).toEqual([true, true, true, false, true]);
-    expect(total).toEqual({ struck: 3, gold: 744, food: 30, fled: 1, defenders: 20, lost: 1 });
+    expect(total).toEqual({ struck: 3, gold: 614, food: 30, fled: 1, defenders: 18, lost: 1 });   // ruling 2394: 614 gold and 18 defenders (744 and 20 before the sortie held its band)
   });
   it('keeps the lesson\'s raid winnable as the lesson teaches it: one tower beats its three raiders', () => {
     const { world } = walkLesson();
@@ -172,7 +172,7 @@ describe('v1001 s S.4 storehouses fetch for their neighbours', () => {
     expect(potter.blocked).toBe('no_input');
     expect(autoOrdersOf(w, near)).toEqual([{ good: 'clay', fetch: AUTO_FETCH.amount, auto: true }]);
     expect(autoOrdersOf(w, far)).toEqual([]);                                        // beyond the potter's reach
-    expect(autoFetchFor(w, near)).toEqual({ who: 'workshops', goods: ['clay'] });
+    expect(autoFetchFor(w, near)).toEqual({ who: 'workshops', goods: ['clay'], fetching: true });
     expect(V1001S_TEXT.fetchingFor('workshops', ['barley', 'clay'])).toBe('Fetching for nearby workshops: barley, clay');
     days(w, 20);
     expect(far.store.clay).toBeLessThan(100);
@@ -224,7 +224,7 @@ describe('v1001 s S.4 storehouses fetch for their neighbours', () => {
     addRaw(w, 'storehouse', 56, 11, { staff: 6, store: { pottery: 100 } });
     expect(farGoodTip(w).good).toBe('pottery');
     const near = store(w, 'storehouse', 16);
-    expect(autoFetchFor(w, near)).toEqual({ who: 'bazaars', goods: ['pottery'] });
+    expect(autoFetchFor(w, near)).toEqual({ who: 'bazaars', goods: ['pottery'], fetching: true });
     expect(farGoodTip(w)).toBe(null);
   });
   it('keeps no new state: the automatic orders are worked out from the world, and the same city plays the same way twice', () => {

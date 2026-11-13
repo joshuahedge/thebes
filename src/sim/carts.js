@@ -96,11 +96,11 @@ export function findSource(world, home, good, stores = storesOf(world), auto = a
     const surplus = spareOf(auto, chosen, good), len = reachDistance(rm, world, chosen);
     return burning(chosen) || surplus < 1 || !Number.isFinite(len) ? null : { b: chosen, len, surplus, chosen: true };
   }
-  const homeAuto = autoFetches(auto, home, good);
   let best = null;
   for (const o of stores) {
     if (o.id === home.id || burning(o) || !BUILDINGS[o.type].stores.includes(good)) continue;
-    if (homeAuto && autoFetches(auto, o, good)) continue;   // no ping-pong between two stores fetching the good for their neighbours
+    // Version 10.0.1 (ruling 2392): a store fetching the good for its neighbours too is drawn on only above the AUTO_FETCH.amount it keeps (spareOf), so
+    // two such stores never pass the good back and forth, and one holding plenty (the sole store by its workshop) can still spare what is above it.
     const surplus = spareOf(auto, o, good);
     if (surplus < 1) continue;
     const len = reachDistance(rm, world, o);
@@ -130,7 +130,33 @@ export const canStaff = (world, b) => isWorking(world, b) && touchesRoad(world, 
 // Returns Map(store id -> Map(good -> { workshop: bool, bazaar: bool })), stores and goods in the order found.
 const hasOrders = (b) => Boolean(b.orders) && Object.keys(b.orders).length > 0;
 const AUTO_BAZAAR_GOODS = [...FOOD_GOODS, ...HOUSEHOLD_GOODS];
+// Version 10.0.1, Track S (ruling 2393): kept per world while nothing it reads has changed (autoFetchKey: the day, the roads, and every store's, workshop's,
+// bazaar's and cart's part in the rule), so the sheets and Advice, which ask for every row, do not work it out again; the answer is the same either way.
+const autoMemo = new WeakMap();   // world -> { key, map }
+function autoFetchKey(world, stores) {
+  const parts = [world.day, world.roadVersion];
+  for (const s of stores) {
+    const def = BUILDINGS[s.type];
+    parts.push(`s${s.id}${hasOrders(s) ? 'o' : ''}:${def.stores.map((g) => (heldOf(s, g) > 0 ? 1 : 0) + (storeAccepts(s, g) ? 0 : 2)).join('')}`);
+  }
+  for (const b of allBuildings(world)) {
+    const def = BUILDINGS[b.type];
+    if (def.consumes && def.produces) parts.push(`w${b.id}${isWorking(world, b) ? 1 : 0}${b.blocked === 'idle' ? 'i' : ''}`);
+    if (def.sells) parts.push(`b${b.id}${isWorking(world, b) ? 1 : 0}:${AUTO_BAZAAR_GOODS.map((g) => ((b.store[g] || 0) > 0 ? 1 : 0)).join('')}`);
+  }
+  for (const c of world.carts) if (holdsGoods(c)) parts.push(`c${c.from}:${c.good}`);
+  return parts.join('|');
+}
 export function autoFetchMap(world, stores = storesOf(world)) {
+  const key = autoFetchKey(world, stores), memo = autoMemo.get(world);
+  if (memo && memo.key === key) return memo.map;
+  const map = workAutoFetch(world, stores);
+  autoMemo.set(world, { key, map });
+  return map;
+}
+// The map worked out afresh, never kept (tests hold the kept one to it).
+export const autoFetchMapUncached = (world, stores = storesOf(world)) => workAutoFetch(world, stores);
+function workAutoFetch(world, stores) {
   const out = new Map();
   if (!stores.some((s) => !hasOrders(s))) return out;
   const sourcing = new Set(world.carts.filter(holdsGoods).map((c) => `${c.from}:${c.good}`));
@@ -170,12 +196,19 @@ export function autoOrdersOf(world, b, auto = autoFetchMap(world)) {
   const m = auto.get(b.id);
   return BUILDINGS[b.type].stores.filter((g) => m.has(g)).map((g) => ({ good: g, fetch: AUTO_FETCH.amount, auto: true }));
 }
-// For the store's sheet (ruling 2365): { who: 'workshops' | 'bazaars' | 'both', goods: [ids] }, or null when it fetches nothing for its neighbours.
+// For the store's sheet (rulings 2365, 2391): { who: 'workshops' | 'bazaars' | 'both', goods: [ids], fetching }, or null. fetching true: goods it holds less
+// than AUTO_FETCH.amount of, with a cart it can staff and a store that can spare each (its cart goes for them); else false: the goods it already holds
+// AUTO_FETCH.amount of or more (it keeps them for its neighbours). A good it is short of but cannot fetch (no cart, no source) is not named; null when none is.
 export function autoFetchFor(world, b, auto = autoFetchMap(world)) {
-  const goods = autoOrdersOf(world, b, auto).map((o) => o.good);
+  const all = autoOrdersOf(world, b, auto).map((o) => o.good);
+  if (!all.length) return null;
+  const staffed = canStaff(world, b), stores = storesOf(world);
+  const fetching = all.filter((g) => heldOf(b, g) < AUTO_FETCH.amount && staffed && findSource(world, b, g, stores, auto));
+  const kept = all.filter((g) => heldOf(b, g) >= AUTO_FETCH.amount);
+  const goods = fetching.length ? fetching : kept;
   if (!goods.length) return null;
   const m = auto.get(b.id), w = goods.some((g) => m.get(g).workshop), z = goods.some((g) => m.get(g).bazaar);
-  return { who: w && z ? 'both' : w ? 'workshops' : 'bazaars', goods };
+  return { who: w && z ? 'both' : w ? 'workshops' : 'bazaars', goods, fetching: fetching.length > 0 };
 }
 
 // ── Commands ──

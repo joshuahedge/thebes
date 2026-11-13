@@ -34,5 +34,9 @@ describe('v92 q markers: at a distance', () => {
     // 10.0.1 (ruling 2369): the year-6 city's problems now sit apart (6 rows with buildings, a raid warned): at zoom 1 the 1280x800 view holds 3 of their markers,
     // at the far zoom it holds the whole city and 5 (one a row), so far is no longer at most near; each far marker stands for a row (above).
     expect([far.length, near.length]).toEqual([5, 3]);
+    // Ruling 2397: the review asked for far <= near back. It does not hold on this city: at zoom 1 the layout gives 3 markers even with a view wide enough to
+    // hold the whole city (6000x4000), so the gap is not the view's edge; it is pinned as measured (far one a row, 5) and the layout is the review's to look at.
+    const nearAll = layoutMarkers(w, flat, createCamera({ x: c.x, y: c.y, zoom: 1 }), { width: 6000, height: 4000 });
+    expect(nearAll.length).toBe(3);
   });
 });
