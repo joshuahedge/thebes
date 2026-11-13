@@ -294,7 +294,7 @@ export function createUI({
   const legend = createOverlayLegend({ container: $('legend'), store, world });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, onFrame: () => frameCity(), pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
   // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
-  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', keyName(effectiveKeys(settings.get().keyBindings).minimap[0])); else b.removeAttribute('aria-keyshortcuts'); } };   // Version 10.0.1 (Track U, ruling 2359): the player's own Map key
+  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', keyName(effectiveKeys(settings.get().keyBindings).minimap[0])); else b.removeAttribute('aria-keyshortcuts'); } };   // Version 10.0.1 (Track U, ruling 2414): the player's own Map key
   mapKeyHint();
   // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
   // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
@@ -377,7 +377,7 @@ export function createUI({
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
   // side panel's tabs to more rows, so the panel measures them again.
   let lastHelp = settings.get().help;
-  let stopStackTight = null;                             // Version 10.0.1 (Track U, ruling 2355): set where the stack-tight watch is made, below
+  let stopStackTight = null;                             // Version 10.0.1 (Track U, ruling 2410): set where the stack-tight watch is made, below
   let keyBadges = null;                                 // Version 10.0.1 (Track U, ruling 2344): made with the keyboard below; this watch repaints it when the keys or Single keys change
   const stopSettingsWatch = settings.subscribe((v) => {
     if (keyBadges) keyBadges.decorate();
@@ -453,7 +453,7 @@ export function createUI({
     const c = screenToTile(cam, v, at.x, at.y);
     const tool = toolForItem(item);
     placement.start(tool, { x: c.x, y: c.y });
-    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2355): the bar is up now, so decide the steady stack or the tight one before the ghost is framed
+    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2410): the bar is up now, so decide the steady stack or the tight one before the ghost is framed
     const g = store.get().ghost;
     if (g && tool.kind === 'building') {
       const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
@@ -482,7 +482,7 @@ export function createUI({
     const open = store.get().tool;
     const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
     if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : tool.kind === 'ferry' ? { x, y } : null);   // road, plot and demolish tools ignore the point; the Ferry tool ranks its crossings from it (Version 8.2.1)
-    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2355): as in pick()
+    updateStackTight(store.get());   // Version 10.0.1 (Track U, ruling 2410): as in pick()
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
@@ -1056,7 +1056,7 @@ export function createUI({
   keyBadges = createKeyBadges({ root, store, settings, win });
   // Version 10.0.1 (Track U, ruling 2343): once a picked card's tool has ended (placed or put away) the wide panel's card keys let go, so the digits open tabs again without an Esc.
   let wasTool = false;
-  // Version 10.0.1 (Track U, ruling 2355, review fix 1): the bar and the corner row stand steady, with the bar above the corners. On a phone too short for that (the band left between the rows and the
+  // Version 10.0.1 (Track U, ruling 2410, review fix 1): the bar and the corner row stand steady, with the bar above the corners. On a phone too short for that (the band left between the rows and the
   // bar is less than a ghost needs: about 700 px tall at 125% text and more) the 10.0 stacking comes back under the class stack-tight: the bar at the foot, the corners riding it, the dock gone.
   // Decided from the steady geometry every time (the class is taken off, measured, and put back), so it never flaps. Josh's 390x844-class phone is never tight.
   function updateStackTight(s) {

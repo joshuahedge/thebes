@@ -343,7 +343,7 @@ function drawCamp(g, b) {
 // pill half a footprint's width to the side of that column never meets it; the fire labels' pills stand on roofs, not on a site's back edge.
 const RUSH_PILL = { fill: '#FFF8EA', text: '#5A4630', size: 6, above: 2.5, alpha: 0.82 };   // 6 art px is 12 CSS px at zoom 1 (the 12 px floor)
 export function rushLabelAt(b) {
-  // Version 10.0.1 (review fix 9, ruling 2359): on a tall site (a pyramid part-built) the back edge is mid-body, so the pill rises to the structure's drawn top, beside the apex (never over it: the marker's stem stands there).
+  // Version 10.0.1 (review fix 9, ruling 2414): on a tall site (a pyramid part-built) the back edge is mid-body, so the pill rises to the structure's drawn top, beside the apex (never over it: the marker's stem stands there).
   const q = p(b.x + b.w / 2, b.y), top = monumentTop(b);
   return [q[0], Math.min(q[1] - RUSH_PILL.above, top[1] - 3)];
 }

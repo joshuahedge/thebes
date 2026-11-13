@@ -43,7 +43,7 @@ import { ANOTHER_TEXT } from './areaText.js';
 import { aimKeepStocked } from './s47/carts.js';   // Version 8.3 (Track K): a Keep stocked fix opens the store at that good's row
 import { canCopy } from './another.js';
 import { KEYS } from '../data/ui.js';
-import { keyName } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2359)
+import { keyName } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2414)
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -466,7 +466,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const body = el('div', { class: 'body' });
     const canvas = minimap.canvas;
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
-    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? keyName(keyMap().zoomIn[0]) : null,   /* Version 10.0.1 (Track U, ruling 2359): the player's own keys */ onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
+    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? keyName(keyMap().zoomIn[0]) : null,   /* Version 10.0.1 (Track U, ruling 2414): the player's own keys */ onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? keyName(keyMap().zoomOut[0]) : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     // Version 9.2 (fix wave, Track A, rulings 1876 and 1877): "Fit the city" sits beside + and − in both layouts (Track V's frame, the F key's own), where a phone can
     // find it; on the wide layout the side panel already draws the minimap, so the sheet leaves its own out and keeps the buttons.

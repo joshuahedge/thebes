@@ -44,7 +44,7 @@ function keyLockId(ev) {
   const t = ev.target;
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''))) return null;
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return null;
-  // Version 10.0.1 (Track U, ruling 2356): the keys in effect (the player's own), and digits that pick a card while a tab's cards are open are the cards' (a locked card refuses its own click).
+  // Version 10.0.1 (Track U, ruling 2411): the keys in effect (the player's own), and digits that pick a card while a tab's cards are open are the cards' (a locked card refuses its own click).
   const keys = state && typeof state.keys === 'function' ? state.keys() : KEYS;
   const all = matchKeys(ev, null, keys);
   if (all.includes('card') && state && typeof state.cardsOpen === 'function' && state.cardsOpen()) return null;
@@ -86,7 +86,7 @@ function onEvent(ev) {
 const EVENTS = ['pointerdown', 'mousedown', 'touchstart', 'click', 'keydown'];
 
 // Locks the interface to `allowed` (control ids). Called again it changes what is allowed, keeping one listener.
-// keys() (Version 10.0.1, Track U, ruling 2356) gives the keys in effect, cardsOpen() whether a tab's cards are open for the card keys; each is read at every key press.
+// keys() (Version 10.0.1, Track U, ruling 2411) gives the keys in effect, cardsOpen() whether a tab's cards are open for the card keys; each is read at every key press.
 export function lockTo(allowed = [], { root = document.body, onRefused = null, keys = null, cardsOpen = null } = {}) {
   if (state && state.root !== root) unlock();
   if (!state) {

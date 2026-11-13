@@ -8,7 +8,7 @@ import { isToolMode } from '../modes.js';
 // Whether a tab's cards are open, so a card key picks a card. A phone's tray is the dock's 'tray' state; the compact rail's drawer is the tray with no tool or sheet over it; the wide panel
 // always shows its cards, so there the cards are "open" for keys from the moment a tab was chosen (by its key or a click) until Esc (state.cardKeys).
 export function trayOpenOf(s) {
-  if (!s || s.screenshot || s.confirmDialog) return false;   // Version 10.0.1 (Track U, ruling 2357): nothing behind a modal is picked by a key
+  if (!s || s.screenshot || s.confirmDialog) return false;   // Version 10.0.1 (Track U, ruling 2412): nothing behind a modal is picked by a key
   if (s.layout === 'wide') return Boolean(s.cardKeys) && !s.panelFolded && !s.sheet;
   if (s.layout === 'compact') return s.dock === 'tray' && !isToolMode(s.mode) && !s.sheet;
   return s.dock === 'tray' && !s.sheet;

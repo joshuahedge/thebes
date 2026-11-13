@@ -16,7 +16,7 @@ import { AREA_TEXT } from './areaText.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { ROUTE_TEXT } from './routeText.js';
 import { el, button, iconButton, clear } from './components.js';
-import { keyName, ariaKeys } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2359)
+import { keyName, ariaKeys } from './v1001/keymap.js';   // Version 10.0.1 (Track U, ruling 2414)
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' || tool.kind === 'ferry' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : tool.kind === 'areas' ? AREA_TEXT.title(tool.type) : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
@@ -132,7 +132,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       const on = s.tool.kind === 'areas';
       controls.push(iconButton(on ? AREA_TEXT.oneLabel(areaType) : AREA_TEXT.areaLabel(areaType), on ? '▢' : '▦', { class: 'area-toggle', 'aria-pressed': String(on), title: on ? AREA_TEXT.one : AREA_TEXT.area, onClick: () => onArea(areaType, !on) }));
     }
-    const rk = keyMap ? keyMap().rotate : ['r', 'R'];   // Version 10.0.1 (Track U, ruling 2359): the player's own key for Rotate
+    const rk = keyMap ? keyMap().rotate : ['r', 'R'];   // Version 10.0.1 (Track U, ruling 2414): the player's own key for Rotate
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', title: keys() ? `${T.rotate} (${keyName(rk[0])})` : T.rotate, 'aria-keyshortcuts': keys() ? ariaKeys(rk) : null, onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
     // Version 8.0 (ruling 1163): Flip is a neutral icon, never heavier than the tick (the friend found the road bar's Straight and Flip outweighed it).
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(iconButton(T.flip, '⇄', { class: 'flip', onClick: () => placement.flip() }));

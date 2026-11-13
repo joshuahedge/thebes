@@ -96,7 +96,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
-        if (keys()) main.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else main.removeAttribute('aria-keyshortcuts');   // Version 10.0.1 (Track U, ruling 2359): the player's own pause key   // Version 7.0 (Track P)
+        if (keys()) main.setAttribute('aria-keyshortcuts', ariaKeys(keyMap().pause)); else main.removeAttribute('aria-keyshortcuts');   // Version 10.0.1 (Track U, ruling 2414): the player's own pause key   // Version 7.0 (Track P)
       };
       paint();
       mounted.push(paint);

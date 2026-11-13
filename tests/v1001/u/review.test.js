@@ -1,4 +1,4 @@
-// Version 10.0.1, Track U (rulings 2356-2359, the review's fixes): the lesson lock follows the player's keys, a modal stops the card keys, key hints name the player's own keys, Esc cannot be taken from Back,
+// Version 10.0.1, Track U (rulings 2411-2414, the review's fixes): the lesson lock follows the player's keys, a modal stops the card keys, key hints name the player's own keys, Esc cannot be taken from Back,
 // Tab is never swallowed by a Change, and the order of the bottom stack holds at 375x667 and 150% text.
 import { describe, it, expect } from '../../harness.js';
 import { mount, key, fire } from '../../helpers/dom.js';

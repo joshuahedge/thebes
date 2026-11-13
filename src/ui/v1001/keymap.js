@@ -40,7 +40,7 @@ export function effectiveKeys(overrides) {
     }
   }
   for (const a of KEEPS_ESCAPE) if (!out[a].includes('Escape')) out[a].push('Escape');
-  // Version 10.0.1 (Track U, ruling 2358): Back's keys (Esc, and any key it was given) belong to Back alone, so a hand-edited { pause: ['Escape'] } cannot take Esc away.
+  // Version 10.0.1 (Track U, ruling 2413): Back's keys (Esc, and any key it was given) belong to Back alone, so a hand-edited { pause: ['Escape'] } cannot take Esc away.
   const backKeys = out.back;
   for (const a of ACTIONS) {
     if (a === 'back') continue;

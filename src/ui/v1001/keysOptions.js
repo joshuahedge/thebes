@@ -32,7 +32,7 @@ export function keysRows({ settings }) {
     const owner = (list.ownerDocument || doc);
     const onKey = (ev) => {
       if (!list.isConnected) { if (off) { off(); off = null; } listening = null; return; }   // the sheet has closed under a listen: never keep swallowing the game's keys
-      // Version 10.0.1 (Track U, ruling 2358): Tab is never swallowed: it ends the listen and moves focus as it always does (the rows are drawn again once focus has moved, keeping it on whatever it reached).
+      // Version 10.0.1 (Track U, ruling 2413): Tab is never swallowed: it ends the listen and moves focus as it always does (the rows are drawn again once focus has moved, keeping it on whatever it reached).
       if (ev.key === 'Tab') { if (off) { off(); off = null; } listening = null; setTimeout(render, 0); return; }
       if (ev.key === 'Shift' || ev.key === 'Control' || ev.key === 'Alt' || ev.key === 'Meta') return;   // a modifier alone is not a key
       ev.preventDefault(); ev.stopPropagation(); if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();

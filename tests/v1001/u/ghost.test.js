@@ -1,4 +1,4 @@
-// Version 10.0.1, Track U (ruling 2355, review fix 1): a picked farm's ghost stays above the bar on every phone size, the steady stack where it fits and the 10.0 stacking (body.stack-tight) where the band
+// Version 10.0.1, Track U (ruling 2410, review fix 1): a picked farm's ghost stays above the bar on every phone size, the steady stack where it fits and the 10.0 stacking (body.stack-tight) where the band
 // between the rows and the bar is too short for it. A 390x844-class phone is never tight.
 import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
