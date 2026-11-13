@@ -3,7 +3,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { raidDay } from '../../../src/sim/raids.js';
-import { combatDay } from '../../../src/sim/combat.js';
+import { combatDay, threatBands } from '../../../src/sim/combat.js';
 import { cartDay, autoFetchMap, autoOrdersOf, autoFetchFor, findSource, farGoodTip, setFetch, nextTrip } from '../../../src/sim/carts.js';
 import { produceDay } from '../../../src/sim/production.js';
 import { serialize } from '../../../src/save/serialize.js';
@@ -43,8 +43,12 @@ describe('v1001 s S.1 defenders go anywhere', () => {
     const s = unit(w, 'soldier', bar);
     unit(w, 'soldier', bar); unit(w, 'soldier', bar);
     arriveNow(w, { foot: 2 });
+    // Version 10.0.1 (ruling 2372): it waits while the band is at the map's edge, and goes once the band comes within SORTIE.cityReach of the store it is after.
     w.day += 1; raidDay(w, []);
-    expect([s.task, s.x > bar.x + bar.w / 2]).toEqual(['out', true]);
+    expect(s.task).toBe('wait');
+    let out = false;
+    for (let k = 0; k < 40 && w.raid.active && !out; k++) { w.day += 1; raidDay(w, []); out = s.task === 'out' && s.x > bar.x + bar.w / 2; }
+    expect(out).toBe(true);
     const events = runRaid(w);
     const end = events.find((e) => e.type === 'raid_end');
     expect(Boolean(end)).toBe(true);
@@ -56,12 +60,31 @@ describe('v1001 s S.1 defenders go anywhere', () => {
     const st = addRaw(w, 'stables', 10, 22);
     staffAll(w);
     const c = unit(w, 'chariot', st);
-    w.raid.active = { index: 0, entry: { ...EAST }, dir: 'east', size: 3, target: 'storehouse', day: 0, raiders: [], phase: 'attack', targetId: null, struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [] };
+    w.raid.active = { index: 0, entry: { ...EAST }, dir: 'east', size: 3, target: 'storehouse', day: 0, raiders: [], phase: 'strike', targetId: null, struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [] };
     const r = (id, kind, x, y) => ({ id, kind, x, y, hp: ENEMY_TYPES[kind].hp, hit: false });
     w.raid.active.raiders = [r(900, 'elephant', c.x + 2, c.y), r(902, 'foot', c.x, c.y - 6), r(901, 'foot', c.x, c.y + 6)];
     combatDay(w);
     expect(c.task).toBe('out');
     expect(c.y).toBeGreaterThan(st.y + st.d / 2);                                     // toward 901 (same distance as 902, lower id), not the elephant beside it
+  });
+  it('picks the band that threatens most (striking first), lets a band falling back or leaving go, and fights a raider beside it whatever its band does', () => {
+    const w = town();
+    const bar = addRaw(w, 'barracks', 2, 22);
+    staffAll(w);
+    const s = unit(w, 'soldier', bar);
+    const r = (id, x, y, band) => ({ id, kind: 'foot', x, y, hp: 10, hit: false, ...(band ? { band: 1 } : {}) });
+    const rec = { entry: { x: 0, y: 0 }, dir: 'north', x: 0, y: 0, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null };
+    w.raid.active = { index: 0, entry: { ...EAST }, dir: 'east', size: 2, target: 'storehouse', day: 0, phase: 'retreat', targetId: null, struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [],
+      raiders: [r(900, 6, 26), r(901, 31, 15, true)], second: { ...rec, phase: 'strike' } };
+    expect(threatBands(w, w.raid.active)).toEqual([1]);                               // band 0 falls back; band 1 strikes
+    combatDay(w);
+    expect([s.task, s.x > bar.x + bar.w / 2]).toEqual(['out', true]);                // past the retreating raider beside its barracks, to the striking band
+    w.raid.active.second.phase = 'leave';
+    expect(threatBands(w, w.raid.active)).toEqual([]);
+    s.x = 6; s.y = 25.5;                                                               // beside the retreating raider: it fights it
+    const hp = w.raid.active.raiders[0].hp;
+    combatDay(w);
+    expect(w.raid.active.raiders.find((u) => u.id === 900).hp).toBeLessThan(hp);
   });
   it('plays the same raid the same way twice (deterministic)', () => {
     const run = () => {
@@ -113,10 +136,12 @@ describe('v1001 s S.2 raiders a bit faster, defenders to match', () => {
 describe('v1001 s S.3 the balance check', () => {
   // Ruling 2366: measured on 10.0 (the unchanged tree) and after S.1 + S.2. The bench: buildings struck 6 -> 6, gold stolen 1,309 -> 1,269 (-3%), defenders
   // lost 16 -> 30 (+88%), raids lost 2 of 5 -> 2 of 5. Losses per raid did not drop by a third, so no band was toughened (ruling 2367).
-  it('the bench\'s five raids: what they cost the town, after S.1 and S.2', () => {
+  it('the bench\'s five raids: what they cost the town, after S.1, S.2 and the fix', () => {
     const { raids, total } = raidBench();
-    expect(raids.map((r) => r.won)).toEqual([true, true, false, false, true]);
-    expect(total).toEqual({ struck: 6, gold: 1269, food: 60, fled: 2, defenders: 30, lost: 2 });
+    // Ruling 2373: with the units going to the band that threatens (ruling 2372) 1 of 5 raids is lost, 3 struck, 744 gold, 20 defenders lost (10.0: 2 lost, 6,
+    // 1,309, 16; S.1 + S.2 before the fix: 2 lost, 6, 1,269, 30).
+    expect(raids.map((r) => r.won)).toEqual([true, true, true, false, true]);
+    expect(total).toEqual({ struck: 3, gold: 744, food: 30, fled: 1, defenders: 20, lost: 1 });
   });
   it('keeps the lesson\'s raid winnable as the lesson teaches it: one tower beats its three raiders', () => {
     const { world } = walkLesson();

@@ -31,8 +31,9 @@ describe('v90 balance T1 the Builder\'s great-work run', () => {
     // years' advice had put a jeweller on the temple's footprint, so the temple was never founded (fixed in greatWorkRun.js foundTemple, ruling 1857). With the court's letters
     // worth twice the favour (ruling 1865) the run is not won by day 7,200 (T1 NOT MET; the Steady's 6,388), its treasury never below 1,587, High 1 and Normal 1 (ruling 1867).
     // 10.0.1 (ruling 2369): T1 MET again: won on day 5,918 (the Steady's margin run: 6,217), never under 812, every raid beaten, High 3 and Normal 3 (9.2: not won, 1,587, 1 and 1).
-    expect(r.won && r.won.day).toBe(5918);
-    expect(Math.round(r.lowestGold)).toBe(812);
+    // 10.0.1 (rulings 2369, 2374): T1 MET: won on day 5,942, never under 539, every raid beaten, High 3 and Normal 3 (before the balance fix: 5,918 and 812).
+    expect(r.won && r.won.day).toBe(5942);
+    expect(Math.round(r.lowestGold)).toBe(539);
     expect([r.w.tally.raids, r.w.tally.raidsLost]).toEqual([13, 0]);
     expect([grand.habit.rec.high, grand.habit.rec.normal]).toEqual([3, 3]);
   });
@@ -58,7 +59,9 @@ describe('v90 balance T3 the Unconquered\'s raid runs', () => {
   // from the capital years on (the late run's rule), and beats all 13 (MET); the run is not won and its treasury still goes below 0 in the great-work years.
   it('on seed 5 with the player\'s habits: beats all 13 raids, as the Steady does (T3 met)', () => {
     const s5 = greatDangerRun(5, { habits: true, heir: 'unconquered', adapt: true });
-    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, []]);    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
-    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -9559]);   // 10.0.1 (ruling 2369): -9,559 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
+    // 10.0.1 (rulings 2370, 2374): T3 NOT MET: the Unconquered loses the last two of its 13 raids (indexes 11 and 12) where the Steady beats all 13 (before the
+    // balance fix it beat all 13 and the Steady lost one).
+    expect([s5.raids, lostOf(s5.rec)]).toEqual([13, [11, 12]]);    // 9.2 balance (ruling 1858): T3 MET again (Track S's 30 days lost the last eight of 14; 9.1 balance, ruling 1731: was [13, [6, 7, 8, 9, 10, 11, 12]])
+    expect([s5.r.won, Math.round(s5.r.lowestGold)]).toEqual([null, -14491]);   // 10.0.1 (rulings 2369, 2374): -14,491 (was -4,735)   // 9.2 balance (rulings 1858, 1866): was [null, -19997] (9.1 balance: was [null, -28072]; Track S: -12,804)
   });
 });

@@ -15,8 +15,10 @@ const unit = (w, kind, b, x, y, extra = {}) => {
 };
 const raider = (kind, x, y, extra = {}) => ({ id: 9000 + Math.round(x * 100 + y), kind, x, y, hp: ENEMY_TYPES[kind].hp, hit: false, ...extra });
 // A raid under way in the contract's shape, with the given raiders.
+// Version 10.0.1 (ruling 2372): the band is striking ('strike'; was 'attack' with no target), so it threatens the city and the units go out to it wherever
+// it stands (src/sim/combat.js threatBands); combatDay reads the phase for nothing else.
 function raidOf(w, raiders) {
-  w.raid.active = { index: 6, entry: { x: 31, y: 16 }, dir: 'east', size: raiders.length, mix: null, target: 'building', day: w.day, raiders, phase: 'attack', targetId: null,
+  w.raid.active = { index: 6, entry: { x: 31, y: 16 }, dir: 'east', size: raiders.length, mix: null, target: 'building', day: w.day, raiders, phase: 'strike', targetId: null,
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: 20, y: 16, blocked: null, towerIds: [], fires: [], burnedKinds: [] };
   return w.raid.active;
 }

@@ -118,6 +118,12 @@ export const SHUNS = { chariot: ['elephant'] };
 //              tile's DEFENCE.towerOnWallHp, as when raiders break it)
 //   hungry     chariots whose horses were not fed at the last month's end deal this share of their damage
 export const ARMY = { wallNear: 3, towerHp: 40, hungry: 0.5 };
+// Version 10.0.1, Track S (rulings 2372-2374): when your units go out (src/sim/combat.js threatBands). A band threatens the city while it is striking, or
+// attacking within cityReach tiles of the building it is after (its footprint's edge, straight line), or, for a unit, once that unit setting out now would
+// reach the target no sooner than `lead` days before the band does; every unit goes to the band that threatens most
+// (striking first, then the nearest its target), anywhere on the map, and waits at home while none does. A band falling back or leaving after its strikes
+// is let go; a raider beside a unit is always fought.
+export const SORTIE = { cityReach: 3, lead: 2 };
 
 // world.army: away: units sent to the capital by a soldiers request (src/sim/armies.js sendUnits), each { id, kind, barracks, back }
 // (back: the day it returns); fed: whether the chariots' horses had their grain at the last month's end (true until a month finds

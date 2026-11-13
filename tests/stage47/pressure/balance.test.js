@@ -57,13 +57,12 @@ describe('s47 balance late', () => {
     // A year's profit before the court's due: the month ends' net less the monuments' work gold (paid daily, outside net) of that year.
     const profit = (y) => r.months.filter((m) => Math.ceil(m.month / 12) === y).reduce((n, m) => n + m.net - m.monuments, 0);
     const ratio = (y) => Math.round((r.yearly[y].gold / profit(y)) * 100) / 100;
-    // 10.0.1 (ruling 2370): year 10 holds 2.7 years of profit, NOT MET by 0.2 (years 11-15: 2.49, 2.4, 2.27, 2.45, 2.43); the raids go differently (units out to every
-    // band, 1.5x pace) and the court's due falls in different years.
-    expect(ratio(10)).toBe(2.7);
-    for (let y = 11; y <= 14; y++) expect([y, ratio(y) >= 1, ratio(y) <= 2.5]).toEqual([y, true, true]);
+    // 10.0.1 (rulings 2370, 2374): NOT MET in years 10 and 11 (2.71 and 2.51 years of profit; before the balance fix 2.7 in year 10 alone); years 12-14 2.43, 2.29, 2.48.
+    expect([ratio(10), ratio(11)]).toEqual([2.71, 2.51]);
+    for (let y = 12; y <= 14; y++) expect([y, ratio(y) >= 1, ratio(y) <= 2.5]).toEqual([y, true, true]);
     // 9.2 balance (ruling 1866): year 15 holds 2.54 years of profit (was at most 2.5, and 2.3 by the plan's line; 2.23 measured on 9.1), years 10-14 2.09, 1.93, 1.6,
     // 1.92 and 2.35: with the court's letters worth twice the favour (ruling 1865) the late city's favour is higher and its year-15 due smaller. NOT MET by 0.04.
-    expect(ratio(LATE_YEARS)).toBe(2.43);   // 10.0.1 (ruling 2369): 2.43, within 2.5 again (was 2.54)
+    expect(ratio(LATE_YEARS)).toBe(2.45);   // 10.0.1 (rulings 2369, 2374): 2.45, within 2.5 again (was 2.54)
     const term = (y) => Math.floor(r.yearly[y].gold / RAIDS_LATE.goldPer);
     expect([term(10), term(15)]).toEqual([0, 0]);
     expect(Object.values(r.yearly).every((s) => Object.keys(s.tiers).every((t) => Number(t) <= 6))).toBe(true);

@@ -65,8 +65,7 @@ describe('s46 balance village', () => {
       const top = Math.max(A.min, Math.ceil((base * A.months[1]) / A.step) * A.step);
       if (r.amount > top) over.push([r.id, r.kind, r.amount, top]);
     }
-    // 10.0.1 (ruling 2370): NOT MET by one request: the 11th asks 100 food where the village made 80's worth (it is met in time all the same); every other is within.
-    expect(over).toEqual([[11, 'food', 100, 80]]);
+    expect(over).toEqual([]);   // 10.0.1 (ruling 2374): every request within its bound again (before the fix the 11th asked 100 food where the village made 80's worth)
     expect(unread).toEqual([7]);
   });
 

@@ -261,9 +261,11 @@ describe('s3 raids defence', () => {
     for (const b of [barracks, barracks, far]) w.soldiers.push({ id: w.nextUnitId++, barracks: b.id, x: b.x + 1, y: b.y + 1, hp: UNITS.soldier.hp, hit: false, task: 'wait' });
     arriveNow(w, 3);
     const events = [];
-    w.day += 1; raidDay(w, events);
     const out = w.soldiers.find((s) => s.barracks === far.id);
-    expect([out.task, out.y < far.y + 1]).toEqual(['out', true]);                    // on its way north to the band
+    // Version 10.0.1 (ruling 2372): it goes once the band comes within SORTIE.cityReach of the store it is after (it waits while the band is at the map's edge).
+    let went = false;
+    for (let k = 0; k < 40 && w.raid.active && !went; k++) { w.day += 1; raidDay(w, events); went = out.task === 'out' && out.y < far.y + 1; }
+    expect(went).toBe(true);                                                          // on its way north to the band
     events.push(...runRaid(w));
     const end = ended(events);
     expect(end.won).toBe(true);

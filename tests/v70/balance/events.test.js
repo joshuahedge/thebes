@@ -70,7 +70,7 @@ describe('v70 balance events: what the long runs drew', () => {
     const late = lateDangerRun(), grand = grandDangerRun();
     checkRecord('late-dangers', late.events, 0);
     expect(late.events.drawn[0].offered).toBeGreaterThanOrEqual(CITY_EVENTS.firstMonths * DAYS_PER_MONTH);
-    expect(grand.events.drawn.length).toBe(3);   // 10.0.1 (ruling 2369): 3 (was 2); 9.2 balance (ruling 1855): 2 events in the grand district years 7-10 (was at least 3)
+    expect(grand.events.drawn.length).toBe(2);   // 10.0.1 (ruling 2374): 2 as in 10.0 (3 before the fix); 9.2 balance (ruling 1855): 2 events in the grand district years 7-10 (was at least 3)
     checkRecord('grand-dangers', grand.events, 6 * YEAR, { min: 2 });   // 9.2 balance (ruling 1855): was at least 3
     for (const [seed, habits] of [[5, true], [10, false]]) {
       const g = greatDangerRun(seed, { habits });
