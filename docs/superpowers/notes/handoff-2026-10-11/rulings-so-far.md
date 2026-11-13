@@ -2518,3 +2518,20 @@ A patch from Josh's play of 10.0.1 on his phone: the steady bottom bar (the tray
 2458. Left: the Roads tray's 25% target; the rail narrowing the top rows at 375x667 and 150% text; the picture beside the name hidden at 125% text and more while folded.
 
 Rulings 2456 and 2459 are unused; 2460 is the next free number.
+
+## Part 34: Version 10.0.3 "Shorter road cards" (13 Nov 2026)
+
+A patch from Josh's measurement of 10.0.2 on a 390x844 phone: the Roads tray covered about 30% of the screen against 24% for the others, because the Road card's "Bridges over water: 25 gold a tile" and the Crossing card's "Cross water: bridges up to 4 tiles, ferries 5 to 12" wrap to three or four lines. He approved a design: on a portrait phone those two cards show a name and a cost like every other card, and the water words stay reachable. Portrait phone only; the other layouts keep the line as in 10.0.2; `WORLD_VERSION` stays 12 and nothing in the sim or the renderer changed. Rulings: notes/2026-11-13-version-10-0-3-rulings.md (2460 to 2468), with the before and after table.
+
+*The cards (2460 to 2468)*
+2460. On a portrait phone the `.terrain` line of the Road and Crossing cards is clipped to 1 px (the end of css/v93.css); name and cost only. Desktop, tablet and landscape phone are as in 10.0.2.
+2461. The line stays in the page (the accessible name is as before) and the two card buttons get a `title` with the name and the full tooltip text.
+2462. Road's placing panel already says the bridge price (ruling 350's note on the cost line, kept folded); Crossing's did not say the ranges, so `confirmBar.js` puts `FERRY_TEXT.note` on the cost line on a phone until a crossing is picked. No new strings.
+2463. Roads tray at 390x844 t100, area before to after: 30.1% to 23.9% (Homes 23.7, Food 25.1); at t150 43.1 to 31.3 (Homes 35.1); 375x667 t100 41.0 to 33.4 (Homes 34.1), t150 55.4 to 40.4 (Homes 44.9). Never taller than Homes by more than 2 px.
+2464. Moved pins: tests/v1002/coverage.test.js (the tallest tray is now Food's 25.1%, bound 25.5% in place of 31%) and the release pins, one place for the new entry (stage46 ux, stage47 final, v50, v60, v70, v71, v711, v80 g and u, v81 i, v82 i and m, v821 f, v83, v84, v91).
+2465. Exact equality with Homes was not the aim: a house card's price wraps at 150% text, so Roads is shorter than Homes there (dock 243 against 275 px); the test says "never taller".
+2466. New tests in tests/v1003 (roads).
+2467. The What's new entry, `APP_VERSION` 10.0.3, README and this Part.
+2468. Left: on a fine pointer the card's key badge overlaps the end of the Road and Crossing cost text, as it does the Homes and Food prices.
+
+Ruling 2469 is unused; 2470 is the next free number.

@@ -9,7 +9,16 @@
 
 export const RELEASES = [
   {
-    version: '10.0.2', date: '2026-11-13', title: 'A clearer phone', build: 'live',
+    version: '10.0.3', date: '2026-11-13', title: 'Shorter road cards', build: 'live',
+    new: [
+      'On a phone held upright, the Road and Crossing cards show just a name and a price, like the other cards, so the Roads tab takes up less of the screen. Pick Road or Crossing and the panel still tells you what a bridge costs and how far bridges and ferries reach.',
+    ],
+    fixed: [
+      'The Roads tab on a phone was taller than the others because of the extra water line on two of its cards. It is now no taller than the Homes tab.',
+    ],
+  },
+  {
+    version: '10.0.2', date: '2026-11-13', title: 'A clearer phone', build: 'e52e470',
     new: [
       'On a phone held upright, Play, Speed, Map and Layers are four round buttons in a column at the right edge of the map. They stay in the same place whatever is open. Play shows Paused when the game is stopped, Speed shows the speed, Map shows its count, and Layers is tinted while a layer is on.',
       'The bottom of the screen is smaller: the row of buttons between the cards and the tabs is gone, and the tabs stay in view while the cards are open.',
