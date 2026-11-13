@@ -15,6 +15,7 @@ export const RELEASES = [
     ],
     fixed: [
       'The Roads tab on a phone was taller than the others because of the extra water line on two of its cards. It is now no taller than the Homes tab.',
+      'The number badges on the build tabs and cards now show on a computer only, not on a phone.',
     ],
   },
   {

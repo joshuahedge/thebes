@@ -39,4 +39,6 @@ Services (23.7 / 30.7 / 27.9 / 36.2%) and Food (25.1 / 32.5 / 34.3 / 44.3%) are 
 
 **2468 (known, left).** The key badge on a card (fine pointer only, a mouse or keyboard) now sits over the end of the Road and Crossing cost text ("160 gold a fer...") in the narrow phone shots, because the card is shorter; the Homes and Food cards have the same overlap on their prices, as in 10.0.2, and a touch phone does not draw the badge.
 
-Ruling 2469 is unused; 2470 is the next free number.
+**2469 (Josh: the key badges on a desktop only).** Josh asked for the numbers to be hidden on a phone and shown only on a desktop. `css/ui.css` hides `.key-badge` wherever the layout is not `wide` (portrait and compact, so a phone either way up and a small tablet), even with a fine pointer; the keys themselves still work there and the tooltips still name them. This also settles 2468 on a phone: no badge sits over a card's price there. Test: `tests/v1003/badges.test.js` (none shown at 390x844 and 844x390, the tab badges shown at 1280x800).
+
+2470 is the next free number.

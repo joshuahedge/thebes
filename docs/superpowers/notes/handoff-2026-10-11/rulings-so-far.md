@@ -2533,5 +2533,6 @@ A patch from Josh's measurement of 10.0.2 on a 390x844 phone: the Roads tray cov
 2466. New tests in tests/v1003 (roads).
 2467. The What's new entry, `APP_VERSION` 10.0.3, README and this Part.
 2468. Left: on a fine pointer the card's key badge overlaps the end of the Road and Crossing cost text, as it does the Homes and Food prices.
+2469. Josh: the key badges show on a desktop (the wide layout) only; on a phone either way up and a small tablet they are hidden even with a fine pointer, and the keys still work.
 
-Ruling 2469 is unused; 2470 is the next free number.
+2470 is the next free number.
